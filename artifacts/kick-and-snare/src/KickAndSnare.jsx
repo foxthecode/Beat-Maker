@@ -252,10 +252,11 @@ export default function KickAndSnare(){
   const [midiSync,setMidiSync]=useState('off'); // 'off'|'in'|'out'
   const [midiStatus,setMidiStatus]=useState(''); // ''|'ok'|'!WM'|'denied'|'no ports'
   const midiRef=useRef({access:null,clkTimes:[],ins:[],outs:[],outIdx:0});
-  // MIDI Note Input
+  // MIDI Note Input (independent of clock sync)
   const [midiNoteMap,setMidiNoteMap]=useState({...DEFAULT_MIDI_NOTES});
   const [midiLearnTrack,setMidiLearnTrack]=useState(null);
   const [showMN,setShowMN]=useState(false);
+  const [midiNotes,setMidiNotes]=useState(false);
   // Ableton Link Bridge (WebSocket)
   const [linkUrl,setLinkUrl]=useState('ws://localhost:9898');
   const [linkConnected,setLinkConnected]=useState(false);
@@ -279,7 +280,7 @@ export default function KickAndSnare(){
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
   R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.mSync=midiSync;R.mRef=midiRef;R.lkSync=linkSyncPlay;
-  R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;
+  R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;R.mNotes=midiNotes;
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -288,28 +289,26 @@ export default function KickAndSnare(){
     if(times.length>1){const ivs=[];for(let i=1;i<times.length;i++)ivs.push(times[i]-times[i-1]);const avg=ivs.reduce((a,b)=>a+b,0)/ivs.length;setBpm(Math.max(30,Math.min(300,Math.round(60000/avg))));}
   };
 
-  // MIDI handlers
-  const onMidiMsg=useCallback(ev=>{
-    const b=ev.data[0];
-    const status=b&0xF0;
-    if(b===0xF8){
-      const now=performance.now();const mr=midiRef.current;
-      mr.clkTimes.push(now);if(mr.clkTimes.length>24)mr.clkTimes.shift();
-      if(mr.clkTimes.length>=3){
-        const ct=mr.clkTimes;const dur=(ct[ct.length-1]-ct[0])/(ct.length-1);
-        const nb=Math.round(60000/(dur*24));if(nb>=20&&nb<=400)setBpm(nb);
+  // Unified MIDI handler — clock (when sync=in) + notes (always when attached)
+  const onMidiAll=useCallback(ev=>{
+    const b=ev.data[0];const status=b&0xF0;
+    // Clock sync (only when midiSync='in')
+    if(R.mSync==='in'){
+      if(b===0xF8){
+        const now=performance.now();const mr=R.mRef.current;
+        mr.clkTimes.push(now);if(mr.clkTimes.length>24)mr.clkTimes.shift();
+        if(mr.clkTimes.length>=3){const ct=mr.clkTimes;const dur=(ct[ct.length-1]-ct[0])/(ct.length-1);const nb=Math.round(60000/(dur*24));if(nb>=20&&nb<=400)setBpm(nb);}
+        return;
       }
-    }else if(b===0xFA||b===0xFB){if(!R.playing)ssRef.current?.();}
-    else if(b===0xFC){if(R.playing)ssRef.current?.();}
-    else if(status===0x90||status===0x80){
+      if(b===0xFA||b===0xFB){if(!R.playing)ssRef.current?.();return;}
+      if(b===0xFC){if(R.playing)ssRef.current?.();return;}
+    }
+    // Note input (when midiNotes=true or midiSync='in')
+    if(status===0x90||status===0x80){
       const note=ev.data[1];const vel=ev.data[2];
       const noteOn=status===0x90&&vel>0;
       if(!noteOn)return;
-      if(R.mLearn){
-        setMidiNoteMap(prev=>({...prev,[R.mLearn]:note}));
-        setMidiLearnTrack(null);
-        return;
-      }
+      if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:note}));setMidiLearnTrack(null);return;}
       const trackId=Object.entries(R.mnMap).find(([,n])=>n===note)?.[0];
       if(trackId&&R.at.includes(trackId)){R.trigPad?.(trackId);}
     }
@@ -324,13 +323,15 @@ export default function KickAndSnare(){
       upd();acc.onstatechange=upd;
     }catch(e){setMidiStatus('denied');}
   };
+  // Attach MIDI handler when clock sync OR note input is active
   useEffect(()=>{
-    if(midiSync==='off')return;
     const mr=midiRef.current;if(!mr.access)return;
+    const needsIn=midiSync==='in'||midiNotes;
     mr.clkTimes=[];
-    mr.ins.forEach(p=>{p.onmidimessage=midiSync==='in'?onMidiMsg:null;});
+    mr.ins.forEach(p=>{p.onmidimessage=needsIn?onMidiAll:null;});
+    if(midiSync==='out'){mr.ins.forEach(p=>{p.onmidimessage=midiNotes?onMidiAll:null;});}
     return()=>{mr.ins.forEach(p=>{p.onmidimessage=null;});};
-  },[midiSync,onMidiMsg]);
+  },[midiSync,midiNotes,onMidiAll]);
 
   // Ableton Link Bridge — connect / disconnect
   const linkConnect=()=>{
@@ -686,7 +687,14 @@ export default function KickAndSnare(){
             </div>);
           })()}
           <button onClick={()=>setShowK(!showK)} style={pill(showK,"#FFD60A")}>⌨</button>
-          <button onClick={()=>{setShowMN(p=>!p);setMidiLearnTrack(null);}} style={{...pill(showMN||midiLearnTrack!=null,"#FF9500"),display:"flex",alignItems:"center",gap:3}}>🎹{midiLearnTrack?<span style={{fontSize:7,fontWeight:900,color:"#FF2D55",animation:"rb 0.5s infinite"}}>LEARN</span>:null}</button>
+          <button onClick={async()=>{
+            if(!midiNotes){await initMidi();setMidiNotes(true);}
+            setShowMN(p=>!p);setMidiLearnTrack(null);
+          }} style={{...pill(midiNotes||showMN,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
+            <span style={{fontSize:11}}>🎹</span>
+            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>{midiNotes?"NOTES ●":"NOTES"}</span>
+            {midiLearnTrack&&<span style={{fontSize:7,fontWeight:900,color:"#FF2D55",animation:"rb 0.5s infinite"}}>LEARN</span>}
+          </button>
           {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
           {/* MIDI Sync */}
           {(()=>{
@@ -759,7 +767,15 @@ export default function KickAndSnare(){
             <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI NOTE MAPPING</span>
             <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
           </div>
-          {midiSync==='off'&&(<div style={{marginBottom:8,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.08)",fontSize:8,color:"#FF9500"}}>⚠ Active le MIDI IN pour recevoir des notes</div>)}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:5,background:midiNotes?"rgba(48,209,88,0.1)":"rgba(255,45,85,0.08)",border:`1px solid ${midiNotes?"rgba(48,209,88,0.3)":"rgba(255,45,85,0.2)"}`}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:midiNotes?"#30D158":"#FF2D55",display:"inline-block"}}/>
+              <span style={{fontSize:8,color:midiNotes?"#30D158":"#FF2D55",fontWeight:700}}>{midiNotes?"NOTES MIDI ACTIVES":"NOTES MIDI INACTIVES"}</span>
+            </div>
+            <button onClick={async()=>{if(!midiNotes){await initMidi();setMidiNotes(true);}else{setMidiNotes(false);setMidiLearnTrack(null);}}} style={{padding:"4px 12px",borderRadius:5,border:`1px solid ${midiNotes?"rgba(255,45,85,0.4)":"rgba(48,209,88,0.4)"}`,background:midiNotes?"rgba(255,45,85,0.1)":"rgba(48,209,88,0.1)",color:midiNotes?"#FF2D55":"#30D158",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
+              {midiNotes?"DÉSACTIVER":"ACTIVER"}
+            </button>
+          </div>
           {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Joue une note sur ton Oxygen Pro…</div>)}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {atO.map(tr=>{
