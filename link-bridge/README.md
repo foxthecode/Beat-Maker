@@ -1,65 +1,85 @@
-# Kick & Snare — Ableton Link Bridge v2
+# Kick & Snare — Link Bridge v2.1
 
-Connecte Kick & Snare (navigateur) à une session Ableton Link
-(Ableton Note, Ableton Live, Traktor, etc.) **sans compilation C++**.
+Synchronise le BPM avec Ableton Note, Ableton Live, Traktor, etc.
+**Aucun npm install requis** — juste Node.js + Carabiner.
 
-## Prérequis
-
-- **Node.js 18+** : https://nodejs.org
-- **Carabiner** (binaire précompilé, gratuit) :
-  https://github.com/Deep-Symmetry/carabiner/releases
+---
 
 ## Setup (3 étapes)
 
-### 1. Lancer Carabiner
+### Étape 1 — Installer Node.js (si pas déjà fait)
 
-Télécharge le binaire pour ton OS depuis :
-https://github.com/Deep-Symmetry/carabiner/releases
+→ https://nodejs.org → bouton **"LTS"** → installer, redémarrer PowerShell.
 
-- **Mac** : `./carabiner` dans le terminal (ou double-clic)
-- **Windows** : double-clic sur `carabiner.exe`
+Vérifier :
+```
+node --version
+```
+Doit afficher `v18.x.x` ou plus.
 
-Carabiner écoute sur le port 17000 par défaut.
+---
 
-### 2. Lancer le bridge
+### Étape 2 — Télécharger et lancer Carabiner
 
-```bash
-cd link-bridge
-npm install        # installe seulement "ws" (pur JavaScript, rapide)
+→ https://github.com/Deep-Symmetry/carabiner/releases
+
+- **Windows** : télécharger `carabiner-win64.zip`, dézipper, double-cliquer sur `carabiner.exe`
+- **Mac** : télécharger le binaire, dans le terminal : `./carabiner`
+
+Carabiner doit rester ouvert en fond.
+
+---
+
+### Étape 3 — Lancer le bridge
+
+Copier `bridge.js` dans un dossier (ex: `C:\Users\TON_NOM\link-bridge\`).
+
+Dans PowerShell :
+```powershell
+cd C:\Users\TON_NOM\link-bridge
 node bridge.js
 ```
 
-### 3. Connecter dans Kick & Snare
+Tu dois voir :
+```
+╔════════════════════════════════════════════╗
+║   Kick & Snare — Link Bridge  v2.1        ║
+╠════════════════════════════════════════════╣
+║   WebSocket : ws://localhost:9898          ║
+║   Carabiner : localhost:17000              ║
+╚════════════════════════════════════════════╝
+
+✓ Carabiner connecté sur port 17000
+```
+
+---
+
+### Étape 4 — Connecter dans Kick & Snare
 
 1. Ouvrir Kick & Snare dans Chrome
 2. Cliquer **[🔗 LINK]** dans la barre transport
 3. URL : `ws://localhost:9898` (déjà pré-rempli)
-4. Cliquer **CONNECT**
+4. Cliquer **CONNECT** → statut vert ✓
 
-## Depuis un autre appareil (ex: iPhone avec Ableton Note)
+---
 
-Si Kick & Snare tourne sur ton téléphone :
-1. Trouve l'IP locale de ton Mac/PC :
-   - Mac : `ipconfig getifaddr en0`
-   - Windows : `ipconfig` → Adresse IPv4
-2. Dans Kick & Snare, entre `ws://192.168.x.x:9898`
+## Dépannage
 
-Les deux appareils doivent être sur le même réseau WiFi.
-
-## Ce que ça synchronise
-
-- **BPM** — bidirectionnel (Kick & Snare ↔ Ableton Note / Live)
-- **Play / Stop** — optionnel (case "Sync Play/Stop" dans l'app)
-- **Nombre de pairs** — affiché en temps réel dans l'app
+| Symptôme | Solution |
+|----------|----------|
+| `node` non reconnu | Réinstalle Node.js et redémarre PowerShell |
+| `⚠ Carabiner introuvable` | Lance `carabiner.exe` avant `node bridge.js` |
+| Statut "Échec" dans l'app | Vérifie que le bridge tourne (`node bridge.js` dans PowerShell) |
+| Pas de pairs Ableton Note | Les deux appareils doivent être sur le même réseau WiFi |
 
 ## Architecture
 
 ```
-Kick & Snare (navigateur HTTPS)
+Kick & Snare (navigateur)
     ↕ WebSocket ws://localhost:9898
-bridge.js (Node.js, pur JS)
+bridge.js (Node.js, zéro dépendance)
     ↕ TCP localhost:17000
 Carabiner (binaire précompilé)
-    ↕ UDP multicast (WiFi local)
+    ↕ UDP multicast (WiFi)
 Ableton Note / Live / Traktor
 ```
