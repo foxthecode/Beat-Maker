@@ -51,10 +51,11 @@ function wsParse(buf, onText, onClose) {
 }
 
 /* ═══ State ══════════════════════════════════════════════ */
-let state      = { bpm: 120, playing: false, peers: 0 };
-let caraSocket = null;
-let bpmCmdFmt  = null; // auto-detected: 'v1'=(bpm X) or 'v2'=(tempo {:bpm X})
-const clients  = new Set();
+let state       = { bpm: 120, playing: false, peers: 0 };
+let caraSocket  = null;
+let bpmCmdFmt   = null;
+let pendingProbe = {};
+const clients   = new Set();
 
 function broadcast(obj) {
   const frame = wsFrame(JSON.stringify(obj));
@@ -69,16 +70,21 @@ function toCarabiner(cmd) {
   }
 }
 
-// Send BPM using whichever format works (auto-detected)
+// Send BPM using whichever format was auto-detected
 function sendBpm(bpm) {
-  if (bpmCmdFmt === 'v1') {
-    toCarabiner(`(bpm ${Number(bpm).toFixed(2)})`);
-  } else if (bpmCmdFmt === 'v2') {
-    toCarabiner(`(tempo {:bpm ${Number(bpm).toFixed(4)}})`);
-  } else {
-    // Still probing — try both
-    toCarabiner(`(bpm ${Number(bpm).toFixed(2)})`);
-    setTimeout(() => toCarabiner(`(tempo {:bpm ${Number(bpm).toFixed(4)}})`), 100);
+  const b2 = Number(bpm).toFixed(2);
+  const b4 = Number(bpm).toFixed(4);
+  switch (bpmCmdFmt) {
+    case 'v1': toCarabiner(`(bpm ${b2})`); break;
+    case 'v2': toCarabiner(`(tempo {:bpm ${b4}})`); break;
+    case 'v3': toCarabiner(`bpm ${b2}`); break;
+    case 'v4': toCarabiner(`tempo ${b2}`); break;
+    case 'v5': toCarabiner(`{"bpm":${b2}}`); break;
+    default:
+      // Still detecting — try all formats
+      toCarabiner(`(bpm ${b2})`);
+      setTimeout(() => toCarabiner(`(tempo {:bpm ${b4}})`), 100);
+      setTimeout(() => toCarabiner(`bpm ${b2}`), 200);
   }
 }
 
@@ -86,12 +92,22 @@ function parseCarabiner(line) {
   const clean = line.trim();
   console.log('[← Carabiner]', clean);
 
-  // Auto-detect which BPM command format works
-  if (clean.startsWith('unsupported (bpm '))   { if (bpmCmdFmt!=='v2'){bpmCmdFmt='v2';console.log('[Bridge] Détecté: API Carabiner v2 → (tempo {:bpm X})');} }
-  if (clean.startsWith('unsupported (tempo '))  { if (bpmCmdFmt!=='v1'){bpmCmdFmt='v1';console.log('[Bridge] Détecté: API Carabiner v1 → (bpm X)');} }
-  if (clean.includes(':bpm') && !clean.startsWith('unsupported')) {
-    // Either (bpm X) or (tempo ...) was accepted
-    if (!bpmCmdFmt) { bpmCmdFmt='v1'; console.log('[Bridge] Détecté: (bpm X) accepté'); }
+    // Auto-detect which BPM command worked: look for "unsupported" echoing the exact probe string
+  if (clean.includes('unsupported') && clean.includes('(bpm '))    pendingProbe.v1rejected = true;
+  if (clean.includes('unsupported') && clean.includes('(tempo '))   pendingProbe.v2rejected = true;
+  if (clean.includes('unsupported') && clean.includes('bpm 777'))   pendingProbe.v3rejected = true;
+  if (clean.includes('unsupported') && clean.includes('tempo 777')) pendingProbe.v4rejected = true;
+  if (clean.includes('unsupported') && clean.includes('"bpm"'))     pendingProbe.v5rejected = true;
+
+  // If BPM changes to our probe value (777), that format worked
+  const probeBpm = clean.match(/:bpm\s+777\./) || clean.match(/"bpm"\s*:\s*777/);
+  if (probeBpm && !bpmCmdFmt) {
+    if (!pendingProbe.v1rejected) bpmCmdFmt = 'v1';
+    else if (!pendingProbe.v2rejected) bpmCmdFmt = 'v2';
+    else if (!pendingProbe.v3rejected) bpmCmdFmt = 'v3';
+    else if (!pendingProbe.v4rejected) bpmCmdFmt = 'v4';
+    else if (!pendingProbe.v5rejected) bpmCmdFmt = 'v5';
+    if (bpmCmdFmt) console.log('[Bridge] ✓ Format BPM détecté:', bpmCmdFmt);
   }
 
   const mBpm  = clean.match(/:bpm ([0-9.]+)/);
@@ -115,16 +131,25 @@ function connectCarabiner() {
     toCarabiner('(enable-start-stop-sync)');        // Carabiner v1
     toCarabiner('(start-stop-sync {:enabled true})'); // Carabiner v2
 
-    // Probe BPM command formats (delayed so initial status is received first)
+    // Probe BPM command formats with BPM=777 as distinctive value
+    // Each format tried 400ms apart so responses can be matched to commands
+    const probeDelay = 800;
     setTimeout(() => {
-      console.log('[Bridge] Sonde les formats de commande BPM...');
-      toCarabiner('(bpm 0.0)');  // v1 probe — will either work or return "unsupported"
-    }, 800);
+      console.log('[Bridge] === Sonde formats de commande BPM ===');
+      toCarabiner('(bpm 777.0)');          // v1: Deep Symmetry Carabiner 1.x
+    }, probeDelay);
+    setTimeout(() => toCarabiner('(tempo {:bpm 777.0})'), probeDelay + 400);  // v2: Carabiner 2.x
+    setTimeout(() => toCarabiner('bpm 777.0'), probeDelay + 800);             // v3: no parens
+    setTimeout(() => toCarabiner('tempo 777.0'), probeDelay + 1200);          // v4: no parens alt
+    setTimeout(() => toCarabiner('{"bpm":777.0}'), probeDelay + 1600);        // v5: JSON
     setTimeout(() => {
       if (!bpmCmdFmt) {
-        toCarabiner('(tempo {:bpm 0.0})');  // v2 probe
+        console.log('[Bridge] ⚠  Aucun format BPM accepté — sync App→Note non disponible');
+        console.log('[Bridge]    Le BPM Note→App continue de fonctionner (lecture seule)');
+      } else {
+        console.log('[Bridge] ✓ Prêt — format BPM actif:', bpmCmdFmt);
       }
-    }, 1200);
+    }, probeDelay + 3000);
   });
 
   let cbuf = '';
@@ -135,12 +160,12 @@ function connectCarabiner() {
     lines.forEach(l => l.trim() && parseCarabiner(l));
   });
   sock.on('close', () => {
-    caraSocket = null; bpmCmdFmt = null;
+    caraSocket = null; bpmCmdFmt = null; pendingProbe = {};
     console.log('[Bridge] Carabiner déconnecté — nouvelle tentative dans 3s…');
     setTimeout(connectCarabiner, 3000);
   });
   sock.on('error', err => {
-    caraSocket = null; bpmCmdFmt = null;
+    caraSocket = null; bpmCmdFmt = null; pendingProbe = {};
     if (err.code === 'ECONNREFUSED') console.log('[Bridge] ⚠  Carabiner introuvable sur le port 17000');
     setTimeout(connectCarabiner, 3000);
   });
