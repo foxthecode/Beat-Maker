@@ -258,6 +258,10 @@ export default function KickAndSnare(){
   const [midiInsVer,setMidiInsVer]=useState(0); // bumped whenever port list changes
   const [midiDbg,setMidiDbg]=useState([]); // last 8 raw MIDI messages for debug
   const [showMidiDbg,setShowMidiDbg]=useState(false);
+  // MIDI Bridge WebSocket (midi-bridge.js local)
+  const [midiWsUrl,setMidiWsUrl]=useState('ws://localhost:9899');
+  const [midiWsConnected,setMidiWsConnected]=useState(false);
+  const midiWsRef=useRef(null);
   // Ableton Link Bridge (WebSocket)
   const [linkUrl,setLinkUrl]=useState('ws://localhost:9898');
   const [linkConnected,setLinkConnected]=useState(false);
@@ -324,6 +328,37 @@ export default function KickAndSnare(){
     mr.ins.forEach(p=>{p.onmidimessage=midiNotes?onMidiAll:null;});
     return()=>{mr.ins.forEach(p=>{p.onmidimessage=null;});};
   },[midiNotes,onMidiAll,midiInsVer]);
+
+  // MIDI Bridge — connect / disconnect
+  const midiWsConnect=()=>{
+    if(midiWsRef.current)midiWsRef.current.close();
+    let ws;
+    try{ws=new WebSocket(midiWsUrl.trim());}catch(e){return;}
+    const timeout=setTimeout(()=>{if(ws.readyState!==1){ws.close();}},5000);
+    ws.onopen=()=>{clearTimeout(timeout);setMidiWsConnected(true);};
+    ws.onclose=()=>{clearTimeout(timeout);setMidiWsConnected(false);midiWsRef.current=null;};
+    ws.onerror=()=>{clearTimeout(timeout);};
+    ws.onmessage=e=>{
+      try{
+        const msg=JSON.parse(e.data);
+        // log to debug
+        setMidiDbg(prev=>{
+          const entry={t:Date.now(),type:msg.type,note:msg.note,vel:msg.vel,status:'ws'};
+          return[entry,...prev].slice(0,12);
+        });
+        if(msg.type==='noteon'&&msg.vel>0){
+          if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:msg.note}));setMidiLearnTrack(null);return;}
+          const trackId=Object.entries(R.mnMap).find(([,n])=>n===msg.note)?.[0];
+          if(trackId&&R.at.includes(trackId))R.trigPad?.(trackId);
+        }
+      }catch{}
+    };
+    midiWsRef.current=ws;
+  };
+  const midiWsDisconnect=()=>{
+    if(midiWsRef.current){midiWsRef.current.close();midiWsRef.current=null;}
+    setMidiWsConnected(false);
+  };
 
   // Ableton Link Bridge — connect / disconnect
   const linkConnect=()=>{
@@ -733,6 +768,24 @@ export default function KickAndSnare(){
             <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI NOTE MAPPING</span>
             <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
           </div>
+
+          {/* ── MIDI BRIDGE LOCAL ── */}
+          <div style={{marginBottom:10,padding:"8px 10px",borderRadius:7,background:midiWsConnected?"rgba(48,209,88,0.07)":"rgba(94,92,230,0.07)",border:`1px solid ${midiWsConnected?"rgba(48,209,88,0.35)":"rgba(94,92,230,0.3)"}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:midiWsConnected?"#30D158":"rgba(94,92,230,0.6)",display:"inline-block",flexShrink:0}}/>
+              <span style={{fontSize:8,fontWeight:800,color:midiWsConnected?"#30D158":"#5E5CE6",letterSpacing:"0.08em"}}>MIDI BRIDGE LOCAL {midiWsConnected?"● CONNECTÉ":"○ DÉCONNECTÉ"}</span>
+            </div>
+            <div style={{fontSize:7,color:th.dim,marginBottom:6,lineHeight:1.5}}>Lance <b style={{color:th.text,fontFamily:"monospace"}}>node midi-bridge.js</b> dans PowerShell, puis connecte ici.</div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <input value={midiWsUrl} onChange={e=>setMidiWsUrl(e.target.value)} style={{flex:1,padding:"4px 7px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:9,fontFamily:"monospace"}}/>
+              {midiWsConnected
+                ?<button onClick={midiWsDisconnect} style={{padding:"5px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>STOP</button>
+                :<button onClick={midiWsConnect} style={{padding:"5px 12px",borderRadius:5,border:"1px solid rgba(94,92,230,0.5)",background:"rgba(94,92,230,0.12)",color:"#5E5CE6",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>CONNECT</button>
+              }
+            </div>
+            {midiWsConnected&&<div style={{marginTop:5,fontSize:7,color:"#30D158"}}>✓ Notes reçues du bridge → pads actifs</div>}
+          </div>
+
           {/* Status row */}
           <div style={{marginBottom:8}}>
             {midiNotes?(
