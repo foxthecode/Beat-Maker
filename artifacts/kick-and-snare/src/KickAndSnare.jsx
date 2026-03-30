@@ -283,6 +283,7 @@ export default function KickAndSnare(){
   const [linkStatus,setLinkStatus]=useState('idle'); // 'idle'|'connecting'|'connected'|'failed'
   const linkWsRef=useRef(null);
   const linkBpmRef=useRef(null);
+  const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // VU meter refs — direct DOM manipulation for performance
   const vuRefs=useRef({});
 
@@ -352,7 +353,7 @@ export default function KickAndSnare(){
       try{
         const msg=JSON.parse(e.data);
         if(msg.peers!==undefined)setLinkPeers(msg.peers);
-        if(msg.bpm!=null&&Math.abs(msg.bpm-R.bpm)>0.09){
+        if(msg.bpm!=null&&Math.abs(msg.bpm-R.bpm)>0.09&&Date.now()-linkBpmSentAt.current>1500){
           linkBpmRef.current=Math.round(msg.bpm);setBpm(Math.round(msg.bpm));
         }
         if(R.lkSync&&msg.playing!==undefined&&msg.playing!==R.playing)ssRef.current?.();
@@ -368,7 +369,10 @@ export default function KickAndSnare(){
   useEffect(()=>{
     if(!linkConnected||!linkWsRef.current)return;
     if(linkBpmRef.current===bpm){linkBpmRef.current=null;return;}
-    if(linkWsRef.current.readyState===1)linkWsRef.current.send(JSON.stringify({type:'setBpm',bpm}));
+    if(linkWsRef.current.readyState===1){
+      linkBpmSentAt.current=Date.now();
+      linkWsRef.current.send(JSON.stringify({type:'setBpm',bpm}));
+    }
   },[bpm,linkConnected]);
   // Sync play state to bridge
   useEffect(()=>{
