@@ -254,11 +254,6 @@ export default function KickAndSnare(){
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
   const [stRatch,setStRatch]=useState(mkR(16));
-  // Song arranger
-  const [songChain,setSongChain]=useState([0]);
-  const [songMode,setSongMode]=useState(false);
-  const [showSong,setShowSong]=useState(false);
-  const songPosRef=useRef(0);
   // Session
   const [saveMsg,setSaveMsg]=useState(null);
   const [exporting,setExporting]=useState(false);
@@ -281,8 +276,6 @@ export default function KickAndSnare(){
   R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
-  R.songMode=songMode;R.songChain=songChain;
-
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -378,12 +371,6 @@ export default function KickAndSnare(){
     while(nxtRef.current<ct+0.1){
       const prevStep=R.step;
       R.step=(R.step+1)%cs.steps;
-      // Song mode: advance pattern on cycle wrap
-      if(R.step===0&&prevStep>=0&&R.songMode&&R.songChain.length>0){
-        songPosRef.current=(songPosRef.current+1)%R.songChain.length;
-        const nextPat=R.songChain[songPosRef.current];
-        if(nextPat!==R.cp){R.cp=nextPat;setCPat(nextPat);}
-      }
       const st=nxtRef.current;schSt(R.step,st);
       if(R.metro){const gs=isGS(R.step,gr);if(gs.y)playClk(st,gs.f?"accent":"beat");else playClk(st,"sub");}
       stepped=true;
@@ -405,7 +392,7 @@ export default function KickAndSnare(){
   // Session save / load
   const saveSession=()=>{
     try{
-      const data={pBank,bpm,swing,act,fx,stNudge,stVel,stProb,stRatch,trackSteps,songChain,sigLabel:tSig.label,muted,version:2};
+      const data={pBank,bpm,swing,act,fx,stNudge,stVel,stProb,stRatch,trackSteps,sigLabel:tSig.label,muted,version:2};
       localStorage.setItem("kicksnare-v2",JSON.stringify(data));
       setSaveMsg("Saved!");setTimeout(()=>setSaveMsg(null),1800);
     }catch(e){setSaveMsg("Save failed");setTimeout(()=>setSaveMsg(null),2000);}
@@ -418,7 +405,7 @@ export default function KickAndSnare(){
       if(d.pBank)setPBank(d.pBank);if(d.bpm)setBpm(d.bpm);if(d.swing!==undefined)setSwing(d.swing);
       if(d.act)setAct(d.act);if(d.fx)setFx(d.fx);if(d.stNudge)setStNudge(d.stNudge);
       if(d.stVel)setStVel(d.stVel);if(d.stProb)setStProb(d.stProb);if(d.stRatch)setStRatch(d.stRatch);
-      if(d.trackSteps)setTrackSteps(d.trackSteps);if(d.songChain)setSongChain(d.songChain);
+      if(d.trackSteps)setTrackSteps(d.trackSteps);
       if(d.muted)setMuted(d.muted);
       if(d.sigLabel){const ts=TIME_SIGS.find(s=>s.label===d.sigLabel);if(ts){setTSig(ts);setUseC(false);}}
       setSaveMsg("Loaded!");setTimeout(()=>setSaveMsg(null),1800);
