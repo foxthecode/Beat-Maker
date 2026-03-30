@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 
-const THEMES={daylight:{bg:"linear-gradient(170deg,#F5F3EE 0%,#EDEAE4 100%)",surface:"rgba(0,0,0,0.03)",sBorder:"rgba(0,0,0,0.08)",text:"#1a1a1a",dim:"#888",faint:"#bbb",stepOff:"rgba(0,0,0,0.03)",stepAlt:"rgba(0,0,0,0.045)",cursor:"rgba(0,0,0,0.1)",btn:"rgba(0,0,0,0.04)",btnH:"rgba(0,0,0,0.08)"}};
+const THEMES={
+  daylight:{bg:"linear-gradient(170deg,#F5F3EE 0%,#EDEAE4 100%)",surface:"rgba(0,0,0,0.03)",sBorder:"rgba(0,0,0,0.08)",text:"#1a1a1a",dim:"#888",faint:"#bbb",stepOff:"rgba(0,0,0,0.03)",stepAlt:"rgba(0,0,0,0.045)",cursor:"rgba(0,0,0,0.1)",btn:"rgba(0,0,0,0.04)",btnH:"rgba(0,0,0,0.08)"},
+  dark:{bg:"linear-gradient(170deg,#0F0F0F 0%,#1A1A1A 100%)",surface:"rgba(255,255,255,0.04)",sBorder:"rgba(255,255,255,0.1)",text:"#F0F0F0",dim:"#777",faint:"#444",stepOff:"rgba(255,255,255,0.035)",stepAlt:"rgba(255,255,255,0.055)",cursor:"rgba(255,255,255,0.12)",btn:"rgba(255,255,255,0.07)",btnH:"rgba(255,255,255,0.13)"}
+};
 
 const TIME_SIGS=[
   {label:"4/4",beats:4,steps:16,groups:[4,4,4,4]},
@@ -191,8 +194,8 @@ class Eng{
 const engine=new Eng();
 
 // ═══ SSL Strip with sections, on/off, drag faders ═══
-function SSL({tid,color,fx,setFx,bpm,onClose}){
-  const th=THEMES.daylight;const f=fx[tid]||defFx();
+function SSL({tid,color,fx,setFx,bpm,onClose,themeName="dark"}){
+  const th=THEMES[themeName]||THEMES.dark;const f=fx[tid]||defFx();
   const u=(k,v)=>setFx(p=>({...p,[tid]:{...(p[tid]||defFx()),[k]:v}}));
   const tog=k=>u(k,!f[k]);
 
@@ -284,7 +287,8 @@ function SSL({tid,color,fx,setFx,bpm,onClose}){
 
 // ═══ Main ═══
 export default function KickAndSnare(){
-  const th=THEMES.daylight;
+  const [themeName, setThemeName] = useState("dark");
+  const th=THEMES[themeName];
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
   const [cBeats,setCBeats]=useState(4);const [cSub,setCSub]=useState(4);
   const [useC,setUseC]=useState(false);const [grpIdx,setGrpIdx]=useState(0);
@@ -320,6 +324,22 @@ export default function KickAndSnare(){
   const inact=ALL_TRACKS.filter(t=>!act.includes(t.id));
 
   const R=useRef({step:-1}).current;
+  const tapTimesRef = useRef([]);
+  const handleTap = () => {
+    const now = Date.now();
+    const times = tapTimesRef.current;
+    if (times.length > 0 && now - times[times.length - 1] > 2000) times.length = 0;
+    times.push(now);
+    if (times.length > 4) times.shift();
+    if (times.length > 1) {
+      const intervals = [];
+      for (let i = 1; i < times.length; i++) intervals.push(times[i] - times[i - 1]);
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const newBpm = Math.round(60000 / avg);
+      setBpm(Math.max(30, Math.min(300, newBpm)));
+    }
+  };
+
   R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
 
@@ -490,10 +510,10 @@ export default function KickAndSnare(){
         {/* Header with integrated drummer */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:34,height:34,borderRadius:8,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#fff",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
+            <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
             <div>
-              <div style={{fontSize:15,fontWeight:800,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>KICK & SNARE</div>
-              <div style={{fontSize:8,letterSpacing:"0.3em",color:th.dim}}>v8.0</div>
+              <div style={{fontSize:18,fontWeight:800,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>KICK & SNARE</div>
+              <div style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM SEQUENCER</div>
             </div>
           </div>
           {/* Animated drummer mascot — always visible in header */}
@@ -595,23 +615,27 @@ export default function KickAndSnare(){
               </svg>
             );
           })()}
-          <div style={{display:"flex",gap:3}}>
+          <div style={{display:"flex",gap:3,alignItems:"center"}}>
+            <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
             {["sequencer","pads"].map(v=>(<button key={v} onClick={()=>setView(v)} style={pill(view===v,v==="song"?"#BF5AF2":"#FF2D55")}>{v}</button>))}
           </div>
         </div>
 
         {/* Transport */}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 12px",borderRadius:12,background:th.surface,border:`1px solid ${th.sBorder}`,flexWrap:"wrap"}}>
-          <button onClick={startStop} style={{width:40,height:40,borderRadius:"50%",border:"none",background:playing?"linear-gradient(135deg,#FF2D55,#FF375F)":"linear-gradient(135deg,#30D158,#34C759)",color:"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:playing?"0 0 20px rgba(255,45,85,0.4)":"0 0 20px rgba(48,209,88,0.4)"}}>{playing?"■":"▶"}</button>
+          <button onClick={startStop} style={{width:44,height:44,borderRadius:"50%",border:"none",background:playing?"linear-gradient(135deg,#FF2D55,#FF375F)":"linear-gradient(135deg,#30D158,#34C759)",color:"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:playing?"0 0 20px rgba(255,45,85,0.4)":"0 0 20px rgba(48,209,88,0.4)"}}>{playing?"■":"▶"}</button>
           <button onClick={()=>{if(playing)setRec(!rec);}} style={{width:32,height:32,borderRadius:"50%",border:rec?"2px solid #FF2D55":`2px solid ${th.sBorder}`,background:rec?"rgba(255,45,85,0.2)":"transparent",color:rec?"#FF2D55":th.dim,fontSize:11,cursor:playing?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",opacity:playing?1:0.3,animation:rec?"rb 0.8s infinite":"none"}}>●</button>
           <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
           <div style={{flex:"1 1 80px",minWidth:70}}>
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
               <span style={{fontSize:8,color:th.dim,letterSpacing:"0.15em"}}>BPM</span>
-              <span style={{fontSize:20,fontWeight:900,color:"#FF9500"}}>{bpm}</span>
+              <button onClick={()=>setBpm(Math.max(30,bpm-1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:12,padding:"0 4px"}}>&lt;</button>
+              <span style={{fontSize:24,fontWeight:900,color:"#FF9500"}}>{bpm}</span>
+              <button onClick={()=>setBpm(Math.min(300,bpm+1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:12,padding:"0 4px"}}>&gt;</button>
             </div>
             <input type="range" min={30} max={300} value={bpm} onChange={e=>setBpm(Number(e.target.value))} style={{width:"100%",height:4,accentColor:"#FF9500"}}/>
           </div>
+          <button onClick={handleTap} style={{padding:"6px 12px",borderRadius:6,background:"rgba(255,149,0,0.15)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.3)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>TAP</button>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
             <span style={{fontSize:8,color:th.dim}}>SWING</span>
             <span style={{fontSize:11,fontWeight:700,color:"#5E5CE6"}}>{swing}%</span>
@@ -705,11 +729,14 @@ export default function KickAndSnare(){
               const isFO=fxO===track.id;
               return(<div key={track.id}>
                 <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
-                  <div style={{width:116,display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
-                    <span style={{fontSize:12,color:track.color}}>{track.icon}</span>
-                    <span style={{fontSize:10,fontWeight:700,color:track.color,minWidth:34}}>{track.label}</span>
-                    <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{width:18,height:16,border:"none",borderRadius:3,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>M</button>
-                    <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{width:18,height:16,border:"none",borderRadius:3,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>S</button>
+                  <div style={{width:130,display:"flex",flexDirection:"column",justifyContent:"center",gap:1,flexShrink:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:12,color:track.color}}>{track.icon}</span>
+                      <span style={{fontSize:10,fontWeight:700,color:track.color,minWidth:34}}>{track.label}</span>
+                      <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{width:18,height:20,border:"none",borderRadius:3,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>M</button>
+                      <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{width:18,height:20,border:"none",borderRadius:3,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>S</button>
+                    </div>
+                    {smpN[track.id]&&<span style={{fontSize:7,color:th.dim,marginLeft:15}}>{smpN[track.id].length>12?smpN[track.id].substring(0,12)+"...":smpN[track.id]}</span>}
                   </div>
                   {/* Steps — drag H=nudge V=velocity */}
                   <div style={{display:"flex",gap:0,flex:1}}>
@@ -727,17 +754,17 @@ export default function KickAndSnare(){
                           flex:1,aspectRatio:"1",borderRadius:3,cursor:ac?"grab":"pointer",
                           position:"relative",minWidth:0,overflow:"hidden",
                           marginLeft:gi.first&&step>0?4:1,touchAction:"none",userSelect:"none",
-                          background:isCur?th.cursor:odd?th.stepAlt:th.stepOff,
-                          boxShadow:ac&&isCur?`0 0 10px ${track.color}66`:"none",
+                          background:isCur?th.cursor:"rgba(255,255,255,0.03)",
+                          boxShadow:ac&&isCur?`0 0 10px ${track.color}, inset 0 0 5px ${track.color}`:"none",
                           transform:isDrag?"scale(1.15)":ac&&isCur?"scale(1.08)":"scale(1)",
                           transition:isDrag?"none":"all 0.08s",
-                          border:isDrag?`1px solid ${dragAxis==="v"?"#FFD60A":dragAxis==="h"?"#64D2FF":"transparent"}`:"1px solid transparent",
+                          border:isDrag?`1px solid ${dragAxis==="v"?"#FFD60A":dragAxis==="h"?"#64D2FF":"transparent"}`:ac?`1px solid ${track.color}`:"1px solid rgba(255,255,255,0.06)",
                         }}>
                         {/* Velocity fill — height represents velocity */}
                         {ac&&<div style={{
                           position:"absolute",bottom:0,left:0,right:0,
                           height:`${vel}%`,borderRadius:3,
-                          background:`${track.color}${isCur?"dd":"88"}`,
+                          background:track.color,
                           transition:isDrag?"none":"height 0.15s",
                         }}/>}
                         {/* Nudge offset line */}
@@ -758,7 +785,7 @@ export default function KickAndSnare(){
                     {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:20,height:20,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                   </div>
                 </div>
-                {isFO&&<SSL tid={track.id} color={track.color} fx={fx} setFx={setFx} bpm={bpm} onClose={()=>setFxO(null)} theme="daylight"/>}
+                {isFO&&<SSL tid={track.id} color={track.color} fx={fx} setFx={setFx} bpm={bpm} onClose={()=>setFxO(null)} themeName={themeName}/>}
               </div>);
             })}
           </div>
