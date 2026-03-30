@@ -233,6 +233,7 @@ export default function KickAndSnare(){
 
   const [pBank,setPBank]=useState([mkE(16)]);const [cPat,setCPat]=useState(0);
   const pat=pBank[cPat]||mkE(STEPS);
+  const trackSteps=pBank[cPat]?._steps||{};
   const setPat=u=>setPBank(p=>{const n=[...p];n[cPat]=typeof u==="function"?u(n[cPat]):u;return n;});
 
   const resize=ns=>{
@@ -254,7 +255,6 @@ export default function KickAndSnare(){
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
   const [stRatch,setStRatch]=useState(mkR(16));
-  const [trackSteps,setTrackSteps]=useState({});
   // Song arranger
   const [songChain,setSongChain]=useState([0]);
   const [songMode,setSongMode]=useState(false);
@@ -367,7 +367,7 @@ export default function KickAndSnare(){
     };
     ALL_TRACKS.forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-      const tSteps=R.ts?.[tr.id]||STEPS;
+      const tSteps=R.pb[R.cp]?._steps?.[tr.id]||STEPS;
       if(tSteps===32){
         playTrStep(tr,sn*2,time);
         playTrStep(tr,sn*2+1,time+bd/2);
@@ -410,7 +410,7 @@ export default function KickAndSnare(){
   // Session save / load
   const saveSession=()=>{
     try{
-      const data={pBank,bpm,swing,act,fx,stNudge,stVel,stProb,stRatch,trackSteps,songChain,sigLabel:tSig.label,muted,version:2};
+      const data={pBank,bpm,swing,act,fx,stNudge,stVel,stProb,stRatch,songChain,sigLabel:tSig.label,muted,version:2};
       localStorage.setItem("kicksnare-v2",JSON.stringify(data));
       setSaveMsg("Saved!");setTimeout(()=>setSaveMsg(null),1800);
     }catch(e){setSaveMsg("Save failed");setTimeout(()=>setSaveMsg(null),2000);}
@@ -423,7 +423,7 @@ export default function KickAndSnare(){
       if(d.pBank)setPBank(d.pBank);if(d.bpm)setBpm(d.bpm);if(d.swing!==undefined)setSwing(d.swing);
       if(d.act)setAct(d.act);if(d.fx)setFx(d.fx);if(d.stNudge)setStNudge(d.stNudge);
       if(d.stVel)setStVel(d.stVel);if(d.stProb)setStProb(d.stProb);if(d.stRatch)setStRatch(d.stRatch);
-      if(d.trackSteps)setTrackSteps(d.trackSteps);if(d.songChain)setSongChain(d.songChain);
+      if(d.songChain)setSongChain(d.songChain);
       if(d.muted)setMuted(d.muted);
       if(d.sigLabel){const ts=TIME_SIGS.find(s=>s.label===d.sigLabel);if(ts){setTSig(ts);setUseC(false);}}
       setSaveMsg("Loaded!");setTimeout(()=>setSaveMsg(null),1800);
@@ -442,7 +442,7 @@ export default function KickAndSnare(){
         const pIdx=step%STEPS;const sw=bd*(swing/100);
         const t=Math.max(0,step*bd+(step%2===0?-sw:sw));
         for(const tr of atO){
-          const tSteps=trackSteps[tr.id]||STEPS;const tsn=pIdx%tSteps;
+          const tSteps=(pBank[cPat]?._steps?.[tr.id])||STEPS;const tsn=tSteps===32?(pIdx<16?pIdx*2:pIdx*2%32):pIdx%tSteps;
           if(!pat[tr.id]?.[tsn])continue;
           const v=(stVel[tr.id]?.[tsn]??100)/100;const vol=(fx[tr.id]?.vol??80)/100;
           if(engine.buf[tr.id]){
@@ -698,10 +698,6 @@ export default function KickAndSnare(){
           {pBank.length>1&&<button onClick={()=>{setPBank(p=>p.filter((_,j)=>j!==cPat));if(cPat>0)setCPat(cPat-1);}} style={{padding:"2px 6px",border:"1px solid rgba(255,55,95,0.2)",borderRadius:5,background:"transparent",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>DEL</button>}
         </div>
 
-        {/* ── Beat Labels ── */}
-        {view==="sequencer"&&(<div style={{display:"flex",gap:0,marginBottom:2,paddingLeft:138,paddingRight:90}}>
-          {Array(STEPS).fill(0).map((_,step)=>{const gi=gInfo(step);return(<div key={step} style={{flex:1,marginLeft:gi.first&&step>0?4:1,textAlign:"center",fontSize:9,fontWeight:700,color:th.dim}}>{gi.first?gi.gi+1:""}</div>);})}
-        </div>)}
 
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
@@ -775,9 +771,13 @@ export default function KickAndSnare(){
                       {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                     </div>
                     <button title={`${tSteps} steps → ${nextTs}`} onClick={()=>{
-                      setTrackSteps(p=>({...p,[track.id]:nextTs}));
-                      if(nextTs===32)setPBank(pb=>pb.map(pp=>({...pp,[track.id]:[...(pp[track.id]||Array(16).fill(0)),...Array(16).fill(0)]})));
-                      else if(tSteps===32)setPBank(pb=>pb.map(pp=>({...pp,[track.id]:(pp[track.id]||[]).slice(0,nextTs)})));
+                      setPBank(pb=>{
+                        const n=[...pb];
+                        const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};
+                        if(nextTs===32)cp[track.id]=[...(cp[track.id]||Array(16).fill(0)),...Array(16).fill(0)];
+                        else if(tSteps===32)cp[track.id]=(cp[track.id]||[]).slice(0,nextTs);
+                        n[cPat]=cp;return n;
+                      });
                     }} style={{height:16,border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",padding:"0 3px"}}>{tSteps}st</button>
                   </div>
                 </div>
