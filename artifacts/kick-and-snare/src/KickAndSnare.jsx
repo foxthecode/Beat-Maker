@@ -919,7 +919,7 @@ export default function KickAndSnare(){
                         style={{flex:1,aspectRatio:"1",borderRadius:3,cursor:ac?"grab":"pointer",
                           position:"relative",minWidth:0,overflow:"hidden",
                           marginLeft:gi.first&&step>0?4:1,touchAction:"none",userSelect:"none",
-                          background:isCur?th.cursor:gi.first?"rgba(255,179,64,0.13)":gi.gi%2===1?th.stepAlt:th.stepOff,
+                          background:isCur?th.cursor:gi.first?"rgba(255,149,0,0.28)":gi.gi%2===1?th.stepAlt:th.stepOff,
                           boxShadow:ac&&isCur?`0 0 10px ${track.color},inset 0 0 5px ${track.color}`:"none",
                           transform:isDrag?"scale(1.15)":ac&&isCur?"scale(1.08)":"scale(1)",
                           transition:isDrag?"none":"all 0.08s",
