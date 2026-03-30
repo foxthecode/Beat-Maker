@@ -28,6 +28,9 @@ const ALL_TRACKS=[
 const TRACKS=ALL_TRACKS;
 const DEFAULT_ACTIVE=["kick","snare"];
 const DEFAULT_KEYS=["q","s","d","f","g","h","j","k"];
+const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47};
+const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const midiNoteName=n=>n==null?"—":NOTE_NAMES[n%12]+(Math.floor(n/12)-1);
 const MAX_PAT=8,NR=50;
 const SEC_COL=["#FF2D55","#FF9500","#30D158","#5E5CE6","#BF5AF2","#64D2FF","#FFD60A","#FF375F"];
 const mkE=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(0)]));
@@ -249,6 +252,10 @@ export default function KickAndSnare(){
   const [midiSync,setMidiSync]=useState('off'); // 'off'|'in'|'out'
   const [midiStatus,setMidiStatus]=useState(''); // ''|'ok'|'!WM'|'denied'|'no ports'
   const midiRef=useRef({access:null,clkTimes:[],ins:[],outs:[],outIdx:0});
+  // MIDI Note Input
+  const [midiNoteMap,setMidiNoteMap]=useState({...DEFAULT_MIDI_NOTES});
+  const [midiLearnTrack,setMidiLearnTrack]=useState(null);
+  const [showMN,setShowMN]=useState(false);
   // Ableton Link Bridge (WebSocket)
   const [linkUrl,setLinkUrl]=useState('ws://localhost:9898');
   const [linkConnected,setLinkConnected]=useState(false);
@@ -272,6 +279,7 @@ export default function KickAndSnare(){
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
   R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.mSync=midiSync;R.mRef=midiRef;R.lkSync=linkSyncPlay;
+  R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -283,6 +291,7 @@ export default function KickAndSnare(){
   // MIDI handlers
   const onMidiMsg=useCallback(ev=>{
     const b=ev.data[0];
+    const status=b&0xF0;
     if(b===0xF8){
       const now=performance.now();const mr=midiRef.current;
       mr.clkTimes.push(now);if(mr.clkTimes.length>24)mr.clkTimes.shift();
@@ -292,6 +301,18 @@ export default function KickAndSnare(){
       }
     }else if(b===0xFA||b===0xFB){if(!R.playing)ssRef.current?.();}
     else if(b===0xFC){if(R.playing)ssRef.current?.();}
+    else if(status===0x90||status===0x80){
+      const note=ev.data[1];const vel=ev.data[2];
+      const noteOn=status===0x90&&vel>0;
+      if(!noteOn)return;
+      if(R.mLearn){
+        setMidiNoteMap(prev=>({...prev,[R.mLearn]:note}));
+        setMidiLearnTrack(null);
+        return;
+      }
+      const trackId=Object.entries(R.mnMap).find(([,n])=>n===note)?.[0];
+      if(trackId&&R.at.includes(trackId)){R.trigPad?.(trackId);}
+    }
   },[]);
   const initMidi=async()=>{
     const mr=midiRef.current;if(mr.access)return;
@@ -384,6 +405,7 @@ export default function KickAndSnare(){
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     if(R.rec&&R.step>=0){const s=R.step;setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});}
   },[]);
+  R.trigPad=trigPad;
   const ssRef=useRef(null);const playRef=useRef(false);
   useEffect(()=>{playRef.current=playing;},[playing]);
   useEffect(()=>{
@@ -664,6 +686,7 @@ export default function KickAndSnare(){
             </div>);
           })()}
           <button onClick={()=>setShowK(!showK)} style={pill(showK,"#FFD60A")}>⌨</button>
+          <button onClick={()=>{setShowMN(p=>!p);setMidiLearnTrack(null);}} style={{...pill(showMN||midiLearnTrack!=null,"#FF9500"),display:"flex",alignItems:"center",gap:3}}>🎹{midiLearnTrack?<span style={{fontSize:7,fontWeight:900,color:"#FF2D55",animation:"rb 0.5s infinite"}}>LEARN</span>:null}</button>
           {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
           {/* MIDI Sync */}
           {(()=>{
@@ -728,6 +751,32 @@ export default function KickAndSnare(){
               <input value={kMap[i]||""} onChange={e=>{const v=e.target.value.slice(-1).toLowerCase();setKMap(p=>{const n=[...p];n[i]=v;return n;});}} style={{width:28,height:24,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:"#FFD60A",fontSize:12,fontWeight:800,fontFamily:"inherit"}}/>
             </div>))}
           </div>
+        </div>)}
+
+        {/* ── MIDI Note Mapping Panel ── */}
+        {showMN&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${midiLearnTrack?"#FF9500":th.sBorder}`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI NOTE MAPPING</span>
+            <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
+          </div>
+          {midiSync==='off'&&(<div style={{marginBottom:8,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.08)",fontSize:8,color:"#FF9500"}}>⚠ Active le MIDI IN pour recevoir des notes</div>)}
+          {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Joue une note sur ton Oxygen Pro…</div>)}
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {atO.map(tr=>{
+              const note=midiNoteMap[tr.id];
+              const isLearning=midiLearnTrack===tr.id;
+              return(<div key={tr.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:isLearning?"rgba(255,45,85,0.08)":flash===tr.id?"rgba(255,255,255,0.05)":"transparent",border:`1px solid ${isLearning?"rgba(255,45,85,0.4)":th.sBorder}`,transition:"all 0.1s"}}>
+                <span style={{fontSize:9,color:tr.color,fontWeight:800,minWidth:52}}>{tr.icon} {tr.label}</span>
+                <span style={{fontSize:12,fontWeight:700,color:th.text,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{midiNoteName(note)}</span>
+                <span style={{fontSize:8,color:th.dim,minWidth:20}}>#{note??"-"}</span>
+                <input type="number" min={0} max={127} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=127)setMidiNoteMap(p=>({...p,[tr.id]:v}));}} style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
+                <button onClick={()=>setMidiLearnTrack(isLearning?null:tr.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
+                  {isLearning?"■ STOP":"LEARN"}
+                </button>
+              </div>);
+            })}
+          </div>
+          <div style={{marginTop:8,fontSize:7,color:th.faint}}>Défauts GM : Kick=C2(36) Snare=D2(38) HH=F#2(42) Clap=D#2(39) Tom=A2(45) Ride=D#3(51) Crash=C#3(49) Perc=B2(47)</div>
         </div>)}
 
         {/* ── Ableton Link Panel ── */}
