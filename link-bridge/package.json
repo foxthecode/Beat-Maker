@@ -1,13 +1,12 @@
 {
   "name": "kick-and-snare-link-bridge",
-  "version": "1.0.0",
-  "description": "Ableton Link bridge for Kick & Snare",
+  "version": "2.0.0",
+  "description": "Ableton Link bridge for Kick & Snare (via Carabiner)",
   "main": "bridge.js",
   "scripts": {
     "start": "node bridge.js"
   },
   "dependencies": {
-    "abletonlink": "^0.2.0-beta.0",
     "ws": "^8.18.0"
   },
   "engines": {
