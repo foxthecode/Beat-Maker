@@ -134,7 +134,8 @@ class Eng{
   async load(id,file){this.init();try{const a=await file.arrayBuffer();this.buf[id]=await this.ctx.decodeAudioData(a);return true;}catch(e){return false;}}
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();const c=this.ch[id];if(!c)return;
-    const t=at!==null?(at+Math.max(0,dMs)/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
+    const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
+    const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);}
     else this._syn(id,t,vel,c.in);
@@ -799,42 +800,42 @@ export default function KickAndSnare(){
           <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Click or press key to trigger · Keyboard shortcut ⌨ in transport</div>
         </div>)}
 
-        {/* ── SONG ARRANGER ── */}
-        {view==="song"&&(<div style={{padding:"8px 0"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-            <span style={{fontSize:11,fontWeight:700,color:"#BF5AF2"}}>SONG ARRANGER</span>
-            <button onClick={()=>setSongMode(p=>!p)} style={{...pill(songMode,"#BF5AF2"),animation:songMode&&playing?"pulse 1s infinite":"none"}}>
-              {songMode?(playing?"▶ SONG PLAYING":"SONG ON"):"SONG OFF"}
-            </button>
-            {songMode&&<span style={{fontSize:8,color:th.dim}}>Patterns play in sequence, repeating from top</span>}
+        {/* ── SONG ARRANGER (foldable) ── */}
+        <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
+          {/* Fold header */}
+          <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",cursor:"pointer",userSelect:"none"}}>
+            <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.1em"}}>SONG ARRANGER</span>
+            {songMode&&<span style={{fontSize:8,color:"#BF5AF2",background:"rgba(191,90,242,0.15)",border:"1px solid rgba(191,90,242,0.3)",borderRadius:4,padding:"1px 6px",animation:playing?"pulse 1s infinite":"none"}}>{playing?"▶ PLAYING":"ON"}</span>}
+            <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showSong?"▲":"▼"}</span>
           </div>
-          {/* Chain editor */}
-          <div style={{padding:"12px",borderRadius:12,background:th.surface,border:`1px solid rgba(191,90,242,0.2)`}}>
-            <div style={{fontSize:8,color:th.dim,marginBottom:8}}>PATTERN CHAIN — drag-to-reorder not yet available, use ± buttons</div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {showSong&&(<div style={{padding:"0 12px 12px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+              <button onClick={()=>setSongMode(p=>!p)} style={{...pill(songMode,"#BF5AF2")}}>
+                {songMode?"SONG MODE ON":"SONG MODE OFF"}
+              </button>
+              {songMode&&<span style={{fontSize:8,color:th.dim}}>Sequencer advances through patterns automatically on each cycle</span>}
+            </div>
+            {/* Chain rows */}
+            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
               {songChain.map((patIdx,chainIdx)=>{
                 const isActive=songMode&&playing&&songPosRef.current===chainIdx;
-                return(<div key={chainIdx} style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div style={{width:20,fontSize:8,color:th.dim,textAlign:"right"}}>{chainIdx+1}</div>
-                  {/* Pattern selector */}
+                return(<div key={chainIdx} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",borderRadius:6,background:isActive?"rgba(191,90,242,0.08)":"transparent",border:`1px solid ${isActive?"rgba(191,90,242,0.3)":"transparent"}`}}>
+                  <span style={{width:16,fontSize:8,color:isActive?"#BF5AF2":th.faint,fontWeight:700,textAlign:"right",flexShrink:0}}>{chainIdx+1}</span>
                   <div style={{display:"flex",gap:3,flex:1,flexWrap:"wrap"}}>
-                    {pBank.map((_,pi)=>(<button key={pi} onClick={()=>setSongChain(p=>{const n=[...p];n[chainIdx]=pi;return n;})} style={{width:28,height:24,borderRadius:5,cursor:"pointer",fontFamily:"inherit",fontSize:10,fontWeight:800,border:`1px solid ${patIdx===pi?SEC_COL[pi%8]+"66":th.sBorder}`,background:patIdx===pi?SEC_COL[pi%8]+"20":"transparent",color:patIdx===pi?SEC_COL[pi%8]:th.dim}}>{pi+1}</button>))}
+                    {pBank.map((_,pi)=>(<button key={pi} onClick={()=>setSongChain(p=>{const n=[...p];n[chainIdx]=pi;return n;})} style={{width:26,height:22,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:800,border:`1px solid ${patIdx===pi?SEC_COL[pi%8]+"66":th.sBorder}`,background:patIdx===pi?SEC_COL[pi%8]+"20":"transparent",color:patIdx===pi?SEC_COL[pi%8]:th.dim}}>{pi+1}</button>))}
                   </div>
-                  {isActive&&<span style={{fontSize:8,color:"#BF5AF2",fontWeight:700}}>▶</span>}
-                  <button onClick={()=>setSongChain(p=>{const n=[...p];n.splice(chainIdx,0,patIdx);return n;})} style={{width:20,height:20,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Duplicate row">+</button>
-                  {songChain.length>1&&<button onClick={()=>setSongChain(p=>p.filter((_,j)=>j!==chainIdx))} style={{width:20,height:20,border:"1px solid rgba(255,55,95,0.2)",borderRadius:3,background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                  {isActive&&<span style={{fontSize:9,color:"#BF5AF2"}}>▶</span>}
+                  <button onClick={()=>setSongChain(p=>{const n=[...p];n.splice(chainIdx+1,0,patIdx);return n;})} title="Duplicate below" style={{width:18,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>+</button>
+                  {songChain.length>1&&<button onClick={()=>setSongChain(p=>p.filter((_,j)=>j!==chainIdx))} style={{width:18,height:18,border:"1px solid rgba(255,55,95,0.25)",borderRadius:3,background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>×</button>}
                 </div>);
               })}
             </div>
-            <div style={{display:"flex",gap:6,marginTop:10}}>
-              <button onClick={()=>setSongChain(p=>[...p,cPat])} style={{padding:"5px 14px",borderRadius:6,border:"1px dashed rgba(191,90,242,0.3)",background:"transparent",color:"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ ADD STEP</button>
-              <button onClick={()=>setSongChain([0])} style={{padding:"5px 14px",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>RESET</button>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>setSongChain(p=>[...p,cPat])} style={{padding:"4px 12px",borderRadius:6,border:"1px dashed rgba(191,90,242,0.35)",background:"transparent",color:"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ ADD STEP</button>
+              <button onClick={()=>setSongChain([cPat])} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>RESET</button>
             </div>
-          </div>
-          <div style={{marginTop:12,padding:"10px 12px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`,fontSize:8,color:th.dim}}>
-            <b style={{color:th.text}}>How to use:</b> Create multiple patterns in the PAT bank above, then build a song by adding steps to the chain. Enable SONG MODE and press play — the sequencer will advance through each pattern automatically.
-          </div>
-        </div>)}
+          </div>)}
+        </div>
 
         {/* ── Actions Bar (sequencer view) ── */}
         {view==="sequencer"&&(<div style={{display:"flex",gap:5,marginTop:12,padding:"8px 12px",borderRadius:12,background:th.surface,border:`1px solid ${th.sBorder}`,justifyContent:"center",flexWrap:"wrap"}}>
