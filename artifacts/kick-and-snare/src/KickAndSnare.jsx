@@ -308,7 +308,7 @@ export default function KickAndSnare(){
       if(!noteOn)return;
       if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:note}));setMidiLearnTrack(null);return;}
       const trackId=Object.entries(R.mnMap).find(([,n])=>n===note)?.[0];
-      if(trackId&&R.at.includes(trackId)){R.trigPad?.(trackId);}
+      if(trackId&&R.at.includes(trackId)){R.trigPad?.(trackId,vel/127);}
     }
   },[]);
   const initMidi=async()=>{
@@ -349,7 +349,7 @@ export default function KickAndSnare(){
         if(msg.type==='noteon'&&msg.vel>0){
           if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:msg.note}));setMidiLearnTrack(null);return;}
           const trackId=Object.entries(R.mnMap).find(([,n])=>n===msg.note)?.[0];
-          if(trackId&&R.at.includes(trackId))R.trigPad?.(trackId);
+          if(trackId&&R.at.includes(trackId))R.trigPad?.(trackId,msg.vel/127);
         }
       }catch{}
     };
@@ -428,10 +428,15 @@ export default function KickAndSnare(){
   },[playing]);
 
   // Keyboard shortcuts
-  const trigPad=useCallback(tid=>{
-    engine.init();engine.play(tid,1,0,R.fx[tid]||defFx());
+  const trigPad=useCallback((tid,vel=1)=>{
+    engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
-    if(R.rec&&R.step>=0){const s=R.step;setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});}
+    if(R.rec&&R.step>=0){
+      const s=R.step;
+      const v100=Math.max(1,Math.round(vel*100));
+      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
+      setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
+    }
   },[]);
   R.trigPad=trigPad;
   const ssRef=useRef(null);const playRef=useRef(false);
