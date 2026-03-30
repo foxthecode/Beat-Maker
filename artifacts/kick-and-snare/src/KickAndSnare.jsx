@@ -274,6 +274,14 @@ export default function KickAndSnare(){
   const [midiSync,setMidiSync]=useState('off'); // 'off'|'in'|'out'
   const [midiStatus,setMidiStatus]=useState(''); // ''|'ok'|'!WM'|'denied'|'no ports'
   const midiRef=useRef({access:null,clkTimes:[],ins:[],outs:[],outIdx:0});
+  // Ableton Link Bridge (WebSocket)
+  const [linkUrl,setLinkUrl]=useState('ws://localhost:9898');
+  const [linkConnected,setLinkConnected]=useState(false);
+  const [linkPeers,setLinkPeers]=useState(0);
+  const [showLink,setShowLink]=useState(false);
+  const [linkSyncPlay,setLinkSyncPlay]=useState(false);
+  const linkWsRef=useRef(null);
+  const linkBpmRef=useRef(null);
   // VU meter refs — direct DOM manipulation for performance
   const vuRefs=useRef({});
 
@@ -325,6 +333,44 @@ export default function KickAndSnare(){
     mr.ins.forEach(p=>{p.onmidimessage=midiSync==='in'?onMidiMsg:null;});
     return()=>{mr.ins.forEach(p=>{p.onmidimessage=null;});};
   },[midiSync,onMidiMsg]);
+
+  // Ableton Link Bridge — connect / disconnect
+  const linkConnect=()=>{
+    if(linkWsRef.current)linkWsRef.current.close();
+    let ws;
+    try{ws=new WebSocket(linkUrl.trim());}catch{return;}
+    ws.onopen=()=>setLinkConnected(true);
+    ws.onclose=()=>{setLinkConnected(false);setLinkPeers(0);linkWsRef.current=null;};
+    ws.onerror=()=>setLinkConnected(false);
+    ws.onmessage=e=>{
+      try{
+        const msg=JSON.parse(e.data);
+        if(msg.peers!==undefined)setLinkPeers(msg.peers);
+        if(msg.bpm&&Math.abs(msg.bpm-R.bpm)>0.4){
+          linkBpmRef.current=Math.round(msg.bpm);setBpm(Math.round(msg.bpm));
+        }
+        if(linkSyncPlay&&msg.playing!==undefined&&msg.playing!==R.playing)ssRef.current?.();
+      }catch{}
+    };
+    linkWsRef.current=ws;
+  };
+  const linkDisconnect=()=>{
+    if(linkWsRef.current){linkWsRef.current.close();linkWsRef.current=null;}
+    setLinkConnected(false);setLinkPeers(0);
+  };
+  // Sync BPM changes to bridge (skip echo from bridge)
+  useEffect(()=>{
+    if(!linkConnected||!linkWsRef.current)return;
+    if(linkBpmRef.current===bpm){linkBpmRef.current=null;return;}
+    if(linkWsRef.current.readyState===1)linkWsRef.current.send(JSON.stringify({type:'setBpm',bpm}));
+  },[bpm,linkConnected]);
+  // Sync play state to bridge
+  useEffect(()=>{
+    if(!linkConnected||!linkSyncPlay||!linkWsRef.current)return;
+    if(linkWsRef.current.readyState===1)linkWsRef.current.send(JSON.stringify({type:'setPlaying',playing}));
+  },[playing,linkConnected,linkSyncPlay]);
+  // Cleanup
+  useEffect(()=>()=>{if(linkWsRef.current)linkWsRef.current.close();},[]);
 
   // VU meter animation
   useEffect(()=>{
@@ -702,6 +748,10 @@ export default function KickAndSnare(){
               {dotCol&&<span style={{width:5,height:5,borderRadius:"50%",background:dotCol,display:"inline-block"}}/>}
             </button>);
           })()}
+          {/* Ableton Link */}
+          <button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
+            🔗{linkConnected?` ${linkPeers}p`:' LINK'}
+          </button>
           {/* Save / Load / Export */}
           <div style={{display:"flex",gap:3,marginLeft:"auto"}}>
             {saveMsg&&<span style={{fontSize:9,color:"#30D158",fontWeight:700,padding:"5px 8px"}}>{saveMsg}</span>}
@@ -753,6 +803,34 @@ export default function KickAndSnare(){
               <span style={{fontSize:9,color:tr.color,fontWeight:700}}>{tr.icon}{tr.label}</span>
               <input value={kMap[i]||""} onChange={e=>{const v=e.target.value.slice(-1).toLowerCase();setKMap(p=>{const n=[...p];n[i]=v;return n;});}} style={{width:28,height:24,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:"#FFD60A",fontSize:12,fontWeight:800,fontFamily:"inherit"}}/>
             </div>))}
+          </div>
+        </div>)}
+
+        {/* ── Ableton Link Panel ── */}
+        {showLink&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${linkConnected?"#BF5AF2":th.sBorder}`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.12em"}}>🔗 ABLETON LINK BRIDGE</span>
+            {linkConnected&&<span style={{fontSize:9,fontWeight:700,color:"#30D158"}}>● {linkPeers} pair{linkPeers!==1?"s":""} connecté{linkPeers!==1?"s":""}</span>}
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8}}>
+            <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}
+              onKeyDown={e=>{if(e.key==='Enter'&&!linkConnected)linkConnect();}}
+              disabled={linkConnected}
+              style={{flex:1,background:"transparent",border:`1px solid ${th.sBorder}`,borderRadius:5,padding:"5px 8px",color:th.text,fontSize:10,fontFamily:"inherit",opacity:linkConnected?0.5:1}}
+              placeholder="ws://localhost:9898"/>
+            <button onClick={linkConnected?linkDisconnect:linkConnect}
+              style={{padding:"5px 14px",borderRadius:5,border:`1px solid ${linkConnected?"rgba(255,45,85,0.3)":"rgba(191,90,242,0.4)"}`,background:linkConnected?"rgba(255,45,85,0.1)":"rgba(191,90,242,0.15)",color:linkConnected?"#FF375F":"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              {linkConnected?"DISCONNECT":"CONNECT"}
+            </button>
+          </div>
+          <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:8,color:th.dim,flex:1}}>
+              {linkConnected?"BPM et pairs synchronisés avec Ableton Link":"Lance le bridge : cd link-bridge && npm i && node bridge.js"}
+            </span>
+            <label style={{display:"flex",gap:5,alignItems:"center",cursor:"pointer"}}>
+              <input type="checkbox" checked={linkSyncPlay} onChange={e=>setLinkSyncPlay(e.target.checked)} style={{accentColor:"#BF5AF2"}}/>
+              <span style={{fontSize:8,color:th.dim,whiteSpace:"nowrap"}}>Sync Play/Stop</span>
+            </label>
           </div>
         </div>)}
 
