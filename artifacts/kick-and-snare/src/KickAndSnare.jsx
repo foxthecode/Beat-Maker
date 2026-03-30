@@ -28,9 +28,9 @@ const ALL_TRACKS=[
 const TRACKS=ALL_TRACKS;
 const DEFAULT_ACTIVE=["kick","snare"];
 const DEFAULT_KEYS=["q","s","d","f","g","h","j","k"];
-const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:null,__rec__:null};
+const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247}; // __play__=CC118 __rec__=CC119 (Oxygen Pro Mini defaults)
 const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-const midiNoteName=n=>n==null?"—":NOTE_NAMES[n%12]+(Math.floor(n/12)-1);
+const midiNoteName=n=>n==null?"—":n>=128?`CC${n-128}`:NOTE_NAMES[n%12]+(Math.floor(n/12)-1);
 const MAX_PAT=8,NR=50;
 const SEC_COL=["#FF2D55","#FF9500","#30D158","#5E5CE6","#BF5AF2","#64D2FF","#FFD60A","#FF375F"];
 const mkE=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(0)]));
@@ -295,15 +295,25 @@ export default function KickAndSnare(){
   // MIDI note-only handler
   const onMidiAll=useCallback(ev=>{
     const b=ev.data[0];const status=b&0xF0;
-    const note=ev.data[1];const vel=ev.data[2];
-    if(status===0x90||status===0x80){
-      const noteOn=status===0x90&&vel>0;
-      if(!noteOn)return;
-      if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:note}));setMidiLearnTrack(null);return;}
-      const mapped=Object.entries(R.mnMap).find(([,n])=>n===note)?.[0];
+    const byte1=ev.data[1];const byte2=ev.data[2];
+    // CC messages (transport buttons, knobs…)
+    if(status===0xB0&&byte2>0){
+      const addr=128+byte1; // CC0-127 stored as 128-255
+      if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:addr}));setMidiLearnTrack(null);return;}
+      const mapped=Object.entries(R.mnMap).find(([,n])=>n===addr)?.[0];
       if(mapped==='__play__'){R.ss?.current?.();return;}
       if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
-      if(mapped&&R.at.includes(mapped)){R.trigPad?.(mapped,vel/127);}
+      return;
+    }
+    // Note messages (pads, keys)
+    if(status===0x90||status===0x80){
+      const noteOn=status===0x90&&byte2>0;
+      if(!noteOn)return;
+      if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:byte1}));setMidiLearnTrack(null);return;}
+      const mapped=Object.entries(R.mnMap).find(([,n])=>n===byte1)?.[0];
+      if(mapped==='__play__'){R.ss?.current?.();return;}
+      if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
+      if(mapped&&R.at.includes(mapped)){R.trigPad?.(mapped,byte2/127);}
     }
   },[]);
   const initMidi=async()=>{
@@ -336,6 +346,14 @@ export default function KickAndSnare(){
     ws.onmessage=e=>{
       try{
         const msg=JSON.parse(e.data);
+        if(msg.type==='cc'&&msg.vel>0){
+          const addr=128+msg.note; // CC number stored as 128+n
+          if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:addr}));setMidiLearnTrack(null);return;}
+          const mapped=Object.entries(R.mnMap).find(([,n])=>n===addr)?.[0];
+          if(mapped==='__play__'){R.ss?.current?.();return;}
+          if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
+          return;
+        }
         if(msg.type==='noteon'&&msg.vel>0){
           if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:msg.note}));setMidiLearnTrack(null);return;}
           const mapped=Object.entries(R.mnMap).find(([,n])=>n===msg.note)?.[0];
@@ -827,7 +845,7 @@ export default function KickAndSnare(){
                     <span style={{fontSize:9,color:ctrl.color,fontWeight:800,minWidth:52}}>{ctrl.icon} {ctrl.label}</span>
                     <span style={{fontSize:12,fontWeight:700,color:th.text,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{note!=null?midiNoteName(note):"—"}</span>
                     <span style={{fontSize:8,color:th.dim,minWidth:20}}>#{note??"-"}</span>
-                    <input type="number" min={0} max={127} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=127)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} placeholder="—" style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
+                    <input type="number" min={0} max={255} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=255)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} placeholder="—" style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
                     <button onClick={()=>setMidiLearnTrack(isLearning?null:ctrl.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
                       {isLearning?"■ STOP":"LEARN"}
                     </button>

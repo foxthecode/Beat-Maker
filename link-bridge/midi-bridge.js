@@ -107,6 +107,8 @@ input.on('message', (_dt, msg) => {
     const noteName = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][note % 12];
     const oct      = Math.floor(note / 12) - 1;
     process.stdout.write(`  ♪ ${noteName}${oct} (${note}) vel=${vel}\n`);
+  } else if (type === 0xB0 && vel > 0) {
+    process.stdout.write(`  CC${note} val=${vel}\n`);
   }
 });
 
