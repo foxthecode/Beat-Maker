@@ -295,7 +295,7 @@ export default function KickAndSnare(){
   R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;R.playing=playing;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
-  R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.mSync=midiSync;R.mRef=midiRef;
+  R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.mSync=midiSync;R.mRef=midiRef;R.lkSync=linkSyncPlay;
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -352,10 +352,10 @@ export default function KickAndSnare(){
       try{
         const msg=JSON.parse(e.data);
         if(msg.peers!==undefined)setLinkPeers(msg.peers);
-        if(msg.bpm&&Math.abs(msg.bpm-R.bpm)>0.4){
+        if(msg.bpm!=null&&Math.abs(msg.bpm-R.bpm)>0.09){
           linkBpmRef.current=Math.round(msg.bpm);setBpm(Math.round(msg.bpm));
         }
-        if(linkSyncPlay&&msg.playing!==undefined&&msg.playing!==R.playing)ssRef.current?.();
+        if(R.lkSync&&msg.playing!==undefined&&msg.playing!==R.playing)ssRef.current?.();
       }catch{}
     };
     linkWsRef.current=ws;

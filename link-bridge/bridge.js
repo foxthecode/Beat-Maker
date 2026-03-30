@@ -97,7 +97,12 @@ function broadcast(obj) {
 /* ═══ Carabiner (Ableton Link) ═══════════════════════════ */
 
 function toCarabiner(cmd) {
-  if (caraSocket && !caraSocket.destroyed) caraSocket.write(cmd + '\n');
+  if (caraSocket && !caraSocket.destroyed) {
+    console.log('[→ Carabiner]', cmd);
+    caraSocket.write(cmd + '\n');
+  } else {
+    console.log('[→ Carabiner IGNORÉ — non connecté]', cmd);
+  }
 }
 
 function parseCarabiner(line) {
