@@ -255,6 +255,7 @@ export default function KickAndSnare(){
   const [showMN,setShowMN]=useState(false);
   const [midiNotes,setMidiNotes]=useState(false);
   const [midiErr,setMidiErr]=useState(null); // null|'noapi'|'blocked'|'denied'
+  const [midiInsVer,setMidiInsVer]=useState(0); // bumped whenever port list changes
   // Ableton Link Bridge (WebSocket)
   const [linkUrl,setLinkUrl]=useState('ws://localhost:9898');
   const [linkConnected,setLinkConnected]=useState(false);
@@ -304,7 +305,7 @@ export default function KickAndSnare(){
     if(!navigator.requestMIDIAccess){setMidiErr('noapi');return false;}
     try{
       const acc=await navigator.requestMIDIAccess({sysex:false});mr.access=acc;
-      const upd=()=>{mr.ins=[...acc.inputs.values()];};
+      const upd=()=>{mr.ins=[...acc.inputs.values()];setMidiInsVer(v=>v+1);};
       upd();acc.onstatechange=upd;setMidiErr(null);return true;
     }catch(e){
       const blocked=e?.name==='SecurityError'||e?.name==='NotAllowedError'||e?.name==='NotSupportedError';
@@ -315,7 +316,7 @@ export default function KickAndSnare(){
     const mr=midiRef.current;if(!mr.access)return;
     mr.ins.forEach(p=>{p.onmidimessage=midiNotes?onMidiAll:null;});
     return()=>{mr.ins.forEach(p=>{p.onmidimessage=null;});};
-  },[midiNotes,onMidiAll]);
+  },[midiNotes,onMidiAll,midiInsVer]);
 
   // Ableton Link Bridge — connect / disconnect
   const linkConnect=()=>{
@@ -731,7 +732,7 @@ export default function KickAndSnare(){
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:5,background:"rgba(48,209,88,0.1)",border:"1px solid rgba(48,209,88,0.3)"}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:"#30D158",display:"inline-block"}}/>
-                  <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>NOTES MIDI ACTIVES · {midiRef.current.ins?.length??0} entrée(s)</span>
+                  <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>NOTES MIDI ACTIVES · {midiRef.current.ins?.length??0} port{midiRef.current.ins?.length===1?"":"s"}</span>
                 </div>
                 <button onClick={()=>{setMidiNotes(false);setMidiLearnTrack(null);setMidiErr(null);}} style={{padding:"4px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>DÉSACTIVER</button>
               </div>
