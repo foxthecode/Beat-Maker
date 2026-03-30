@@ -28,7 +28,7 @@ const ALL_TRACKS=[
 const TRACKS=ALL_TRACKS;
 const DEFAULT_ACTIVE=["kick","snare"];
 const DEFAULT_KEYS=["q","s","d","f","g","h","j","k"];
-const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47};
+const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:null,__rec__:null};
 const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 const midiNoteName=n=>n==null?"—":NOTE_NAMES[n%12]+(Math.floor(n/12)-1);
 const MAX_PAT=8,NR=50;
@@ -256,8 +256,6 @@ export default function KickAndSnare(){
   const [midiNotes,setMidiNotes]=useState(false);
   const [midiErr,setMidiErr]=useState(null); // null|'noapi'|'blocked'|'denied'
   const [midiInsVer,setMidiInsVer]=useState(0); // bumped whenever port list changes
-  const [midiDbg,setMidiDbg]=useState([]); // last 8 raw MIDI messages for debug
-  const [showMidiDbg,setShowMidiDbg]=useState(false);
   // MIDI Bridge WebSocket (midi-bridge.js local)
   const [midiWsUrl,setMidiWsUrl]=useState('ws://localhost:9899');
   const [midiWsConnected,setMidiWsConnected]=useState(false);
@@ -298,17 +296,14 @@ export default function KickAndSnare(){
   const onMidiAll=useCallback(ev=>{
     const b=ev.data[0];const status=b&0xF0;
     const note=ev.data[1];const vel=ev.data[2];
-    // log every message for debug
-    setMidiDbg(prev=>{
-      const entry={t:Date.now(),status:b.toString(16).toUpperCase().padStart(2,'0'),note,vel,type:status===0x90?'NoteOn':status===0x80?'NoteOff':status===0xB0?'CC':status===0xE0?'PB':'Other'};
-      return[entry,...prev].slice(0,12);
-    });
     if(status===0x90||status===0x80){
       const noteOn=status===0x90&&vel>0;
       if(!noteOn)return;
       if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:note}));setMidiLearnTrack(null);return;}
-      const trackId=Object.entries(R.mnMap).find(([,n])=>n===note)?.[0];
-      if(trackId&&R.at.includes(trackId)){R.trigPad?.(trackId,vel/127);}
+      const mapped=Object.entries(R.mnMap).find(([,n])=>n===note)?.[0];
+      if(mapped==='__play__'){R.ss?.current?.();return;}
+      if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
+      if(mapped&&R.at.includes(mapped)){R.trigPad?.(mapped,vel/127);}
     }
   },[]);
   const initMidi=async()=>{
@@ -341,15 +336,12 @@ export default function KickAndSnare(){
     ws.onmessage=e=>{
       try{
         const msg=JSON.parse(e.data);
-        // log to debug
-        setMidiDbg(prev=>{
-          const entry={t:Date.now(),type:msg.type,note:msg.note,vel:msg.vel,status:'ws'};
-          return[entry,...prev].slice(0,12);
-        });
         if(msg.type==='noteon'&&msg.vel>0){
           if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:msg.note}));setMidiLearnTrack(null);return;}
-          const trackId=Object.entries(R.mnMap).find(([,n])=>n===msg.note)?.[0];
-          if(trackId&&R.at.includes(trackId))R.trigPad?.(trackId,msg.vel/127);
+          const mapped=Object.entries(R.mnMap).find(([,n])=>n===msg.note)?.[0];
+          if(mapped==='__play__'){R.ss?.current?.();return;}
+          if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
+          if(mapped&&R.at.includes(mapped))R.trigPad?.(mapped,msg.vel/127);
         }
       }catch{}
     };
@@ -440,6 +432,7 @@ export default function KickAndSnare(){
   },[]);
   R.trigPad=trigPad;
   const ssRef=useRef(null);const playRef=useRef(false);
+  R.ss=ssRef;R.setRec=setRec;
   useEffect(()=>{playRef.current=playing;},[playing]);
   useEffect(()=>{
     const down=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
@@ -806,83 +799,6 @@ export default function KickAndSnare(){
             )}
             {midiErr&&<div style={{marginTop:6,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==='blocked'||midiErr==='noapi'?'⚠ Accès MIDI bloqué par le navigateur':'✕ Permission refusée — réessaie dans un onglet Chrome/Edge'}</div>}
           </div>
-          {/* Always-visible new tab shortcut */}
-          {(()=>{
-            const domain=typeof __REPLIT_DOMAIN__!=='undefined'?__REPLIT_DOMAIN__:"";
-            const directUrl=domain?`https://${domain}/`:window.location.origin+"/";
-            return(
-              <div style={{marginBottom:8,padding:"8px 10px",borderRadius:6,background:"rgba(255,149,0,0.06)",border:"1px solid rgba(255,149,0,0.18)"}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
-                  <span style={{fontSize:8,color:th.dim,lineHeight:1.4,flex:1}}>💡 L'iframe Replit bloque les ports MIDI. Ouvre l'URL directe dans Chrome/Edge :</span>
-                  <button onClick={()=>window.open(directUrl,'_blank')} style={{flexShrink:0,padding:"5px 10px",borderRadius:5,border:"1px solid rgba(255,149,0,0.45)",background:"rgba(255,149,0,0.13)",color:"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>↗ OUVRIR</button>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <input readOnly value={directUrl} onClick={e=>e.target.select()} style={{flex:1,padding:"4px 7px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"rgba(0,0,0,0.3)",color:"#FF9500",fontSize:8,fontFamily:"monospace",cursor:"text"}}/>
-                  <button onClick={()=>navigator.clipboard?.writeText(directUrl)} style={{padding:"4px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"transparent",color:th.dim,fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>COPIER</button>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* ── DEBUG PANEL ── */}
-          <div style={{marginBottom:8,borderRadius:6,border:`1px solid ${showMidiDbg?"rgba(100,210,255,0.3)":th.sBorder}`,overflow:"hidden"}}>
-            <button onClick={()=>setShowMidiDbg(p=>!p)} style={{width:"100%",padding:"6px 10px",background:showMidiDbg?"rgba(100,210,255,0.07)":"transparent",border:"none",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",fontFamily:"inherit"}}>
-              <span style={{fontSize:8,fontWeight:800,color:"rgba(100,210,255,0.8)",letterSpacing:"0.1em"}}>🔬 DÉBOGAGE MIDI {showMidiDbg?"▲":"▼"}</span>
-              {midiDbg.length>0&&<span style={{fontSize:8,fontWeight:700,color:"#30D158"}}>{midiDbg.length} msg reçu{midiDbg.length>1?"s":""}</span>}
-            </button>
-            {showMidiDbg&&(<div style={{padding:"8px 10px",background:"rgba(0,0,0,0.25)"}}>
-              {/* Étape 1 : API */}
-              <div style={{marginBottom:6}}>
-                <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ÉTAPE 1 — API MIDI</span>
-                <div style={{marginTop:3,padding:"4px 8px",borderRadius:4,background:navigator.requestMIDIAccess?"rgba(48,209,88,0.1)":"rgba(255,45,85,0.1)",border:`1px solid ${navigator.requestMIDIAccess?"rgba(48,209,88,0.3)":"rgba(255,45,85,0.3)"}`}}>
-                  <span style={{fontSize:8,fontWeight:700,color:navigator.requestMIDIAccess?"#30D158":"#FF2D55"}}>{navigator.requestMIDIAccess?"✓ navigator.requestMIDIAccess disponible":"✕ API MIDI absente — utilise Chrome ou Edge"}</span>
-                </div>
-              </div>
-              {/* Étape 2 : Ports */}
-              <div style={{marginBottom:6}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ÉTAPE 2 — PORTS DÉTECTÉS ({midiRef.current.ins?.length??0})</span>
-                  {midiRef.current.access&&<button onClick={()=>{midiRef.current.upd?.();}} style={{padding:"2px 7px",borderRadius:3,border:"1px solid rgba(100,210,255,0.3)",background:"rgba(100,210,255,0.07)",color:"rgba(100,210,255,0.9)",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>↺ RAFRAÎCHIR</button>}
-                </div>
-                <div>
-                  {(midiRef.current.ins?.length??0)===0
-                    ?(<div style={{padding:"6px 8px",borderRadius:4,background:"rgba(255,45,85,0.1)",border:"1px solid rgba(255,45,85,0.3)"}}>
-                        <div style={{fontSize:8,color:"#FF2D55",fontWeight:700,marginBottom:4}}>✕ Aucun port MIDI détecté</div>
-                        <div style={{fontSize:7,color:th.dim,lineHeight:1.5}}>1. Branche l'Oxygen Pro via USB{"\n"}2. Clique ↺ RAFRAÎCHIR ci-dessus{"\n"}3. Si toujours vide → clique DÉSACTIVER puis ACTIVER LES NOTES MIDI</div>
-                      </div>)
-                    :midiRef.current.ins.map((p,i)=>(
-                      <div key={i} style={{padding:"3px 8px",borderRadius:4,background:"rgba(48,209,88,0.08)",border:"1px solid rgba(48,209,88,0.25)",fontSize:8,color:"#30D158",fontWeight:700,marginBottom:2}}>
-                        ✓ [{i}] {p.name||"(sans nom)"} {p.manufacturer?`— ${p.manufacturer}`:""}
-                      </div>
-                    ))
-                  }
-                </div>
-              </div>
-              {/* Étape 3 : Messages */}
-              <div>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ÉTAPE 3 — MESSAGES REÇUS</span>
-                  {midiDbg.length>0&&<button onClick={()=>setMidiDbg([])} style={{padding:"1px 6px",borderRadius:3,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:7,cursor:"pointer",fontFamily:"inherit"}}>VIDER</button>}
-                </div>
-                {midiDbg.length===0
-                  ?<div style={{padding:"4px 8px",borderRadius:4,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500"}}>En attente… joue une note sur l'Oxygen Pro</div>
-                  :<div style={{display:"flex",flexDirection:"column",gap:2}}>
-                    {midiDbg.map((m,i)=>{
-                      const mapped=Object.entries(R.mnMap).find(([,n])=>n===m.note)?.[0];
-                      return(
-                        <div key={i} style={{display:"flex",gap:6,padding:"3px 6px",borderRadius:3,background:i===0?"rgba(100,210,255,0.08)":"transparent",border:`1px solid ${i===0?"rgba(100,210,255,0.2)":"transparent"}`}}>
-                          <span style={{fontSize:8,fontWeight:700,color:"rgba(100,210,255,0.9)",minWidth:42,fontFamily:"monospace"}}>{m.type}</span>
-                          <span style={{fontSize:8,color:th.text,fontFamily:"monospace"}}>note <b>{m.note}</b> ({midiNoteName(m.note)}) vel={m.vel}</span>
-                          {mapped?<span style={{fontSize:7,color:"#30D158",fontWeight:700}}>→ {mapped}</span>:<span style={{fontSize:7,color:th.dim}}>pas mappé</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                }
-              </div>
-            </div>)}
-          </div>
-
           {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Joue une note sur ton Oxygen Pro…</div>)}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {atO.map(tr=>{
@@ -898,6 +814,27 @@ export default function KickAndSnare(){
                 </button>
               </div>);
             })}
+          </div>
+          {/* Transport controls */}
+          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${th.sBorder}`}}>
+            <div style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>CONTRÔLES TRANSPORT</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[{id:'__play__',icon:'▶',label:'START / STOP',color:"#30D158"},{id:'__rec__',icon:'⏺',label:'RECORD',color:"#FF2D55"}].map(ctrl=>{
+                const note=midiNoteMap[ctrl.id];
+                const isLearning=midiLearnTrack===ctrl.id;
+                return(
+                  <div key={ctrl.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:isLearning?"rgba(255,45,85,0.08)":"transparent",border:`1px solid ${isLearning?"rgba(255,45,85,0.4)":th.sBorder}`,transition:"all 0.1s"}}>
+                    <span style={{fontSize:9,color:ctrl.color,fontWeight:800,minWidth:52}}>{ctrl.icon} {ctrl.label}</span>
+                    <span style={{fontSize:12,fontWeight:700,color:th.text,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{note!=null?midiNoteName(note):"—"}</span>
+                    <span style={{fontSize:8,color:th.dim,minWidth:20}}>#{note??"-"}</span>
+                    <input type="number" min={0} max={127} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=127)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} placeholder="—" style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
+                    <button onClick={()=>setMidiLearnTrack(isLearning?null:ctrl.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
+                      {isLearning?"■ STOP":"LEARN"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
           <div style={{marginTop:8,fontSize:7,color:th.faint}}>Défauts GM : Kick=C2(36) Snare=D2(38) HH=F#2(42) Clap=D#2(39) Tom=A2(45) Ride=D#3(51) Crash=C#3(49) Perc=B2(47)</div>
         </div>)}
