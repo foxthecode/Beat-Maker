@@ -949,15 +949,9 @@ export default function KickAndSnare(){
                         const n=[...pb];
                         const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};
                         const cur=cp[track.id]||Array(tSteps).fill(0);
-                        cp[track.id]=nextTs>cur.length?[...cur,...Array(nextTs-cur.length).fill(0)]:cur.slice(0,nextTs);
+                        cp[track.id]=nextTs>cur.length?[...cur,...Array(nextTs-cur.length).fill(0)]:cur;
                         n[cPat]=cp;return n;
                       });
-                      if(nextTs<tSteps){
-                        setStVel(sv=>{const t={...sv[track.id]};Object.keys(t).forEach(k=>{if(Number(k)>=nextTs)delete t[k];});return{...sv,[track.id]:t};});
-                        setStNudge(sn=>{const t={...sn[track.id]};Object.keys(t).forEach(k=>{if(Number(k)>=nextTs)delete t[k];});return{...sn,[track.id]:t};});
-                        setStProb(sp=>{const t={...sp[track.id]};Object.keys(t).forEach(k=>{if(Number(k)>=nextTs)delete t[k];});return{...sp,[track.id]:t};});
-                        setStRatch(sr=>{const t={...sr[track.id]};Object.keys(t).forEach(k=>{if(Number(k)>=nextTs)delete t[k];});return{...sr,[track.id]:t};});
-                      }
                     }} style={{height:16,border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",padding:"0 3px"}}>{tSteps}st</button>
                   </div>
                 </div>
