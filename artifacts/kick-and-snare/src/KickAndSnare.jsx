@@ -36,14 +36,6 @@ const mkV=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(100)]));
 const mkP=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(100)]));
 const mkR=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(1)]));
 
-const TEMPLATES=[
-  {name:"Amen Break",bpm:136,sig:"4/4",pattern:{kick:[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0],snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]}},
-  {name:"Funky Drummer",bpm:102,sig:"4/4",pattern:{kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0],snare:[0,0,0,0,1,0,0,0,0,1,0,0,1,0,0,0],hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]}},
-  {name:"Boom Bap",bpm:90,sig:"4/4",pattern:{kick:[1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0],snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]}},
-  {name:"808 Trap",bpm:140,sig:"4/4",pattern:{kick:[1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]}},
-  {name:"Waltz",bpm:120,sig:"3/4",pattern:{kick:[1,0,0,0,0,0,0,0,0,0,0,0],snare:[0,0,0,0,1,0,0,0,1,0,0,0],hihat:[1,0,1,0,1,0,1,0,1,0,1,0]}},
-  {name:"Afrobeat 6/8",bpm:110,sig:"6/8",pattern:{kick:[1,0,0,0,0,0,1,0,0,0,0,0],snare:[0,0,0,1,0,0,0,0,0,1,0,0],hihat:[1,0,1,0,1,0,1,0,1,0,1,0]}},
-];
 
 const defFx=()=>({pitch:0,fType:"lowpass",cut:20000,res:0,drive:0,crush:0,cThr:-24,cRat:1,rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,
   onPitch:true,onFilter:true,onDrive:true,onComp:true,onReverb:false,onDelay:false});
@@ -61,21 +53,6 @@ function euclidRhythm(hits,steps){
   return arr;
 }
 
-// WAV encoder for audio export
-function audioBufferToWAV(buffer){
-  const numCh=buffer.numberOfChannels,sr=buffer.sampleRate;
-  const len=buffer.length,byteLen=len*numCh*4;
-  const ab=new ArrayBuffer(44+byteLen);const view=new DataView(ab);
-  const ws=(off,str)=>{for(let i=0;i<str.length;i++)view.setUint8(off+i,str.charCodeAt(i));};
-  ws(0,"RIFF");view.setUint32(4,36+byteLen,true);ws(8,"WAVE");ws(12,"fmt ");
-  view.setUint32(16,16,true);view.setUint16(20,3,true);view.setUint16(22,numCh,true);
-  view.setUint32(24,sr,true);view.setUint32(28,sr*numCh*4,true);
-  view.setUint16(32,numCh*4,true);view.setUint16(34,32,true);
-  ws(36,"data");view.setUint32(40,byteLen,true);
-  let off=44;
-  for(let i=0;i<len;i++)for(let ch=0;ch<numCh;ch++){view.setFloat32(off,buffer.getChannelData(ch)[i],true);off+=4;}
-  return new Blob([ab],{type:"audio/wav"});
-}
 
 // ═══ Audio Engine ═══
 class Eng{
@@ -261,12 +238,10 @@ export default function KickAndSnare(){
   const [showSong,setShowSong]=useState(false);
   const songPosRef=useRef(0);
   // Session
-  const [saveMsg,setSaveMsg]=useState(null);
-  const [exporting,setExporting]=useState(false);
   // UI
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState([...DEFAULT_KEYS]);const [showK,setShowK]=useState(false);
   const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
-  const [showTpl,setShowTpl]=useState(false);const [metro,setMetro]=useState(false);
+  const [metro,setMetro]=useState(false);
   const [metroVol,setMetroVol]=useState(70);
   const [dragInfo,setDragInfo]=useState(null);
   const [metroSub,setMetroSub]=useState("off");
@@ -515,59 +490,6 @@ export default function KickAndSnare(){
   ssRef.current=startStop;
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
 
-  // Session save / load
-  const saveSession=()=>{
-    try{
-      const data={pBank,bpm,swing,act,fx,stNudge,stVel,stProb,stRatch,songChain,sigLabel:tSig.label,muted,version:2};
-      localStorage.setItem("kicksnare-v2",JSON.stringify(data));
-      setSaveMsg("Saved!");setTimeout(()=>setSaveMsg(null),1800);
-    }catch(e){setSaveMsg("Save failed");setTimeout(()=>setSaveMsg(null),2000);}
-  };
-  const loadSession=()=>{
-    try{
-      const raw=localStorage.getItem("kicksnare-v2");
-      if(!raw){setSaveMsg("No save found");setTimeout(()=>setSaveMsg(null),2000);return;}
-      const d=JSON.parse(raw);
-      if(d.pBank)setPBank(d.pBank);if(d.bpm)setBpm(d.bpm);if(d.swing!==undefined)setSwing(d.swing);
-      if(d.act)setAct(d.act);if(d.fx)setFx(d.fx);if(d.stNudge)setStNudge(d.stNudge);
-      if(d.stVel)setStVel(d.stVel);if(d.stProb)setStProb(d.stProb);if(d.stRatch)setStRatch(d.stRatch);
-      if(d.songChain)setSongChain(d.songChain);
-      if(d.muted)setMuted(d.muted);
-      if(d.sigLabel){const ts=TIME_SIGS.find(s=>s.label===d.sigLabel);if(ts){setTSig(ts);setUseC(false);}}
-      setSaveMsg("Loaded!");setTimeout(()=>setSaveMsg(null),1800);
-    }catch(e){setSaveMsg("Load failed");setTimeout(()=>setSaveMsg(null),2000);}
-  };
-
-  // Audio export
-  const exportAudio=async(bars=2)=>{
-    engine.init();setExporting(true);
-    try{
-      const sr=engine.ctx.sampleRate;const bd=(60/bpm)*(sig.beats||4)/STEPS;
-      const totalSteps=bars*STEPS;const totalTime=totalSteps*bd+1;
-      const offCtx=new OfflineAudioContext(2,Math.ceil(sr*totalTime),sr);
-      const mg=offCtx.createGain();mg.gain.value=0.8;mg.connect(offCtx.destination);
-      for(let step=0;step<totalSteps;step++){
-        const pIdx=step%STEPS;const sw=bd*(swing/100);
-        const t=Math.max(0,step*bd+(step%2===0?-sw:sw));
-        for(const tr of atO){
-          const tSteps=(pBank[cPat]?._steps?.[tr.id])||STEPS;const tsn=tSteps===32?(pIdx<16?pIdx*2:pIdx*2%32):pIdx%tSteps;
-          if(!pat[tr.id]?.[tsn])continue;
-          const v=(stVel[tr.id]?.[tsn]??100)/100;const vol=(fx[tr.id]?.vol??80)/100;
-          if(engine.buf[tr.id]){
-            const src=offCtx.createBufferSource();src.buffer=engine.buf[tr.id];
-            const g=offCtx.createGain();g.gain.value=v*vol;
-            src.connect(g);g.connect(mg);src.start(t);src.stop(t+src.buffer.duration+0.1);
-          }
-        }
-      }
-      const rendered=await offCtx.startRendering();
-      const blob=audioBufferToWAV(rendered);
-      const url=URL.createObjectURL(blob);const a=document.createElement("a");
-      a.href=url;a.download=`kick-and-snare-${bars}bar.wav`;a.click();URL.revokeObjectURL(url);
-      setSaveMsg("Exported!");setTimeout(()=>setSaveMsg(null),2000);
-    }catch(e){setSaveMsg("Export failed");setTimeout(()=>setSaveMsg(null),2000);}
-    setExporting(false);
-  };
 
   // Step interactions
   const handleClick=(tid,step)=>setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});
@@ -624,7 +546,6 @@ export default function KickAndSnare(){
     return true;
   };
 
-  const loadTpl=i=>{const t=TEMPLATES[i];const ts=TIME_SIGS.find(s=>s.label===t.sig)||TIME_SIGS[0];chSig(ts);const p=mkE(ts.steps);Object.keys(t.pattern).forEach(k=>{p[k]=t.pattern[k].slice(0,ts.steps);while(p[k].length<ts.steps)p[k].push(0);});setPat(p);setBpm(t.bpm);const need=ALL_TRACKS.filter(tr=>p[tr.id]?.some(v=>v)).map(tr=>tr.id);if(need.length>0)setAct(prev=>{const m=[...prev];need.forEach(id=>{if(!m.includes(id))m.push(id);});return m;});setShowTpl(false);};
 
   const fileRef=useRef(null);const ldRef=useRef(null);
   const ldFile=tid=>{ldRef.current=tid;if(fileRef.current){fileRef.current.value="";fileRef.current.click();}};
@@ -762,13 +683,6 @@ export default function KickAndSnare(){
           <button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
             🔗{linkConnected?` ${linkPeers}p`:' LINK'}
           </button>
-          {/* Save / Load / Export */}
-          <div style={{display:"flex",gap:3,marginLeft:"auto"}}>
-            {saveMsg&&<span style={{fontSize:9,color:"#30D158",fontWeight:700,padding:"5px 8px"}}>{saveMsg}</span>}
-            <button onClick={saveSession} style={{...pill(false,"#30D158"),fontSize:8}}>SAVE</button>
-            <button onClick={loadSession} style={{...pill(false,"#64D2FF"),fontSize:8}}>LOAD</button>
-            <button onClick={()=>exportAudio(2)} disabled={exporting} style={{...pill(false,"#BF5AF2"),fontSize:8,opacity:exporting?0.5:1}}>{exporting?"…":"WAV"}</button>
-          </div>
         </div>
 
         {/* ── Time Signature ── */}
@@ -1016,20 +930,6 @@ export default function KickAndSnare(){
           </div>)}
         </div>
 
-        {/* ── Actions Bar (sequencer view) ── */}
-        {view==="sequencer"&&(<div style={{display:"flex",gap:5,marginTop:12,padding:"8px 12px",borderRadius:12,background:th.surface,border:`1px solid ${th.sBorder}`,justifyContent:"center",flexWrap:"wrap"}}>
-          {[{l:"RANDOM",a:()=>atO.forEach(t=>setPat(p=>({...p,[t.id]:Array(STEPS).fill(0).map(()=>Math.random()>0.7?1:0)}))),c:"#BF5AF2"},
-            {l:"CLEAR",a:()=>setPat(mkE(STEPS)),c:"#FF375F"},
-            {l:"½×",a:()=>setBpm(Math.max(30,Math.round(bpm/2))),c:"#64D2FF"},
-            {l:"2×",a:()=>setBpm(Math.min(300,bpm*2)),c:"#30D158"},
-          ].map(b=><button key={b.l} onClick={b.a} style={{padding:"6px 12px",border:`1px solid ${b.c}33`,borderRadius:8,background:"transparent",color:b.c,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{b.l}</button>)}
-          <button onClick={()=>setShowTpl(!showTpl)} style={pill(showTpl,"#FFD60A")}>TEMPLATES</button>
-        </div>)}
-        {showTpl&&(<div style={{marginTop:8,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`,display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-          {TEMPLATES.map((t,i)=>(<button key={i} onClick={()=>loadTpl(i)} style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",fontFamily:"inherit",textAlign:"left",border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:600}}>
-            <div style={{color:"#FFD60A"}}>{t.name}</div><div style={{fontSize:8,color:th.dim,marginTop:2}}>{t.bpm} BPM · {t.sig}</div>
-          </button>))}
-        </div>)}
 
         {/* ── Step position visualizer ── */}
         <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center"}}>
