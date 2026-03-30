@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 
 const THEMES={
-  daylight:{bg:"linear-gradient(170deg,#F5F3EE 0%,#EDEAE4 100%)",surface:"rgba(0,0,0,0.03)",sBorder:"rgba(0,0,0,0.08)",text:"#1a1a1a",dim:"#888",faint:"#bbb",stepOff:"rgba(0,0,0,0.03)",stepAlt:"rgba(0,0,0,0.045)",cursor:"rgba(0,0,0,0.1)",btn:"rgba(0,0,0,0.04)",btnH:"rgba(0,0,0,0.08)"},
+  daylight:{bg:"linear-gradient(170deg,#F0EDE7 0%,#E6E2DB 100%)",surface:"rgba(0,0,0,0.06)",sBorder:"rgba(0,0,0,0.18)",text:"#1a1a1a",dim:"#666",faint:"#aaa",stepOff:"rgba(0,0,0,0.07)",stepAlt:"rgba(0,0,0,0.11)",cursor:"rgba(0,0,0,0.18)",btn:"rgba(0,0,0,0.09)",btnH:"rgba(0,0,0,0.16)"},
   dark:{bg:"linear-gradient(170deg,#0F0F0F 0%,#1A1A1A 100%)",surface:"rgba(255,255,255,0.04)",sBorder:"rgba(255,255,255,0.1)",text:"#F0F0F0",dim:"#777",faint:"#444",stepOff:"rgba(255,255,255,0.035)",stepAlt:"rgba(255,255,255,0.055)",cursor:"rgba(255,255,255,0.12)",btn:"rgba(255,255,255,0.07)",btnH:"rgba(255,255,255,0.13)"}
 };
 
@@ -893,7 +893,7 @@ export default function KickAndSnare(){
                       <span style={{fontSize:10,fontWeight:700,color:track.color,minWidth:34}}>{track.label}</span>
                       <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{width:18,height:20,border:"none",borderRadius:3,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>M</button>
                       <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{width:18,height:20,border:"none",borderRadius:3,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>S</button>
-                      <button onClick={()=>setPBank(pb=>{const n=[...pb];const p={...n[cPat]};p[track.id]=Array(tSteps).fill(0);n[cPat]=p;return n;})} style={{width:18,height:20,border:"none",borderRadius:3,background:th.btn,color:th.faint,fontSize:9,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}} title="Vider la ligne">✕</button>
+                      <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{width:22,height:20,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}} title="Vider la ligne">CLR</button>
                     </div>
                     {/* VU meter */}
                     <div style={{height:3,borderRadius:2,background:th.btn,overflow:"hidden",position:"relative"}}>
@@ -940,7 +940,6 @@ export default function KickAndSnare(){
                   {/* Track Controls */}
                   <div style={{display:"flex",flexDirection:"column",gap:2,marginLeft:2,flexShrink:0}}>
                     <div style={{display:"flex",gap:2}}>
-                      <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{width:22,height:18,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>CLR</button>
                       <button onClick={()=>ldFile(track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>♪</button>
                       <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
                       {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
@@ -1028,7 +1027,7 @@ export default function KickAndSnare(){
 
         {/* ── Step position visualizer ── */}
         <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
-          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);return(<div key={i} style={{width:5,height:cStep===i?18:gi.first?8:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":gi.first?th.btnH:th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":"none"}}/>);})}
+          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);const isM1=gi.gi===0&&gi.first&&i>0;return(<div key={i} style={{width:5,height:cStep===i?18:isM1?13:gi.first?8:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":isM1?"#FF9500":gi.first?th.btnH:th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":isM1?"0 0 4px rgba(255,149,0,0.4)":"none"}}/>);})}
         </div>
 
         <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
