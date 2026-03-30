@@ -85,13 +85,15 @@ function sendBpm(bpm) {
   }
 }
 
-// Send play/stop command using correct protocol
+// Send play/stop command — Carabiner 1.x requires {:when <host-micros>}
 function sendPlaying(playing) {
-  if (bpmCmdFmt === 'old' || bpmCmdFmt === null) {
-    toCarabiner(playing ? 'start-playing' : 'stop-playing');    // old protocol
-  }
-  if (bpmCmdFmt === 'new' || bpmCmdFmt === 'tempo' || bpmCmdFmt === null) {
-    setTimeout(() => toCarabiner(playing ? '(start-playing)' : '(stop-playing)'), bpmCmdFmt ? 0 : 100);
+  const nowMicros = Number(process.hrtime.bigint() / 1000n);
+  const cmd = playing ? 'start-playing' : 'stop-playing';
+  // Always send the parenthesized format with {:when} — required by Carabiner 1.x/2.x
+  toCarabiner(`(${cmd} {:when ${nowMicros}})`);
+  // Also try bare format for very old Carabiner (no harm if unsupported)
+  if (bpmCmdFmt === 'old') {
+    setTimeout(() => toCarabiner(`${cmd} ${nowMicros}`), 50);
   }
 }
 
