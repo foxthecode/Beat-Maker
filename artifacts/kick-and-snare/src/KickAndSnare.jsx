@@ -307,7 +307,8 @@ export default function KickAndSnare(){
       const upd=()=>{mr.ins=[...acc.inputs.values()];};
       upd();acc.onstatechange=upd;setMidiErr(null);return true;
     }catch(e){
-      setMidiErr(e?.name==='SecurityError'?'blocked':'denied');return false;
+      const blocked=e?.name==='SecurityError'||e?.name==='NotAllowedError'||e?.name==='NotSupportedError';
+      setMidiErr(blocked?'blocked':'denied');return false;
     }
   };
   useEffect(()=>{
@@ -724,34 +725,26 @@ export default function KickAndSnare(){
             <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI NOTE MAPPING</span>
             <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
           </div>
-          {/* Status / Error row */}
-          {midiNotes?(
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:5,background:"rgba(48,209,88,0.1)",border:"1px solid rgba(48,209,88,0.3)"}}>
-                <span style={{width:6,height:6,borderRadius:"50%",background:"#30D158",display:"inline-block"}}/>
-                <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>NOTES MIDI ACTIVES</span>
+          {/* Status row */}
+          <div style={{marginBottom:8}}>
+            {midiNotes?(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:5,background:"rgba(48,209,88,0.1)",border:"1px solid rgba(48,209,88,0.3)"}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:"#30D158",display:"inline-block"}}/>
+                  <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>NOTES MIDI ACTIVES · {midiRef.current.ins?.length??0} entrée(s)</span>
+                </div>
+                <button onClick={()=>{setMidiNotes(false);setMidiLearnTrack(null);setMidiErr(null);}} style={{padding:"4px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>DÉSACTIVER</button>
               </div>
-              <button onClick={()=>{setMidiNotes(false);setMidiLearnTrack(null);setMidiErr(null);}} style={{padding:"4px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>DÉSACTIVER</button>
-            </div>
-          ):(
-            <div style={{marginBottom:8}}>
-              {(midiErr==='blocked'||midiErr==='noapi')?(
-                <div style={{padding:"10px 12px",borderRadius:7,background:"rgba(255,149,0,0.08)",border:"1px solid rgba(255,149,0,0.25)"}}>
-                  <div style={{fontSize:9,color:"#FF9500",fontWeight:800,marginBottom:6}}>⚠ MIDI bloqué par l'iframe</div>
-                  <div style={{fontSize:8,color:th.dim,marginBottom:8,lineHeight:1.5}}>Le navigateur bloque l'accès MIDI dans les prévisualisations intégrées. Ouvre l'app directement dans un onglet Chrome ou Edge.</div>
-                  <button onClick={()=>window.open(window.location.href,'_blank')} style={{width:"100%",padding:"7px 0",borderRadius:5,border:"1px solid rgba(255,149,0,0.5)",background:"rgba(255,149,0,0.15)",color:"#FF9500",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>↗ OUVRIR DANS UN NOUVEL ONGLET</button>
-                </div>
-              ):midiErr==='denied'?(
-                <div style={{padding:"8px 10px",borderRadius:6,background:"rgba(255,45,85,0.08)",border:"1px solid rgba(255,45,85,0.25)"}}>
-                  <div style={{fontSize:9,color:"#FF2D55",fontWeight:800,marginBottom:4}}>✕ Permission refusée</div>
-                  <div style={{fontSize:8,color:th.dim,marginBottom:6}}>Autorise l'accès MIDI dans les paramètres du navigateur puis réessaie.</div>
-                  <button onClick={async()=>{setMidiErr(null);const ok=await initMidi();if(ok)setMidiNotes(true);}} style={{padding:"5px 14px",borderRadius:5,border:"1px solid rgba(255,149,0,0.4)",background:"rgba(255,149,0,0.1)",color:"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>RÉESSAYER</button>
-                </div>
-              ):(
-                <button onClick={async()=>{const ok=await initMidi();if(ok)setMidiNotes(true);}} style={{width:"100%",padding:"8px 0",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>▶ ACTIVER LES NOTES MIDI</button>
-              )}
-            </div>
-          )}
+            ):(
+              <button onClick={async()=>{const ok=await initMidi();if(ok)setMidiNotes(true);}} style={{width:"100%",padding:"8px 0",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>▶ ACTIVER LES NOTES MIDI</button>
+            )}
+            {midiErr&&<div style={{marginTop:6,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==='blocked'||midiErr==='noapi'?'⚠ Accès MIDI bloqué par le navigateur':'✕ Permission refusée — réessaie dans un onglet Chrome/Edge'}</div>}
+          </div>
+          {/* Always-visible new tab shortcut */}
+          <div style={{marginBottom:8,padding:"8px 10px",borderRadius:6,background:"rgba(255,149,0,0.06)",border:"1px solid rgba(255,149,0,0.18)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+            <span style={{fontSize:8,color:th.dim,lineHeight:1.4,flex:1}}>💡 Pour utiliser ton contrôleur MIDI, ouvre l'app dans un onglet Chrome ou Edge.</span>
+            <button onClick={()=>window.open(window.location.href,'_blank')} style={{flexShrink:0,padding:"5px 10px",borderRadius:5,border:"1px solid rgba(255,149,0,0.45)",background:"rgba(255,149,0,0.13)",color:"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>↗ NOUVEL ONGLET</button>
+          </div>
           {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Joue une note sur ton Oxygen Pro…</div>)}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {atO.map(tr=>{
