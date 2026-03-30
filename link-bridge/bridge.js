@@ -106,6 +106,7 @@ function toCarabiner(cmd) {
 }
 
 function parseCarabiner(line) {
+  console.log('[← Carabiner]', line);
   const mBpm  = line.match(/:bpm ([0-9.]+)/);
   const mPeer = line.match(/:peers ([0-9]+)/);
   const mPlay = line.match(/:playing (true|false)/);
@@ -123,6 +124,7 @@ function connectCarabiner() {
     console.log('[Bridge] ✓ Carabiner connecté sur port ' + CARABINER_PORT);
     caraSocket = sock;
     toCarabiner('(carabiner-state)');
+    toCarabiner('(quantum 4.0)');
     toCarabiner('(enable-start-stop-sync)');
   });
 
@@ -172,7 +174,12 @@ server.on('upgrade', (req, socket) => {
       text => {
         try {
           const msg = JSON.parse(text);
-          if (msg.type === 'setBpm')     toCarabiner(`(bpm ${Number(msg.bpm).toFixed(2)})`);
+          if (msg.type === 'setBpm') {
+            const cmd = `(bpm ${Number(msg.bpm).toFixed(6)})`;
+            toCarabiner(cmd);
+            setTimeout(() => toCarabiner(cmd), 150);
+            setTimeout(() => toCarabiner(cmd), 500);
+          }
           if (msg.type === 'setPlaying') toCarabiner(msg.playing ? '(start-playing)' : '(stop-playing)');
         } catch {}
       },

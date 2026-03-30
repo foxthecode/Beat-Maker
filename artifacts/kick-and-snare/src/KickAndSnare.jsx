@@ -353,7 +353,7 @@ export default function KickAndSnare(){
       try{
         const msg=JSON.parse(e.data);
         if(msg.peers!==undefined)setLinkPeers(msg.peers);
-        if(msg.bpm!=null&&Math.abs(msg.bpm-R.bpm)>0.09&&Date.now()-linkBpmSentAt.current>1500){
+        if(msg.bpm!=null&&Math.abs(msg.bpm-R.bpm)>0.09&&Date.now()-linkBpmSentAt.current>3000){
           linkBpmRef.current=Math.round(msg.bpm);setBpm(Math.round(msg.bpm));
         }
         if(R.lkSync&&msg.playing!==undefined&&msg.playing!==R.playing)ssRef.current?.();
