@@ -866,7 +866,8 @@ export default function KickAndSnare(){
           <span style={{fontSize:8,color:th.dim}}>PAT</span>
           {pBank.map((_,i)=>(<button key={i} onClick={()=>{setCPat(i);R.pat=pBank[i];}} style={{width:28,height:24,borderRadius:5,cursor:"pointer",fontFamily:"inherit",fontSize:10,fontWeight:800,border:`1px solid ${cPat===i?SEC_COL[i%8]+"66":th.sBorder}`,background:cPat===i?SEC_COL[i%8]+"20":"transparent",color:cPat===i?SEC_COL[i%8]:th.dim}}>{i+1}</button>))}
           {pBank.length<MAX_PAT&&<button onClick={()=>{setPBank(p=>[...p,mkE(STEPS)]);setCPat(pBank.length);}} style={{width:24,height:24,border:`1px dashed ${th.sBorder}`,borderRadius:5,background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>}
-          {pBank.length>1&&<button onClick={()=>{setPBank(p=>p.filter((_,j)=>j!==cPat));if(cPat>0)setCPat(cPat-1);}} style={{padding:"2px 6px",border:"1px solid rgba(255,55,95,0.2)",borderRadius:5,background:"transparent",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>DEL</button>}
+          {pBank.length<MAX_PAT&&<button onClick={()=>{const dup=JSON.parse(JSON.stringify(pBank[cPat]));setPBank(p=>{const n=[...p];n.splice(cPat+1,0,dup);return n;});setCPat(cPat+1);}} style={{padding:"2px 6px",border:`1px solid ${th.sBorder}`,borderRadius:5,background:"transparent",color:th.dim,fontSize:8,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>DUP</button>}
+          {pBank.length>1&&<button onClick={()=>{setPBank(p=>p.filter((_,j)=>j!==cPat));if(cPat>0)setCPat(cPat-1);}} style={{padding:"2px 6px",border:"1px solid rgba(255,55,95,0.2)",borderRadius:5,background:"transparent",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>DEL</button>}
         </div>
 
 
