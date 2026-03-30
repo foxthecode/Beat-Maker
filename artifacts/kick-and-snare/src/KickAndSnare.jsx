@@ -253,15 +253,11 @@ export default function KickAndSnare(){
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
   const [stRatch,setStRatch]=useState(mkR(16));
-  const [trackSteps,setTrackSteps]=useState({});
   // Song arranger
   const [songChain,setSongChain]=useState([0]);
   const [songMode,setSongMode]=useState(false);
+  const [showSong,setShowSong]=useState(false);
   const songPosRef=useRef(0);
-  // Euclidean dialog
-  const [euclidOpen,setEuclidOpen]=useState(null);
-  const [euclidHits,setEuclidHits]=useState(4);
-  const [euclidOffset,setEuclidOffset]=useState(0);
   // Session
   const [saveMsg,setSaveMsg]=useState(null);
   const [exporting,setExporting]=useState(false);
@@ -283,7 +279,7 @@ export default function KickAndSnare(){
 
   R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
-  R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;R.ts=trackSteps;
+  R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
   R.songMode=songMode;R.songChain=songChain;
 
   // Tap tempo
@@ -357,21 +353,19 @@ export default function KickAndSnare(){
   const nxtRef=useRef(0);const schRef=useRef(null);
   const schSt=useCallback((sn,time)=>{
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
-    const prob=R.prob,ratch=R.ratch,ts=R.ts,cs=R.sig;
+    const prob=R.prob,ratch=R.ratch,cs=R.sig;
     const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
     ALL_TRACKS.forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-      // Per-track step count
-      const tSteps=ts[tr.id]||cs.steps;const tsn=sn%tSteps;
       // Probability check
-      const stepProb=prob[tr.id]?.[tsn]??100;
+      const stepProb=prob[tr.id]?.[sn]??100;
       if(Math.random()*100>=stepProb)return;
-      if(p?.[tr.id]?.[tsn]){
-        const v=(vel[tr.id]?.[tsn]??100)/100;
-        const r=ratch[tr.id]?.[tsn]||1;
+      if(p?.[tr.id]?.[sn]){
+        const v=(vel[tr.id]?.[sn]??100)/100;
+        const r=ratch[tr.id]?.[sn]||1;
         for(let ri=0;ri<r;ri++){
           const rTime=time+ri*(bd/r);
-          engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[tsn]||0):0),f[tr.id]||defFx(),rTime);
+          engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[sn]||0):0),f[tr.id]||defFx(),rTime);
         }
       }
     });
@@ -600,7 +594,7 @@ export default function KickAndSnare(){
           })()}
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            {["sequencer","pads","song"].map(v=>(<button key={v} onClick={()=>setView(v)} style={pill(view===v,v==="song"?"#BF5AF2":v==="pads"?"#5E5CE6":"#FF2D55")}>{v}</button>))}
+            {["sequencer","pads"].map(v=>(<button key={v} onClick={()=>setView(v)} style={pill(view===v,v==="pads"?"#5E5CE6":"#FF2D55")}>{v}</button>))}
           </div>
         </div>
 
@@ -709,7 +703,7 @@ export default function KickAndSnare(){
             {atO.map((track)=>{
               const isM=muted[track.id],isS=soloed===track.id,aud=soloed?isS:!isM;
               const hasSmp=!!smpN[track.id];const hasFx=fx[track.id]&&(fx[track.id].drive>0||fx[track.id].pitch!==0||fx[track.id].cut<20000||fx[track.id].onReverb||fx[track.id].onDelay);
-              const isFO=fxO===track.id;const trSteps=trackSteps[track.id];const isEO=euclidOpen===track.id;
+              const isFO=fxO===track.id;
               return(<div key={track.id}>
                 <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
                   {/* Track Label */}
@@ -724,13 +718,7 @@ export default function KickAndSnare(){
                     <div style={{height:3,borderRadius:2,background:th.btn,overflow:"hidden",position:"relative"}}>
                       <div ref={el=>{if(el)vuRefs.current[track.id]=el;}} style={{height:"100%",width:"0%",borderRadius:2,background:"#30D158",transition:"width 0.05s",opacity:0.15}}/>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:3}}>
-                      {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,14)}</span>}
-                      {/* Per-track step count */}
-                      <span style={{fontSize:6,color:trSteps?track.color:th.faint,marginLeft:"auto"}}>
-                        {trSteps?`÷${trSteps}`:"÷—"}
-                      </span>
-                    </div>
+                    {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,16)}</span>}
                   </div>
                   {/* Steps */}
                   <div style={{display:"flex",gap:0,flex:1}}>
@@ -773,40 +761,13 @@ export default function KickAndSnare(){
                     })}
                   </div>
                   {/* Track Controls */}
-                  <div style={{display:"flex",flexDirection:"column",gap:2,marginLeft:2,flexShrink:0}}>
-                    <div style={{display:"flex",gap:2}}>
-                      <button onClick={()=>setPat(p=>({...p,[track.id]:Array(STEPS).fill(0)}))} style={{width:22,height:18,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>CLR</button>
-                      <button onClick={()=>ldFile(track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>♪</button>
-                      <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
-                      {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
-                    </div>
-                    <div style={{display:"flex",gap:2}}>
-                      {/* Euclidean button */}
-                      <button onClick={()=>setEuclidOpen(isEO?null:track.id)} title="Euclidean rhythm generator" style={{width:22,height:18,border:"none",borderRadius:3,background:isEO?"rgba(100,210,255,0.2)":th.btn,color:isEO?"#64D2FF":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>E</button>
-                      {/* Per-track step count */}
-                      <button onClick={()=>{const cur=trackSteps[track.id];const options=[undefined,8,16,32];const idx=options.indexOf(cur);const next=options[(idx+1)%options.length];setTrackSteps(p=>({...p,[track.id]:next}));}} title="Per-track step count" style={{width:22,height:18,border:"none",borderRadius:3,background:trackSteps[track.id]?`${track.color}22`:th.btn,color:trackSteps[track.id]?track.color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{trackSteps[track.id]||"÷"}</button>
-                    </div>
+                  <div style={{display:"flex",gap:2,marginLeft:2,flexShrink:0}}>
+                    <button onClick={()=>setPat(p=>({...p,[track.id]:Array(STEPS).fill(0)}))} style={{width:22,height:20,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>CLR</button>
+                    <button onClick={()=>ldFile(track.id)} style={{width:22,height:20,border:"none",borderRadius:3,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>♪</button>
+                    <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:20,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
+                    {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:20,height:20,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                   </div>
                 </div>
-                {/* Euclidean panel */}
-                {isEO&&(<div style={{marginBottom:4,padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${track.color}33`,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                  <span style={{fontSize:9,fontWeight:700,color:track.color}}>EUCLID</span>
-                  <div style={{display:"flex",alignItems:"center",gap:4}}>
-                    <span style={{fontSize:8,color:th.dim}}>HITS</span>
-                    <input type="number" min={1} max={STEPS} value={euclidHits} onChange={e=>setEuclidHits(Math.max(1,Math.min(STEPS,Number(e.target.value))))} style={{width:36,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:800,fontFamily:"inherit"}}/>
-                    <span style={{fontSize:8,color:th.dim}}>/ {STEPS}</span>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:4}}>
-                    <span style={{fontSize:8,color:th.dim}}>OFFSET</span>
-                    <input type="number" min={0} max={STEPS-1} value={euclidOffset} onChange={e=>setEuclidOffset(Math.max(0,Math.min(STEPS-1,Number(e.target.value))))} style={{width:32,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:800,fontFamily:"inherit"}}/>
-                  </div>
-                  <button onClick={()=>{
-                    const base=euclidRhythm(euclidHits,STEPS);
-                    const shifted=Array(STEPS).fill(0).map((_,i)=>base[(i-euclidOffset+STEPS)%STEPS]);
-                    setPat(p=>({...p,[track.id]:shifted}));setEuclidOpen(null);
-                  }} style={{padding:"4px 12px",borderRadius:5,border:"none",background:track.color+"22",color:track.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>APPLY</button>
-                  <span style={{fontSize:7,color:th.dim,marginLeft:"auto"}}>{Array(STEPS).fill(0).map((_,i)=>euclidRhythm(euclidHits,STEPS)[(i-euclidOffset+STEPS)%STEPS]?"●":"·").join("")}</span>
-                </div>)}
                 {isFO&&<SSL tid={track.id} color={track.color} fx={fx} setFx={setFx} bpm={bpm} onClose={()=>setFxO(null)} themeName={themeName}/>}
               </div>);
             })}
