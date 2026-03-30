@@ -623,11 +623,15 @@ export default function KickAndSnare(){
           {/* Animated drummer mascot */}
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
-            const hK=playing&&isAct("kick")&&!!pat.kick?.[cStep];const hS=playing&&isAct("snare")&&!!pat.snare?.[cStep];
-            const hH=playing&&isAct("hihat")&&!!pat.hihat?.[cStep];const hR=playing&&(isAct("ride")&&!!pat.ride?.[cStep]||isAct("crash")&&!!pat.crash?.[cStep]);
-            const hT=playing&&isAct("tom")&&!!pat.tom?.[cStep];const hC=playing&&isAct("clap")&&!!pat.clap?.[cStep];
+            const hK=(playing&&isAct("kick")&&!!pat.kick?.[cStep])||flash==="kick";
+            const hS=(playing&&isAct("snare")&&!!pat.snare?.[cStep])||flash==="snare";
+            const hH=(playing&&isAct("hihat")&&!!pat.hihat?.[cStep])||flash==="hihat";
+            const hR=(playing&&(isAct("ride")&&!!pat.ride?.[cStep]||isAct("crash")&&!!pat.crash?.[cStep]))||flash==="ride"||flash==="crash";
+            const hT=(playing&&isAct("tom")&&!!pat.tom?.[cStep])||flash==="tom";
+            const hC=(playing&&isAct("clap")&&!!pat.clap?.[cStep])||flash==="clap"||flash==="perc";
             const lHit=hS||hH||hC;const rHit=hR||hT;const lA=hS?-55:hH?-30:hC?-45:5;const rA=hR?-60:hT?-30:5;
-            const ac=playing?"#FF9500":"#bbb";const hi="#FF2D55";const bob=playing?Math.sin((cStep||0)*0.7)*2:0;
+            const anyHit=hK||hS||hH||hR||hT||hC;
+            const ac=(playing||anyHit)?"#FF9500":"#bbb";const hi="#FF2D55";const bob=playing?Math.sin((cStep||0)*0.7)*2:anyHit?-3:0;
             return(
               <svg viewBox="0 0 110 52" width="110" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents"}}>
                 <line x1="14" y1="16" x2="14" y2="50" stroke="#ccc" strokeWidth="0.7"/>
