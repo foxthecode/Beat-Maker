@@ -75,16 +75,23 @@ function sendBpm(bpm) {
   const b2 = Number(bpm).toFixed(2);
   const b4 = Number(bpm).toFixed(4);
   switch (bpmCmdFmt) {
-    case 'v1': toCarabiner(`(bpm ${b2})`); break;
-    case 'v2': toCarabiner(`(tempo {:bpm ${b4}})`); break;
-    case 'v3': toCarabiner(`bpm ${b2}`); break;
-    case 'v4': toCarabiner(`tempo ${b2}`); break;
-    case 'v5': toCarabiner(`{"bpm":${b2}}`); break;
+    case 'old':   toCarabiner(`bpm ${b2}`); break;              // Carabiner 1.x (no parens)
+    case 'new':   toCarabiner(`(bpm ${b2})`); break;            // Carabiner 2.x
+    case 'tempo': toCarabiner(`(tempo {:bpm ${b4}})`); break;   // Carabiner 2.x alt
     default:
-      // Still detecting — try all formats
-      toCarabiner(`(bpm ${b2})`);
-      setTimeout(() => toCarabiner(`(tempo {:bpm ${b4}})`), 100);
-      setTimeout(() => toCarabiner(`bpm ${b2}`), 200);
+      // Still detecting — try most likely formats
+      toCarabiner(`bpm ${b2}`);
+      setTimeout(() => toCarabiner(`(bpm ${b2})`), 150);
+  }
+}
+
+// Send play/stop command using correct protocol
+function sendPlaying(playing) {
+  if (bpmCmdFmt === 'old' || bpmCmdFmt === null) {
+    toCarabiner(playing ? 'start-playing' : 'stop-playing');    // old protocol
+  }
+  if (bpmCmdFmt === 'new' || bpmCmdFmt === 'tempo' || bpmCmdFmt === null) {
+    setTimeout(() => toCarabiner(playing ? '(start-playing)' : '(stop-playing)'), bpmCmdFmt ? 0 : 100);
   }
 }
 
@@ -92,22 +99,17 @@ function parseCarabiner(line) {
   const clean = line.trim();
   console.log('[← Carabiner]', clean);
 
-    // Auto-detect which BPM command worked: look for "unsupported" echoing the exact probe string
-  if (clean.includes('unsupported') && clean.includes('(bpm '))    pendingProbe.v1rejected = true;
-  if (clean.includes('unsupported') && clean.includes('(tempo '))   pendingProbe.v2rejected = true;
-  if (clean.includes('unsupported') && clean.includes('bpm 777'))   pendingProbe.v3rejected = true;
-  if (clean.includes('unsupported') && clean.includes('tempo 777')) pendingProbe.v4rejected = true;
-  if (clean.includes('unsupported') && clean.includes('"bpm"'))     pendingProbe.v5rejected = true;
+    // Track "unsupported" responses for each probe format
+  if (clean.includes('unsupported') && clean.includes('bpm 777'))   pendingProbe.oldRejected  = true;
+  if (clean.includes('unsupported') && clean.includes('(bpm 777'))  pendingProbe.newRejected  = true;
+  if (clean.includes('unsupported') && clean.includes('(tempo '))   pendingProbe.tempoRejected = true;
 
-  // If BPM changes to our probe value (777), that format worked
-  const probeBpm = clean.match(/:bpm\s+777\./) || clean.match(/"bpm"\s*:\s*777/);
-  if (probeBpm && !bpmCmdFmt) {
-    if (!pendingProbe.v1rejected) bpmCmdFmt = 'v1';
-    else if (!pendingProbe.v2rejected) bpmCmdFmt = 'v2';
-    else if (!pendingProbe.v3rejected) bpmCmdFmt = 'v3';
-    else if (!pendingProbe.v4rejected) bpmCmdFmt = 'v4';
-    else if (!pendingProbe.v5rejected) bpmCmdFmt = 'v5';
-    if (bpmCmdFmt) console.log('[Bridge] ✓ Format BPM détecté:', bpmCmdFmt);
+  // If BPM changes to probe value 777, one of our commands worked
+  if (!bpmCmdFmt && clean.match(/:bpm\s+777/)) {
+    if (!pendingProbe.oldRejected)   { bpmCmdFmt = 'old'; }
+    else if (!pendingProbe.newRejected)  { bpmCmdFmt = 'new'; }
+    else if (!pendingProbe.tempoRejected){ bpmCmdFmt = 'tempo'; }
+    if (bpmCmdFmt) console.log('[Bridge] ✓ Protocole BPM détecté:', bpmCmdFmt);
   }
 
   const mBpm  = clean.match(/:bpm ([0-9.]+)/);
@@ -126,30 +128,34 @@ function connectCarabiner() {
     console.log('[Bridge] ✓ Carabiner connecté sur port ' + CARABINER_PORT);
     caraSocket = sock;
 
-    // Send init commands — probe both API versions
-    toCarabiner('(carabiner-state)');
-    toCarabiner('(enable-start-stop-sync)');        // Carabiner v1
-    toCarabiner('(start-stop-sync {:enabled true})'); // Carabiner v2
-
-    // Probe BPM command formats with BPM=777 as distinctive value
-    // Each format tried 400ms apart so responses can be matched to commands
-    const probeDelay = 800;
+    // Probe: try both old protocol (no parens) and new protocol (parens)
+    // Old Carabiner 1.x: "bpm 120.0", "status { :bpm X :start X :beat X }"
+    // New Carabiner 2.x: "(bpm 120.0)", "(status {:bpm X :playing Y :peers N})"
     setTimeout(() => {
-      console.log('[Bridge] === Sonde formats de commande BPM ===');
-      toCarabiner('(bpm 777.0)');          // v1: Deep Symmetry Carabiner 1.x
-    }, probeDelay);
-    setTimeout(() => toCarabiner('(tempo {:bpm 777.0})'), probeDelay + 400);  // v2: Carabiner 2.x
-    setTimeout(() => toCarabiner('bpm 777.0'), probeDelay + 800);             // v3: no parens
-    setTimeout(() => toCarabiner('tempo 777.0'), probeDelay + 1200);          // v4: no parens alt
-    setTimeout(() => toCarabiner('{"bpm":777.0}'), probeDelay + 1600);        // v5: JSON
+      console.log('[Bridge] === Sonde protocole Carabiner ===');
+      toCarabiner('bpm 777.0');    // old protocol (no parens) — probe first
+    }, 800);
+    setTimeout(() => {
+      if (!bpmCmdFmt) toCarabiner('(bpm 777.0)');  // new protocol (with parens)
+    }, 1400);
+    setTimeout(() => {
+      if (!bpmCmdFmt) toCarabiner('(tempo {:bpm 777.0})'); // newest format
+    }, 2000);
     setTimeout(() => {
       if (!bpmCmdFmt) {
         console.log('[Bridge] ⚠  Aucun format BPM accepté — sync App→Note non disponible');
-        console.log('[Bridge]    Le BPM Note→App continue de fonctionner (lecture seule)');
+        console.log('[Bridge]    Note→App BPM continue de fonctionner (lecture seule)');
       } else {
-        console.log('[Bridge] ✓ Prêt — format BPM actif:', bpmCmdFmt);
+        console.log('[Bridge] ✓ Prêt — protocole:', bpmCmdFmt);
       }
-    }, probeDelay + 3000);
+    }, 3000);
+
+    // Enable start-stop sync for both protocol versions
+    toCarabiner('enable-start-stop-sync');          // old protocol
+    setTimeout(() => {
+      toCarabiner('(enable-start-stop-sync)');      // new protocol
+      toCarabiner('(start-stop-sync {:enabled true})');
+    }, 200);
   });
 
   let cbuf = '';
@@ -189,7 +195,7 @@ server.on('upgrade', (req, socket) => {
         try {
           const msg = JSON.parse(text);
           if (msg.type === 'setBpm')     sendBpm(msg.bpm);
-          if (msg.type === 'setPlaying') toCarabiner(msg.playing ? '(start-playing)' : '(stop-playing)');
+          if (msg.type === 'setPlaying') sendPlaying(msg.playing);
         } catch {}
       },
       () => { clients.delete(socket); socket.destroy(); }
