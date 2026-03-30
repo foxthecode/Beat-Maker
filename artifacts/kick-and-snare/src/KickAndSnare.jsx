@@ -919,11 +919,11 @@ export default function KickAndSnare(){
                         style={{flex:1,aspectRatio:"1",borderRadius:3,cursor:ac?"grab":"pointer",
                           position:"relative",minWidth:0,overflow:"hidden",
                           marginLeft:gi.first&&step>0?4:1,touchAction:"none",userSelect:"none",
-                          background:isCur?th.cursor:"rgba(255,255,255,0.03)",
+                          background:isCur?th.cursor:gi.gi%2===1?th.stepAlt:th.stepOff,
                           boxShadow:ac&&isCur?`0 0 10px ${track.color},inset 0 0 5px ${track.color}`:"none",
                           transform:isDrag?"scale(1.15)":ac&&isCur?"scale(1.08)":"scale(1)",
                           transition:isDrag?"none":"all 0.08s",
-                          border:isDrag?`1px solid ${dragAxis==="v"?"#FFD60A":dragAxis==="h"?"#64D2FF":"transparent"}`:ac?`1px solid ${track.color}`:"1px solid rgba(255,255,255,0.06)",
+                          border:isDrag?`1px solid ${dragAxis==="v"?"#FFD60A":dragAxis==="h"?"#64D2FF":"transparent"}`:ac?`1px solid ${track.color}`:`1px solid ${th.sBorder}`,
                         }}>
                         {ac&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:`${vel}%`,borderRadius:3,background:track.color,transition:isDrag?"none":"height 0.15s"}}/>}
                         {ac&&prob<100&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:`${track.color}33`,zIndex:3}}>
@@ -1027,7 +1027,7 @@ export default function KickAndSnare(){
 
         {/* ── Step position visualizer ── */}
         <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
-          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);const isM1=gi.gi===0&&gi.first&&i>0;return(<div key={i} style={{width:5,height:cStep===i?18:isM1?13:gi.first?8:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":isM1?"#FF9500":gi.first?th.btnH:th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":isM1?"0 0 4px rgba(255,149,0,0.4)":"none"}}/>);})}
+          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);const isMeas=gi.gi===0&&gi.first&&i>0;const isBeat=gi.first&&!isMeas&&i>0;return(<div key={i} style={{width:5,height:cStep===i?18:isMeas?14:isBeat?10:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":isMeas?"#FF6B00":isBeat?"#FFB340":th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":isMeas?"0 0 5px rgba(255,107,0,0.5)":isBeat?"0 0 3px rgba(255,179,64,0.4)":"none"}}/>);})}
         </div>
 
         <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
