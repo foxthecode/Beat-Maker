@@ -893,6 +893,7 @@ export default function KickAndSnare(){
                       <span style={{fontSize:10,fontWeight:700,color:track.color,minWidth:34}}>{track.label}</span>
                       <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{width:18,height:20,border:"none",borderRadius:3,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>M</button>
                       <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{width:18,height:20,border:"none",borderRadius:3,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>S</button>
+                      <button onClick={()=>setPBank(pb=>{const n=[...pb];const p={...n[cPat]};p[track.id]=Array(tSteps).fill(0);n[cPat]=p;return n;})} style={{width:18,height:20,border:"none",borderRadius:3,background:th.btn,color:th.faint,fontSize:9,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}} title="Vider la ligne">✕</button>
                     </div>
                     {/* VU meter */}
                     <div style={{height:3,borderRadius:2,background:th.btn,overflow:"hidden",position:"relative"}}>
@@ -1026,11 +1027,11 @@ export default function KickAndSnare(){
 
 
         {/* ── Step position visualizer ── */}
-        <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center"}}>
-          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);return(<div key={i} style={{width:5,height:cStep===i?18:gi.first?8:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":gi.first?th.btnH:th.btn,transition:"all 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":"none"}}/>);})}
+        <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
+          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);return(<div key={i} style={{width:5,height:cStep===i?18:gi.first?8:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":gi.first?th.btnH:th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":"none"}}/>);})}
         </div>
 
-        <div style={{textAlign:"center",marginTop:14,padding:"8px 0",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
+        <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
           KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Right-click ratchet · Shift+click probability
         </div>
       </div>
