@@ -313,7 +313,7 @@ export default function KickAndSnare(){
     try{
       const acc=await navigator.requestMIDIAccess({sysex:false});mr.access=acc;
       const upd=()=>{mr.ins=[...acc.inputs.values()];setMidiInsVer(v=>v+1);};
-      upd();acc.onstatechange=upd;setMidiErr(null);return true;
+      upd();acc.onstatechange=upd;mr.upd=upd;setMidiErr(null);return true;
     }catch(e){
       const blocked=e?.name==='SecurityError'||e?.name==='NotAllowedError'||e?.name==='NotSupportedError';
       setMidiErr(blocked?'blocked':'denied');return false;
@@ -770,13 +770,19 @@ export default function KickAndSnare(){
               </div>
               {/* Étape 2 : Ports */}
               <div style={{marginBottom:6}}>
-                <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ÉTAPE 2 — PORTS DÉTECTÉS ({midiRef.current.ins?.length??0})</span>
-                <div style={{marginTop:3}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
+                  <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ÉTAPE 2 — PORTS DÉTECTÉS ({midiRef.current.ins?.length??0})</span>
+                  {midiRef.current.access&&<button onClick={()=>{midiRef.current.upd?.();}} style={{padding:"2px 7px",borderRadius:3,border:"1px solid rgba(100,210,255,0.3)",background:"rgba(100,210,255,0.07)",color:"rgba(100,210,255,0.9)",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>↺ RAFRAÎCHIR</button>}
+                </div>
+                <div>
                   {(midiRef.current.ins?.length??0)===0
-                    ?<div style={{padding:"4px 8px",borderRadius:4,background:"rgba(255,45,85,0.1)",border:"1px solid rgba(255,45,85,0.3)",fontSize:8,color:"#FF2D55",fontWeight:700}}>✕ Aucun port — branche l'Oxygen Pro et clique ACTIVER</div>
+                    ?(<div style={{padding:"6px 8px",borderRadius:4,background:"rgba(255,45,85,0.1)",border:"1px solid rgba(255,45,85,0.3)"}}>
+                        <div style={{fontSize:8,color:"#FF2D55",fontWeight:700,marginBottom:4}}>✕ Aucun port MIDI détecté</div>
+                        <div style={{fontSize:7,color:th.dim,lineHeight:1.5}}>1. Branche l'Oxygen Pro via USB{"\n"}2. Clique ↺ RAFRAÎCHIR ci-dessus{"\n"}3. Si toujours vide → clique DÉSACTIVER puis ACTIVER LES NOTES MIDI</div>
+                      </div>)
                     :midiRef.current.ins.map((p,i)=>(
                       <div key={i} style={{padding:"3px 8px",borderRadius:4,background:"rgba(48,209,88,0.08)",border:"1px solid rgba(48,209,88,0.25)",fontSize:8,color:"#30D158",fontWeight:700,marginBottom:2}}>
-                        ✓ [{i}] {p.name||"(sans nom)"} — {p.manufacturer||"?"}
+                        ✓ [{i}] {p.name||"(sans nom)"} {p.manufacturer?`— ${p.manufacturer}`:""}
                       </div>
                     ))
                   }
