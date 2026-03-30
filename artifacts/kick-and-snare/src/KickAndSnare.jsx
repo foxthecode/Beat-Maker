@@ -403,7 +403,7 @@ export default function KickAndSnare(){
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     if(R.rec&&R.step>=0){
-      const s=R.step;
+      const tSt=R.ts?.[tid]||R.sig?.steps||32;const s=R.step%tSt;
       const v100=Math.max(1,Math.round(vel*100));
       setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
       setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
@@ -461,12 +461,7 @@ export default function KickAndSnare(){
     ALL_TRACKS.forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
       const tSteps=R.pb[R.cp]?._steps?.[tr.id]||STEPS;
-      if(tSteps===32){
-        playTrStep(tr,sn*2,time);
-        playTrStep(tr,sn*2+1,time+bd/2);
-      }else{
-        playTrStep(tr,sn%tSteps,time);
-      }
+      playTrStep(tr,sn%tSteps,time);
     });
   },[]);
 
@@ -905,7 +900,7 @@ export default function KickAndSnare(){
                   <div style={{display:"flex",gap:0,flex:1}}>
                     {Array(tSteps).fill(0).map((_,step)=>{
                       const ac=!!pat[track.id]?.[step];
-                      const isCur=tSteps===32?(step===cStep*2||step===cStep*2+1):(cStep%tSteps===step);
+                      const isCur=cStep%tSteps===step;
                       const isFirst=step%beatSz===0;const beatNum=Math.floor(step/beatSz);
                       const gi={first:isFirst,gi:beatNum};
                       const sn=stNudge[track.id]?.[step]||0;const vel=(stVel[track.id]?.[step]??100);
