@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Kick & Snare Drum Sequencer"
+version = "1.0.0"
+id = "artifacts/kick-and-snare"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24007
+
+[services.development]
+run = "pnpm --filter @workspace/kick-and-snare run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kick-and-snare", "run", "build" ]
+publicDir = "artifacts/kick-and-snare/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24007"
+BASE_PATH = "/"
