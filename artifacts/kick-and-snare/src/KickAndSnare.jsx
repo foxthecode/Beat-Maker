@@ -254,6 +254,7 @@ export default function KickAndSnare(){
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
   const [stRatch,setStRatch]=useState(mkR(16));
+  const [trackSteps,setTrackSteps]=useState({});
   // Song arranger
   const [songChain,setSongChain]=useState([0]);
   const [songMode,setSongMode]=useState(false);
@@ -281,7 +282,7 @@ export default function KickAndSnare(){
   R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
-  R.songMode=songMode;R.songChain=songChain;
+  R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -355,18 +356,23 @@ export default function KickAndSnare(){
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
     const prob=R.prob,ratch=R.ratch,cs=R.sig;
     const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
+    const playTrStep=(tr,psn,ptime)=>{
+      const stepProb=prob[tr.id]?.[psn]??100;
+      if(Math.random()*100>=stepProb)return;
+      if(p?.[tr.id]?.[psn]){
+        const v=(vel[tr.id]?.[psn]??100)/100;
+        const r=ratch[tr.id]?.[psn]||1;
+        for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[psn]||0):0),f[tr.id]||defFx(),ptime+ri*(bd/r));
+      }
+    };
     ALL_TRACKS.forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-      // Probability check
-      const stepProb=prob[tr.id]?.[sn]??100;
-      if(Math.random()*100>=stepProb)return;
-      if(p?.[tr.id]?.[sn]){
-        const v=(vel[tr.id]?.[sn]??100)/100;
-        const r=ratch[tr.id]?.[sn]||1;
-        for(let ri=0;ri<r;ri++){
-          const rTime=time+ri*(bd/r);
-          engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[sn]||0):0),f[tr.id]||defFx(),rTime);
-        }
+      const tSteps=R.ts?.[tr.id]||STEPS;
+      if(tSteps===32){
+        playTrStep(tr,sn*2,time);
+        playTrStep(tr,sn*2+1,time+bd/2);
+      }else{
+        playTrStep(tr,sn%tSteps,time);
       }
     });
   },[]);
@@ -704,6 +710,10 @@ export default function KickAndSnare(){
               const isM=muted[track.id],isS=soloed===track.id,aud=soloed?isS:!isM;
               const hasSmp=!!smpN[track.id];const hasFx=fx[track.id]&&(fx[track.id].drive>0||fx[track.id].pitch!==0||fx[track.id].cut<20000||fx[track.id].onReverb||fx[track.id].onDelay);
               const isFO=fxO===track.id;
+              const tSteps=trackSteps[track.id]||STEPS;
+              const beatSz=tSteps/4;
+              const tsOpts=[16,8,32];const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
+              const isCustomTs=tSteps!==STEPS;
               return(<div key={track.id}>
                 <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
                   {/* Track Label */}
@@ -722,9 +732,11 @@ export default function KickAndSnare(){
                   </div>
                   {/* Steps */}
                   <div style={{display:"flex",gap:0,flex:1}}>
-                    {Array(STEPS).fill(0).map((_,step)=>{
-                      const ac=!!pat[track.id]?.[step];const isCur=cStep===step;
-                      const gi=gInfo(step);
+                    {Array(tSteps).fill(0).map((_,step)=>{
+                      const ac=!!pat[track.id]?.[step];
+                      const isCur=tSteps===32?(step===cStep*2||step===cStep*2+1):(cStep%tSteps===step);
+                      const isFirst=step%beatSz===0;const beatNum=Math.floor(step/beatSz);
+                      const gi={first:isFirst,gi:beatNum};
                       const sn=stNudge[track.id]?.[step]||0;const vel=(stVel[track.id]?.[step]??100);
                       const prob=stProb[track.id]?.[step]??100;const ratch=stRatch[track.id]?.[step]||1;
                       const isDrag=dragInfo?.tid===track.id&&dragInfo?.step===step;
@@ -742,30 +754,31 @@ export default function KickAndSnare(){
                           transition:isDrag?"none":"all 0.08s",
                           border:isDrag?`1px solid ${dragAxis==="v"?"#FFD60A":dragAxis==="h"?"#64D2FF":"transparent"}`:ac?`1px solid ${track.color}`:"1px solid rgba(255,255,255,0.06)",
                         }}>
-                        {/* Velocity fill */}
                         {ac&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:`${vel}%`,borderRadius:3,background:track.color,transition:isDrag?"none":"height 0.15s"}}/>}
-                        {/* Probability indicator (bottom strip) */}
                         {ac&&prob<100&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:`${track.color}33`,zIndex:3}}>
                           <div style={{height:"100%",width:`${prob}%`,background:"#FFD60A",borderRadius:1}}/>
                         </div>}
-                        {/* Ratchet badge */}
                         {ac&&ratch>1&&<div style={{position:"absolute",top:1,right:1,fontSize:5,fontWeight:900,color:"#fff",background:"rgba(0,0,0,0.7)",borderRadius:2,padding:"0 1px",lineHeight:"8px",zIndex:4}}>×{ratch}</div>}
-                        {/* Nudge line */}
                         {ac&&sn!==0&&<div style={{position:"absolute",top:0,bottom:0,left:`${50+sn*0.4}%`,width:2,borderRadius:1,background:track.color,opacity:0.6,transform:"translateX(-50%)",pointerEvents:"none"}}/>}
-                        {/* Drag labels */}
                         {isDrag&&dragAxis==="v"&&<span style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:7,fontWeight:800,color:"#fff",textShadow:"0 0 3px rgba(0,0,0,0.5)",pointerEvents:"none",zIndex:5}}>{vel}%</span>}
                         {isDrag&&dragAxis==="h"&&<span style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:7,fontWeight:800,color:"#fff",textShadow:"0 0 3px rgba(0,0,0,0.5)",pointerEvents:"none",zIndex:5}}>{sn>0?"+":""}{sn}</span>}
-                        {/* Prob % label when not 100 */}
                         {ac&&prob<100&&!isDrag&&<span style={{position:"absolute",top:1,left:1,fontSize:5,color:"#FFD60A",fontWeight:700,lineHeight:1,zIndex:4}}>{prob}%</span>}
                       </div>);
                     })}
                   </div>
                   {/* Track Controls */}
-                  <div style={{display:"flex",gap:2,marginLeft:2,flexShrink:0}}>
-                    <button onClick={()=>setPat(p=>({...p,[track.id]:Array(STEPS).fill(0)}))} style={{width:22,height:20,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>CLR</button>
-                    <button onClick={()=>ldFile(track.id)} style={{width:22,height:20,border:"none",borderRadius:3,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>♪</button>
-                    <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:20,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
-                    {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:20,height:20,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                  <div style={{display:"flex",flexDirection:"column",gap:2,marginLeft:2,flexShrink:0}}>
+                    <div style={{display:"flex",gap:2}}>
+                      <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{width:22,height:18,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>CLR</button>
+                      <button onClick={()=>ldFile(track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>♪</button>
+                      <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
+                      {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                    </div>
+                    <button title={`${tSteps} steps → ${nextTs}`} onClick={()=>{
+                      setTrackSteps(p=>({...p,[track.id]:nextTs}));
+                      if(nextTs===32)setPBank(pb=>pb.map(pp=>({...pp,[track.id]:[...(pp[track.id]||Array(16).fill(0)),...Array(16).fill(0)]})));
+                      else if(tSteps===32)setPBank(pb=>pb.map(pp=>({...pp,[track.id]:(pp[track.id]||[]).slice(0,nextTs)})));
+                    }} style={{height:16,border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",padding:"0 3px"}}>{tSteps}st</button>
                   </div>
                 </div>
                 {isFO&&<SSL tid={track.id} color={track.color} fx={fx} setFx={setFx} bpm={bpm} onClose={()=>setFxO(null)} themeName={themeName}/>}
@@ -802,17 +815,18 @@ export default function KickAndSnare(){
         {/* ── SONG ARRANGER (foldable) ── */}
         <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
           {/* Fold header */}
-          <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",cursor:"pointer",userSelect:"none"}}>
-            <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.1em"}}>SONG ARRANGER</span>
-            {songMode&&<span style={{fontSize:8,color:"#BF5AF2",background:"rgba(191,90,242,0.15)",border:"1px solid rgba(191,90,242,0.3)",borderRadius:4,padding:"1px 6px",animation:playing?"pulse 1s infinite":"none"}}>{playing?"▶ PLAYING":"ON"}</span>}
-            <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showSong?"▲":"▼"}</span>
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",userSelect:"none"}}>
+            <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
+              <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.1em"}}>SONG ARRANGER</span>
+              <span style={{fontSize:10,color:th.dim}}>{showSong?"▲":"▼"}</span>
+            </div>
+            <button onClick={e=>{e.stopPropagation();setSongMode(p=>!p);}} style={{...pill(songMode,"#BF5AF2"),fontSize:8,padding:"2px 8px",animation:songMode&&playing?"pulse 1s infinite":"none"}}>
+              {songMode?(playing?"▶ ON":"ON"):"OFF"}
+            </button>
           </div>
           {showSong&&(<div style={{padding:"0 12px 12px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-              <button onClick={()=>setSongMode(p=>!p)} style={{...pill(songMode,"#BF5AF2")}}>
-                {songMode?"SONG MODE ON":"SONG MODE OFF"}
-              </button>
-              {songMode&&<span style={{fontSize:8,color:th.dim}}>Sequencer advances through patterns automatically on each cycle</span>}
+            <div style={{marginBottom:10}}>
+              {songMode&&<span style={{fontSize:8,color:th.dim}}>Le séquenceur avance automatiquement dans la chaîne de patterns à chaque cycle</span>}
             </div>
             {/* Chain rows */}
             <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
