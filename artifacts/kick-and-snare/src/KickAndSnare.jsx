@@ -749,10 +749,22 @@ export default function KickAndSnare(){
             {midiErr&&<div style={{marginTop:6,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==='blocked'||midiErr==='noapi'?'⚠ Accès MIDI bloqué par le navigateur':'✕ Permission refusée — réessaie dans un onglet Chrome/Edge'}</div>}
           </div>
           {/* Always-visible new tab shortcut */}
-          <div style={{marginBottom:8,padding:"8px 10px",borderRadius:6,background:"rgba(255,149,0,0.06)",border:"1px solid rgba(255,149,0,0.18)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-            <span style={{fontSize:8,color:th.dim,lineHeight:1.4,flex:1}}>💡 Pour utiliser ton contrôleur MIDI, ouvre l'app dans un onglet Chrome ou Edge.</span>
-            <button onClick={()=>window.open(window.location.href,'_blank')} style={{flexShrink:0,padding:"5px 10px",borderRadius:5,border:"1px solid rgba(255,149,0,0.45)",background:"rgba(255,149,0,0.13)",color:"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>↗ NOUVEL ONGLET</button>
-          </div>
+          {(()=>{
+            const domain=typeof __REPLIT_DOMAIN__!=='undefined'?__REPLIT_DOMAIN__:"";
+            const directUrl=domain?`https://${domain}/`:window.location.origin+"/";
+            return(
+              <div style={{marginBottom:8,padding:"8px 10px",borderRadius:6,background:"rgba(255,149,0,0.06)",border:"1px solid rgba(255,149,0,0.18)"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                  <span style={{fontSize:8,color:th.dim,lineHeight:1.4,flex:1}}>💡 L'iframe Replit bloque les ports MIDI. Ouvre l'URL directe dans Chrome/Edge :</span>
+                  <button onClick={()=>window.open(directUrl,'_blank')} style={{flexShrink:0,padding:"5px 10px",borderRadius:5,border:"1px solid rgba(255,149,0,0.45)",background:"rgba(255,149,0,0.13)",color:"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>↗ OUVRIR</button>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <input readOnly value={directUrl} onClick={e=>e.target.select()} style={{flex:1,padding:"4px 7px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"rgba(0,0,0,0.3)",color:"#FF9500",fontSize:8,fontFamily:"monospace",cursor:"text"}}/>
+                  <button onClick={()=>navigator.clipboard?.writeText(directUrl)} style={{padding:"4px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"transparent",color:th.dim,fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>COPIER</button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── DEBUG PANEL ── */}
           <div style={{marginBottom:8,borderRadius:6,border:`1px solid ${showMidiDbg?"rgba(100,210,255,0.3)":th.sBorder}`,overflow:"hidden"}}>

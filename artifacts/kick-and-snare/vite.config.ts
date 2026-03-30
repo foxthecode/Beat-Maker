@@ -26,8 +26,13 @@ if (!basePath) {
   );
 }
 
+const replitDomain = process.env.REPLIT_DEV_DOMAIN ?? "";
+
 export default defineConfig({
   base: basePath,
+  define: {
+    __REPLIT_DOMAIN__: JSON.stringify(replitDomain),
+  },
   plugins: [
     react(),
     tailwindcss(),
