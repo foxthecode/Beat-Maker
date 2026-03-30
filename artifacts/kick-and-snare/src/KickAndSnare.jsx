@@ -270,6 +270,10 @@ export default function KickAndSnare(){
   const [metroVol,setMetroVol]=useState(70);
   const [dragInfo,setDragInfo]=useState(null);
   const [metroSub,setMetroSub]=useState("off");
+  // MIDI Sync
+  const [midiSync,setMidiSync]=useState('off'); // 'off'|'in'|'out'
+  const [midiStatus,setMidiStatus]=useState(''); // ''|'ok'|'!WM'|'denied'|'no ports'
+  const midiRef=useRef({access:null,clkTimes:[],ins:[],outs:[],outIdx:0});
   // VU meter refs — direct DOM manipulation for performance
   const vuRefs=useRef({});
 
@@ -279,10 +283,10 @@ export default function KickAndSnare(){
   const R=useRef({step:-1}).current;
   const tapTimesRef=useRef([]);
 
-  R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;
+  R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;R.playing=playing;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
-  R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;
+  R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.mSync=midiSync;R.mRef=midiRef;
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -290,6 +294,37 @@ export default function KickAndSnare(){
     times.push(now);if(times.length>4)times.shift();
     if(times.length>1){const ivs=[];for(let i=1;i<times.length;i++)ivs.push(times[i]-times[i-1]);const avg=ivs.reduce((a,b)=>a+b,0)/ivs.length;setBpm(Math.max(30,Math.min(300,Math.round(60000/avg))));}
   };
+
+  // MIDI handlers
+  const onMidiMsg=useCallback(ev=>{
+    const b=ev.data[0];
+    if(b===0xF8){
+      const now=performance.now();const mr=midiRef.current;
+      mr.clkTimes.push(now);if(mr.clkTimes.length>24)mr.clkTimes.shift();
+      if(mr.clkTimes.length>=3){
+        const ct=mr.clkTimes;const dur=(ct[ct.length-1]-ct[0])/(ct.length-1);
+        const nb=Math.round(60000/(dur*24));if(nb>=20&&nb<=400)setBpm(nb);
+      }
+    }else if(b===0xFA||b===0xFB){if(!R.playing)ssRef.current?.();}
+    else if(b===0xFC){if(R.playing)ssRef.current?.();}
+  },[]);
+  const initMidi=async()=>{
+    const mr=midiRef.current;if(mr.access)return;
+    if(!navigator.requestMIDIAccess){setMidiStatus('!WM');return;}
+    try{
+      const acc=await navigator.requestMIDIAccess({sysex:false});mr.access=acc;
+      const upd=()=>{mr.ins=[...acc.inputs.values()];mr.outs=[...acc.outputs.values()];
+        setMidiStatus(mr.ins.length+mr.outs.length>0?'ok':'no ports');};
+      upd();acc.onstatechange=upd;
+    }catch(e){setMidiStatus('denied');}
+  };
+  useEffect(()=>{
+    if(midiSync==='off')return;
+    const mr=midiRef.current;if(!mr.access)return;
+    mr.clkTimes=[];
+    mr.ins.forEach(p=>{p.onmidimessage=midiSync==='in'?onMidiMsg:null;});
+    return()=>{mr.ins.forEach(p=>{p.onmidimessage=null;});};
+  },[midiSync,onMidiMsg]);
 
   // VU meter animation
   useEffect(()=>{
@@ -391,6 +426,18 @@ export default function KickAndSnare(){
       }
       const st=nxtRef.current;schSt(R.step,st);
       if(R.metro){const gs=isGS(R.step,gr);if(gs.y)playClk(st,gs.f?"accent":"beat");else playClk(st,"sub");}
+      if(R.mSync==='out'){
+        const mr=R.mRef.current;const mOut=mr.outs[mr.outIdx];
+        if(mOut&&engine.ctx){
+          const bd2=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
+          const pps=Math.max(1,Math.round(24*(cs.beats||(cs.groups?.length||4))/cs.steps));
+          for(let p=0;p<pps;p++){
+            const at=st+p*(bd2/pps);
+            const dt=Math.max(1,Math.round((at-engine.ctx.currentTime)*1000+performance.now()));
+            try{mOut.send([0xF8],dt);}catch{}
+          }
+        }
+      }
       stepped=true;
       const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
       const sw=bd*(R.sw/100);nxtRef.current+=R.step%2===0?(bd-sw):(bd+sw);
@@ -401,8 +448,13 @@ export default function KickAndSnare(){
 
   const startStop=()=>{
     engine.init();
-    if(playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);}
-    else{R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;schLoop();setPlaying(true);}
+    if(playing){
+      clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
+      if(midiSync==='out'){const mr=midiRef.current;const mOut=mr.outs[mr.outIdx];if(mOut)try{mOut.send([0xFC]);}catch{}}
+    }else{
+      R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;schLoop();setPlaying(true);
+      if(midiSync==='out'){const mr=midiRef.current;const mOut=mr.outs[mr.outIdx];if(mOut)try{mOut.send([0xFA]);}catch{}}
+    }
   };
   ssRef.current=startStop;
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
@@ -636,6 +688,20 @@ export default function KickAndSnare(){
           })()}
           <button onClick={()=>setShowK(!showK)} style={pill(showK,"#FFD60A")}>⌨</button>
           {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
+          {/* MIDI Sync */}
+          {(()=>{
+            const lCol=midiSync==='in'?"#30D158":midiSync==='out'?"#64D2FF":"#BF5AF2";
+            const lLbl=midiSync==='in'?'MIDI IN':midiSync==='out'?'MIDI OUT':'MIDI';
+            const dotCol=midiStatus==='ok'?'#30D158':midiStatus==='denied'||midiStatus==='!WM'?'#FF2D55':midiStatus==='no ports'?'#FF9500':'';
+            return(<button onClick={async()=>{
+              const next=midiSync==='off'?'in':midiSync==='in'?'out':'off';
+              if(next!=='off')await initMidi();
+              setMidiSync(next);
+            }} style={{...pill(midiSync!=='off',lCol),display:"flex",alignItems:"center",gap:4}}>
+              {midiSync==='in'?'⬇':midiSync==='out'?'⬆':'⇄'}{lLbl}
+              {dotCol&&<span style={{width:5,height:5,borderRadius:"50%",background:dotCol,display:"inline-block"}}/>}
+            </button>);
+          })()}
           {/* Save / Load / Export */}
           <div style={{display:"flex",gap:3,marginLeft:"auto"}}>
             {saveMsg&&<span style={{fontSize:9,color:"#30D158",fontWeight:700,padding:"5px 8px"}}>{saveMsg}</span>}
