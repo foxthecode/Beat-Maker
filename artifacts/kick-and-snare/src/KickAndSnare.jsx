@@ -984,8 +984,7 @@ export default function KickAndSnare(){
               const isFO=fxO===track.id;
               const tSteps=trackSteps[track.id]||STEPS;
               const tsOpts=[STEPS,STEPS*2];const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsIdx>=0?tsOpts[(tsIdx+1)%tsOpts.length]:STEPS;
-              const isCustomTs=tSteps!==STEPS;
-              const hasRec=(pat[track.id]||[]).some(v=>v);const stLocked=hasRec;
+              const isCustomTs=tSteps!==STEPS;const isNonStd=!tsOpts.includes(tSteps);
               return(<div key={track.id}>
                 <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
                   {/* Track Label + VOL/PAN — 2-col grid */}
@@ -1026,7 +1025,7 @@ export default function KickAndSnare(){
                         })()}
                         {/* R2C1: 16st */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
-                          <button title={stLocked?"Clear track to change resolution":`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,border:`1px solid ${stLocked?"rgba(255,55,95,0.25)":isCustomTs?track.color+"44":th.sBorder}`,background:stLocked?"rgba(255,55,95,0.06)":isCustomTs?track.color+"11":"transparent",color:stLocked?"rgba(255,55,95,0.5)":isCustomTs?track.color:th.dim,cursor:stLocked?"not-allowed":"pointer",opacity:stLocked?0.6:1,padding:"0 3px"}}>{tSteps}st</button>
+                          <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",cursor:"pointer",border:`1px solid ${isNonStd?"rgba(255,179,64,0.7)":isCustomTs?track.color+"44":th.sBorder}`,background:isNonStd?"rgba(255,179,64,0.15)":isCustomTs?track.color+"11":"transparent",color:isNonStd?"#FFB340":isCustomTs?track.color:th.dim,animation:isNonStd?"pulse 1.2s ease-in-out infinite":"none"}}>{tSteps}st</button>
                         </div>
                         {/* R2C2: ♪ · FX · × */}
                         <div style={{display:"flex",gap:2}}>
