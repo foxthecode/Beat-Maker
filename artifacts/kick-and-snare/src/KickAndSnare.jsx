@@ -730,6 +730,7 @@ export default function KickAndSnare(){
   };
   const commitCapture=(evs,mode)=>{
     const tSteps=STEPS;
+    const nudgeMap={}; // {tid:{step:nudgeMs}} — collected outside setPBank
     setPBank(pb=>{
       const n=[...pb];const cp={...n[R.cp]};
       evs.forEach(({tid,stepQ,stepR,nudgeMs})=>{
@@ -738,10 +739,21 @@ export default function KickAndSnare(){
         const capped=Math.max(0,Math.min(tSteps-1,s));
         cp[tid]=[...(cp[tid]||Array(tSteps).fill(0))];
         cp[tid][capped]=100;
-        if(mode==="keep"&&nudgeMs>0)setStNudge(sn=>({...sn,[tid]:{...(sn[tid]||{}),[capped]:nudgeMs}}));
+        if(mode==="keep"&&nudgeMs>0){
+          if(!nudgeMap[tid])nudgeMap[tid]={};
+          nudgeMap[tid][capped]=nudgeMs;
+        }
       });
       n[R.cp]=cp;return n;
     });
+    // Apply nudge updates outside setPBank callback
+    if(Object.keys(nudgeMap).length>0){
+      setStNudge(sn=>{
+        const next={...sn};
+        Object.entries(nudgeMap).forEach(([tid,steps])=>{next[tid]={...(sn[tid]||{}),...steps};});
+        return next;
+      });
+    }
     setCapState("idle");setCapReviewEvs([]);
   };
   const doQuantize=()=>commitCapture(capReviewEvs,"quantize");
@@ -1260,21 +1272,21 @@ export default function KickAndSnare(){
                           <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
                           <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
                         </div>
-                        {/* R1C3: VOL round button */}
+                        {/* R1C3: VOL round knob */}
                         {(()=>{
-                          const mkRnd=(lbl,val,min,max,cbKey,resetV)=>{
-                            const pct=Math.round((val-min)/(max-min)*100);
-                            const disp=lbl==="PAN"?(val===0?"C":val<0?`L${Math.abs(val)}`:`R${val}`):`${val}`;
-                            const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=val;const mv=pe=>{const dy=sY-pe.clientY;uFx(cbKey,Math.max(min,Math.min(max,Math.round(sV+dy*((max-min)/80)))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                            const arc=`conic-gradient(${track.color} ${pct}%,transparent ${pct}%)`;
-                            return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}} onPointerDown={onPD} onDoubleClick={()=>uFx(cbKey,resetV)} title={`${lbl}: ${disp} — drag ↕, dbl-click reset`}>
-                              <div style={{width:22,height:22,borderRadius:"50%",background:arc,outline:`2px solid ${track.color}33`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`inset 0 0 0 3px ${th.bg}`}}>
-                                <span style={{fontSize:6,fontWeight:900,color:track.color,pointerEvents:"none"}}>{lbl}</span>
-                              </div>
-                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{disp}</span>
-                            </div>);
-                          };
-                          return(<div style={{display:"flex",gap:4,justifyContent:"center"}}>{mkRnd("VOL",vol,0,100,"vol",80)}{mkRnd("PAN",pan,-100,100,"pan",0)}</div>);
+                          const pct=vol;const disp=`${vol}`;
+                          const r=9;const circ=2*Math.PI*r;
+                          const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFx("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                          return(<div onPointerDown={onPD} onDoubleClick={()=>uFx("vol",80)} title={`VOL: ${disp} — drag ↕, dbl-click reset`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",justifySelf:"center"}}>
+                            <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
+                                <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
+                                <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*pct/100} ${circ}`}/>
+                              </svg>
+                              <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
+                            </div>
+                            <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{disp}</span>
+                          </div>);
                         })()}
                         {/* R2C1: 16st */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
@@ -1286,7 +1298,28 @@ export default function KickAndSnare(){
                           <button onClick={()=>setFxO(isFO?null:track.id)} style={{...btnSt,width:22,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6}}>FX</button>
                           {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                         </div>
-                        {/* R2C3: empty — VOL+PAN are now in R1C3 as round buttons */}
+                        {/* R2C3: PAN round knob */}
+                        {(()=>{
+                          const r=9;const circ=2*Math.PI*r;
+                          const disp=pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`;
+                          const pct=(pan+100)/2; // 0..100 where 50=center
+                          const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                          return(<div onPointerDown={onPD} onDoubleClick={()=>uFx("pan",0)} title={`PAN: ${disp} — drag ↕, dbl-click center`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",justifySelf:"center"}}>
+                            <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
+                                <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
+                                {pan!==0&&<circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round"
+                                  strokeDasharray={`${circ*Math.abs(pan)/200} ${circ}`}
+                                  strokeDashoffset={pan>0?0:-circ*Math.abs(pan)/200}
+                                  transform={pan<0?`rotate(180,11,11)`:""}
+                                />}
+                                <circle cx="11" cy="11" r="1.5" fill={track.color}/>
+                              </svg>
+                              <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
+                            </div>
+                            <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{disp}</span>
+                          </div>);
+                        })()}
                         {/* R3: sample name — spans all cols */}
                         <div style={{gridColumn:"1/-1"}}>
                           {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,24)}</span>}
