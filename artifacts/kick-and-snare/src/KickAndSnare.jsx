@@ -1020,8 +1020,13 @@ export default function KickAndSnare(){
             const pp=Array(t.N).fill(0);t.hits.forEach(h=>{pp[h]=100;});
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:t.N}};cp[tid]=[...pp];n[cPat]=cp;return n;});
           };
-          const slBase={WebkitAppearance:"none",appearance:"none",width:"100%",height:4,borderRadius:2,outline:"none",cursor:"pointer",background:"transparent"};
           const selStyle={width:"100%",background:th.surface,border:`1px solid ${th.sBorder}`,borderRadius:5,color:th.text,fontSize:9,fontFamily:"inherit",padding:"4px 6px",cursor:"pointer"};
+          const mkDrag=(initVal,min,max,cb)=>e=>{
+            e.preventDefault();const sy=e.clientY;let cv=initVal;
+            const mv=me=>{const nv=Math.max(min,Math.min(max,initVal+Math.round((sy-me.clientY)/6)));if(nv!==cv){cv=nv;cb(nv);}};
+            const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);};
+            window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+          };
           return(
             <div style={{padding:"8px 0",overflowX:"auto"}}>
               <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:680}}>
@@ -1049,39 +1054,34 @@ export default function KickAndSnare(){
                             </optgroup>
                           ))}
                         </select>
-                        {/* N (Pas) */}
-                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                          <div style={{display:"flex",justifyContent:"space-between"}}>
-                            <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>PAS (N)</span>
-                            <span style={{fontSize:9,fontWeight:800,color:tr.color}}>{p.N}</span>
-                          </div>
-                          <input type="range" min={3} max={32} value={p.N} onChange={e=>chN(tr.id,Number(e.target.value))}
-                            style={{...slBase,accentColor:tr.color}}/>
-                        </div>
-                        {/* Hits */}
-                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                          <div style={{display:"flex",justifyContent:"space-between"}}>
-                            <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>HITS</span>
-                            <span style={{fontSize:9,fontWeight:800,color:tr.color}}>{p.hits} / {p.N}</span>
-                          </div>
-                          <input type="range" min={0} max={p.N} value={p.hits} onChange={e=>chH(tr.id,Number(e.target.value))}
-                            style={{...slBase,accentColor:tr.color}}/>
-                        </div>
-                        {/* Rotation */}
-                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                          <div style={{display:"flex",justifyContent:"space-between"}}>
-                            <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ROTATION</span>
-                            <span style={{fontSize:9,fontWeight:800,color:tr.color}}>+{p.rot}</span>
-                          </div>
-                          <input type="range" min={0} max={Math.max(p.N-1,0)} value={p.rot} onChange={e=>chR(tr.id,Number(e.target.value))}
-                            style={{...slBase,accentColor:tr.color}}/>
-                        </div>
-                        {/* Mini strip preview */}
-                        <div style={{display:"flex",gap:1,flexWrap:"wrap",marginTop:2}}>
-                          {(pat[tr.id]||[]).slice(0,Math.min(p.N,32)).map((v,i)=>(
-                            <div key={i} style={{width:Math.max(4,Math.min(8,200/p.N)),height:6,borderRadius:1,background:v?tr.color:th.stepOff,flexShrink:0,opacity:i===cStep%p.N?1:v?0.9:0.35,boxShadow:i===cStep%p.N?`0 0 4px ${tr.color}`:"none"}}/>
-                          ))}
-                        </div>
+                        {/* ── Spinners: N · HITS · ROT on one row ── */}
+                        {(()=>{
+                          const arw={width:16,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",fontFamily:"inherit",lineHeight:"1",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
+                          const lbl={fontSize:6.5,color:th.dim,fontWeight:700,letterSpacing:"0.07em",flexShrink:0};
+                          const val={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",color:tr.color,flexShrink:0};
+                          const sep={fontSize:10,color:th.faint,flexShrink:0};
+                          return(
+                            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
+                              {/* N */}
+                              <span style={lbl}>N</span>
+                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
+                              <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕ to change" style={val}>{p.N}</span>
+                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
+                              <span style={sep}>·</span>
+                              {/* HITS */}
+                              <span style={lbl}>HITS</span>
+                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
+                              <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕ to change" style={val}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
+                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
+                              <span style={sep}>·</span>
+                              {/* ROT */}
+                              <span style={lbl}>ROT</span>
+                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
+                              <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕ to change" style={val}>+{p.rot}</span>
+                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
