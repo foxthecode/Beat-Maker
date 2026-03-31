@@ -1498,56 +1498,8 @@ export default function KickAndSnare(){
           </div>
         </>)}
 
-        {/* ── LIVE PADS + LOOPER ── */}
+        {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
-
-          {/* ─ Looper toolbar ─ */}
-          <div style={{marginBottom:10,padding:"10px 12px",borderRadius:10,background:th.surface,border:`1px solid ${loopRec?"rgba(255,45,85,0.55)":loopPlaying?"rgba(48,209,88,0.35)":th.sBorder}`,transition:"border-color 0.2s"}}>
-            {/* Row 1: controls */}
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-              {/* LOOP length */}
-              <div style={{display:"flex",alignItems:"center",gap:3}}>
-                <span style={{fontSize:7,color:th.dim,fontWeight:700,marginRight:2}}>LOOP</span>
-                {[1,2,4].map(b=><button key={b} onClick={()=>{if(!loopPlaying)setLoopBars(b);}} style={{width:22,height:20,borderRadius:4,border:`1px solid ${loopBars===b?"#FF9500":th.sBorder}`,background:loopBars===b?"rgba(255,149,0,0.15)":"transparent",color:loopBars===b?"#FF9500":th.dim,fontSize:8,fontWeight:700,cursor:loopPlaying?"default":"pointer",fontFamily:"inherit",opacity:loopPlaying&&loopBars!==b?0.4:1}}>{b}</button>)}
-                <span style={{fontSize:7,color:th.faint}}>bar{loopBars>1?"s":""}</span>
-              </div>
-              {/* REC */}
-              <button onClick={toggleLoopRec} style={{padding:"5px 14px",borderRadius:6,background:loopRec?"rgba(255,45,85,0.25)":"rgba(255,45,85,0.08)",color:"#FF2D55",border:`1px solid rgba(255,45,85,${loopRec?0.7:0.25})`,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:loopRec?"0 0 12px rgba(255,45,85,0.4)":"none",letterSpacing:"0.08em"}}>
-                {loopRec?"● REC":"○ REC"}
-              </button>
-              {/* PLAY / STOP */}
-              {loopPlaying
-                ?<button onClick={stopLooper} style={{padding:"5px 14px",borderRadius:6,background:"rgba(48,209,88,0.12)",color:"#30D158",border:"1px solid rgba(48,209,88,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>■ STOP</button>
-                :<button onClick={()=>{if(loopRef.current.events.length>0)startLooper();}} disabled={loopDisp.length===0} style={{padding:"5px 14px",borderRadius:6,background:"rgba(48,209,88,0.08)",color:loopDisp.length?"#30D158":"#30D15855",border:`1px solid rgba(48,209,88,${loopDisp.length?0.4:0.1})`,fontSize:9,fontWeight:700,cursor:loopDisp.length?"pointer":"default",fontFamily:"inherit"}}>▶ PLAY</button>
-              }
-              <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-                <button onClick={undoLoopPass} disabled={!loopDisp.length} style={{padding:"4px 10px",borderRadius:5,background:"transparent",color:th.dim,border:`1px solid ${th.sBorder}`,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:loopDisp.length?1:0.35}}>↩ UNDO</button>
-                <button onClick={clearLooper} disabled={!loopDisp.length&&!loopPlaying} style={{padding:"4px 10px",borderRadius:5,background:"rgba(255,55,95,0.08)",color:"#FF375F",border:"1px solid rgba(255,55,95,0.25)",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:loopDisp.length||loopPlaying?1:0.35}}>✕ CLEAR</button>
-              </div>
-            </div>
-            {/* Row 2: timeline */}
-            <div style={{marginTop:10,borderRadius:8,overflow:"hidden",background:`${th.bg}`,padding:"6px 0",position:"relative"}}>
-              {/* Tracks */}
-              {atO.map(track=>{
-                const evs=loopDisp.filter(e=>e.tid===track.id);
-                return(<div key={track.id} style={{display:"flex",alignItems:"center",gap:8,height:16,marginBottom:3}}>
-                  <span style={{fontSize:7,fontWeight:700,color:evs.length?track.color:th.faint,width:36,flexShrink:0,textAlign:"right"}}>{track.label}</span>
-                  <div style={{flex:1,height:10,borderRadius:3,background:track.color+"14",position:"relative",overflow:"visible"}}>
-                    {evs.map((ev,i)=>{
-                      const L=loopRef.current;const pct=(ev.tOff/L.lengthMs)*100;
-                      return(<div key={i} style={{position:"absolute",left:`${pct}%`,top:"50%",transform:"translate(-50%,-50%)",width:6,height:10,borderRadius:2,background:track.color,boxShadow:`0 0 4px ${track.color}88`}}/>);
-                    })}
-                  </div>
-                </div>);
-              })}
-              {/* Playhead */}
-              {loopPlaying&&<div style={{position:"absolute",top:0,bottom:0,left:`${loopPlayhead*100}%`,width:1.5,background:"rgba(255,255,255,0.55)",pointerEvents:"none",boxShadow:"0 0 6px rgba(255,255,255,0.4)",transform:"translateX(-50%)",zIndex:10,marginLeft:44}}/>}
-              {/* Loop boundary markers */}
-              <div style={{position:"absolute",top:0,right:0,width:1.5,background:"rgba(255,255,255,0.12)",height:"100%"}}/>
-              {!loopPlaying&&!loopDisp.length&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:44}}><span style={{fontSize:8,color:th.faint}}>press ● REC then tap pads</span></div>}
-            </div>
-          </div>
-
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
             {atO.map((track)=>(
@@ -1558,17 +1510,15 @@ export default function KickAndSnare(){
                     trigPad(track.id,e.pointerType==="mouse"?1:110/127);
                     if(navigator.vibrate)navigator.vibrate(15);
                   }}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:loopRec?track.color+"88":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:loopRec?`0 0 22px ${track.color}44`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
+                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
                   {DrumSVG(track.id,track.color,flash===track.id,44)}
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
                 </button>
-                {/* MIDI badge */}
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
               </div>
             ))}
           </div>
-          <div style={{textAlign:"center",marginTop:8,fontSize:8,color:th.dim}}>● REC pour enregistrer · ▶ PLAY pour boucler</div>
         </div>)}
 
         {/* ── EUCLID VIEW ── */}
