@@ -1084,7 +1084,18 @@ export default function KickAndSnare(){
                               {/* Row 2 right: PAN horizontal slider */}
                               <div style={{display:"flex",alignItems:"center",gap:4}}>
                                 <span style={slLbl}>PAN</span>
-                                <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={slH}/>
+                                <div style={{flex:1,position:"relative",height:10}}>
+                                  {/* Track */}
+                                  <div style={{position:"absolute",top:"50%",left:0,right:0,height:2,background:th.sBorder,borderRadius:1,transform:"translateY(-50%)"}}/>
+                                  {/* Center tick */}
+                                  <div style={{position:"absolute",top:0,bottom:0,left:"50%",width:1,background:tr.color+"55",transform:"translateX(-50%)"}}/>
+                                  {/* Fill bar from center outward */}
+                                  {pan!==0&&<div style={{position:"absolute",top:"50%",height:3,borderRadius:1,background:tr.color,transform:"translateY(-50%)",left:pan<0?`${50+(pan/100)*50}%`:"50%",width:`${Math.abs(pan/100)*50}%`}}/>}
+                                  {/* Thumb */}
+                                  <div style={{position:"absolute",top:"50%",left:`${(pan+100)/2}%`,width:8,height:8,borderRadius:"50%",background:tr.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${tr.color}33`,pointerEvents:"none"}}/>
+                                  {/* Hidden range input for interaction */}
+                                  <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
+                                </div>
                                 <span style={slVal}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
                               </div>
                             </div>
