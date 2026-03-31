@@ -1205,7 +1205,7 @@ export default function KickAndSnare(){
         </div>)}
 
         {/* ── Pattern Bank ── */}
-        <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8,padding:"5px 10px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
+        {view!=="pads"&&<div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8,padding:"5px 10px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
           <span style={{fontSize:8,color:th.dim}}>PAT</span>
           {pBank.map((_,i)=>(<button key={i} onClick={()=>{setCPat(i);R.pat=pBank[i];}} style={{width:28,height:24,borderRadius:5,cursor:"pointer",fontFamily:"inherit",fontSize:10,fontWeight:800,border:`1px solid ${cPat===i?SEC_COL[i%8]+"66":th.sBorder}`,background:cPat===i?SEC_COL[i%8]+"20":"transparent",color:cPat===i?SEC_COL[i%8]:th.dim}}>{i+1}</button>))}
           {pBank.length<MAX_PAT&&<button onClick={()=>{setPBank(p=>[...p,mkE(STEPS)]);setCPat(pBank.length);}} style={{width:24,height:24,border:`1px dashed ${th.sBorder}`,borderRadius:5,background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>}
@@ -1213,10 +1213,10 @@ export default function KickAndSnare(){
             {pBank.length<MAX_PAT&&<button onClick={()=>{const dup=JSON.parse(JSON.stringify(pBank[cPat]));setPBank(p=>{const n=[...p];n.splice(cPat+1,0,dup);return n;});setCPat(cPat+1);}} style={{padding:"2px 6px",border:`1px solid ${th.sBorder}`,borderRadius:5,background:"transparent",color:th.dim,fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>DUP</button>}
             {pBank.length>1&&<button onClick={()=>{setPBank(p=>p.filter((_,j)=>j!==cPat));if(cPat>0)setCPat(cPat-1);}} style={{padding:"2px 6px",border:"1px solid rgba(255,55,95,0.2)",borderRadius:5,background:"transparent",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>DEL</button>}
           </div>
-        </div>
+        </div>}
 
         {/* ── SONG ARRANGER (foldable) ── */}
-        <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
+        {view!=="pads"&&<div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
           {/* Fold header */}
           <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",userSelect:"none"}}>
             <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
@@ -1251,7 +1251,7 @@ export default function KickAndSnare(){
               <button onClick={()=>setSongChain([cPat])} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>RESET</button>
             </div>
           </div>)}
-        </div>
+        </div>}
 
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
@@ -1461,11 +1461,18 @@ export default function KickAndSnare(){
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
                 </button>
+                {/* MIDI badge */}
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
+                {/* FX badge */}
+                {(()=>{const hasFx=fx[track.id]&&(fx[track.id].drive>0||fx[track.id].pitch!==0||fx[track.id].cut<20000||fx[track.id].onReverb||fx[track.id].onDelay||fx[track.id].onComp);const isFO=fxO===track.id;return(<button
+                  onPointerDown={e=>{e.stopPropagation();e.preventDefault();setFxO(p=>p===track.id?null:track.id);}}
+                  style={{position:"absolute",bottom:6,left:6,padding:"2px 7px",borderRadius:4,border:`1px solid rgba(191,90,242,${isFO?0.7:hasFx?0.45:0.2})`,background:isFO?"rgba(191,90,242,0.22)":hasFx?"rgba(191,90,242,0.1)":"rgba(191,90,242,0.04)",color:isFO||hasFx?"#BF5AF2":"#BF5AF255",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>FX</button>);})()}
               </div>
             ))}
           </div>
-          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>● REC pour enregistrer · ▶ PLAY pour boucler · ○ REC pour overdub</div>
+          {/* FX panel for selected pad */}
+          {fxO&&atO.find(t=>t.id===fxO)&&<SSL tid={fxO} color={atO.find(t=>t.id===fxO)?.color||"#fff"} fx={fx} setFx={setFx} bpm={bpm} onClose={()=>setFxO(null)} themeName={themeName}/>}
+          <div style={{textAlign:"center",marginTop:8,fontSize:8,color:th.dim}}>● REC pour enregistrer · ▶ PLAY pour boucler · FX sur chaque pad</div>
         </div>)}
 
         {/* ── EUCLID VIEW ── */}
@@ -1573,6 +1580,7 @@ export default function KickAndSnare(){
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 <MidiTag id={tr.id}/>
                                 <button onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
+                                {(()=>{const hFx=fx[tr.id]&&(fx[tr.id].drive>0||fx[tr.id].pitch!==0||fx[tr.id].cut<20000||fx[tr.id].onReverb||fx[tr.id].onDelay||fx[tr.id].onComp);const iFO=fxO===tr.id;return(<button onClick={()=>setFxO(p=>p===tr.id?null:tr.id)} style={{...btnSm,color:iFO||hFx?"#BF5AF2":th.faint,border:`1px solid ${iFO?"rgba(191,90,242,0.55)":hFx?"rgba(191,90,242,0.3)":th.sBorder}`,background:iFO?"rgba(191,90,242,0.15)":hFx?"rgba(191,90,242,0.08)":"transparent"}}>FX</button>);})()}
                                 {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 1 right: VOL horizontal slider — custom drag */}
@@ -1640,6 +1648,8 @@ export default function KickAndSnare(){
                             </div>
                           </div>
                         )}
+                      {/* FX panel inline */}
+                      {fxO===tr.id&&<SSL tid={tr.id} color={tr.color} fx={fx} setFx={setFx} bpm={bpm} onClose={()=>setFxO(null)} themeName={themeName}/>}
                       </div>
                     );
                   })}
