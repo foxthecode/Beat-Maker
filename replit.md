@@ -91,6 +91,27 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/kick-and-snare` (`@workspace/kick-and-snare`)
+
+Browser-based TR-808 drum sequencer (React + Vite, port 24007).
+
+**Key features (v8):**
+- **808 synthesis**: All default sounds pre-rendered via `OfflineAudioContext` at startup. Custom cowbell tracks. `_syn(id,t,v,d,octx,sh)` signature with optional SHAPE params.
+- **SHAPE system**: 6 SHAPE params (`sDec·sTune·sPunch·sSnap·sBody·sTone`) in `defFx()`. FX panel "Shape" section with per-instrument params. On change → 280ms debounce → `engine.renderShape(id, fxObj)` re-renders + auto-plays preview.
+- **Vol/Pan**: Permanent round drag buttons in track header (ring-fill conic-gradient visual, drag ↕, dbl-click reset). Removed from FX dropdown.
+- **LIVE PADS** (tab, renamed from "Pads"):
+  - Always-on ring buffer (`ringBufRef`) recording last 4 bars of pad hits
+  - **⊙ CAPTURE**: retrospective capture — takes last N bars, maps to steps, review or auto-commit
+  - **OVERDUB**: real-time step-write while sequencer plays
+  - **AUTO-Q toggle**: quantize on capture vs review mode
+  - **Review strip**: per-track pastille strips + GARDER / QUANTIZE / DISCARD toolbar
+  - Velocity: touch/tablet → 110/127 fixed, MIDI → variable from MIDI message
+- **Multi-view**: Sequencer, LIVE PADS, Euclid (with independent per-track polyrhythm clocks)
+- **Ableton Link sync** via local WebSocket bridge (`link-bridge/bridge.js:9898`)
+- **Web MIDI** input + MIDI learn
+- **Song Arranger**, **Pattern Banks** (8 patterns)
+- **Inline styles only** via `THEMES["dark"|"daylight"]`
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

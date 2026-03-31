@@ -56,7 +56,15 @@ const mkR=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(1)]));
 
 
 const defFx=()=>({pitch:0,fType:"lowpass",cut:20000,res:0,drive:0,crush:0,cThr:-24,cRat:1,rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,
-  onPitch:true,onFilter:true,onDrive:true,onComp:true,onReverb:false,onDelay:false});
+  onPitch:true,onFilter:true,onDrive:true,onComp:true,onReverb:false,onDelay:false,
+  // SHAPE — synthesis timbre params (multipliers around 1.0)
+  sDec:1.0,  // decay length ×
+  sTune:1.0, // body frequency ×
+  sPunch:1.0,// transient/attack amplitude ×
+  sSnap:1.0, // noise/snap amount ×
+  sBody:1.0, // sine body amplitude ×
+  sTone:1.0, // brightness/high-freq ×
+});
 
 const DELAY_DIVS=["1/4","1/8","1/16","1/4d","1/8d","1/4t","1/8t"];
 const divToSec=(div,bpm)=>{const b=60/bpm;const m={"1/4":b,"1/8":b/2,"1/16":b/4,"1/4d":b*1.5,"1/8d":b*0.75,"1/4t":b*2/3,"1/8t":b/3};return m[div]||b;};
@@ -162,63 +170,67 @@ class Eng{
     if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);}
     else this._syn(id,t,vel,c.in);
   }
-  _syn(id,t,v,d,octx){
-    // ── TR-808 authentic synthesis ──────────────────────────────────────────
+  _syn(id,t,v,d,octx,sh){
+    // ── TR-808 synthesis with SHAPE params ─────────────────────────────────
     const ctx=octx||this.ctx;
-    // Shared helpers
+    const sDec=sh?.sDec??1, sTune=sh?.sTune??1, sPunch=sh?.sPunch??1, sSnap=sh?.sSnap??1, sBody=sh?.sBody??1, sTone=sh?.sTone??1;
     const noise=(dur)=>{const b=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*dur),ctx.sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=b;return s;};
     const osc=(type,freq)=>{const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);return o;};
     const gain=(val)=>{const g=ctx.createGain();g.gain.setValueAtTime(val,t);return g;};
     const filt=(type,freq,q=0)=>{const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;return f;};
     const S={
-      // 808 Bass Drum: deep sine with steep pitch sweep + click transient
       kick:()=>{
-        const click=noise(0.005);const cg=gain(v*0.6);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);const chp=filt("highpass",100);click.connect(chp);chp.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.006);
-        const o=osc("sine",180);o.frequency.exponentialRampToValueAtTime(28,t+0.9);const g=gain(v*1.5);g.gain.exponentialRampToValueAtTime(0.001,t+1.1);o.connect(g);g.connect(d);o.start(t);o.stop(t+1.1);
+        const click=noise(0.005);const cg=gain(v*0.6*sPunch);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);const chp=filt("highpass",100);click.connect(chp);chp.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.007);
+        const o=osc("sine",180*sTune);o.frequency.exponentialRampToValueAtTime(Math.max(20,28*sTune),t+0.9*sDec);const g=gain(v*1.5*sBody);g.gain.exponentialRampToValueAtTime(0.001,t+1.1*sDec);o.connect(g);g.connect(d);o.start(t);o.stop(t+1.15*sDec);
       },
-      // 808 Snare: bright tone body + bandpass noise snap
       snare:()=>{
-        const o=osc("sine",200);o.frequency.exponentialRampToValueAtTime(150,t+0.06);const og=gain(v*0.6);og.gain.exponentialRampToValueAtTime(0.001,t+0.14);o.connect(og);og.connect(d);o.start(t);o.stop(t+0.14);
-        const ns=noise(0.22);const bp=filt("bandpass",2400,0.6);const ng=gain(v*0.85);ng.gain.exponentialRampToValueAtTime(0.001,t+0.22);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.22);
+        const o=osc("sine",200*sTune);o.frequency.exponentialRampToValueAtTime(150*sTune,t+0.06*sDec);const og=gain(v*0.6*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+0.14*sDec);o.connect(og);og.connect(d);o.start(t);o.stop(t+0.15*sDec);
+        const ns=noise(0.22*sDec);const bp=filt("bandpass",2400*sTone,0.6);const ng=gain(v*0.85*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+0.22*sDec);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.23*sDec);
       },
-      // 808 Closed Hi-Hat: 6-oscillator metallic mix through HPF, very short
       hihat:()=>{
-        const mg=gain(1);mg.connect(d);const decay=0.045;
-        [80,119,167,219,273,329].forEach(f=>{const o=osc("square",f);const og=gain(v*0.06);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(og);og.connect(mg);o.start(t);o.stop(t+decay);});
-        const ns=noise(decay);const hp=filt("highpass",8000);const ng=gain(v*0.18);ng.gain.exponentialRampToValueAtTime(0.001,t+decay);ns.connect(hp);hp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+decay);
+        const decay=0.045*sDec;const mg=gain(1);mg.connect(d);
+        [80,119,167,219,273,329].map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.06);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(og);og.connect(mg);o.start(t);o.stop(t+decay+0.001);});
+        const ns=noise(decay);const hp=filt("highpass",8000*sTone);const ng=gain(v*0.18*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+decay);ns.connect(hp);hp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+decay+0.001);
       },
-      // 808 Clap: 4 staggered noise bursts + tail
       clap:()=>{
-        [0,0.009,0.018,0.028].forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55,t+off);g.gain.exponentialRampToValueAtTime(0.001,t+off+0.012);ns.connect(bp);bp.connect(g);g.connect(d);ns.start(t+off);ns.stop(t+off+0.014);});
-        const tail=noise(0.2);const bp2=filt("bandpass",1000,0.8);const tg=gain(v*0.45);tg.gain.setValueAtTime(0,t);tg.gain.setValueAtTime(v*0.45,t+0.04);tg.gain.exponentialRampToValueAtTime(0.001,t+0.2);tail.connect(bp2);bp2.connect(tg);tg.connect(d);tail.start(t+0.04);tail.stop(t+0.21);
+        [0,0.009,0.018,0.028].map(off=>off*sSnap).forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55*sPunch);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55*sPunch,t+Math.max(0.0001,off));g.gain.exponentialRampToValueAtTime(0.001,t+Math.max(0.001,off)+0.012);ns.connect(bp);bp.connect(g);g.connect(d);ns.start(t+Math.max(0,off));ns.stop(t+Math.max(0,off)+0.015);});
+        const tailDur=0.2*sDec;const tail=noise(tailDur);const bp2=filt("bandpass",1000,0.8);const tg=gain(v*0.45*sBody);tg.gain.setValueAtTime(0,t);tg.gain.setValueAtTime(v*0.45*sBody,t+0.04);tg.gain.exponentialRampToValueAtTime(0.001,t+tailDur);tail.connect(bp2);bp2.connect(tg);tg.connect(d);tail.start(t+0.04);tail.stop(t+tailDur+0.01);
       },
-      // 808 Low Tom: long pitched decay like kick but higher
       tom:()=>{
-        const o=osc("sine",200);o.frequency.exponentialRampToValueAtTime(65,t+0.45);const g=gain(v*1.0);g.gain.exponentialRampToValueAtTime(0.001,t+0.55);o.connect(g);g.connect(d);o.start(t);o.stop(t+0.55);
-        const click=noise(0.005);const cg=gain(v*0.3);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);click.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.007);
+        const dur=0.55*sDec;const o=osc("sine",200*sTune);o.frequency.exponentialRampToValueAtTime(Math.max(20,65*sTune),t+0.45*sDec);const g=gain(v*1.0*sBody);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(d);o.start(t);o.stop(t+dur+0.01);
+        const click=noise(0.005);const cg=gain(v*0.3*sPunch);cg.gain.exponentialRampToValueAtTime(0.001,t+0.007);click.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.008);
       },
-      // 808 Ride (rimshot): metallic ping
       ride:()=>{
-        const mg=gain(1);mg.connect(d);[5500,7280].forEach(f=>{const o=osc("square",f);const og=gain(v*0.07);og.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(og);og.connect(mg);o.start(t);o.stop(t+0.35);});
-        const ns=noise(0.35);const bp=filt("bandpass",5200,1.2);const ng=gain(v*0.15);ng.gain.exponentialRampToValueAtTime(0.001,t+0.35);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.35);
+        const dur=0.35*sDec;const mg=gain(1);mg.connect(d);[5500,7280].map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.07);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
+        const ns=noise(dur);const bp=filt("bandpass",5200*sTone,1.2);const ng=gain(v*0.15*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+dur);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+dur+0.01);
       },
-      // 808 Crash: long noise swell + shimmer
       crash:()=>{
-        const ns=noise(1.4);const hp=filt("highpass",2800);const bp=filt("bandpass",7000,0.5);const g=gain(v*0.5);g.gain.exponentialRampToValueAtTime(0.001,t+1.4);ns.connect(hp);hp.connect(bp);bp.connect(g);g.connect(d);ns.start(t);ns.stop(t+1.4);
+        const dur=1.4*sDec;const ns=noise(dur);const hp=filt("highpass",2800*sTone);const bp=filt("bandpass",7000*sTone,0.5);const g=gain(v*0.5);g.gain.exponentialRampToValueAtTime(0.001,t+dur);ns.connect(hp);hp.connect(bp);bp.connect(g);g.connect(d);ns.start(t);ns.stop(t+dur+0.01);
       },
-      // 808 Cowbell (perc slot): dual square oscillators, classic 808 cowbell
       perc:()=>{
-        const mg=gain(1);mg.connect(d);const decay=0.5;
-        [562,845].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.25);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+decay);});
+        const dur=0.5*sDec;const mg=gain(1);mg.connect(d);
+        [562,845].map(f=>f*sTune).forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.25*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
       },
     };
-    // Custom tracks (ct_*) → 808 cowbell pitch-shifted by track index
     if(!S[id]){
-      const mg=gain(1);mg.connect(d);const decay=0.55;const shift=id.charCodeAt(3)%5;
-      [[520,800],[562,845],[600,900],[480,760],[640,960]][shift].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.28);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+decay);});
+      const dur=0.55*sDec;const mg=gain(1);mg.connect(d);const shift=id.charCodeAt(3)%5;
+      [[520,800],[562,845],[600,900],[480,760],[640,960]][shift].map(([a,b])=>[a*sTune,b*sTune]).forEach(([a,b])=>{[a,b].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.28*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});});
       return;
     }
     S[id]();
+  }
+  async renderShape(id,fxObj){
+    if(!this.ctx)return;
+    const sh={sDec:fxObj?.sDec??1,sTune:fxObj?.sTune??1,sPunch:fxObj?.sPunch??1,sSnap:fxObj?.sSnap??1,sBody:fxObj?.sBody??1,sTone:fxObj?.sTone??1};
+    const baseDur={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
+    const dur=Math.min(6,(baseDur[id]||0.65)*Math.max(0.25,sh.sDec));
+    try{
+      const sr=this.ctx.sampleRate;
+      const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
+      this._syn(id,0,1,oCtx.destination,oCtx,sh);
+      this.buf[id]=await oCtx.startRendering();
+      this.play(id,0.7,0,fxObj);
+    }catch(e){console.warn("renderShape failed",id,e);}
   }
 }
 const engine=new Eng();
@@ -278,7 +290,32 @@ function SSL({tid,color,fx,setFx,bpm,onClose,themeName="dark"}){
         :(<VF label="Time" value={f.dTime} min={0.05} max={1} step={0.05} unit="s" c="#30D158" onChange={v=>u("dTime",v)}/>)}
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:30}}><span style={{fontSize:8,fontWeight:700,color:th.dim}}>Sync</span><button onClick={()=>{const ns=!f.dSync;u("dSync",ns);if(ns)u("dTime",divToSec(f.dDiv||"1/4",bpm));}} style={{padding:"4px 8px",borderRadius:4,border:`1px solid ${f.dSync?"rgba(48,209,88,0.4)":th.sBorder}`,background:f.dSync?"rgba(48,209,88,0.12)":"transparent",color:f.dSync?"#30D158":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{f.dSync?"ON":"OFF"}</button></div>
       </Sec>
-      <Sec title="Output" c="#888" on={true} onToggle={()=>{}}><VF label="Volume" value={f.vol} min={0} max={100} step={1} unit="%" c="#888" onChange={v=>u("vol",Math.round(v))}/><VF label="Pan" value={f.pan} min={-100} max={100} step={1} unit={f.pan===0?"C":f.pan<0?"L":"R"} c="#888" onChange={v=>u("pan",Math.round(v))}/></Sec>
+      {/* SHAPE section — instrument-specific timbre controls */}
+      {(()=>{
+        const shC="#FF6B35";
+        const shFields={
+          kick:[{k:"sDec",l:"Decay",min:0.25,max:2,step:0.05},{k:"sTune",l:"Tune",min:0.5,max:2,step:0.05},{k:"sPunch",l:"Punch",min:0,max:2,step:0.05},{k:"sBody",l:"Body",min:0,max:2,step:0.05}],
+          snare:[{k:"sDec",l:"Decay",min:0.25,max:2,step:0.05},{k:"sTune",l:"Tune",min:0.5,max:2,step:0.05},{k:"sSnap",l:"Snap",min:0,max:2,step:0.05},{k:"sBody",l:"Body",min:0,max:2,step:0.05}],
+          hihat:[{k:"sDec",l:"Decay",min:0.1,max:4,step:0.05},{k:"sTone",l:"Tone",min:0.5,max:2,step:0.05},{k:"sSnap",l:"Noise",min:0,max:2,step:0.05}],
+          clap:[{k:"sDec",l:"Decay",min:0.25,max:2,step:0.05},{k:"sSnap",l:"Spread",min:0.1,max:3,step:0.05},{k:"sPunch",l:"Punch",min:0,max:2,step:0.05},{k:"sBody",l:"Body",min:0,max:2,step:0.05}],
+          tom:[{k:"sDec",l:"Decay",min:0.25,max:2,step:0.05},{k:"sTune",l:"Tune",min:0.5,max:2,step:0.05},{k:"sPunch",l:"Punch",min:0,max:2,step:0.05}],
+          ride:[{k:"sDec",l:"Decay",min:0.25,max:2,step:0.05},{k:"sTone",l:"Tone",min:0.5,max:2,step:0.05},{k:"sSnap",l:"Noise",min:0,max:2,step:0.05}],
+          crash:[{k:"sDec",l:"Decay",min:0.25,max:3,step:0.05},{k:"sTone",l:"Tone",min:0.5,max:2,step:0.05}],
+          perc:[{k:"sDec",l:"Decay",min:0.1,max:3,step:0.05},{k:"sTune",l:"Pitch",min:0.5,max:2,step:0.05},{k:"sBody",l:"Body",min:0,max:2,step:0.05}],
+        };
+        const fields=shFields[tid]||[{k:"sDec",l:"Decay",min:0.25,max:2,step:0.05},{k:"sTune",l:"Pitch",min:0.5,max:2,step:0.05}];
+        const onShapeChange=(k,v)=>{
+          const newFx={...f,[k]:v};
+          u(k,v);
+          clearTimeout(window[`_shT_${tid}`]);
+          window[`_shT_${tid}`]=setTimeout(()=>engine.renderShape(tid,newFx),280);
+        };
+        return(<Sec title="Shape" c={shC} on={true} onToggle={()=>{}}>
+          {fields.map(({k,l,min,max,step})=>(
+            <VF key={k} label={l} value={f[k]??1.0} min={min} max={max} step={step} unit="×" c={shC} onChange={v=>onShapeChange(k,v)}/>
+          ))}
+        </Sec>);
+      })()}
     </div>
   </div>);
 }
@@ -356,13 +393,13 @@ export default function KickAndSnare(){
   const euclidClockR=useRef({});
   const [euclidCur,setEuclidCur]=useState({});
   const euclidMetroR=useRef({nextTime:null,beat:0});
-  // Pad free-capture
-  const [capState,setCapState]=useState("idle"); // idle|recording|review
-  const capEventsRef=useRef([]);
-  const capStartRef=useRef(0);
-  const [capBars,setCapBars]=useState(1);
-  const [capAutoQ,setCapAutoQ]=useState(true);
-  const [capBeat,setCapBeat]=useState(-1);
+  // ── Pad Capture (ring buffer + overdub) ──
+  const [capState,setCapState]=useState("idle"); // idle|review
+  const [capBars,setCapBars]=useState(4);        // max bars to look back (1|2|4)
+  const [capAutoQ,setCapAutoQ]=useState(true);   // auto-quantize on CAPTURE
+  const [capReviewEvs,setCapReviewEvs]=useState([]); // [{tid,stepQ,stepR,nudge}] pending review
+  const [overdub,setOverdub]=useState(false);    // real-time step-write mode
+  const ringBufRef=useRef([]);                   // always-on ring: [{tid,t}]
   const capTimerRef=useRef(null);
 
   const allT=[...ALL_TRACKS,...customTracks];
@@ -376,6 +413,7 @@ export default function KickAndSnare(){
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;R.view=view;
   R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.lkSync=linkSyncPlay;
+  R.overdub=overdub;R.ringBuf=ringBufRef.current;
   R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;R.mNotes=midiNotes;
   // Tap tempo
   const handleTap=()=>{
@@ -484,7 +522,23 @@ export default function KickAndSnare(){
   const trigPad=useCallback((tid,vel=1)=>{
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
-    if(R.rec&&R.step>=0){
+    // Push to ring buffer (always-on, cap 4 bars)
+    const now=performance.now();
+    if(R.ringBuf){
+      R.ringBuf.push({tid,t:now});
+      // Trim entries older than 4 bars
+      const maxMs=(240000/Math.max(30,R.bpm))*4;
+      while(R.ringBuf.length>0&&now-R.ringBuf[0].t>maxMs)R.ringBuf.shift();
+    }
+    // OVERDUB: write to current step
+    if(R.overdub&&R.step>=0){
+      const gSt=R.sig?.steps||16;const tSt=[gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt;const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
+      const v100=Math.max(1,Math.round(vel*100));
+      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
+      setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
+    }
+    // Legacy REC mode
+    if(R.rec&&!R.overdub&&R.step>=0){
       const gSt=R.sig?.steps||16;const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
       const v100=Math.max(1,Math.round(vel*100));
       setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
@@ -649,40 +703,50 @@ export default function KickAndSnare(){
   ssRef.current=startStop;
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
 
-  // ── Pad Free Capture ──
-  const startCapture=()=>{
-    clearTimeout(capTimerRef.current);
-    capEventsRef.current=[];capStartRef.current=performance.now();
-    setCapBeat(0);setCapState("recording");
-    const barMs=(60000/R.bpm)*4;
-    const beatMs=60000/R.bpm;
-    const tick=()=>{
-      const elapsed=performance.now()-capStartRef.current;
-      setCapBeat(Math.floor(elapsed/beatMs)%4);
-      if(elapsed>=barMs*capBars){clearTimeout(capTimerRef.current);setCapState("review");if(capAutoQ)applyCapture();}
-      else capTimerRef.current=setTimeout(tick,40);
-    };
-    capTimerRef.current=setTimeout(tick,40);
-  };
-  const stopCapture=()=>{clearTimeout(capTimerRef.current);setCapState("review");if(capAutoQ)applyCapture();};
-  const applyCapture=()=>{
-    const barMs=(60000/R.bpm)*4*capBars;
-    const steps=STEPS;const stepMs=barMs/steps;
-    const evs=capEventsRef.current;
-    setPat(p=>{
-      const np={...p};
-      evs.forEach(({tid,ms})=>{
-        const step=Math.round(ms/stepMs)%steps;
-        if(!np[tid])np[tid]=Array(steps).fill(0);
-        else if(np[tid].length!==steps)np[tid]=Array(steps).fill(0);
-        else np[tid]=[...np[tid]];
-        np[tid][step]=100;
-      });
-      return np;
+  // ── Pad Capture: ring buffer retrospective ──
+  const doCapture=()=>{
+    if(!ringBufRef.current.length)return;
+    const now=performance.now();
+    const barMs=(60000/Math.max(30,R.bpm))*4;
+    const windowMs=barMs*capBars;
+    // Keep events in the last N bars window
+    const relevant=ringBufRef.current.filter(e=>now-e.t<=windowMs);
+    const tSteps=STEPS;
+    // Map each event to a step position
+    const evs=relevant.map(e=>{
+      const msFromStart=windowMs-(now-e.t); // position within window [0, windowMs]
+      const exactStep=Math.max(0,(msFromStart/windowMs)*tSteps);
+      const stepQ=Math.round(exactStep)%tSteps;
+      const stepR=Math.floor(exactStep)%tSteps;
+      const fracInStep=exactStep-Math.floor(exactStep); // 0..1
+      const nudgeMs=Math.round(fracInStep*(60000/Math.max(30,R.bpm)/tSteps));
+      return{tid:e.tid,stepQ,stepR,nudgeMs};
     });
-    setCapState("idle");setCapBeat(-1);
+    if(capAutoQ){
+      commitCapture(evs,"quantize");
+    }else{
+      setCapReviewEvs(evs);setCapState("review");
+    }
   };
-  const cancelCapture=()=>{clearTimeout(capTimerRef.current);setCapState("idle");setCapBeat(-1);};
+  const commitCapture=(evs,mode)=>{
+    const tSteps=STEPS;
+    setPBank(pb=>{
+      const n=[...pb];const cp={...n[R.cp]};
+      evs.forEach(({tid,stepQ,stepR,nudgeMs})=>{
+        if(!R.at.includes(tid))return;
+        const s=mode==="keep"?stepR:stepQ;
+        const capped=Math.max(0,Math.min(tSteps-1,s));
+        cp[tid]=[...(cp[tid]||Array(tSteps).fill(0))];
+        cp[tid][capped]=100;
+        if(mode==="keep"&&nudgeMs>0)setStNudge(sn=>({...sn,[tid]:{...(sn[tid]||{}),[capped]:nudgeMs}}));
+      });
+      n[R.cp]=cp;return n;
+    });
+    setCapState("idle");setCapReviewEvs([]);
+  };
+  const doQuantize=()=>commitCapture(capReviewEvs,"quantize");
+  const doKeep=()=>commitCapture(capReviewEvs,"keep");
+  const doDiscard=()=>{setCapState("idle");setCapReviewEvs([]);};
 
 
   // Step interactions
@@ -956,7 +1020,7 @@ export default function KickAndSnare(){
           })()}
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>PADS</button>
+            <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s"}}>
               <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
@@ -1196,20 +1260,21 @@ export default function KickAndSnare(){
                           <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
                           <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
                         </div>
-                        {/* R1C3: VOL slider — custom drag */}
+                        {/* R1C3: VOL round button */}
                         {(()=>{
-                          const onPD=e=>{e.preventDefault();const ref=e.currentTarget;ref.setPointerCapture(e.pointerId);const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=pe=>{pe.preventDefault();go(pe.clientX);};const up=()=>{ref.removeEventListener("pointermove",mv);};ref.addEventListener("pointermove",mv);ref.addEventListener("pointerup",up,{once:true});ref.addEventListener("pointercancel",up,{once:true});};
-                          return(
-                            <div style={{display:"flex",alignItems:"center",gap:2}}>
-                              <span style={slLbl}>VOL</span>
-                              <div style={{flex:1,position:"relative",height:20,minWidth:0,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`} onPointerDown={onPD}>
-                                <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
-                                  <div style={{height:"100%",width:`${vol}%`,background:track.color,borderRadius:2}}/>
-                                </div>
-                                <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:9,height:9,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${track.color}44`,pointerEvents:"none"}}/>
+                          const mkRnd=(lbl,val,min,max,cbKey,resetV)=>{
+                            const pct=Math.round((val-min)/(max-min)*100);
+                            const disp=lbl==="PAN"?(val===0?"C":val<0?`L${Math.abs(val)}`:`R${val}`):`${val}`;
+                            const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=val;const mv=pe=>{const dy=sY-pe.clientY;uFx(cbKey,Math.max(min,Math.min(max,Math.round(sV+dy*((max-min)/80)))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                            const arc=`conic-gradient(${track.color} ${pct}%,transparent ${pct}%)`;
+                            return(<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}} onPointerDown={onPD} onDoubleClick={()=>uFx(cbKey,resetV)} title={`${lbl}: ${disp} — drag ↕, dbl-click reset`}>
+                              <div style={{width:22,height:22,borderRadius:"50%",background:arc,outline:`2px solid ${track.color}33`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`inset 0 0 0 3px ${th.bg}`}}>
+                                <span style={{fontSize:6,fontWeight:900,color:track.color,pointerEvents:"none"}}>{lbl}</span>
                               </div>
-                            </div>
-                          );
+                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{disp}</span>
+                            </div>);
+                          };
+                          return(<div style={{display:"flex",gap:4,justifyContent:"center"}}>{mkRnd("VOL",vol,0,100,"vol",80)}{mkRnd("PAN",pan,-100,100,"pan",0)}</div>);
                         })()}
                         {/* R2C1: 16st */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
@@ -1221,17 +1286,7 @@ export default function KickAndSnare(){
                           <button onClick={()=>setFxO(isFO?null:track.id)} style={{...btnSt,width:22,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6}}>FX</button>
                           {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                         </div>
-                        {/* R2C3: PAN slider */}
-                        <div style={{display:"flex",alignItems:"center",gap:2}}>
-                          <span style={slLbl}>PAN</span>
-                          <div onDoubleClick={()=>uFx("pan",0)} style={{flex:1,position:"relative",height:10,minWidth:0,cursor:"ew-resize"}} title={`PAN ${pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan} · double-click to center`}>
-                            <div style={{position:"absolute",top:"50%",left:0,right:0,height:2,background:th.sBorder,borderRadius:1,transform:"translateY(-50%)"}}/>
-                            <div style={{position:"absolute",top:0,bottom:0,left:"50%",width:1,background:track.color+"55",transform:"translateX(-50%)"}}/>
-                            {pan!==0&&<div style={{position:"absolute",top:"50%",height:3,borderRadius:1,background:track.color,transform:"translateY(-50%)",left:pan<0?`${50+(pan/100)*50}%`:"50%",width:`${Math.abs(pan/100)*50}%`}}/>}
-                            <div style={{position:"absolute",top:"50%",left:`${(pan+100)/2}%`,width:7,height:7,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${track.color}33`,pointerEvents:"none"}}/>
-                            <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
-                          </div>
-                        </div>
+                        {/* R2C3: empty — VOL+PAN are now in R1C3 as round buttons */}
                         {/* R3: sample name — spans all cols */}
                         <div style={{gridColumn:"1/-1"}}>
                           {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,24)}</span>}
@@ -1289,56 +1344,75 @@ export default function KickAndSnare(){
           </div>
         </>)}
 
-        {/* ── PADS ── */}
+        {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
-          {/* Capture toolbar */}
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 12px",borderRadius:10,background:th.surface,border:`1px solid ${capState==="recording"?"#FF2D5566":th.sBorder}`,flexWrap:"wrap"}}>
-            <span style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>CAPTURE</span>
-            {capState==="idle"&&<button onClick={startCapture} style={{padding:"5px 12px",borderRadius:6,background:"rgba(255,45,85,0.15)",color:"#FF2D55",border:"1px solid rgba(255,45,85,0.35)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>● REC</button>}
-            {capState==="recording"&&<>
-              <button onClick={stopCapture} style={{padding:"5px 12px",borderRadius:6,background:"rgba(255,45,85,0.25)",color:"#FF2D55",border:"1px solid rgba(255,45,85,0.6)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",animation:"rb 0.6s infinite"}}>■ STOP</button>
-              <div style={{display:"flex",gap:4}}>
-                {[0,1,2,3].map(b=><div key={b} style={{width:10,height:10,borderRadius:"50%",background:b===capBeat?"#FF2D55":"rgba(255,45,85,0.2)",transition:"background 0.05s"}}/>)}
-              </div>
-              <span style={{fontSize:8,color:"#FF2D55",fontWeight:700}}>
-                {Math.ceil(Math.max(0,(capBars*(60000/R.bpm)*4-(performance.now()-capStartRef.current))/1000))}s
-              </span>
-            </>}
-            {capState==="review"&&!capAutoQ&&<>
-              <button onClick={applyCapture} style={{padding:"5px 12px",borderRadius:6,background:"rgba(48,209,88,0.15)",color:"#30D158",border:"1px solid rgba(48,209,88,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✓ APPLY</button>
-              <button onClick={cancelCapture} style={{padding:"5px 10px",borderRadius:6,background:"transparent",color:th.dim,border:`1px solid ${th.sBorder}`,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
-            </>}
-            <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
-              <span style={{fontSize:7,color:th.dim}}>BARS</span>
-              {[1,2,4].map(b=><button key={b} onClick={()=>setCapBars(b)} style={{width:20,height:20,borderRadius:4,border:`1px solid ${capBars===b?"#FF9500":th.sBorder}`,background:capBars===b?"rgba(255,149,0,0.15)":"transparent",color:capBars===b?"#FF9500":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{b}</button>)}
-            </div>
+          {/* ─ Capture toolbar ─ */}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 12px",borderRadius:10,background:th.surface,border:`1px solid ${overdub?"rgba(255,45,85,0.5)":th.sBorder}`,flexWrap:"wrap"}}>
+            {/* CAPTURE button */}
+            <button onClick={doCapture} disabled={capState==="review"} title={`Capture last ${capBars} bar${capBars>1?"s":""} from ring buffer`} style={{padding:"5px 14px",borderRadius:6,background:capState==="review"?"rgba(100,210,255,0.08)":"rgba(100,210,255,0.12)",color:"#64D2FF",border:`1px solid rgba(100,210,255,${capState==="review"?0.1:0.35})`,fontSize:9,fontWeight:700,cursor:capState==="review"?"default":"pointer",fontFamily:"inherit",opacity:capState==="review"?0.4:1}}>⊙ CAPTURE</button>
+            {/* OVERDUB button */}
+            <button onClick={()=>setOverdub(p=>!p)} title="Overdub: write to current step while playing" style={{padding:"5px 14px",borderRadius:6,background:overdub?"rgba(255,45,85,0.2)":"rgba(255,45,85,0.06)",color:overdub?"#FF2D55":"#FF2D55AA",border:`1px solid rgba(255,45,85,${overdub?0.6:0.2})`,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:overdub?`0 0 10px rgba(255,45,85,0.3)`:"none"}}>
+              {overdub?"● OVERDUB":"○ OVERDUB"}
+            </button>
+            {/* AUTO-Q toggle */}
             <div style={{display:"flex",alignItems:"center",gap:4}}>
-              <span style={{fontSize:7,color:th.dim}}>AUTO Q</span>
-              <button onClick={()=>setCapAutoQ(p=>!p)} style={{width:26,height:14,borderRadius:7,border:"none",background:capAutoQ?"#30D158":"rgba(0,0,0,0.2)",position:"relative",cursor:"pointer",transition:"background 0.15s",flexShrink:0}}>
-                <div style={{position:"absolute",top:2,left:capAutoQ?14:2,width:10,height:10,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+              <span style={{fontSize:7,color:th.dim,fontWeight:700}}>AUTO-Q</span>
+              <button onClick={()=>setCapAutoQ(p=>!p)} style={{width:28,height:15,borderRadius:8,border:"none",background:capAutoQ?"#30D158":"rgba(255,255,255,0.08)",position:"relative",cursor:"pointer",transition:"background 0.15s",flexShrink:0,outline:"none"}}>
+                <div style={{position:"absolute",top:2.5,left:capAutoQ?15:2.5,width:10,height:10,borderRadius:"50%",background:"#fff",transition:"left 0.15s",boxShadow:"0 1px 3px rgba(0,0,0,0.4)"}}/>
               </button>
             </div>
+            {/* BARS selector */}
+            <div style={{display:"flex",alignItems:"center",gap:3,marginLeft:"auto"}}>
+              <span style={{fontSize:7,color:th.dim,fontWeight:700}}>BARS</span>
+              {[1,2,4].map(b=><button key={b} onClick={()=>setCapBars(b)} style={{width:20,height:20,borderRadius:4,border:`1px solid ${capBars===b?"#FF9500":th.sBorder}`,background:capBars===b?"rgba(255,149,0,0.15)":"transparent",color:capBars===b?"#FF9500":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{b}</button>)}
+            </div>
           </div>
+
+          {/* ─ Review strip (post-capture, pushes pads down) ─ */}
+          {capState==="review"&&(()=>{
+            // Group events by track
+            const byTrack={};capReviewEvs.forEach(ev=>{if(!byTrack[ev.tid])byTrack[ev.tid]=[];byTrack[ev.tid].push(ev);});
+            const reviewTracks=atO.filter(t=>byTrack[t.id]);
+            return(<div style={{marginBottom:12,padding:"10px 12px",borderRadius:10,background:th.surface,border:"1px solid rgba(100,210,255,0.3)"}}>
+              <div style={{fontSize:8,fontWeight:800,color:"#64D2FF",letterSpacing:"0.12em",marginBottom:8}}>REVIEW CAPTURE — {capReviewEvs.length} hits</div>
+              {/* Per-track pastille strips */}
+              {reviewTracks.map(track=>(<div key={track.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                <span style={{fontSize:8,fontWeight:700,color:track.color,width:34,flexShrink:0,textAlign:"right"}}>{track.label}</span>
+                <div style={{flex:1,height:18,borderRadius:5,background:`${track.color}0d`,border:`1px solid ${track.color}30`,position:"relative",overflow:"hidden"}}>
+                  {byTrack[track.id].map((ev,i)=>(
+                    <div key={i} style={{position:"absolute",top:"50%",left:`${(ev.stepQ/STEPS)*100}%`,transform:"translate(-50%,-50%)",width:8,height:8,borderRadius:"50%",background:track.color,boxShadow:`0 0 6px ${track.color}88`}}/>
+                  ))}
+                </div>
+              </div>))}
+              {/* Review actions */}
+              <div style={{display:"flex",gap:8,marginTop:10,justifyContent:"flex-end"}}>
+                <button onClick={doKeep} title="Keep raw positions (with nudge)" style={{padding:"5px 14px",borderRadius:6,background:"rgba(48,209,88,0.12)",color:"#30D158",border:"1px solid rgba(48,209,88,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>GARDER</button>
+                <button onClick={doQuantize} title="Snap to nearest step" style={{padding:"5px 14px",borderRadius:6,background:"rgba(255,149,0,0.12)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>QUANTIZE</button>
+                <button onClick={doDiscard} style={{padding:"5px 12px",borderRadius:6,background:"transparent",color:th.dim,border:`1px solid ${th.sBorder}`,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>DISCARD</button>
+              </div>
+            </div>);
+          })()}
+
+          {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
-            {atO.map((track,i)=>{
-              const isCapRec=capState==="recording";
-              return(<div key={track.id} style={{position:"relative"}}>
+            {atO.map((track)=>(
+              <div key={track.id} style={{position:"relative"}}>
                 <button
                   onPointerDown={e=>{
                     e.preventDefault();
-                    if(isCapRec)capEventsRef.current.push({tid:track.id,ms:performance.now()-capStartRef.current});
-                    trigPad(track.id);if(navigator.vibrate)navigator.vibrate(20);
+                    trigPad(track.id, e.pointerType==="mouse"?1:110/127); // touch/pen → vel 110
+                    if(navigator.vibrate)navigator.vibrate(15);
                   }}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:isCapRec?track.color+"66":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:isCapRec?`0 0 20px ${track.color}33`:`0 0 20px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
+                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:overdub?track.color+"88":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:overdub?`0 0 22px ${track.color}44`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
                   {DrumSVG(track.id,track.color,flash===track.id,44)}
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
                 </button>
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
-              </div>);
-            })}
+              </div>
+            ))}
           </div>
-          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Tap to trigger · REC to capture free rhythm · AUTO Q quantizes to {STEPS} steps</div>
+          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Tap to trigger · CAPTURE récupère les {capBars} dernière{capBars>1?"s":""} mesure{capBars>1?"s":""} · OVERDUB écrit en temps réel</div>
         </div>)}
 
         {/* ── EUCLID VIEW ── */}
