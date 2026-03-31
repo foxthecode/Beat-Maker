@@ -1035,8 +1035,8 @@ export default function KickAndSnare(){
             <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s"}}>
-              <button onClick={()=>{setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
-              <button onClick={()=>{setView("euclid");}} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
+              <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
+              <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("euclid");}} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
             </div>
           </div>
         </div>
@@ -1431,6 +1431,28 @@ export default function KickAndSnare(){
             </div>);
           })()}
 
+          {/* ─ Step Visualizer — full width, after capture section ─ */}
+          <div style={{marginBottom:12,padding:"8px 12px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
+            {atO.map(track=>{
+              const tSteps=trackSteps[track.id]||STEPS;
+              const steps=pat[track.id]||Array(tSteps).fill(0);
+              const hasHits=steps.some(Boolean);
+              return(<div key={track.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                <span style={{fontSize:7,fontWeight:700,color:hasHits?track.color:th.faint,width:34,flexShrink:0,textAlign:"right",letterSpacing:"0.03em"}}>{track.label}</span>
+                <div style={{flex:1,display:"grid",gridTemplateColumns:`repeat(${tSteps},1fr)`,gap:2}}>
+                  {Array.from({length:tSteps}).map((_,s)=>{
+                    const on=!!steps[s];
+                    const isCur=cStep===s&&playing;
+                    return(<div key={s}
+                      onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[track.id]=[...(cp[track.id]||Array(tSteps).fill(0))];cp[track.id][s]=cp[track.id][s]?0:100;n[cPat]=cp;return n;});}}
+                      style={{height:8,borderRadius:2,background:isCur?track.color:on?track.color+"CC":track.color+"18",cursor:"pointer",boxShadow:isCur?`0 0 5px ${track.color}`:"none",transition:"background 0.04s"}}
+                    />);
+                  })}
+                </div>
+              </div>);
+            })}
+          </div>
+
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
             {atO.map((track)=>(
@@ -1438,7 +1460,7 @@ export default function KickAndSnare(){
                 <button
                   onPointerDown={e=>{
                     e.preventDefault();
-                    trigPad(track.id, e.pointerType==="mouse"?1:110/127); // touch/pen → vel 110
+                    trigPad(track.id, e.pointerType==="mouse"?1:110/127);
                     if(navigator.vibrate)navigator.vibrate(15);
                   }}
                   style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:overdub?track.color+"88":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:overdub?`0 0 22px ${track.color}44`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
@@ -1447,19 +1469,6 @@ export default function KickAndSnare(){
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
                 </button>
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
-                {/* Mini step strip — visible only in LIVE PADS */}
-                {(()=>{
-                  const tSteps=trackSteps[track.id]||STEPS;
-                  const steps=pat[track.id]||Array(tSteps).fill(0);
-                  const cols=Math.min(tSteps,16);
-                  return(<div style={{display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap:2,marginTop:6,width:"100%"}}>
-                    {Array.from({length:tSteps}).map((_,s)=>{
-                      const on=!!steps[s];
-                      const isCur=cStep===s&&playing;
-                      return(<div key={s} onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[track.id]=[...(cp[track.id]||Array(tSteps).fill(0))];cp[track.id][s]=cp[track.id][s]?0:100;n[cPat]=cp;return n;});}} style={{height:4,borderRadius:1,background:isCur?track.color:on?track.color+"CC":track.color+"22",cursor:"pointer",boxShadow:isCur?`0 0 4px ${track.color}`:"none",transition:"background 0.05s"}}/>);
-                    })}
-                  </div>);
-                })()}
               </div>
             ))}
           </div>
