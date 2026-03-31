@@ -1687,11 +1687,14 @@ export default function KickAndSnare(){
                           const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+rk*Math.cos(toRad(sa));const y1=11+rk*Math.sin(toRad(sa));const x2=11+rk*Math.cos(toRad(ea));const y2=11+rk*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${rk},${rk} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                           return(
                             <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                              {/* Row 1: icon + label (click=fold) + cnt + M + S + ♪ + MIDI + CLR + × */}
-                              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,flexWrap:"wrap"}}>
-                                <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{flexShrink:0,opacity:aud?1:0.4,cursor:"pointer"}}>{DrumSVG(tr.id,tr.color,flash===tr.id,18)}</span>
-                                <span onClick={()=>writeP(tr.id,{fold:!p.fold})} title={p.fold?"Expand":"Collapse"} style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer",userSelect:"none"}}>{tr.label}</span>
-                                {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 4px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
+                              {/* Row 1: [icon+label+cnt fixed-width] · M · S · ♪ · MIDI · CLR · × */}
+                              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,flexWrap:"nowrap"}}>
+                                {/* Fixed-width left block so M is always aligned */}
+                                <div onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{display:"flex",alignItems:"center",gap:3,width:92,flexShrink:0,cursor:"pointer",overflow:"hidden"}}>
+                                  <span style={{flexShrink:0,opacity:aud?1:0.4}}>{DrumSVG(tr.id,tr.color,flash===tr.id,18)}</span>
+                                  <span title={p.fold?"Expand":"Collapse"} style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,userSelect:"none"}}>{tr.label}</span>
+                                  {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 3px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
+                                </div>
                                 <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
                                 <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
