@@ -981,7 +981,7 @@ export default function KickAndSnare(){
                     const slLbl={fontSize:6,color:track.color,fontWeight:800,letterSpacing:"0.04em",flexShrink:0,width:16};
                     const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
                     return(
-                      <div style={{flexShrink:0,display:"grid",gridTemplateColumns:"auto auto 60px",columnGap:4,rowGap:3,alignItems:"center"}}>
+                      <div style={{flexShrink:0,width:188,display:"grid",gridTemplateColumns:"auto auto 60px",columnGap:4,rowGap:3,alignItems:"center"}}>
                         {/* R1C1: icon + label */}
                         <div style={{display:"flex",alignItems:"center",gap:3}}>
                           <span style={{fontSize:12,color:track.color,flexShrink:0}}>{track.icon}</span>
@@ -1012,12 +1012,12 @@ export default function KickAndSnare(){
                         {/* R2C3: PAN slider */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
                           <span style={slLbl}>PAN</span>
-                          <div style={{flex:1,position:"relative",height:10,minWidth:0}}>
+                          <div onDoubleClick={()=>uFx("pan",0)} style={{flex:1,position:"relative",height:10,minWidth:0,cursor:"ew-resize"}} title={`PAN ${pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan} · double-click to center`}>
                             <div style={{position:"absolute",top:"50%",left:0,right:0,height:2,background:th.sBorder,borderRadius:1,transform:"translateY(-50%)"}}/>
                             <div style={{position:"absolute",top:0,bottom:0,left:"50%",width:1,background:track.color+"55",transform:"translateX(-50%)"}}/>
                             {pan!==0&&<div style={{position:"absolute",top:"50%",height:3,borderRadius:1,background:track.color,transform:"translateY(-50%)",left:pan<0?`${50+(pan/100)*50}%`:"50%",width:`${Math.abs(pan/100)*50}%`}}/>}
                             <div style={{position:"absolute",top:"50%",left:`${(pan+100)/2}%`,width:7,height:7,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${track.color}33`,pointerEvents:"none"}}/>
-                            <input type="range" min={-100} max={100} step={1} value={pan} title={`PAN ${pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}`} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
+                            <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
                           </div>
                         </div>
                         {/* R3: VU + sample name — spans all cols */}
