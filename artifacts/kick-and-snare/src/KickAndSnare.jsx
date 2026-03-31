@@ -251,6 +251,8 @@ export default function KickAndSnare(){
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
+  const [customTracks,setCustomTracks]=useState([]);
+  const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [euclidParams,setEuclidParams]=useState({});
   const [fxO,setFxO]=useState(null);const [smpN,setSmpN]=useState({kick:"BWJAZZ Kick (default)",snare:"BB3 Snare (default)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
@@ -292,7 +294,8 @@ export default function KickAndSnare(){
   // VU meter refs — direct DOM manipulation for performance
   const vuRefs=useRef({});
 
-  const atO=act.map(id=>ALL_TRACKS.find(t=>t.id===id)).filter(Boolean);
+  const allT=[...ALL_TRACKS,...customTracks];
+  const atO=act.map(id=>allT.find(t=>t.id===id)).filter(Boolean);
   const inact=ALL_TRACKS.filter(t=>!act.includes(t.id));
 
   const R=useRef({step:-1}).current;
@@ -590,6 +593,36 @@ export default function KickAndSnare(){
   const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]);}ldRef.current=null;};
 
   const pill=(on,c)=>({padding:"5px 11px",border:`1px solid ${on?c+"55":th.sBorder}`,borderRadius:6,background:on?c+"18":"transparent",color:on?c:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"});
+
+  const CUST_ICONS=["◉","◈","⬟","⬡","◳","⬢","◙","⟡"];
+  const addCustomTrack=()=>{
+    const name=newTrackName.trim();if(!name)return;
+    const id=`ct_${Date.now()}`;const N=STEPS;
+    const t={id,label:name.toUpperCase().slice(0,10),icon:CUST_ICONS[customTracks.length%CUST_ICONS.length],color:SEC_COL[(customTracks.length+4)%SEC_COL.length]};
+    setCustomTracks(p=>[...p,t]);
+    setPBank(pb=>pb.map(pat=>({...pat,[id]:Array(N).fill(0),_steps:{...(pat._steps||{}),[id]:N}})));
+    setStVel(p=>({...p,[id]:Array(N).fill(100)}));
+    setStNudge(p=>({...p,[id]:Array(N).fill(0)}));
+    setStProb(p=>({...p,[id]:Array(N).fill(100)}));
+    setStRatch(p=>({...p,[id]:Array(N).fill(1)}));
+    setFx(p=>({...p,[id]:defFx()}));
+    setAct(a=>[...a,id]);
+    setNewTrackName("");setShowCustomInput(false);setShowAdd(false);
+  };
+
+  // Shared custom track input UI (used in sequencer + euclid add panels)
+  const CustomTrackInput=()=>showCustomInput?(
+    <div style={{display:"flex",gap:4,alignItems:"center",width:"100%",marginTop:4}}>
+      <input autoFocus value={newTrackName} onChange={e=>setNewTrackName(e.target.value)}
+        onKeyDown={e=>{if(e.key==="Enter")addCustomTrack();if(e.key==="Escape"){setShowCustomInput(false);setNewTrackName("");}}}
+        placeholder="Track name…" maxLength={10}
+        style={{flex:1,height:26,borderRadius:5,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,padding:"0 8px",fontFamily:"inherit",outline:"none"}}/>
+      <button onClick={addCustomTrack} style={{padding:"4px 10px",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>ADD</button>
+      <button onClick={()=>{setShowCustomInput(false);setNewTrackName("");}} style={{width:22,height:26,borderRadius:5,border:"none",background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",lineHeight:1}}>✕</button>
+    </div>
+  ):(
+    <button onClick={()=>setShowCustomInput(true)} style={{padding:"4px 10px",borderRadius:6,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ CUSTOM</button>
+  );
 
   // ── MIDI Learn inline badge ──
   const MidiTag=({id})=>{
@@ -1006,13 +1039,14 @@ export default function KickAndSnare(){
               </div>);
             })}
           </div>
-          {inact.length>0&&<div style={{marginTop:6}}>
-            {!showAdd?<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
+          <div style={{marginTop:6}}>
+            {!showAdd?<button onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
                 {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
-                <button onClick={()=>setShowAdd(false)} style={{marginLeft:"auto",padding:"4px 8px",border:"none",borderRadius:4,background:"rgba(255,55,95,0.1)",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
+                {CustomTrackInput()}
+                <button onClick={()=>{setShowAdd(false);setShowCustomInput(false);setNewTrackName("");}} style={{marginLeft:"auto",padding:"4px 8px",border:"none",borderRadius:4,background:"rgba(255,55,95,0.1)",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
               </div>)}
-          </div>}
+          </div>
         </>)}
 
         {/* ── PADS ── */}
@@ -1170,21 +1204,21 @@ export default function KickAndSnare(){
                     );
                   })}
                   {/* ── Add track ── */}
-                  {inact.length>0&&(
-                    !showAdd
-                      ?<button onClick={()=>setShowAdd(true)} style={{padding:"7px",borderRadius:7,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>+ ADD TRACK</button>
-                      :<div style={{borderRadius:7,border:`1px dashed ${th.sBorder}`,padding:"7px 8px"}}>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
-                          {inact.map(t=>(<button key={t.id} onClick={()=>{
-                            const defN=STEPS;
-                            setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:0,rot:0,tpl:"",fold:false}}));
-                            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=Array(defN).fill(0);n[cPat]=cp;return n;});
-                            setAct(a=>[...a,t.id]);setShowAdd(false);
-                          }} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
-                        </div>
-                        <button onClick={()=>setShowAdd(false)} style={{fontSize:8,color:th.dim,background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit"}}>✕ annuler</button>
+                  {!showAdd
+                    ?<button onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{padding:"7px",borderRadius:7,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>+ ADD TRACK</button>
+                    :<div style={{borderRadius:7,border:`1px dashed ${th.sBorder}`,padding:"7px 8px"}}>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
+                        {inact.map(t=>(<button key={t.id} onClick={()=>{
+                          const defN=STEPS;
+                          setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:0,rot:0,tpl:"",fold:false}}));
+                          setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=Array(defN).fill(0);n[cPat]=cp;return n;});
+                          setAct(a=>[...a,t.id]);setShowAdd(false);
+                        }} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
+                        {CustomTrackInput()}
                       </div>
-                  )}
+                      <button onClick={()=>{setShowAdd(false);setShowCustomInput(false);setNewTrackName("");}} style={{fontSize:8,color:th.dim,background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit"}}>✕ cancel</button>
+                    </div>
+                  }
                 </div>
 
                 {/* ── RIGHT: Concentric rings SVG ── */}
