@@ -100,7 +100,16 @@ class Eng{
   constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this.ana={};}
   init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.mg=this.ctx.createGain();this.mg.gain.value=0.8;this.mg.connect(this.ctx.destination);this._mkRv();TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();}
   async _loadDefaults(){
-    // Default sounds are now 808 synthesis — no pre-loaded samples
+    // Pre-render all 808 sounds into AudioBuffers for playback-quality output
+    const durs={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
+    for(const [id,dur] of Object.entries(durs)){
+      try{
+        const sr=this.ctx.sampleRate;
+        const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
+        this._syn(id,0,1,oCtx.destination,oCtx);
+        this.buf[id]=await oCtx.startRendering();
+      }catch(e){console.warn("808 prerender failed:",id,e);}
+    }
   }
   _mkRv(decay){
     const d=decay||2;const sr=this.ctx.sampleRate;const l=Math.ceil(sr*Math.min(5,d));
@@ -147,9 +156,9 @@ class Eng{
     c.rvG.gain.setTargetAtTime(wv,t,0.02);c.dlG.gain.setTargetAtTime(wd,t,0.02);
     c.dl.delayTime.setTargetAtTime(f.dTime||0.25,t,0.02);
   }
-  async load(id,file){this.init();try{const a=await file.arrayBuffer();this.buf[id]=await this.ctx.decodeAudioData(a);return true;}catch(e){return false;}}
+  async load(id,file){this.init();if(!this.ch[id])this._build(id);try{const a=await file.arrayBuffer();this.buf[id]=await this.ctx.decodeAudioData(a);return true;}catch(e){return false;}}
   play(id,vel=1,dMs=0,f=null,at=null){
-    if(!this.ctx)this.init();const c=this.ch[id];if(!c)return;
+    if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
@@ -162,9 +171,9 @@ class Eng{
     let mx=0;for(let i=0;i<buf.length;i++){const v=Math.abs(buf[i]-128)/128;if(v>mx)mx=v;}
     return mx;
   }
-  _syn(id,t,v,d){
+  _syn(id,t,v,d,octx){
     // ── TR-808 authentic synthesis ──────────────────────────────────────────
-    const ctx=this.ctx;
+    const ctx=octx||this.ctx;
     // Shared helpers
     const noise=(dur)=>{const b=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*dur),ctx.sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=b;return s;};
     const osc=(type,freq)=>{const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);return o;};
@@ -784,10 +793,19 @@ export default function KickAndSnare(){
     setFx(p=>({...p,[id]:defFx()}));
     setAct(a=>[...a,id]);
     setNewTrackName("");setShowCustomInput(false);setShowAdd(false);
-    // Default sound = 808 cowbell synth (no buffer loaded → engine._syn fallback)
+    // Pre-render 808 cowbell for this custom track, then play a preview
     setSmpN(p=>({...p,[id]:"808 Cowbell (synth)"}));
     engine.init();
-    setTimeout(()=>engine.play(id,0.7,0,defFx()),50);
+    if(!engine.ch[id])engine._build(id);
+    (async()=>{
+      try{
+        const sr=engine.ctx.sampleRate;
+        const oCtx=new OfflineAudioContext(1,Math.ceil(sr*0.65),sr);
+        engine._syn(id,0,1,oCtx.destination,oCtx);
+        engine.buf[id]=await oCtx.startRendering();
+      }catch(e){console.warn("Custom 808 prerender failed",e);}
+      engine.play(id,0.7,0,defFx());
+    })();
   };
 
   // Shared custom track input UI (used in sequencer + euclid add panels)
