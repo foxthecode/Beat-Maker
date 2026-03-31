@@ -672,7 +672,7 @@ export default function KickAndSnare(){
   return(
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
-      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}`}</style>
+      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-25deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(25deg)}}`}</style>
       <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px"}}>
 
         {/* ── Header ── */}
@@ -695,7 +695,7 @@ export default function KickAndSnare(){
             const hC=(playing&&isAct("clap")&&!!pat.clap?.[cStep])||flash==="clap"||flash==="perc";
             const lHit=hS||hH||hC;const rHit=hR||hT;const lA=hS?-55:hH?-30:hC?-45:5;const rA=hR?-60:hT?-30:5;
             const anyHit=hK||hS||hH||hR||hT||hC;
-            const ac=(playing||anyHit)?"#FF9500":"#bbb";const hi="#FF2D55";const bob=playing?Math.sin((cStep||0)*0.7)*2:anyHit?-3:0;
+            const ac=(playing||anyHit)?"#FF9500":"#bbb";const hi="#FF2D55";
             const aHH=act.includes("hihat");const aS=act.includes("snare");const aK=act.includes("kick");
             const aT=act.includes("tom");const aR=act.includes("ride")||act.includes("crash");
             const aP=act.includes("clap")||act.includes("perc");
@@ -733,7 +733,7 @@ export default function KickAndSnare(){
                   <ellipse cx="72" cy="40" rx="7" ry="4" fill="none" stroke="#ddd" strokeWidth="0.5"/>
                   {hR&&<><line x1="74" y1="9" x2="72" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="82" y1="9" x2="84" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="78" y1="9" x2="78" y2="4" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>
-                <g style={{transform:`translateY(${bob}px)`,transition:"transform 0.08s"}}>
+                <g style={{animation:playing?"mbob 0.45s ease-in-out infinite":anyHit?"none":"none",transformBox:"fill-box"}}>
                   <ellipse cx="44" cy="38" rx="6" ry="2" fill="none" stroke="#bbb" strokeWidth="0.8"/>
                   <line x1="38" y1="38" x2="36" y2="50" stroke="#bbb" strokeWidth="0.7"/><line x1="50" y1="38" x2="52" y2="50" stroke="#bbb" strokeWidth="0.7"/>
                   <path d="M41,37 Q37,43 33,49" fill="none" stroke={ac} strokeWidth="2" strokeLinecap="round"/>
@@ -741,18 +741,18 @@ export default function KickAndSnare(){
                     <path d="M47,37 Q51,43 55,49" fill="none" stroke={hK?hi:ac} strokeWidth={hK?2.5:2} strokeLinecap="round"/>
                     <line x1="55" y1="49" x2="60" y2="48" stroke={hK?hi:ac} strokeWidth={hK?2.5:2} strokeLinecap="round"/>
                   </g>
-                  <path d={`M44,18 Q${43+bob*0.3},28 44,36`} fill="none" stroke={ac} strokeWidth="2.2" strokeLinecap="round"/>
-                  <g style={{transform:`rotate(${lA}deg)`,transformOrigin:"38px 20px",transition:"transform 0.05s ease-out"}}>
+                  <path d="M44,18 Q43,28 44,36" fill="none" stroke={ac} strokeWidth="2.2" strokeLinecap="round"/>
+                  <g style={{transform:`rotate(${lHit?lA:playing?0:5}deg)`,transformOrigin:"38px 20px",transition:"transform 0.05s ease-out",animation:playing&&!lHit?"marm-l 0.45s ease-in-out infinite alternate":"none",transformBox:"fill-box"}}>
                     <path d="M44,20 Q38,24 30,28" fill="none" stroke={lHit?hi:ac} strokeWidth={lHit?2.5:2} strokeLinecap="round"/>
                     <line x1="30" y1="28" x2="19" y2="22" stroke={lHit?hi:ac} strokeWidth={lHit?2.2:1.5} strokeLinecap="round"/>
                     {lHit&&<circle cx="19" cy="22" r="2" fill={hi} opacity="0.6"/>}
                   </g>
-                  <g style={{transform:`rotate(${-rA}deg)`,transformOrigin:"50px 20px",transition:"transform 0.05s ease-out"}}>
+                  <g style={{transform:`rotate(${rHit?-rA:playing?0:-5}deg)`,transformOrigin:"50px 20px",transition:"transform 0.05s ease-out",animation:playing&&!rHit?"marm-r 0.45s ease-in-out infinite alternate":"none",transformBox:"fill-box"}}>
                     <path d="M44,20 Q50,24 58,28" fill="none" stroke={rHit?hi:ac} strokeWidth={rHit?2.5:2} strokeLinecap="round"/>
                     <line x1="58" y1="28" x2="69" y2="22" stroke={rHit?hi:ac} strokeWidth={rHit?2.2:1.5} strokeLinecap="round"/>
                     {rHit&&<circle cx="69" cy="22" r="2" fill={hi} opacity="0.6"/>}
                   </g>
-                  <g style={{transform:`rotate(${playing?Math.sin((cStep||0)*0.6)*4:0}deg)`,transformOrigin:"44px 12px",transition:"transform 0.08s"}}>
+                  <g style={{animation:playing?"mhead 0.9s ease-in-out infinite":"none",transformOrigin:"44px 10px",transformBox:"fill-box"}}>
                     <circle cx="44" cy="10" r="6" fill="none" stroke={ac} strokeWidth="2"/>
                     <line x1="39" y1="9" x2="49" y2="9" stroke={ac} strokeWidth="1.2"/>
                     <rect x="39" y="8" width="4" height="3" rx="1" fill={playing?"#333":"#aaa"}/>
@@ -998,7 +998,7 @@ export default function KickAndSnare(){
                       <div style={{flexShrink:0,width:188,display:"grid",gridTemplateColumns:"auto auto 60px",columnGap:4,rowGap:3,alignItems:"center"}}>
                         {/* R1C1: drum SVG + label */}
                         <div style={{display:"flex",alignItems:"center",gap:3}}>
-                          {DrumSVG(track.id,track.color,playing&&!!pat[track.id]?.[cStep]&&aud)}
+                          {DrumSVG(track.id,track.color,flash===track.id)}
                           <span style={{fontSize:10,fontWeight:700,color:track.color,maxWidth:38,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
                           <MidiTag id={track.id}/>
                         </div>
@@ -1016,7 +1016,7 @@ export default function KickAndSnare(){
                               <div style={{height:"100%",width:`${vol}%`,background:track.color,borderRadius:2}}/>
                             </div>
                             <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:7,height:7,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
-                            <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0,touchAction:"none"}}/>
+                            <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
                           </div>
                         </div>
                         {/* R2C1: 16st */}
@@ -1177,7 +1177,7 @@ export default function KickAndSnare(){
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
                           const uFx=(k,v)=>{const nf={...(fx[tr.id]||defFx()),[k]:v};setFx(prev=>({...prev,[tr.id]:nf}));engine.uFx(tr.id,nf);};
-                          const slH={position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0,touchAction:"none"};
+                          const slH={position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0};
                           const slLbl={fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
                           const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
                           return(
@@ -1185,7 +1185,7 @@ export default function KickAndSnare(){
                               {/* Row 1 left: fold + icon + label + cnt + M + S + × */}
                               <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                                 <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",flexShrink:0}}>{p.fold?"▶":"▼"}</span>
-                                <span style={{flexShrink:0,opacity:aud?1:0.4}}>{DrumSVG(tr.id,tr.color,playing&&!!pat[tr.id]?.[cStep]&&aud,18)}</span>
+                                <span style={{flexShrink:0,opacity:aud?1:0.4}}>{DrumSVG(tr.id,tr.color,flash===tr.id,18)}</span>
                                 <span style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
                                 {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 4px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
                                 <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
