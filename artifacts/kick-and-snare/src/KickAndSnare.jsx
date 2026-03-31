@@ -8,7 +8,7 @@ const THEMES={
 
 const TIME_SIGS=[
   {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0]},
-  {label:"3/4",beats:3,steps:12,groups:[3,3,3,3],accents:[0]},
+  {label:"3/4",beats:3,steps:12,groups:[4,4,4],accents:[0]},
   {label:"6/8",beats:2,steps:12,groups:[6,6],accents:[0]},
   {label:"5/4",beats:5,steps:20,groups:[4,4,4,4,4],accents:[0,3]},
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0]},
@@ -884,7 +884,7 @@ export default function KickAndSnare(){
               const hasSmp=!!smpN[track.id];const hasFx=fx[track.id]&&(fx[track.id].drive>0||fx[track.id].pitch!==0||fx[track.id].cut<20000||fx[track.id].onReverb||fx[track.id].onDelay);
               const isFO=fxO===track.id;
               const tSteps=trackSteps[track.id]||STEPS;
-              const tsOpts=[16,32];const tsIdx=tsOpts.indexOf(tSteps<1?16:tSteps===8?16:tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
+              const tsOpts=[STEPS,STEPS*2];const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsIdx>=0?tsOpts[(tsIdx+1)%tsOpts.length]:STEPS;
               const isCustomTs=tSteps!==STEPS;
               const hasRec=(pat[track.id]||[]).some(v=>v);const stLocked=hasRec;
               return(<div key={track.id}>
