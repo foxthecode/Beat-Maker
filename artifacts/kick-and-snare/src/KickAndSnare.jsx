@@ -882,9 +882,9 @@ export default function KickAndSnare(){
               const isFO=fxO===track.id;
               const tSteps=trackSteps[track.id]||STEPS;
               const beatSz=tSteps/4;
-              const tsOpts=[16,8,32];const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
+              const tsOpts=[16,32];const tsIdx=tsOpts.indexOf(tSteps<1?16:tSteps===8?16:tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
               const isCustomTs=tSteps!==STEPS;
-              const hasRec=(pat[track.id]||[]).some(v=>v);const stLocked=hasRec&&nextTs<tSteps;
+              const hasRec=(pat[track.id]||[]).some(v=>v);const stLocked=hasRec;
               return(<div key={track.id}>
                 <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
                   {/* Track Label */}
