@@ -1035,8 +1035,8 @@ export default function KickAndSnare(){
             <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s"}}>
-              <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
-              <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("euclid");}} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
+              <button onClick={()=>{setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
+              <button onClick={()=>{setView("euclid");}} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
             </div>
           </div>
         </div>
@@ -1300,20 +1300,25 @@ export default function KickAndSnare(){
                         </div>
                         {/* R2C3: PAN round knob */}
                         {(()=>{
-                          const r=9;const circ=2*Math.PI*r;
+                          const r=9;const cx=11,cy=11;
                           const disp=pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`;
-                          const pct=(pan+100)/2; // 0..100 where 50=center
                           const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                          // Half-circle arc: right=clockwise from 12, left=counter-clockwise from 12
+                          const panArc=pan===0?null:(()=>{
+                            const toRad=d=>d*Math.PI/180;
+                            const startA=-90; // 12 o'clock
+                            const endA=startA+(pan/100)*180; // +180 at R100, -180 at L100
+                            const x1=cx+r*Math.cos(toRad(startA));const y1=cy+r*Math.sin(toRad(startA));
+                            const x2=cx+r*Math.cos(toRad(endA));const y2=cy+r*Math.sin(toRad(endA));
+                            const sweep=pan>0?1:0; // 1=clockwise(right), 0=counter-clockwise(left)
+                            return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${sweep} ${x2.toFixed(2)},${y2.toFixed(2)}`;
+                          })();
                           return(<div onPointerDown={onPD} onDoubleClick={()=>uFx("pan",0)} title={`PAN: ${disp} — drag ↕, dbl-click center`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",justifySelf:"center"}}>
                             <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                              <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
-                                <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
-                                {pan!==0&&<circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round"
-                                  strokeDasharray={`${circ*Math.abs(pan)/200} ${circ}`}
-                                  strokeDashoffset={pan>0?0:-circ*Math.abs(pan)/200}
-                                  transform={pan<0?`rotate(180,11,11)`:""}
-                                />}
-                                <circle cx="11" cy="11" r="1.5" fill={track.color}/>
+                              <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
+                                <circle cx={cx} cy={cy} r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
+                                {panArc&&<path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round"/>}
+                                <circle cx={cx} cy={cy} r="1.5" fill={track.color}/>
                               </svg>
                               <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
                             </div>
@@ -1442,10 +1447,23 @@ export default function KickAndSnare(){
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
                 </button>
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
+                {/* Mini step strip — visible only in LIVE PADS */}
+                {(()=>{
+                  const tSteps=trackSteps[track.id]||STEPS;
+                  const steps=pat[track.id]||Array(tSteps).fill(0);
+                  const cols=Math.min(tSteps,16);
+                  return(<div style={{display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap:2,marginTop:6,width:"100%"}}>
+                    {Array.from({length:tSteps}).map((_,s)=>{
+                      const on=!!steps[s];
+                      const isCur=cStep===s&&playing;
+                      return(<div key={s} onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[track.id]=[...(cp[track.id]||Array(tSteps).fill(0))];cp[track.id][s]=cp[track.id][s]?0:100;n[cPat]=cp;return n;});}} style={{height:4,borderRadius:1,background:isCur?track.color:on?track.color+"CC":track.color+"22",cursor:"pointer",boxShadow:isCur?`0 0 4px ${track.color}`:"none",transition:"background 0.05s"}}/>);
+                    })}
+                  </div>);
+                })()}
               </div>
             ))}
           </div>
-          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Tap to trigger · CAPTURE récupère les {capBars} dernière{capBars>1?"s":""} mesure{capBars>1?"s":""} · OVERDUB écrit en temps réel</div>
+          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Tap pads · CAPTURE → dernières {capBars} mesure{capBars>1?"s":""} → steps · OVERDUB écrit en temps réel</div>
         </div>)}
 
         {/* ── EUCLID VIEW ── */}
