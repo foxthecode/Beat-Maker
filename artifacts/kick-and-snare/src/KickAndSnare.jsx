@@ -991,7 +991,7 @@ export default function KickAndSnare(){
                   {(()=>{
                     const f=fx[track.id]||defFx();
                     const vol=f.vol??80;const pan=f.pan??0;
-                    const uFx=(k,v)=>setFx(prev=>({...prev,[track.id]:{...(prev[track.id]||defFx()),[k]:v}}));
+                    const uFx=(k,v)=>{const nf={...(fx[track.id]||defFx()),[k]:v};setFx(prev=>({...prev,[track.id]:nf}));engine.uFx(track.id,nf);};
                     const slLbl={fontSize:6,color:track.color,fontWeight:800,letterSpacing:"0.04em",flexShrink:0,width:16};
                     const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
                     return(
@@ -1176,7 +1176,7 @@ export default function KickAndSnare(){
                         {(()=>{
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
-                          const uFx=(k,v)=>setFx(prev=>({...prev,[tr.id]:{...(prev[tr.id]||defFx()),[k]:v}}));
+                          const uFx=(k,v)=>{const nf={...(fx[tr.id]||defFx()),[k]:v};setFx(prev=>({...prev,[tr.id]:nf}));engine.uFx(tr.id,nf);};
                           const slH={position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0,touchAction:"none"};
                           const slLbl={fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
                           const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
