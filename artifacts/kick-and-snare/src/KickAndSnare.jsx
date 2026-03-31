@@ -251,7 +251,7 @@ export default function KickAndSnare(){
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
-  const [euclidSel,setEuclidSel]=useState("kick");const [euclidRegion,setEuclidRegion]=useState("Afrique");const [euclidHov,setEuclidHov]=useState(null);
+  const [euclidParams,setEuclidParams]=useState({});
   const [fxO,setFxO]=useState(null);const [smpN,setSmpN]=useState({kick:"BWJAZZ Kick (default)",snare:"BB3 Snare (default)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
   const [stNudge,setStNudge]=useState(mkN(16));
@@ -1001,113 +1001,139 @@ export default function KickAndSnare(){
 
         {/* ── EUCLID VIEW ── */}
         {view==="euclid"&&(()=>{
-          const CX=180,CY=180,R=155;
-          const evtx=(i,N,cx,cy,r)=>{const a=(2*Math.PI*i/N)-Math.PI/2;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};};
-          const eucToggle=(step,tid)=>{setPBank(p=>{const n=JSON.parse(JSON.stringify(p));n[cPat][tid][step]=n[cPat][tid][step]?0:100;return n;});};
-          const applyTpl=(t)=>{
-            const insTr=atO.find(tr=>tr.id===t.instr)||atO[0];if(!insTr)return;
-            const scaledHits=t.hits.map(h=>Math.min(STEPS-1,Math.round(h*STEPS/t.N)));
-            setPBank(p=>{const n=JSON.parse(JSON.stringify(p));n[cPat][insTr.id]=Array(STEPS).fill(0);scaledHits.forEach(s=>{n[cPat][insTr.id][s]=100;});return n;});
-            setEuclidSel(insTr.id);
+          const CX=190,CY=190;
+          const R_OUT=162,R_IN=atO.length>1?38:148;
+          const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
+          const getP=tid=>euclidParams[tid]||{N:trackSteps[tid]||STEPS,hits:0,rot:0,tpl:""};
+          const writeP=(tid,up)=>setEuclidParams(p=>({...p,[tid]:{...getP(tid),...up}}));
+          const applyE=(tid,N,hits,rot)=>{
+            const raw=euclidRhythm(hits,N);
+            const r2=rot%Math.max(N,1);
+            const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=[...rotated];n[cPat]=cp;return n;});
           };
-          const headAngle=cStep>=0?(2*Math.PI*cStep/STEPS)-Math.PI/2:-Math.PI/2;
-          const selTr=atO.find(tr=>tr.id===euclidSel)||atO[0];
-          const regTpls=EUCLID_TEMPLATES.filter(t=>t.region===euclidRegion);
-          const rc=EUCLID_RCOL[euclidRegion]||"#888";
+          const chN=(tid,newN)=>{const p=getP(tid);const h=Math.min(p.hits,newN);const r=p.rot%newN;writeP(tid,{N:newN,hits:h,rot:r});applyE(tid,newN,h,r);};
+          const chH=(tid,h)=>{const p=getP(tid);writeP(tid,{hits:h,tpl:""});applyE(tid,p.N,h,p.rot);};
+          const chR=(tid,r)=>{const p=getP(tid);writeP(tid,{rot:r});applyE(tid,p.N,p.hits,r);};
+          const applyTplTo=(tid,t)=>{
+            writeP(tid,{N:t.N,hits:t.hits.length,rot:0,tpl:t.name});
+            const pp=Array(t.N).fill(0);t.hits.forEach(h=>{pp[h]=100;});
+            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:t.N}};cp[tid]=[...pp];n[cPat]=cp;return n;});
+          };
+          const slBase={WebkitAppearance:"none",appearance:"none",width:"100%",height:4,borderRadius:2,outline:"none",cursor:"pointer",background:"transparent"};
+          const selStyle={width:"100%",background:th.surface,border:`1px solid ${th.sBorder}`,borderRadius:5,color:th.text,fontSize:9,fontFamily:"inherit",padding:"4px 6px",cursor:"pointer"};
           return(
-            <div style={{padding:"8px 0"}}>
-              <div style={{display:"flex",gap:16,alignItems:"flex-start",justifyContent:"center",flexWrap:"wrap"}}>
-                {/* Instrument selector */}
-                <div style={{display:"flex",flexDirection:"column",gap:5,paddingTop:50}}>
-                  {atO.map(tr=>{
-                    const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
-                    return(<button key={tr.id} onClick={()=>setEuclidSel(tr.id)} style={{
-                      display:"flex",alignItems:"center",gap:7,padding:"7px 11px",borderRadius:7,
-                      border:`1px solid ${euclidSel===tr.id?tr.color+"88":th.sBorder}`,
-                      background:euclidSel===tr.id?tr.color+"18":"transparent",
-                      color:euclidSel===tr.id?tr.color:th.dim,
-                      fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",
-                    }}>
-                      <span style={{fontSize:12}}>{tr.icon}</span><span>{tr.label}</span>
-                      {cnt>0&&<span style={{marginLeft:2,background:tr.color+"2a",color:tr.color,borderRadius:3,padding:"1px 4px",fontSize:8,fontWeight:700}}>{cnt}</span>}
-                    </button>);
+            <div style={{padding:"8px 0",overflowX:"auto"}}>
+              <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:680}}>
+                {/* ── LEFT: Track controls ── */}
+                <div style={{display:"flex",flexDirection:"column",gap:8,width:280,flexShrink:0}}>
+                  <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>PARAMÈTRES PAR PISTE</div>
+                  {atO.map((tr)=>{
+                    const p=getP(tr.id);const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
+                    return(
+                      <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}33`,background:tr.color+"08",padding:"8px 10px",display:"flex",flexDirection:"column",gap:6}}>
+                        {/* Header */}
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:13}}>{tr.icon}</span>
+                          <span style={{fontSize:10,fontWeight:800,color:tr.color,letterSpacing:"0.08em",flex:1}}>{tr.label}</span>
+                          {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 6px",fontSize:8,fontWeight:700}}>{cnt} hits</span>}
+                        </div>
+                        {/* Template dropdown */}
+                        <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
+                          <option value="">— Charger un template —</option>
+                          {EUCLID_REGIONS.map(r=>(
+                            <optgroup key={r} label={r}>
+                              {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
+                                <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                        {/* N (Pas) */}
+                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                          <div style={{display:"flex",justifyContent:"space-between"}}>
+                            <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>PAS (N)</span>
+                            <span style={{fontSize:9,fontWeight:800,color:tr.color}}>{p.N}</span>
+                          </div>
+                          <input type="range" min={3} max={32} value={p.N} onChange={e=>chN(tr.id,Number(e.target.value))}
+                            style={{...slBase,accentColor:tr.color}}/>
+                        </div>
+                        {/* Hits */}
+                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                          <div style={{display:"flex",justifyContent:"space-between"}}>
+                            <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>HITS</span>
+                            <span style={{fontSize:9,fontWeight:800,color:tr.color}}>{p.hits} / {p.N}</span>
+                          </div>
+                          <input type="range" min={0} max={p.N} value={p.hits} onChange={e=>chH(tr.id,Number(e.target.value))}
+                            style={{...slBase,accentColor:tr.color}}/>
+                        </div>
+                        {/* Rotation */}
+                        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                          <div style={{display:"flex",justifyContent:"space-between"}}>
+                            <span style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em"}}>ROTATION</span>
+                            <span style={{fontSize:9,fontWeight:800,color:tr.color}}>+{p.rot}</span>
+                          </div>
+                          <input type="range" min={0} max={Math.max(p.N-1,0)} value={p.rot} onChange={e=>chR(tr.id,Number(e.target.value))}
+                            style={{...slBase,accentColor:tr.color}}/>
+                        </div>
+                        {/* Mini strip preview */}
+                        <div style={{display:"flex",gap:1,flexWrap:"wrap",marginTop:2}}>
+                          {(pat[tr.id]||[]).slice(0,Math.min(p.N,32)).map((v,i)=>(
+                            <div key={i} style={{width:Math.max(4,Math.min(8,200/p.N)),height:6,borderRadius:1,background:v?tr.color:th.stepOff,flexShrink:0,opacity:i===cStep%p.N?1:v?0.9:0.35,boxShadow:i===cStep%p.N?`0 0 4px ${tr.color}`:"none"}}/>
+                          ))}
+                        </div>
+                      </div>
+                    );
                   })}
-                  <div style={{marginTop:6,fontSize:7,color:th.faint,letterSpacing:"0.08em"}}>ACTIF SÉL.</div>
                 </div>
-                {/* Polygon */}
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-                  <svg width={360} height={360} style={{display:"block",overflow:"visible"}}>
-                    <circle cx={CX} cy={CY} r={R+14} fill="none" stroke={th.surface} strokeWidth={28}/>
-                    <polygon points={Array.from({length:STEPS},(_,i)=>{const v=evtx(i,STEPS,CX,CY,R);return`${v.x},${v.y}`;}).join(" ")} fill="none" stroke={th.sBorder} strokeWidth={1}/>
-                    <circle cx={CX} cy={CY} r={18} fill={th.surface} stroke={th.sBorder} strokeWidth={1}/>
-                    {[0.55,0.78].map(f=>(<circle key={f} cx={CX} cy={CY} r={R*f} fill="none" stroke={th.faint} strokeWidth={0.5} strokeDasharray="2 5" opacity={0.3}/>))}
-                    {cStep>=0&&<line x1={CX} y1={CY} x2={CX+(R+18)*Math.cos(headAngle)} y2={CY+(R+18)*Math.sin(headAngle)} stroke="#30D158" strokeWidth={2} strokeLinecap="round" opacity={0.85}/>}
-                    {Array.from({length:STEPS},(_,i)=>{
-                      const v=evtx(i,STEPS,CX,CY,R);
-                      const actTrs=atO.filter(tr=>(pat[tr.id]||[])[i]>0);
-                      const on=actTrs.length>0;const cur=i===cStep;const hov=euclidHov===i;const r0=on?12:7;
+
+                {/* ── RIGHT: Concentric rings SVG ── */}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flex:1}}>
+                  <svg width={380} height={380} style={{display:"block",overflow:"visible"}}>
+                    {/* Background circle */}
+                    <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
+                    {/* Rings per track */}
+                    {atO.map((tr,ti)=>{
+                      const R=R_OUT-ti*ringGap;
+                      const p=getP(tr.id);const N=p.N;
+                      const curS=cStep>=0?cStep%N:-1;
+                      const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
+                      const dotR=Math.max(3,Math.min(8,R*0.22));
                       return(
-                        <g key={i} style={{cursor:"pointer"}} onClick={()=>eucToggle(i,euclidSel)}
-                          onMouseEnter={()=>setEuclidHov(i)} onMouseLeave={()=>setEuclidHov(null)}>
-                          {cur&&on&&<circle cx={v.x} cy={v.y} r={r0+10} fill={actTrs[0].color+"18"}/>}
-                          <circle cx={v.x} cy={v.y} r={hov?r0+2:r0}
-                            fill={on?(cur?"#fff":th.surface):(hov?selTr.color+"18":th.stepOff)}
-                            stroke={on?(cur?"#fff":actTrs[0].color):(hov?selTr.color+"77":th.sBorder)} strokeWidth={on?1.5:1}/>
-                          {on&&actTrs.map((tr,di)=>{
-                            const off=actTrs.length>1?(di-(actTrs.length-1)/2)*7:0;
-                            return(<circle key={tr.id} cx={v.x+off} cy={v.y} r={3} fill={cur?"#000":tr.color} opacity={0.92}/>);
+                        <g key={tr.id}>
+                          {/* Guide ring */}
+                          <circle cx={CX} cy={CY} r={R} fill="none" stroke={tr.color} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.25}/>
+                          {/* Playhead */}
+                          {playing&&curS>=0&&<line x1={CX} y1={CY} x2={CX+R*Math.cos(headA)} y2={CY+R*Math.sin(headA)} stroke={tr.color} strokeWidth={1.5} strokeLinecap="round" opacity={0.7}/>}
+                          {/* Vertices */}
+                          {Array.from({length:N},(_,i)=>{
+                            const a=(2*Math.PI*i/N)-Math.PI/2;
+                            const vx=CX+R*Math.cos(a),vy=CY+R*Math.sin(a);
+                            const on=(pat[tr.id]||[])[i]>0;const cur=i===curS;
+                            const rv=cur?dotR+2:dotR;
+                            return(
+                              <g key={i}>
+                                {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"22":"11")}/>}
+                                <circle cx={vx} cy={vy} r={rv}
+                                  fill={on?tr.color:(cur?tr.color+"33":th.stepOff)}
+                                  stroke={on?tr.color:th.sBorder}
+                                  strokeWidth={on?0:0.5}
+                                  opacity={on?1:0.5}/>
+                                {N<=20&&<text x={vx} y={vy+rv+8} textAnchor="middle" fontSize={5} fill={on?tr.color:th.faint} fontFamily="monospace" opacity={0.7}>{i+1}</text>}
+                              </g>
+                            );
                           })}
-                          <text x={v.x} y={v.y+(on?r0+11:16)} textAnchor="middle" fontSize={6}
-                            fill={cur?"#30D158":on?th.dim:th.faint} fontFamily="monospace" fontWeight={cur?700:400}>{i+1}</text>
+                          {/* Ring label */}
+                          <text x={CX+R+12} y={CY-(ti*(R_OUT-R_IN)/(Math.max(atO.length-1,1)))*0+4} textAnchor="start" fontSize={8} fill={tr.color} fontFamily="monospace" fontWeight={700} opacity={0.9}>{tr.icon}</text>
                         </g>
                       );
                     })}
-                    <text x={CX} y={CY+4} textAnchor="middle" fontSize={8} fill={playing?"#30D158":th.faint} fontFamily="monospace" fontWeight={700}>{playing?"▶":"■"}</text>
+                    {/* Center */}
+                    <circle cx={CX} cy={CY} r={16} fill={th.surface} stroke={th.sBorder} strokeWidth={1}/>
+                    <text x={CX} y={CY+4} textAnchor="middle" fontSize={9} fill={playing?"#30D158":th.faint} fontFamily="monospace" fontWeight={700}>{playing?"▶":"■"}</text>
                   </svg>
                   <div style={{fontSize:7,color:th.faint,letterSpacing:"0.08em",textAlign:"center"}}>
-                    {STEPS} STEPS · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} HITS · CLIC = TOGGLE INSTRUMENT SÉLECTIONNÉ
-                  </div>
-                </div>
-                {/* Templates */}
-                <div style={{display:"flex",flexDirection:"column",gap:5,width:195}}>
-                  <div style={{fontSize:8,fontWeight:700,letterSpacing:"0.12em",color:"#FFD60A",marginBottom:2}}>TEMPLATES</div>
-                  <div style={{display:"flex",gap:3,marginBottom:4}}>
-                    {EUCLID_REGIONS.map(r=>(
-                      <button key={r} onClick={()=>setEuclidRegion(r)} style={{
-                        flex:1,padding:"4px 3px",borderRadius:4,fontSize:6.5,fontWeight:800,
-                        border:`1px solid ${euclidRegion===r?EUCLID_RCOL[r]+"66":th.sBorder}`,
-                        background:euclidRegion===r?EUCLID_RCOL[r]+"15":"transparent",
-                        color:euclidRegion===r?EUCLID_RCOL[r]:th.dim,
-                        cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em",
-                      }}>{r}</button>
-                    ))}
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:330,overflowY:"auto"}}>
-                    {regTpls.map(t=>{
-                      const ins=atO.find(tr=>tr.id===t.instr)||atO[0];const iCol=ins?.color||"#888";
-                      return(
-                        <button key={t.name} onClick={()=>applyTpl(t)} style={{
-                          textAlign:"left",padding:"7px 8px",borderRadius:6,border:`1px solid ${th.sBorder}`,
-                          background:th.surface,cursor:"pointer",fontFamily:"inherit",
-                        }}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-                            <span style={{fontSize:9.5,fontWeight:800,color:th.text,letterSpacing:"0.04em"}}>{t.name}</span>
-                            <div style={{display:"flex",alignItems:"center",gap:3}}>
-                              <span style={{width:5,height:5,borderRadius:"50%",background:iCol,display:"inline-block"}}/>
-                              <span style={{fontSize:6.5,color:rc,fontWeight:700}}>{t.N}st</span>
-                            </div>
-                          </div>
-                          <div style={{fontSize:7,color:th.dim,marginBottom:1}}>{t.origin}</div>
-                          <div style={{fontSize:6.5,color:th.faint,fontStyle:"italic",marginBottom:4}}>{t.desc}</div>
-                          <div style={{display:"flex",gap:1.5,flexWrap:"wrap"}}>
-                            {Array.from({length:Math.min(t.N,16)},(_,i)=>(
-                              <div key={i} style={{width:t.N<=12?8:6,height:t.N<=12?8:6,borderRadius:2,
-                                background:t.hits.includes(i)?iCol:th.stepOff,flexShrink:0}}/>
-                            ))}
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {atO.length} piste{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits total · lecture indépendante par anneau
                   </div>
                 </div>
               </div>
