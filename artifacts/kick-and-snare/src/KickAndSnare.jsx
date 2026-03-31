@@ -1585,10 +1585,6 @@ export default function KickAndSnare(){
           );
         })()}
 
-        {/* ── Step position visualizer (linear/pads only) ── */}
-        {view!=="euclid"&&<div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
-          {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);return(<div key={i} style={{width:5,height:cStep===i?18:gi.first?10:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":gi.first?"#FFB340":th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":gi.first?"0 0 3px rgba(255,179,64,0.4)":"none"}}/>);})}
-        </div>}
 
         <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
           KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Right-click ratchet · Shift+click probability
