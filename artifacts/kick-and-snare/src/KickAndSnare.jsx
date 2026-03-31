@@ -696,7 +696,11 @@ export default function KickAndSnare(){
               <span style={{position:"relative",zIndex:1}}>METRO {metroVol}%</span>
             </div>);
           })()}
-          <button onClick={()=>setShowK(!showK)} style={pill(showK,"#FFD60A")}>⌨</button>
+          {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
+          <button onClick={()=>setShowK(!showK)} style={{...pill(showK,"#FFD60A"),display:"flex",alignItems:"center",gap:4}}>
+            <span style={{fontSize:11}}>⌨</span>
+            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>Keyb</span>
+          </button>
           <button onClick={async()=>{
             if(!midiNotes){const ok=await initMidi();if(ok)setMidiNotes(true);}
             setShowMN(p=>!p);setMidiLearnTrack(null);
@@ -707,7 +711,6 @@ export default function KickAndSnare(){
             </span>
             {midiLearnTrack&&<span style={{fontSize:7,fontWeight:900,color:"#FF2D55",animation:"rb 0.5s infinite"}}>LEARN</span>}
           </button>
-          {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
           {/* Ableton Link */}
           <button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
             🔗{linkConnected?` ${linkPeers}p`:' LINK'}
