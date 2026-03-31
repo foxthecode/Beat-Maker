@@ -549,6 +549,9 @@ export default function KickAndSnare(){
   const [linkStatus,setLinkStatus]=useState('idle'); // 'idle'|'connecting'|'connected'|'failed'
   const linkWsRef=useRef(null);
   const linkBpmRef=useRef(null);
+  // ── Undo / Redo ──
+  const histRef=useRef({past:[],future:[]});
+  const _pbRef=useRef(null);const _epRef=useRef(null);const _svRef=useRef(null);const _snRef=useRef(null);const _spRef=useRef(null);const _srRef=useRef(null);
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // Euclid polyrhythm — independent per-track clocks
   const euclidClockR=useRef({});
@@ -707,6 +710,8 @@ export default function KickAndSnare(){
   useEffect(()=>{playRef.current=playing;},[playing]);
   useEffect(()=>{
     const down=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();R.undo?.();return;}
+      if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();R.redo?.();return;}
       if(e.code==="Space"){e.preventDefault();ssRef.current?.();return;}
       if(e.key==="Alt"){e.preventDefault();if(playRef.current)setRec(p=>!p);return;}
       if(e.key==="?"){setShowK(p=>!p);return;}
@@ -937,7 +942,15 @@ export default function KickAndSnare(){
 
 
   // Step interactions
-  const handleClick=(tid,step)=>setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});
+  // Keep snapshot refs always current (assigned during render)
+  _pbRef.current=pBank;_epRef.current=euclidParams;_svRef.current=stVel;_snRef.current=stNudge;_spRef.current=stProb;_srRef.current=stRatch;
+  const _snap=()=>({pBank:JSON.parse(JSON.stringify(_pbRef.current)),euclidParams:JSON.parse(JSON.stringify(_epRef.current)),stVel:JSON.parse(JSON.stringify(_svRef.current)),stNudge:JSON.parse(JSON.stringify(_snRef.current)),stProb:JSON.parse(JSON.stringify(_spRef.current)),stRatch:JSON.parse(JSON.stringify(_srRef.current))});
+  const pushHistory=()=>{histRef.current.past.push(_snap());if(histRef.current.past.length>60)histRef.current.past.shift();histRef.current.future=[];};
+  const undo=()=>{const h=histRef.current;if(!h.past.length)return;h.future.push(_snap());const s=h.past.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);};
+  const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);};
+  R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
+
+  const handleClick=(tid,step)=>{pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});};
   const didDragRef=useRef(false);
   const startDrag=(tid,step,e)=>{
     e.preventDefault();
@@ -977,6 +990,7 @@ export default function KickAndSnare(){
   // Right-click: cycle ratchet 1→2→3→4→1
   const handleRightClick=(tid,step,e)=>{
     e.preventDefault();if(!pat[tid]?.[step])return;
+    pushHistory();
     setStRatch(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(1);a[step]=(a[step]%4)+1;n[tid]=a;return n;});
   };
 
@@ -984,6 +998,7 @@ export default function KickAndSnare(){
   const handleShiftClick=(tid,step,e)=>{
     if(!e.shiftKey)return false;
     if(!pat[tid]?.[step])return true;
+    pushHistory();
     const cur=stProb[tid]?.[step]??100;
     const presets=[100,75,50,25];const idx=presets.indexOf(cur);
     const next=presets[(idx+1)%presets.length];
@@ -1086,7 +1101,8 @@ export default function KickAndSnare(){
               <div style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM SEQUENCER</div>
             </div>
           </div>
-          {/* Animated drummer mascot */}
+          {/* Animated drummer mascot + UNDO/REDO */}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
             const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
@@ -1205,6 +1221,11 @@ export default function KickAndSnare(){
               </svg>
             );
           })()}
+          <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
+            <button onClick={undo} title="Undo (Ctrl+Z)" disabled={histRef.current.past.length===0} style={{padding:"3px 7px",border:`1px solid ${histRef.current.past.length?th.sBorder+"99":th.sBorder+"33"}`,borderRadius:5,background:histRef.current.past.length?"rgba(100,210,255,0.08)":"transparent",color:histRef.current.past.length?"#64D2FF":th.dim,fontSize:9,fontWeight:700,cursor:histRef.current.past.length?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.04em",opacity:histRef.current.past.length?1:0.35,lineHeight:1,minWidth:36}}>↩ UNDO</button>
+            <button onClick={redo} title="Redo (Ctrl+Y)" disabled={histRef.current.future.length===0} style={{padding:"3px 7px",border:`1px solid ${histRef.current.future.length?th.sBorder+"99":th.sBorder+"33"}`,borderRadius:5,background:histRef.current.future.length?"rgba(100,210,255,0.08)":"transparent",color:histRef.current.future.length?"#64D2FF":th.dim,fontSize:9,fontWeight:700,cursor:histRef.current.future.length?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.04em",opacity:histRef.current.future.length?1:0.35,lineHeight:1,minWidth:36}}>REDO ↪</button>
+          </div>
+          </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
             <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
