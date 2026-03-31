@@ -978,50 +978,54 @@ export default function KickAndSnare(){
                     const f=fx[track.id]||defFx();
                     const vol=f.vol??80;const pan=f.pan??0;
                     const uFx=(k,v)=>setFx(prev=>({...prev,[track.id]:{...(prev[track.id]||defFx()),[k]:v}}));
-                    const slLbl={fontSize:6,color:track.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
-                    const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
+                    const slLbl={fontSize:6,color:track.color,fontWeight:800,letterSpacing:"0.04em",flexShrink:0,width:16};
+                    const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
                     return(
-                      <div style={{width:208,flexShrink:0,display:"grid",gridTemplateColumns:"auto 1fr",columnGap:5,rowGap:3,alignItems:"center"}}>
-                        {/* Row1 col1: icon · label · MIDI · M · S · CLR */}
-                        <div style={{display:"flex",alignItems:"center",gap:2,flexWrap:"nowrap"}}>
+                      <div style={{flexShrink:0,display:"grid",gridTemplateColumns:"auto auto 60px",columnGap:4,rowGap:3,alignItems:"center"}}>
+                        {/* R1C1: icon + label */}
+                        <div style={{display:"flex",alignItems:"center",gap:3}}>
                           <span style={{fontSize:12,color:track.color,flexShrink:0}}>{track.icon}</span>
-                          <span style={{fontSize:10,fontWeight:700,color:track.color,minWidth:26,maxWidth:40,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
+                          <span style={{fontSize:10,fontWeight:700,color:track.color,maxWidth:38,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
                           <MidiTag id={track.id}/>
-                          <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{width:18,height:18,border:"none",borderRadius:3,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>M</button>
-                          <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{width:18,height:18,border:"none",borderRadius:3,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>S</button>
-                          <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{width:22,height:18,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}} title="Clear track">CLR</button>
                         </div>
-                        {/* Row1 col2: VOL slider */}
-                        <div style={{display:"flex",alignItems:"center",gap:3}}>
+                        {/* R1C2: M · S · CLR */}
+                        <div style={{display:"flex",gap:2}}>
+                          <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
+                          <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
+                          <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
+                        </div>
+                        {/* R1C3: VOL slider */}
+                        <div style={{display:"flex",alignItems:"center",gap:2}}>
                           <span style={slLbl}>VOL</span>
-                          <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={{flex:1,height:3,accentColor:track.color,cursor:"pointer",display:"block"}}/>
-                          <span style={slVal}>{vol}</span>
+                          <input type="range" min={0} max={100} step={1} value={vol} title={`VOL ${vol}`} onChange={e=>uFx("vol",Number(e.target.value))} style={{flex:1,height:3,accentColor:track.color,cursor:"pointer",display:"block",minWidth:0}}/>
                         </div>
-                        {/* Row2 col1: ♪ · FX · × · steps */}
-                        <div style={{display:"flex",alignItems:"center",gap:2,flexWrap:"nowrap"}}>
-                          <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{width:20,height:18,border:"none",borderRadius:3,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>♪</button>
-                          <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
-                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
-                          <button title={stLocked?"Clear track to change resolution":`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{height:18,border:`1px solid ${stLocked?"rgba(255,55,95,0.25)":isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:stLocked?"rgba(255,55,95,0.06)":isCustomTs?track.color+"11":"transparent",color:stLocked?"rgba(255,55,95,0.5)":isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:stLocked?"not-allowed":"pointer",fontFamily:"inherit",padding:"0 3px",opacity:stLocked?0.6:1}}>{tSteps}st</button>
+                        {/* R2C1: 16st */}
+                        <div style={{display:"flex",alignItems:"center",gap:2}}>
+                          <button title={stLocked?"Clear track to change resolution":`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,border:`1px solid ${stLocked?"rgba(255,55,95,0.25)":isCustomTs?track.color+"44":th.sBorder}`,background:stLocked?"rgba(255,55,95,0.06)":isCustomTs?track.color+"11":"transparent",color:stLocked?"rgba(255,55,95,0.5)":isCustomTs?track.color:th.dim,cursor:stLocked?"not-allowed":"pointer",opacity:stLocked?0.6:1,padding:"0 3px"}}>{tSteps}st</button>
                         </div>
-                        {/* Row2 col2: PAN slider */}
-                        <div style={{display:"flex",alignItems:"center",gap:3}}>
+                        {/* R2C2: ♪ · FX · × */}
+                        <div style={{display:"flex",gap:2}}>
+                          <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
+                          <button onClick={()=>setFxO(isFO?null:track.id)} style={{...btnSt,width:22,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6}}>FX</button>
+                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                        </div>
+                        {/* R2C3: PAN slider */}
+                        <div style={{display:"flex",alignItems:"center",gap:2}}>
                           <span style={slLbl}>PAN</span>
-                          <div style={{flex:1,position:"relative",height:10}}>
+                          <div style={{flex:1,position:"relative",height:10,minWidth:0}}>
                             <div style={{position:"absolute",top:"50%",left:0,right:0,height:2,background:th.sBorder,borderRadius:1,transform:"translateY(-50%)"}}/>
                             <div style={{position:"absolute",top:0,bottom:0,left:"50%",width:1,background:track.color+"55",transform:"translateX(-50%)"}}/>
                             {pan!==0&&<div style={{position:"absolute",top:"50%",height:3,borderRadius:1,background:track.color,transform:"translateY(-50%)",left:pan<0?`${50+(pan/100)*50}%`:"50%",width:`${Math.abs(pan/100)*50}%`}}/>}
-                            <div style={{position:"absolute",top:"50%",left:`${(pan+100)/2}%`,width:8,height:8,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${track.color}33`,pointerEvents:"none"}}/>
-                            <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
+                            <div style={{position:"absolute",top:"50%",left:`${(pan+100)/2}%`,width:7,height:7,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${track.color}33`,pointerEvents:"none"}}/>
+                            <input type="range" min={-100} max={100} step={1} value={pan} title={`PAN ${pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}`} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
                           </div>
-                          <span style={slVal}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
                         </div>
-                        {/* Row3: VU + sample name — spans both cols */}
+                        {/* R3: VU + sample name — spans all cols */}
                         <div style={{gridColumn:"1/-1",display:"flex",flexDirection:"column",gap:1}}>
                           <div style={{height:3,borderRadius:2,background:th.btn,overflow:"hidden",position:"relative"}}>
                             <div ref={el=>{if(el)vuRefs.current[track.id]=el;}} style={{height:"100%",width:"0%",borderRadius:2,background:"#30D158",transition:"width 0.05s",opacity:0.15}}/>
                           </div>
-                          {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,22)}</span>}
+                          {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,24)}</span>}
                         </div>
                       </div>
                     );
