@@ -97,7 +97,7 @@ function euclidRhythm(hits,steps){
 
 // ═══ Audio Engine ═══
 class Eng{
-  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this.ana={};}
+  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};}
   init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.mg=this.ctx.createGain();this.mg.gain.value=0.8;this.mg.connect(this.ctx.destination);this._mkRv();TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();}
   async _loadDefaults(){
     // Pre-render all 808 sounds into AudioBuffers for playback-quality output
@@ -132,13 +132,10 @@ class Eng{
     c.pan=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
     c.dry=this.ctx.createGain();c.rvG=this.ctx.createGain();c.rvG.gain.value=0;c.conv=this.ctx.createConvolver();c.conv.buffer=this.rv;
     c.dlG=this.ctx.createGain();c.dlG.gain.value=0;c.dl=this.ctx.createDelay(2);c.dl.delayTime.value=0.25;c.dlFb=this.ctx.createGain();c.dlFb.gain.value=0.3;
-    // Analyser for VU meters
-    c.ana=this.ctx.createAnalyser();c.ana.fftSize=256;
     c.in.connect(c.flt);c.flt.connect(c.drv);c.drv.connect(c.cmp);c.cmp.connect(c.vol);c.vol.connect(c.pan);
     c.pan.connect(c.dry);c.dry.connect(this.mg);c.pan.connect(c.rvG);c.rvG.connect(c.conv);c.conv.connect(this.mg);
     c.pan.connect(c.dlG);c.dlG.connect(c.dl);c.dl.connect(c.dlFb);c.dlFb.connect(c.dl);c.dl.connect(this.mg);
-    c.pan.connect(c.ana);
-    this.ch[id]=c;this.ana[id]=c.ana;
+    this.ch[id]=c;
   }
   _cv(d){const k=Math.round(d*100);if(this._c[k])return this._c[k];const n=8192,a=new Float32Array(n),v=d*5;for(let i=0;i<n;i++){const x=i*2/n-1;a[i]=v===0?x:((1+v)*x)/(1+v*Math.abs(x));}this._c[k]=a;return a;}
   uFx(id,f){
@@ -164,12 +161,6 @@ class Eng{
     if(f)this.uFx(id,f);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);}
     else this._syn(id,t,vel,c.in);
-  }
-  getLevel(id){
-    const an=this.ana[id];if(!an)return 0;
-    const buf=new Uint8Array(an.fftSize);an.getByteTimeDomainData(buf);
-    let mx=0;for(let i=0;i<buf.length;i++){const v=Math.abs(buf[i]-128)/128;if(v>mx)mx=v;}
-    return mx;
   }
   _syn(id,t,v,d,octx){
     // ── TR-808 authentic synthesis ──────────────────────────────────────────
@@ -361,8 +352,6 @@ export default function KickAndSnare(){
   const linkWsRef=useRef(null);
   const linkBpmRef=useRef(null);
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
-  // VU meter refs — direct DOM manipulation for performance
-  const vuRefs=useRef({});
   // Euclid polyrhythm — independent per-track clocks
   const euclidClockR=useRef({});
   const [euclidCur,setEuclidCur]=useState({});
@@ -490,26 +479,6 @@ export default function KickAndSnare(){
   // Cleanup
   useEffect(()=>()=>{if(linkWsRef.current)linkWsRef.current.close();},[]);
 
-  // VU meter animation
-  useEffect(()=>{
-    let running=true;
-    const tick=()=>{
-      if(!running)return;
-      Object.keys(vuRefs.current).forEach(id=>{
-        const el=vuRefs.current[id];
-        if(el&&engine.ana[id]){
-          const lv=engine.getLevel(id);
-          const pct=Math.round(lv*100);
-          el.style.width=`${Math.min(100,pct*1.5)}%`;
-          el.style.background=pct>50?"#FF2D55":pct>25?"#FF9500":"#30D158";
-          el.style.opacity=lv>0.005?"1":"0.15";
-        }
-      });
-      requestAnimationFrame(tick);
-    };
-    if(playing)requestAnimationFrame(tick);
-    return()=>{running=false;};
-  },[playing]);
 
   // Keyboard shortcuts
   const trigPad=useCallback((tid,vel=1)=>{
@@ -1263,11 +1232,8 @@ export default function KickAndSnare(){
                             <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
                           </div>
                         </div>
-                        {/* R3: VU + sample name — spans all cols */}
-                        <div style={{gridColumn:"1/-1",display:"flex",flexDirection:"column",gap:1}}>
-                          <div style={{height:3,borderRadius:2,background:th.btn,overflow:"hidden",position:"relative"}}>
-                            <div ref={el=>{if(el)vuRefs.current[track.id]=el;}} style={{height:"100%",width:"0%",borderRadius:2,background:"#30D158",transition:"width 0.05s",opacity:0.15}}/>
-                          </div>
+                        {/* R3: sample name — spans all cols */}
+                        <div style={{gridColumn:"1/-1"}}>
                           {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,24)}</span>}
                         </div>
                       </div>
@@ -1367,9 +1333,6 @@ export default function KickAndSnare(){
                   {DrumSVG(track.id,track.color,flash===track.id,44)}
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
-                  <div style={{width:"80%",height:4,borderRadius:2,background:th.btn,overflow:"hidden"}}>
-                    <div ref={el=>{if(el){vuRefs.current[track.id+"_pad"]=el;}}} style={{height:"100%",width:"0%",background:track.color,transition:"width 0.05s"}}/>
-                  </div>
                 </button>
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
               </div>);
