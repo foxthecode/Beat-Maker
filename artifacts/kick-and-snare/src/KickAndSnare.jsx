@@ -991,7 +991,7 @@ export default function KickAndSnare(){
                   {(()=>{
                     const f=fx[track.id]||defFx();
                     const vol=f.vol??80;const pan=f.pan??0;
-                    const uFx=(k,v)=>{const nf={...(fx[track.id]||defFx()),[k]:v};setFx(prev=>({...prev,[track.id]:nf}));engine.uFx(track.id,nf);};
+                    const uFx=(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||defFx()),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
                     const slLbl={fontSize:6,color:track.color,fontWeight:800,letterSpacing:"0.04em",flexShrink:0,width:16};
                     const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
                     return(
@@ -1010,12 +1010,11 @@ export default function KickAndSnare(){
                         </div>
                         {/* R1C3: VOL slider — custom drag */}
                         {(()=>{
-                          const onMD=e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=ev=>{ev.preventDefault();go(ev.clientX);};const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);};
-                          const onTS=e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.touches[0].clientX);const mv=ev=>{ev.preventDefault();go(ev.touches[0].clientX);};const up=()=>{window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);};
+                          const onPD=e=>{e.preventDefault();const ref=e.currentTarget;ref.setPointerCapture(e.pointerId);const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=pe=>{pe.preventDefault();go(pe.clientX);};const up=()=>{ref.removeEventListener("pointermove",mv);};ref.addEventListener("pointermove",mv);ref.addEventListener("pointerup",up,{once:true});ref.addEventListener("pointercancel",up,{once:true});};
                           return(
                             <div style={{display:"flex",alignItems:"center",gap:2}}>
                               <span style={slLbl}>VOL</span>
-                              <div style={{flex:1,position:"relative",height:20,minWidth:0,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`} onMouseDown={onMD} onTouchStart={onTS}>
+                              <div style={{flex:1,position:"relative",height:20,minWidth:0,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`} onPointerDown={onPD}>
                                 <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
                                   <div style={{height:"100%",width:`${vol}%`,background:track.color,borderRadius:2}}/>
                                 </div>
@@ -1144,7 +1143,7 @@ export default function KickAndSnare(){
             const pp=Array(t.N).fill(0);t.hits.forEach(h=>{pp[h]=100;});
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:t.N}};cp[tid]=[...pp];n[cPat]=cp;return n;});
           };
-          const selStyle={width:"100%",background:th.surface,border:`1px solid ${th.sBorder}`,borderRadius:5,color:th.text,fontSize:9,fontFamily:"inherit",padding:"4px 6px",cursor:"pointer"};
+          const selStyle={width:"100%",background:th.surface,border:`1px solid ${th.sBorder}`,borderRadius:5,color:th.text,fontSize:9,fontFamily:"inherit",padding:"4px 6px",cursor:"pointer",colorScheme:themeName==="dark"?"dark":"light"};
           const mkDrag=(initVal,min,max,cb)=>e=>{
             e.preventDefault();const sy=e.clientY;let cv=initVal;
             const mv=me=>{const nv=Math.max(min,Math.min(max,initVal+Math.round((sy-me.clientY)/6)));if(nv!==cv){cv=nv;cb(nv);}};
@@ -1181,7 +1180,7 @@ export default function KickAndSnare(){
                         {(()=>{
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
-                          const uFx=(k,v)=>{const nf={...(fx[tr.id]||defFx()),[k]:v};setFx(prev=>({...prev,[tr.id]:nf}));engine.uFx(tr.id,nf);};
+                          const uFx=(k,v)=>{setFx(prev=>{const nf={...(prev[tr.id]||defFx()),[k]:v};engine.uFx(tr.id,nf);return{...prev,[tr.id]:nf};});};
                           const slH={position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0};
                           const slLbl={fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
                           const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
@@ -1202,8 +1201,7 @@ export default function KickAndSnare(){
                               <div style={{display:"flex",alignItems:"center",gap:4}}>
                                 <span style={slLbl}>VOL</span>
                                 <div style={{flex:1,position:"relative",height:20,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`}
-                                  onMouseDown={e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=ev=>{ev.preventDefault();go(ev.clientX);};const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);}}
-                                  onTouchStart={e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.touches[0].clientX);const mv=ev=>{ev.preventDefault();go(ev.touches[0].clientX);};const up=()=>{window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);}}>
+                                  onPointerDown={e=>{e.preventDefault();const ref=e.currentTarget;ref.setPointerCapture(e.pointerId);const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=pe=>{pe.preventDefault();go(pe.clientX);};const up=()=>{ref.removeEventListener("pointermove",mv);};ref.addEventListener("pointermove",mv);ref.addEventListener("pointerup",up,{once:true});ref.addEventListener("pointercancel",up,{once:true});}}>
                                   <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
                                     <div style={{height:"100%",width:`${vol}%`,background:tr.color,borderRadius:2}}/>
                                   </div>
