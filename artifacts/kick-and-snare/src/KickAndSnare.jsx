@@ -779,11 +779,9 @@ export default function KickAndSnare(){
           <button onClick={async()=>{
             if(!midiNotes){const ok=await initMidi();if(!ok)return;setMidiNotes(true);}
             const entering=!midiLM;setMidiLM(entering);if(!entering)setMidiLearnTrack(null);
-          }} style={{...pill(midiNotes||midiLM,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
+          }} style={{...pill(midiLM,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
             <span style={{fontSize:11}}>🎹</span>
-            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>
-              {midiNotes?(midiLM?"MIDI LEARN":"MIDI ●"):midiErr?"MIDI ⚠":"MIDI"}
-            </span>
+            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>MIDI</span>
           </button>
           {/* Ableton Link */}
           <button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
