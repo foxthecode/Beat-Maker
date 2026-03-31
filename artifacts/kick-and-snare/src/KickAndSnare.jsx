@@ -517,8 +517,8 @@ export default function KickAndSnare(){
       const cx=ev.touches?ev.touches[0].clientX:ev.clientX;const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
       const dx=cx-startX,dy=cy-startY;
       if(!axis&&(Math.abs(dx)>5||Math.abs(dy)>5)){axis=Math.abs(dx)>Math.abs(dy)?"h":"v";moved=true;didDragRef.current=true;setDragInfo({tid,step,axis});}
-      if(axis==="h"){const nv=Math.round((startNudge+dx*0.5)/5)*5;setStNudge(p=>{const n={...p};const a=[...(n[tid]||Array(STEPS).fill(0))];a[step]=Math.max(-NR,Math.min(NR,nv));n[tid]=a;return n;});}
-      else if(axis==="v"){const nv=Math.round(startVel-dy*0.8);setStVel(p=>{const n={...p};const a=[...(n[tid]||Array(STEPS).fill(100))];a[step]=Math.max(5,Math.min(100,nv));n[tid]=a;return n;});}
+      if(axis==="h"){const nv=Math.round((startNudge+dx*0.5)/5)*5;setStNudge(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(0);a[step]=Math.max(-NR,Math.min(NR,nv));n[tid]=a;return n;});}
+      else if(axis==="v"){const nv=Math.round(startVel-dy*0.8);setStVel(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=Math.max(5,Math.min(100,nv));n[tid]=a;return n;});}
     };
     const up=()=>{
       setDragInfo(null);
@@ -533,8 +533,8 @@ export default function KickAndSnare(){
   const dblTap=(tid,step)=>{
     const key=`${tid}-${step}`;const now=Date.now();
     if(lastTap.current[key]&&now-lastTap.current[key]<300){
-      setStNudge(p=>{const n={...p};const a=[...(n[tid]||Array(STEPS).fill(0))];a[step]=0;n[tid]=a;return n;});
-      setStVel(p=>{const n={...p};const a=[...(n[tid]||Array(STEPS).fill(100))];a[step]=100;n[tid]=a;return n;});
+      setStNudge(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(0);a[step]=0;n[tid]=a;return n;});
+      setStVel(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=100;n[tid]=a;return n;});
       didDragRef.current=true;lastTap.current[key]=0;
     }else lastTap.current[key]=now;
   };
@@ -542,7 +542,7 @@ export default function KickAndSnare(){
   // Right-click: cycle ratchet 1→2→3→4→1
   const handleRightClick=(tid,step,e)=>{
     e.preventDefault();if(!pat[tid]?.[step])return;
-    setStRatch(p=>{const n={...p};const a=[...(n[tid]||Array(STEPS).fill(1))];a[step]=(a[step]%4)+1;n[tid]=a;return n;});
+    setStRatch(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(1);a[step]=(a[step]%4)+1;n[tid]=a;return n;});
   };
 
   // Shift-click: cycle probability 100→75→50→25→100
@@ -552,7 +552,7 @@ export default function KickAndSnare(){
     const cur=stProb[tid]?.[step]??100;
     const presets=[100,75,50,25];const idx=presets.indexOf(cur);
     const next=presets[(idx+1)%presets.length];
-    setStProb(p=>{const n={...p};const a=[...(n[tid]||Array(STEPS).fill(100))];a[step]=next;n[tid]=a;return n;});
+    setStProb(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=next;n[tid]=a;return n;});
     return true;
   };
 
@@ -947,12 +947,7 @@ export default function KickAndSnare(){
                     </div>
                     <button title={stLocked?`Effacer la piste pour changer la résolution`:`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{
                       const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};
-                      const remapObj=(obj,from,to)=>{const r={};Object.entries(obj||{}).forEach(([k,v])=>{const d=Math.min(to-1,Math.round(Number(k)*to/from));r[d]=v;});return r;};
                       setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});
-                      setStVel(sv=>({...sv,[track.id]:remapObj(sv[track.id],tSteps,nextTs)}));
-                      setStNudge(sn=>({...sn,[track.id]:remapObj(sn[track.id],tSteps,nextTs)}));
-                      setStProb(sp=>({...sp,[track.id]:remapObj(sp[track.id],tSteps,nextTs)}));
-                      setStRatch(sr=>({...sr,[track.id]:remapObj(sr[track.id],tSteps,nextTs)}));
                     }} style={{height:16,border:`1px solid ${stLocked?"rgba(255,55,95,0.25)":isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:stLocked?"rgba(255,55,95,0.06)":isCustomTs?track.color+"11":"transparent",color:stLocked?"rgba(255,55,95,0.5)":isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:stLocked?"not-allowed":"pointer",fontFamily:"inherit",padding:"0 3px",opacity:stLocked?0.6:1}}>{tSteps}st</button>
                   </div>
                 </div>
