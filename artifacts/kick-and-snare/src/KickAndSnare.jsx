@@ -593,20 +593,30 @@ export default function KickAndSnare(){
 
   // ── MIDI Learn inline badge ──
   const MidiTag=({id})=>{
-    const n=midiNoteMap[id];
+    const n=midiNoteMap[id]??null; // treat undefined as null
     const learning=midiLearnTrack===id;
-    if(!midiLM&&n==null)return null;
+    // Hide only when: not mapped AND not in learn mode
+    if(n===null&&!midiLM)return null;
+    const handleClick=async e=>{
+      e.stopPropagation();
+      // If MIDI not yet active, initialize first
+      if(!midiNotes){const ok=await initMidi();if(!ok)return;setMidiNotes(true);}
+      // Enter learn mode + target this param
+      setMidiLM(true);
+      setMidiLearnTrack(learning?null:id);
+    };
     return(
       <span
-        onClick={e=>{e.stopPropagation();if(!midiLM)return;setMidiLearnTrack(learning?null:id);}}
+        onClick={handleClick}
+        title={n!==null?`MIDI: ${midiNoteName(n)} — click to remap`:"Click to map MIDI"}
         style={{display:"inline-flex",alignItems:"center",fontSize:7,fontWeight:800,borderRadius:3,
-          padding:"1px 4px",cursor:midiLM?"crosshair":"default",flexShrink:0,userSelect:"none",
+          padding:"1px 4px",cursor:"pointer",flexShrink:0,userSelect:"none",
           letterSpacing:"0.04em",transition:"all 0.15s",
-          background:learning?"rgba(255,45,85,0.2)":n!=null?"rgba(255,149,0,0.15)":"rgba(255,149,0,0.06)",
-          border:`1px solid ${learning?"rgba(255,45,85,0.5)":n!=null?"rgba(255,149,0,0.45)":"rgba(255,149,0,0.2)"}`,
+          background:learning?"rgba(255,45,85,0.2)":n!==null?"rgba(255,149,0,0.15)":"rgba(255,149,0,0.06)",
+          border:`1px solid ${learning?"rgba(255,45,85,0.5)":n!==null?"rgba(255,149,0,0.45)":"rgba(255,149,0,0.2)"}`,
           color:learning?"#FF2D55":"#FF9500",
           animation:learning?"rb 0.6s infinite":"none"}}
-      >{learning?"● LEARN":n!=null?midiNoteName(n):"MAP"}</span>
+      >{learning?"● LEARN":n!==null?midiNoteName(n):"MAP"}</span>
     );
   };
 
