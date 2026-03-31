@@ -548,14 +548,16 @@ export default function KickAndSnare(){
     if(!engine.ctx)return;const ct=engine.ctx.currentTime;
     if(R.view==="euclid"){
       // ── Euclid: independent per-track polyrhythm clock ──
-      // Reference bar = 4 quarter notes at current BPM (time-sig has no effect in euclid)
-      const barRef=4*(60/R.bpm);
+      // Fixed step = 1/16th note — each track's cycle duration is N × (1/16th).
+      // N=16 → 1 bar, N=7 → 7/16 bar (faster), N=24 → 1.5 bars (slower).
+      // This gives genuinely different angular speeds per ring.
+      const sixteenth=(60/R.bpm)/4;
       const at=R.at;const m=R.mut;const s=R.sol;
       let dirty=false;
       ALL_TRACKS.forEach(tr=>{
         if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
         const N=R.pb[R.cp]?._steps?.[tr.id]||16;
-        const stepDur=barRef/N;
+        const stepDur=sixteenth;
         if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-0.5){euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05};}
         const ec=euclidClockR.current[tr.id];
         while(ec.nextTime<ct+0.1){
