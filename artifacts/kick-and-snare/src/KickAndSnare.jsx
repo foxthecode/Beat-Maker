@@ -308,6 +308,9 @@ export default function KickAndSnare(){
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // VU meter refs — direct DOM manipulation for performance
   const vuRefs=useRef({});
+  // Euclid polyrhythm — independent per-track clocks
+  const euclidClockR=useRef({});
+  const [euclidCur,setEuclidCur]=useState({});
 
   const allT=[...ALL_TRACKS,...customTracks];
   const atO=act.map(id=>allT.find(t=>t.id===id)).filter(Boolean);
@@ -533,7 +536,40 @@ export default function KickAndSnare(){
   },[]);
 
   const schLoop=useCallback(()=>{
-    if(!engine.ctx)return;const ct=engine.ctx.currentTime;const cs=R.sig;const gr=cs.groups||[cs.steps];
+    if(!engine.ctx)return;const ct=engine.ctx.currentTime;
+    if(R.view==="euclid"){
+      // ── Euclid: independent per-track polyrhythm clock ──
+      // Reference bar = 4 quarter notes at current BPM (time-sig has no effect in euclid)
+      const barRef=4*(60/R.bpm);
+      const at=R.at;const m=R.mut;const s=R.sol;
+      let dirty=false;
+      ALL_TRACKS.forEach(tr=>{
+        if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
+        const N=R.pb[R.cp]?._steps?.[tr.id]||16;
+        const stepDur=barRef/N;
+        if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-0.5){euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05};}
+        const ec=euclidClockR.current[tr.id];
+        while(ec.nextTime<ct+0.1){
+          const si=ec.step;
+          if(R.pat?.[tr.id]?.[si]){
+            const sp=R.prob[tr.id]?.[si]??100;
+            if(Math.random()*100<sp){
+              const v=(R.vel[tr.id]?.[si]??100)/100;
+              const r=R.ratch[tr.id]?.[si]||1;
+              const nd=R.sn[tr.id]?.[si]||0;
+              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||defFx(),ec.nextTime+ri*(stepDur/r));
+            }
+          }
+          ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
+        }
+      });
+      if(dirty){const cur={};ALL_TRACKS.forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
+      schRef.current=setTimeout(schLoop,25);
+      return;
+    }
+    // ── Linear / Pads: global step scheduler ──
+    const cs=R.sig;const gr=cs.groups||[cs.steps];
+    if(nxtRef.current<ct-0.05)nxtRef.current=ct+0.02; // resync if stale (e.g. switching from Euclid)
     let stepped=false;
     while(nxtRef.current<ct+0.1){
       const prevStep=R.step;
@@ -558,8 +594,11 @@ export default function KickAndSnare(){
     engine.init();
     if(playing){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
+      euclidClockR.current={};setEuclidCur({});
     }else{
-      R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;schLoop();setPlaying(true);
+      R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
+      euclidClockR.current={};setEuclidCur({});
+      schLoop();setPlaying(true);
     }
   };
   ssRef.current=startStop;
@@ -821,16 +860,16 @@ export default function KickAndSnare(){
             <button onClick={handleTap} style={{padding:"6px 12px",borderRadius:6,background:"rgba(255,149,0,0.15)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.3)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>TAP</button>
             <MidiTag id="__tap__"/>
           </div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+          {view!=="euclid"&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
             <div style={{display:"flex",alignItems:"center",gap:3}}>
               <span style={{fontSize:8,color:th.dim}}>SWING</span>
               <MidiTag id="__swing__"/>
             </div>
             <span style={{fontSize:11,fontWeight:700,color:"#5E5CE6"}}>{swing}%</span>
             <input type="range" min={0} max={100} value={swing} onChange={e=>setSwing(Number(e.target.value))} style={{width:55,height:3,accentColor:"#5E5CE6"}}/>
-          </div>
-          <button onClick={()=>setShowTS(!showTS)} style={pill(showTS,"#30D158")}>{sig.label}</button>
-          {(()=>{
+          </div>}
+          {view!=="euclid"&&<button onClick={()=>setShowTS(!showTS)} style={pill(showTS,"#30D158")}>{sig.label}</button>}
+          {view!=="euclid"&&(()=>{
             const onMDown=e=>{e.preventDefault();const startY=e.touches?e.touches[0].clientY:e.clientY;const startVol=metroVol;let moved=false;
               const mv=ev=>{ev.preventDefault();const cy=ev.touches?ev.touches[0].clientY:ev.clientY;const dy=cy-startY;if(Math.abs(dy)>5){moved=true;setMetroVol(Math.max(0,Math.min(100,Math.round(startVol-dy*0.8))));}};
               const up=()=>{if(!moved)setMetro(p=>!p);window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};
@@ -840,7 +879,7 @@ export default function KickAndSnare(){
               <span style={{position:"relative",zIndex:1}}>METRO {metroVol}%</span>
             </div>);
           })()}
-          {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
+          {view!=="euclid"&&metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
           <button onClick={()=>setShowK(!showK)} style={{...pill(showK,"#FFD60A"),display:"flex",alignItems:"center",gap:4}}>
             <span style={{fontSize:22,lineHeight:1}}>⌨</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>Keyb</span>
@@ -859,13 +898,12 @@ export default function KickAndSnare(){
         </div>
 
         {/* ── Time Signature ── */}
-        {showTS&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
+        {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
           <div style={{fontSize:9,fontWeight:700,color:"#30D158",marginBottom:8}}>TIME SIGNATURE</div>
-          {view==="euclid"&&(<div style={{marginBottom:8,padding:"5px 8px",borderRadius:5,background:"rgba(255,214,10,0.08)",border:"1px solid rgba(255,214,10,0.25)",fontSize:8,color:"#FFD60A"}}>⬡ Euclid mode — signature = tempo reference only. Each track runs at its own N-step cycle independently.</div>)}
-          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8,opacity:view==="euclid"?0.5:1,pointerEvents:view==="euclid"?"none":"auto"}}>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
             {TIME_SIGS.map(s=>(<button key={s.label} onClick={()=>chSig(s)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${tSig.label===s.label?"rgba(48,209,88,0.4)":th.sBorder}`,background:tSig.label===s.label?"rgba(48,209,88,0.1)":"transparent",color:tSig.label===s.label?"#30D158":th.dim,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{s.label}</button>))}
           </div>
-          {tSig.groupOptions&&(<div style={{marginBottom:8,opacity:view==="euclid"?0.5:1,pointerEvents:view==="euclid"?"none":"auto"}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
+          {tSig.groupOptions&&(<div style={{marginBottom:8}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
         </div>)}
 
         {/* ── Keyboard Shortcut Cheat Sheet ── */}
@@ -1239,6 +1277,7 @@ export default function KickAndSnare(){
                                 <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
                                 <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
+                                <MidiTag id={tr.id}/>
                                 {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 1 right: VOL horizontal slider — custom drag */}
@@ -1334,7 +1373,7 @@ export default function KickAndSnare(){
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
                       const p=getP(tr.id);const N=p.N;
-                      const curS=cStep>=0?Math.round(cStep*N/STEPS)%N:-1;
+                      const curS=playing&&euclidCur[tr.id]!=null?euclidCur[tr.id]:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
                       const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
@@ -1378,10 +1417,10 @@ export default function KickAndSnare(){
           );
         })()}
 
-        {/* ── Step position visualizer ── */}
-        <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
+        {/* ── Step position visualizer (linear/pads only) ── */}
+        {view!=="euclid"&&<div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
           {Array(STEPS).fill(0).map((_,i)=>{const gi=gInfo(i);return(<div key={i} style={{width:5,height:cStep===i?18:gi.first?10:5,borderRadius:3,marginLeft:gi.first&&i>0?6:2,background:cStep===i?"linear-gradient(180deg,#FF2D55,#FF9500)":gi.first?"#FFB340":th.btn,transition:"height 0.1s",boxShadow:cStep===i?"0 0 8px rgba(255,45,85,0.5)":gi.first?"0 0 3px rgba(255,179,64,0.4)":"none"}}/>);})}
-        </div>
+        </div>}
 
         <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
           KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Right-click ratchet · Shift+click probability
