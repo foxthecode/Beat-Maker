@@ -1427,7 +1427,7 @@ export default function KickAndSnare(){
               const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
               const isCustomTs=tSteps!==STEPS;
               return(<div key={track.id}>
-                <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:6,opacity:aud?1:0.3,padding:"4px 0"}}>
                   {/* Track Label + VOL/PAN — 2-col grid */}
                   {(()=>{
                     const f=fx[track.id]||defFx();
@@ -1440,7 +1440,7 @@ export default function KickAndSnare(){
                     const panOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
                     const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+r*Math.cos(toRad(sa));const y1=11+r*Math.sin(toRad(sa));const x2=11+r*Math.cos(toRad(ea));const y2=11+r*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                     return(
-                      <div style={{flexShrink:0,width:188,display:"flex",flexDirection:"column",gap:2,justifyContent:"center"}}>
+                      <div style={{flexShrink:0,width:188,display:"flex",flexDirection:"column",gap:2,justifyContent:"flex-start"}}>
                         {/* Row 1: [icon+label] ←→ [M·S·CLR] */}
                         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
                           <div style={{display:"flex",alignItems:"center",gap:3,minWidth:0}}>
@@ -1494,7 +1494,7 @@ export default function KickAndSnare(){
                     );
                   })()}
                   {/* Steps */}
-                  <div style={{display:"flex",gap:0,flex:1,alignSelf:"center"}}>
+                  <div style={{display:"flex",gap:0,flex:1,alignSelf:"flex-start"}}>
                     {Array(tSteps).fill(0).map((_,step)=>{
                       const ac=!!pat[track.id]?.[step];
                       const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep%tSteps===step;
@@ -1509,7 +1509,7 @@ export default function KickAndSnare(){
                         onContextMenu={e=>handleRightClick(track.id,step,e)}
                         style={{flex:1,aspectRatio:"1",borderRadius:3,cursor:ac?"grab":"pointer",
                           position:"relative",minWidth:0,overflow:"hidden",
-                          marginLeft:gi.first&&step>0?4:1,touchAction:"none",userSelect:"none",
+                          marginLeft:gi.first&&step>0?6:2,touchAction:"none",userSelect:"none",
                           background:isCur&&gi.first?"rgba(255,149,0,0.45)":isCur?th.cursor:gi.gi%2===1?th.stepAlt:th.stepOff,
                           boxShadow:ac&&isCur?`0 0 10px ${track.color},inset 0 0 5px ${track.color}`:"none",
                           transform:isDrag?"scale(1.15)":ac&&isCur?"scale(1.08)":"scale(1)",
