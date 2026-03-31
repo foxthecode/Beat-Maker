@@ -1089,7 +1089,7 @@ export default function KickAndSnare(){
               <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:720}}>
                 {/* ── LEFT: Track controls ── */}
                 <div style={{display:"flex",flexDirection:"column",gap:6,width:310,flexShrink:0}}>
-                  <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>PISTES EUCLIDIENNES</div>
+                  <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>EUCLIDEAN TRACKS</div>
                   {atO.map((tr)=>{
                     const p=getP(tr.id);const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
                     const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
@@ -1147,11 +1147,11 @@ export default function KickAndSnare(){
                         {!p.fold&&(
                           <div style={{display:"flex",flexDirection:"column",gap:5}}>
                             <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
-                              <option value="">— Charger un template —</option>
+                              <option value="">— Load a template —</option>
                               {EUCLID_REGIONS.map(r=>(
                                 <optgroup key={r} label={r}>
                                   {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
-                                    <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
+                                    <option key={t.name} value={t.name}>{t.name} · {t.N} steps</option>
                                   ))}
                                 </optgroup>
                               ))}
