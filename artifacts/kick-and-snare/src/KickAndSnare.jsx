@@ -318,7 +318,7 @@ export default function KickAndSnare(){
 
   R.pat=pat;R.mut=muted;R.sol=soloed;R.fx=fx;R.sn=stNudge;R.vel=stVel;R.at=act;R.pb=pBank;R.playing=playing;
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
-  R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;
+  R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;R.view=view;
   R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.lkSync=linkSyncPlay;
   R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;R.mNotes=midiNotes;
   // Tap tempo
@@ -449,7 +449,7 @@ export default function KickAndSnare(){
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     if(R.rec&&R.step>=0){
-      const gSt=R.sig?.steps||16;const tSt=R.ts?.[tid]||gSt;const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step;
+      const gSt=R.sig?.steps||16;const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
       const v100=Math.max(1,Math.round(vel*100));
       setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
       setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
@@ -506,10 +506,11 @@ export default function KickAndSnare(){
     };
     ALL_TRACKS.forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-      const tSteps=R.pb[R.cp]?._steps?.[tr.id]||(R.sig?.steps||16);
-      const gSt=R.sig?.steps||16;const ratio=Math.max(1,Math.round(tSteps/gSt));
+      const gSt=R.sig?.steps||16;
+      const tSteps=R.view==="euclid"?(R.pb[R.cp]?._steps?.[tr.id]||gSt):([gSt,gSt*2].includes(R.pb[R.cp]?._steps?.[tr.id])?R.pb[R.cp]._steps[tr.id]:gSt);
+      const ratio=Math.max(1,Math.round(tSteps/gSt));
       if(ratio>1){for(let i=0;i<ratio;i++)playTrStep(tr,sn*ratio+i,time+i*bd/ratio);}
-      else{playTrStep(tr,sn,time);}
+      else{playTrStep(tr,sn%tSteps,time);}
     });
   },[]);
 
@@ -769,11 +770,11 @@ export default function KickAndSnare(){
           })()}
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            <button onClick={()=>setView("pads")} style={pill(view==="pads","#5E5CE6")}>PADS</button>
+            <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s"}}>
-              <button onClick={()=>setView("sequencer")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
-              <button onClick={()=>setView("euclid")} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
+              <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
+              <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("euclid");}} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
             </div>
           </div>
         </div>
@@ -842,10 +843,11 @@ export default function KickAndSnare(){
         {/* ── Time Signature ── */}
         {showTS&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
           <div style={{fontSize:9,fontWeight:700,color:"#30D158",marginBottom:8}}>TIME SIGNATURE</div>
-          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
+          {view==="euclid"&&(<div style={{marginBottom:8,padding:"5px 8px",borderRadius:5,background:"rgba(255,214,10,0.08)",border:"1px solid rgba(255,214,10,0.25)",fontSize:8,color:"#FFD60A"}}>⬡ Euclid mode — signature = tempo reference only. Each track runs at its own N-step cycle independently.</div>)}
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8,opacity:view==="euclid"?0.5:1,pointerEvents:view==="euclid"?"none":"auto"}}>
             {TIME_SIGS.map(s=>(<button key={s.label} onClick={()=>chSig(s)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${tSig.label===s.label?"rgba(48,209,88,0.4)":th.sBorder}`,background:tSig.label===s.label?"rgba(48,209,88,0.1)":"transparent",color:tSig.label===s.label?"#30D158":th.dim,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{s.label}</button>))}
           </div>
-          {tSig.groupOptions&&(<div style={{marginBottom:8}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
+          {tSig.groupOptions&&(<div style={{marginBottom:8,opacity:view==="euclid"?0.5:1,pointerEvents:view==="euclid"?"none":"auto"}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
         </div>)}
 
         {/* ── Keyboard Shortcut Cheat Sheet ── */}
@@ -982,9 +984,9 @@ export default function KickAndSnare(){
               const isM=muted[track.id],isS=soloed===track.id,aud=soloed?isS:!isM;
               const hasSmp=!!smpN[track.id];const hasFx=fx[track.id]&&(fx[track.id].drive>0||fx[track.id].pitch!==0||fx[track.id].cut<20000||fx[track.id].onReverb||fx[track.id].onDelay);
               const isFO=fxO===track.id;
-              const tSteps=trackSteps[track.id]||STEPS;
-              const tsOpts=[STEPS,STEPS*2];const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsIdx>=0?tsOpts[(tsIdx+1)%tsOpts.length]:STEPS;
-              const isCustomTs=tSteps!==STEPS;const isNonStd=!tsOpts.includes(tSteps);
+              const tsOpts=[STEPS,STEPS*2];const tSteps=tsOpts.includes(trackSteps[track.id])?trackSteps[track.id]:STEPS;
+              const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
+              const isCustomTs=tSteps!==STEPS;
               return(<div key={track.id}>
                 <div style={{display:"flex",alignItems:"center",gap:3,opacity:aud?1:0.3,padding:"3px 0"}}>
                   {/* Track Label + VOL/PAN — 2-col grid */}
@@ -1025,7 +1027,7 @@ export default function KickAndSnare(){
                         })()}
                         {/* R2C1: 16st */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
-                          <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",cursor:"pointer",border:`1px solid ${isNonStd?"rgba(255,179,64,0.7)":isCustomTs?track.color+"44":th.sBorder}`,background:isNonStd?"rgba(255,179,64,0.15)":isCustomTs?track.color+"11":"transparent",color:isNonStd?"#FFB340":isCustomTs?track.color:th.dim,animation:isNonStd?"pulse 1.2s ease-in-out infinite":"none"}}>{tSteps}st</button>
+                          <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",cursor:"pointer",border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim}}>{tSteps}st</button>
                         </div>
                         {/* R2C2: ♪ · FX · × */}
                         <div style={{display:"flex",gap:2}}>
@@ -1058,7 +1060,7 @@ export default function KickAndSnare(){
                   <div style={{display:"flex",gap:0,flex:1}}>
                     {Array(tSteps).fill(0).map((_,step)=>{
                       const ac=!!pat[track.id]?.[step];
-                      const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep===step;
+                      const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep%tSteps===step;
                       const gs=Math.min(STEPS-1,Math.round(step*STEPS/tSteps));const gi=gInfo(gs);
                       const sn=stNudge[track.id]?.[step]||0;const vel=(stVel[track.id]?.[step]??100);
                       const prob=stProb[track.id]?.[step]??100;const ratch=stRatch[track.id]?.[step]||1;
@@ -1314,7 +1316,7 @@ export default function KickAndSnare(){
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
                       const p=getP(tr.id);const N=p.N;
-                      const curS=cStep>=0&&cStep<N?cStep:-1;
+                      const curS=cStep>=0?cStep%N:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
                       const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
