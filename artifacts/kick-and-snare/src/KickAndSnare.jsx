@@ -1053,69 +1053,71 @@ export default function KickAndSnare(){
                     const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                     return(
                       <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}${aud?"44":"22"}`,background:tr.color+(aud?"0a":"05"),padding:"6px 10px",display:"flex",flexDirection:"column",gap:5,transition:"opacity 0.1s",opacity:aud?1:0.65}}>
-                        {/* ── Header row ── */}
-                        <div style={{display:"flex",alignItems:"center",gap:4}}>
-                          <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",width:10,flexShrink:0}}>{p.fold?"▶":"▼"}</span>
-                          <span style={{fontSize:13,flexShrink:0,opacity:aud?1:0.5}}>{tr.icon}</span>
-                          <span style={{flex:1,fontSize:10,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
-                          {cnt>0&&!p.fold&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 5px",fontSize:7,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
-                          <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
-                          <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
-                          {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
-                        </div>
-                        {/* ── Body (unfolded) ── */}
-                        {!p.fold&&(()=>{
+                        {/* ── Header row: fold · icon · name · cnt · M · S · × │ VOL · PAN ── */}
+                        {(()=>{
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
                           const uFx=(k,v)=>setFx(prev=>({...prev,[tr.id]:{...(prev[tr.id]||defFx()),[k]:v}}));
-                          const slV={writingMode:"vertical-lr",direction:"rtl",WebkitAppearance:"slider-vertical",width:16,height:62,cursor:"pointer",accentColor:tr.color,flexShrink:0};
+                          const slV={writingMode:"vertical-lr",direction:"rtl",WebkitAppearance:"slider-vertical",width:14,height:52,cursor:"pointer",accentColor:tr.color,flexShrink:0};
                           return(
-                            <div style={{display:"flex",gap:6,alignItems:"flex-start"}}>
-                              {/* ── Left: template + spinners ── */}
-                              <div style={{flex:1,display:"flex",flexDirection:"column",gap:5,minWidth:0}}>
-                                <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
-                                  <option value="">— Charger un template —</option>
-                                  {EUCLID_REGIONS.map(r=>(
-                                    <optgroup key={r} label={r}>
-                                      {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
-                                        <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
-                                      ))}
-                                    </optgroup>
-                                  ))}
-                                </select>
-                                <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
-                                  <span style={lbl0}>N</span>
-                                  <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
-                                  <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
-                                  <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
-                                  <span style={sep0}>·</span>
-                                  <span style={lbl0}>HITS</span>
-                                  <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
-                                  <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
-                                  <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
-                                  <span style={sep0}>·</span>
-                                  <span style={lbl0}>ROT</span>
-                                  <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
-                                  <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
-                                  <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
+                            <div style={{display:"flex",alignItems:"center",gap:4}}>
+                              {/* Left group */}
+                              <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",width:10,flexShrink:0}}>{p.fold?"▶":"▼"}</span>
+                              <span style={{fontSize:12,flexShrink:0,opacity:aud?1:0.5}}>{tr.icon}</span>
+                              <span style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,minWidth:0}}>{tr.label}</span>
+                              {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 4px",fontSize:6.5,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
+                              <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
+                              <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
+                              {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                              {/* Divider */}
+                              <span style={{width:1,height:44,background:tr.color+"22",flexShrink:0,marginLeft:2}}/>
+                              {/* Right group: Vol + Pan always visible */}
+                              <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
+                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                                  <span style={{fontSize:5.5,color:tr.color,fontWeight:800,letterSpacing:"0.04em"}}>VOL</span>
+                                  <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slV}/>
+                                  <span style={{fontSize:5.5,color:th.faint,fontWeight:600}}>{vol}</span>
                                 </div>
-                              </div>
-                              {/* ── Right: Vol + Pan vertical sliders ── */}
-                              <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,paddingTop:2}}>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                                  <span style={{fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em"}}>VOL</span>
-                                  <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slV} title={`Volume ${vol}%`}/>
-                                  <span style={{fontSize:6,color:th.faint,fontWeight:600}}>{vol}</span>
-                                </div>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                                  <span style={{fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em"}}>PAN</span>
-                                  <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={slV} title={`Pan ${pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}`}/>
-                                  <span style={{fontSize:6,color:th.faint,fontWeight:600}}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
+                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                                  <span style={{fontSize:5.5,color:tr.color,fontWeight:800,letterSpacing:"0.04em"}}>PAN</span>
+                                  <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={slV}/>
+                                  <span style={{fontSize:5.5,color:th.faint,fontWeight:600}}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
                                 </div>
                               </div>
                             </div>
                           );
                         })()}
+                        {/* ── Body (unfolded): template + spinners only ── */}
+                        {!p.fold&&(
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
+                              <option value="">— Charger un template —</option>
+                              {EUCLID_REGIONS.map(r=>(
+                                <optgroup key={r} label={r}>
+                                  {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
+                                    <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
+                              <span style={lbl0}>N</span>
+                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
+                              <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
+                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
+                              <span style={sep0}>·</span>
+                              <span style={lbl0}>HITS</span>
+                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
+                              <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
+                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
+                              <span style={sep0}>·</span>
+                              <span style={lbl0}>ROT</span>
+                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
+                              <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
+                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
