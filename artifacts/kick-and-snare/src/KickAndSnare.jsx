@@ -1008,10 +1008,16 @@ export default function KickAndSnare(){
                           <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
                           <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
                         </div>
-                        {/* R1C3: VOL slider */}
+                        {/* R1C3: VOL slider — big touch zone */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
                           <span style={slLbl}>VOL</span>
-                          <input type="range" min={0} max={100} step={1} value={vol} title={`VOL ${vol}`} onChange={e=>uFx("vol",Number(e.target.value))} style={{flex:1,height:3,accentColor:track.color,cursor:"pointer",display:"block",minWidth:0}}/>
+                          <div style={{flex:1,position:"relative",height:18,minWidth:0}} title={`VOL ${vol}`}>
+                            <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
+                              <div style={{height:"100%",width:`${vol}%`,background:track.color,borderRadius:2}}/>
+                            </div>
+                            <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:7,height:7,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
+                            <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0,touchAction:"none"}}/>
+                          </div>
                         </div>
                         {/* R2C1: 16st */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
@@ -1171,7 +1177,7 @@ export default function KickAndSnare(){
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
                           const uFx=(k,v)=>setFx(prev=>({...prev,[tr.id]:{...(prev[tr.id]||defFx()),[k]:v}}));
-                          const slH={width:"100%",height:3,accentColor:tr.color,cursor:"pointer",display:"block"};
+                          const slH={position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0,touchAction:"none"};
                           const slLbl={fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
                           const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
                           return(
@@ -1187,10 +1193,16 @@ export default function KickAndSnare(){
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
-                              {/* Row 1 right: VOL horizontal slider */}
+                              {/* Row 1 right: VOL horizontal slider — big touch zone */}
                               <div style={{display:"flex",alignItems:"center",gap:4}}>
                                 <span style={slLbl}>VOL</span>
-                                <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slH}/>
+                                <div style={{flex:1,position:"relative",height:18}} title={`VOL ${vol}`}>
+                                  <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
+                                    <div style={{height:"100%",width:`${vol}%`,background:tr.color,borderRadius:2}}/>
+                                  </div>
+                                  <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:7,height:7,borderRadius:"50%",background:tr.color,transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
+                                  <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slH}/>
+                                </div>
                                 <span style={slVal}>{vol}</span>
                               </div>
                               {/* Row 2 left: empty spacer (grid auto-sizes to match row 1 left) */}
