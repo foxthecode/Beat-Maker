@@ -283,6 +283,7 @@ export default function KickAndSnare(){
   // UI
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
   const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
+  const [velPicker,setVelPicker]=useState(null);
   const [metro,setMetro]=useState(false);
   const [metroVol,setMetroVol]=useState(10);
   const [dragInfo,setDragInfo]=useState(null);
@@ -1154,22 +1155,35 @@ export default function KickAndSnare(){
             e.preventDefault();e.stopPropagation();
             const el=e.currentTarget;
             el.setPointerCapture(e.pointerId);
-            const sy=e.clientY;let moved=false;let cv=initVelPct;
-            const mv=me=>{
-              me.preventDefault();
-              const dy=sy-me.clientY;
-              if(Math.abs(dy)>4)moved=true;
-              if(moved&&isOn){const nv=Math.max(1,Math.min(100,initVelPct+Math.round(dy/3)));if(nv!==cv){cv=nv;setStVel(sv=>{const ns={...sv};ns[tid]=[...(ns[tid]||[])];ns[tid][step]=nv;return ns;});}}
+            const sx=e.clientX,sy=e.clientY;
+            let timerFired=false;
+            let moved=false;
+            const timer=setTimeout(()=>{
+              timerFired=true;
+              el.releasePointerCapture(e.pointerId);
+              el.removeEventListener('pointermove',onMove);
+              el.removeEventListener('pointerup',onUp);
+              el.removeEventListener('pointercancel',onUp);
+              const px=Math.min(Math.max(sx-70,8),window.innerWidth-160);
+              const py=Math.min(Math.max(sy-160,8),window.innerHeight-240);
+              setVelPicker({tid,step,x:px,y:py,velPct:isOn?initVelPct:100});
+            },400);
+            const onMove=me=>{
+              const dx=me.clientX-sx,dy=me.clientY-sy;
+              if(Math.abs(dx)>8||Math.abs(dy)>8){moved=true;clearTimeout(timer);}
             };
-            const up=()=>{
-              el.removeEventListener('pointermove',mv);
-              el.removeEventListener('pointerup',up);
-              el.removeEventListener('pointercancel',up);
-              if(!moved){setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});}
+            const onUp=()=>{
+              clearTimeout(timer);
+              el.removeEventListener('pointermove',onMove);
+              el.removeEventListener('pointerup',onUp);
+              el.removeEventListener('pointercancel',onUp);
+              if(!timerFired&&!moved){
+                setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});
+              }
             };
-            el.addEventListener('pointermove',mv);
-            el.addEventListener('pointerup',up,{once:true});
-            el.addEventListener('pointercancel',up,{once:true});
+            el.addEventListener('pointermove',onMove);
+            el.addEventListener('pointerup',onUp,{once:true});
+            el.addEventListener('pointercancel',onUp,{once:true});
           };
           const btnSm={height:18,minWidth:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 3px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
           const arw={width:16,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
@@ -1337,7 +1351,7 @@ export default function KickAndSnare(){
                     <text x={CX} y={CY+4} textAnchor="middle" fontSize={9} fill={playing?"#30D158":th.faint} fontFamily="monospace" fontWeight={700}>{playing?"▶":"■"}</text>
                   </svg>
                   <div style={{fontSize:7,color:th.faint,letterSpacing:"0.08em",textAlign:"center"}}>
-                    {atO.length} track{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits · click = toggle · drag ↕ = velocity
+                    {atO.length} track{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits · tap = toggle · long-press = velocity
                   </div>
                 </div>
               </div>
@@ -1354,6 +1368,45 @@ export default function KickAndSnare(){
           KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Right-click ratchet · Shift+click probability
         </div>
       </div>
+
+      {/* ── Velocity picker popup (Euclid long-press) ── */}
+      {velPicker&&(()=>{
+        const {tid,step,x,y}=velPicker;
+        const trk=allT.find(t=>t.id===tid);
+        const col=trk?.color||"#FF2D55";
+        const cur=velPicker.velPct;
+        const apply=v=>{
+          setStVel(sv=>{const ns={...sv};ns[tid]=[...(Array.isArray(ns[tid])?ns[tid]:Array(32).fill(100))];ns[tid][step]=v;return ns;});
+          setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};if(!(cp[tid]?.[step]>0)){const a=[...(cp[tid]||[])];a[step]=100;cp[tid]=a;}n[cPat]=cp;return n;});
+          setVelPicker(null);
+        };
+        return(
+          <>
+            <div style={{position:"fixed",inset:0,zIndex:9998}} onPointerDown={()=>setVelPicker(null)}/>
+            <div style={{position:"fixed",left:x,top:y,zIndex:9999,background:th.surface,border:`1px solid ${col}55`,borderRadius:10,padding:"10px 12px",boxShadow:`0 8px 32px rgba(0,0,0,0.6),0 0 0 1px ${col}22`,minWidth:140,userSelect:"none"}}>
+              <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",textAlign:"center",marginBottom:4}}>STEP {step+1} — VÉLOCITÉ</div>
+              <div style={{fontSize:28,fontWeight:800,color:col,textAlign:"center",marginBottom:8,lineHeight:1}}>{cur}<span style={{fontSize:12,fontWeight:600,color:th.faint}}>%</span></div>
+              {/* Horizontal slider */}
+              <div style={{position:"relative",height:16,borderRadius:8,background:th.sBorder,cursor:"pointer",marginBottom:10,touchAction:"none"}}
+                onPointerDown={e=>{e.preventDefault();e.stopPropagation();const ref=e.currentTarget;ref.setPointerCapture(e.pointerId);const go=cx=>{const r=ref.getBoundingClientRect();setVelPicker(p=>({...p,velPct:Math.round(Math.max(1,Math.min(100,(cx-r.left)/r.width*100)))}));};go(e.clientX);const mv=pe=>{pe.preventDefault();go(pe.clientX);};const up=()=>ref.removeEventListener("pointermove",mv);ref.addEventListener("pointermove",mv);ref.addEventListener("pointerup",up,{once:true});ref.addEventListener("pointercancel",up,{once:true});}}>
+                <div style={{height:"100%",width:`${cur}%`,borderRadius:8,background:`linear-gradient(90deg,${col}88,${col})`}}/>
+                <div style={{position:"absolute",top:"50%",left:`${cur}%`,width:16,height:16,borderRadius:"50%",background:col,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 3px ${col}44`,pointerEvents:"none"}}/>
+              </div>
+              {/* Presets */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:8}}>
+                {[25,50,75,100].map(v=>(
+                  <button key={v} onPointerDown={e=>{e.stopPropagation();apply(v);}} style={{padding:"4px 0",borderRadius:5,border:`1px solid ${Math.abs(cur-v)<13?col:th.sBorder}`,background:Math.abs(cur-v)<13?col+"22":"transparent",color:Math.abs(cur-v)<13?col:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{v}%</button>
+                ))}
+              </div>
+              {/* OK / Cancel */}
+              <div style={{display:"flex",gap:4}}>
+                <button onPointerDown={e=>{e.stopPropagation();setVelPicker(null);}} style={{flex:1,padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ ANNULER</button>
+                <button onPointerDown={e=>{e.stopPropagation();apply(cur);}} style={{flex:1,padding:"5px 0",borderRadius:6,border:"none",background:col,color:"#000",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>✓ OK</button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
