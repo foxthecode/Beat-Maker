@@ -275,7 +275,7 @@ export default function KickAndSnare(){
   // MIDI Note Input (independent of clock sync)
   const [midiNoteMap,setMidiNoteMap]=useState({...DEFAULT_MIDI_NOTES});
   const [midiLearnTrack,setMidiLearnTrack]=useState(null);
-  const [showMN,setShowMN]=useState(false);
+  const [midiLM,setMidiLM]=useState(false);
   const [midiNotes,setMidiNotes]=useState(false);
   const [midiErr,setMidiErr]=useState(null); // null|'noapi'|'blocked'|'denied'
   const [midiInsVer,setMidiInsVer]=useState(0); // bumped whenever port list changes
@@ -591,6 +591,25 @@ export default function KickAndSnare(){
 
   const pill=(on,c)=>({padding:"5px 11px",border:`1px solid ${on?c+"55":th.sBorder}`,borderRadius:6,background:on?c+"18":"transparent",color:on?c:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"});
 
+  // ── MIDI Learn inline badge ──
+  const MidiTag=({id})=>{
+    const n=midiNoteMap[id];
+    const learning=midiLearnTrack===id;
+    if(!midiLM&&n==null)return null;
+    return(
+      <span
+        onClick={e=>{e.stopPropagation();if(!midiLM)return;setMidiLearnTrack(learning?null:id);}}
+        style={{display:"inline-flex",alignItems:"center",fontSize:7,fontWeight:800,borderRadius:3,
+          padding:"1px 4px",cursor:midiLM?"crosshair":"default",flexShrink:0,userSelect:"none",
+          letterSpacing:"0.04em",transition:"all 0.15s",
+          background:learning?"rgba(255,45,85,0.2)":n!=null?"rgba(255,149,0,0.15)":"rgba(255,149,0,0.06)",
+          border:`1px solid ${learning?"rgba(255,45,85,0.5)":n!=null?"rgba(255,149,0,0.45)":"rgba(255,149,0,0.2)"}`,
+          color:learning?"#FF2D55":"#FF9500",
+          animation:learning?"rb 0.6s infinite":"none"}}
+      >{learning?"● LEARN":n!=null?midiNoteName(n):"MAP"}</span>
+    );
+  };
+
   return(
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
@@ -701,20 +720,33 @@ export default function KickAndSnare(){
 
         {/* ── Transport ── */}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 12px",borderRadius:12,background:th.surface,border:`1px solid ${th.sBorder}`,flexWrap:"wrap"}}>
-          <button onClick={startStop} style={{width:44,height:44,borderRadius:"50%",border:"none",background:playing?"linear-gradient(135deg,#FF2D55,#FF375F)":"linear-gradient(135deg,#30D158,#34C759)",color:"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:playing?"0 0 20px rgba(255,45,85,0.4)":"0 0 20px rgba(48,209,88,0.4)"}}>{playing?"■":"▶"}</button>
-          <button onClick={()=>{if(playing)setRec(!rec);}} style={{width:32,height:32,borderRadius:"50%",border:rec?"2px solid #FF2D55":`2px solid ${th.sBorder}`,background:rec?"rgba(255,45,85,0.2)":"transparent",color:rec?"#FF2D55":th.dim,fontSize:11,cursor:playing?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",opacity:playing?1:0.3,animation:rec?"rb 0.8s infinite":"none"}}>●</button>
+          <div style={{position:"relative",display:"inline-block"}}>
+            <button onClick={startStop} style={{width:44,height:44,borderRadius:"50%",border:"none",background:playing?"linear-gradient(135deg,#FF2D55,#FF375F)":"linear-gradient(135deg,#30D158,#34C759)",color:"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:playing?"0 0 20px rgba(255,45,85,0.4)":"0 0 20px rgba(48,209,88,0.4)"}}>{playing?"■":"▶"}</button>
+            <div style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)"}}><MidiTag id="__play__"/></div>
+          </div>
+          <div style={{position:"relative",display:"inline-block"}}>
+            <button onClick={()=>{if(playing)setRec(!rec);}} style={{width:32,height:32,borderRadius:"50%",border:rec?"2px solid #FF2D55":`2px solid ${th.sBorder}`,background:rec?"rgba(255,45,85,0.2)":"transparent",color:rec?"#FF2D55":th.dim,fontSize:11,cursor:playing?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",opacity:playing?1:0.3,animation:rec?"rb 0.8s infinite":"none"}}>●</button>
+            <div style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)"}}><MidiTag id="__rec__"/></div>
+          </div>
           <div style={{flex:"1 1 80px",minWidth:70}}>
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
               <span style={{fontSize:8,color:th.dim,letterSpacing:"0.15em"}}>BPM</span>
+              <MidiTag id="__bpm__"/>
               <button onClick={()=>setBpm(Math.max(30,bpm-1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:12,padding:"0 4px"}}>&lt;</button>
               <span style={{fontSize:24,fontWeight:900,color:"#FF9500"}}>{bpm}</span>
               <button onClick={()=>setBpm(Math.min(300,bpm+1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:12,padding:"0 4px"}}>&gt;</button>
             </div>
             <input type="range" min={30} max={300} value={bpm} onChange={e=>setBpm(Number(e.target.value))} style={{width:"100%",height:4,accentColor:"#FF9500"}}/>
           </div>
-          <button onClick={handleTap} style={{padding:"6px 12px",borderRadius:6,background:"rgba(255,149,0,0.15)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.3)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>TAP</button>
+          <div style={{display:"flex",alignItems:"center",gap:4}}>
+            <button onClick={handleTap} style={{padding:"6px 12px",borderRadius:6,background:"rgba(255,149,0,0.15)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.3)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>TAP</button>
+            <MidiTag id="__tap__"/>
+          </div>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-            <span style={{fontSize:8,color:th.dim}}>SWING</span>
+            <div style={{display:"flex",alignItems:"center",gap:3}}>
+              <span style={{fontSize:8,color:th.dim}}>SWING</span>
+              <MidiTag id="__swing__"/>
+            </div>
             <span style={{fontSize:11,fontWeight:700,color:"#5E5CE6"}}>{swing}%</span>
             <input type="range" min={0} max={100} value={swing} onChange={e=>setSwing(Number(e.target.value))} style={{width:55,height:3,accentColor:"#5E5CE6"}}/>
           </div>
@@ -735,14 +767,13 @@ export default function KickAndSnare(){
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>Keyb</span>
           </button>
           <button onClick={async()=>{
-            if(!midiNotes){const ok=await initMidi();if(ok)setMidiNotes(true);}
-            setShowMN(p=>!p);setMidiLearnTrack(null);
-          }} style={{...pill(midiNotes||showMN,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
+            if(!midiNotes){const ok=await initMidi();if(!ok)return;setMidiNotes(true);}
+            const entering=!midiLM;setMidiLM(entering);if(!entering)setMidiLearnTrack(null);
+          }} style={{...pill(midiNotes||midiLM,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
             <span style={{fontSize:11}}>🎹</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>
-              {midiNotes?"MIDI ●":midiErr?"MIDI ⚠":"MIDI"}
+              {midiNotes?(midiLM?"MIDI LEARN":"MIDI ●"):midiErr?"MIDI ⚠":"MIDI"}
             </span>
-            {midiLearnTrack&&<span style={{fontSize:7,fontWeight:900,color:"#FF2D55",animation:"rb 0.5s infinite"}}>LEARN</span>}
           </button>
           {/* Ableton Link */}
           <button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
@@ -788,91 +819,13 @@ export default function KickAndSnare(){
           </div>
         </div>)}
 
-        {/* ── MIDI Note Mapping Panel ── */}
-        {showMN&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${midiLearnTrack?"#FF9500":th.sBorder}`}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI MAPPING</span>
-            <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
-          </div>
-
-          {/* Status row */}
-          <div style={{marginBottom:8}}>
-            {midiNotes?(
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:5,background:"rgba(48,209,88,0.1)",border:"1px solid rgba(48,209,88,0.3)"}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:"#30D158",display:"inline-block"}}/>
-                  <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>MIDI NOTES ACTIVE · {midiRef.current.ins?.length??0} port{midiRef.current.ins?.length===1?"":"s"}</span>
-                </div>
-                <button onClick={()=>{setMidiNotes(false);setMidiLearnTrack(null);setMidiErr(null);}} style={{padding:"4px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>DISABLE</button>
-              </div>
-            ):(
-              <button onClick={async()=>{const ok=await initMidi();if(ok)setMidiNotes(true);}} style={{width:"100%",padding:"8px 0",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>▶ ENABLE MIDI NOTES</button>
-            )}
-            {midiErr&&<div style={{marginTop:6,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==='blocked'||midiErr==='noapi'?'⚠ MIDI access blocked by browser':'✕ Permission denied — try in a Chrome/Edge tab'}</div>}
-          </div>
-          {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Play a note on your MIDI device…</div>)}
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {atO.map(tr=>{
-              const note=midiNoteMap[tr.id];
-              const isLearning=midiLearnTrack===tr.id;
-              return(<div key={tr.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:isLearning?"rgba(255,45,85,0.08)":flash===tr.id?"rgba(255,255,255,0.05)":"transparent",border:`1px solid ${isLearning?"rgba(255,45,85,0.4)":th.sBorder}`,transition:"all 0.1s"}}>
-                <span style={{fontSize:9,color:tr.color,fontWeight:800,minWidth:52}}>{tr.icon} {tr.label}</span>
-                <span style={{fontSize:12,fontWeight:700,color:th.text,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{midiNoteName(note)}</span>
-                <span style={{fontSize:8,color:th.dim,minWidth:20}}>#{note??"-"}</span>
-                <input type="number" min={0} max={127} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=127)setMidiNoteMap(p=>({...p,[tr.id]:v}));}} style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
-                <button onClick={()=>setMidiLearnTrack(isLearning?null:tr.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
-                  {isLearning?"■ STOP":"LEARN"}
-                </button>
-              </div>);
-            })}
-          </div>
-          {/* Transport controls */}
-          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${th.sBorder}`}}>
-            <div style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>TRANSPORT CONTROLS</div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {[{id:'__play__',icon:'▶',label:'START / STOP',color:"#30D158"},{id:'__rec__',icon:'⏺',label:'RECORD',color:"#FF2D55"}].map(ctrl=>{
-                const note=midiNoteMap[ctrl.id];
-                const isLearning=midiLearnTrack===ctrl.id;
-                return(
-                  <div key={ctrl.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:isLearning?"rgba(255,45,85,0.08)":"transparent",border:`1px solid ${isLearning?"rgba(255,45,85,0.4)":th.sBorder}`,transition:"all 0.1s"}}>
-                    <span style={{fontSize:9,color:ctrl.color,fontWeight:800,minWidth:52}}>{ctrl.icon} {ctrl.label}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:th.text,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{note!=null?midiNoteName(note):"—"}</span>
-                    <span style={{fontSize:8,color:th.dim,minWidth:20}}>#{note??"-"}</span>
-                    <input type="number" min={0} max={255} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=255)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} placeholder="—" style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
-                    <button onClick={()=>setMidiLearnTrack(isLearning?null:ctrl.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
-                      {isLearning?"■ STOP":"LEARN"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          {/* Controllers: BPM, Swing, Tap */}
-          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${th.sBorder}`}}>
-            <div style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>CONTROLLERS</div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {[
-                {id:'__tap__',icon:'👆',label:'TAP TEMPO',color:"#FFD60A",hint:"note or CC",max:255},
-                {id:'__bpm__',icon:'♩',label:'BPM',color:"#64D2FF",hint:"CC → 30–300",max:255,ccOnly:true},
-                {id:'__swing__',icon:'↕',label:'SWING',color:"#5E5CE6",hint:"CC → 0–100%",max:255,ccOnly:true},
-              ].map(ctrl=>{
-                const note=midiNoteMap[ctrl.id];const isLearning=midiLearnTrack===ctrl.id;
-                return(
-                  <div key={ctrl.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:isLearning?"rgba(255,45,85,0.08)":"transparent",border:`1px solid ${isLearning?"rgba(255,45,85,0.4)":th.sBorder}`,transition:"all 0.1s"}}>
-                    <span style={{fontSize:9,color:ctrl.color,fontWeight:800,minWidth:80}}>{ctrl.icon} {ctrl.label}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:note!=null?th.text:th.faint,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{midiNoteName(note)}</span>
-                    <span style={{fontSize:7,color:th.faint,flex:1}}>{ctrl.hint}</span>
-                    <input type="number" min={0} max={ctrl.max} value={note??""} placeholder="—" onChange={e=>{const v=Number(e.target.value);if(!isNaN(v)&&v>=0&&v<=ctrl.max)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
-                    {note!=null&&<button onClick={()=>setMidiNoteMap(p=>({...p,[ctrl.id]:null}))} style={{width:20,height:22,borderRadius:3,border:"1px solid rgba(255,55,95,0.25)",background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer"}}>×</button>}
-                    <button onClick={()=>setMidiLearnTrack(isLearning?null:ctrl.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
-                      {isLearning?"■ STOP":"LEARN"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div style={{marginTop:8,fontSize:7,color:th.faint}}>GM defaults: Kick=C2(36) Snare=D2(38) HH=F#2(42) Clap=D#2(39) Tom=A2(45) Ride=D#3(51) Crash=C#3(49) Perc=B2(47)</div>
+        {/* ── MIDI Learn Banner ── */}
+        {midiLM&&(<div style={{marginBottom:8,padding:"7px 12px",borderRadius:8,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.35)",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:8,color:"#FF9500",fontWeight:800}}>🎹 MIDI LEARN</span>
+          <span style={{fontSize:8,color:th.dim,flex:1}}>{midiLearnTrack?"● Play a note / move a knob on your device…":"Click any highlighted control to map it"}</span>
+          {midiErr&&<span style={{fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==="blocked"||midiErr==="noapi"?"⚠ MIDI blocked":"✕ Permission denied"}</span>}
+          <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"transparent",color:"#FF9500",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
+          <button onClick={()=>{setMidiLM(false);setMidiLearnTrack(null);}} style={{width:20,height:20,borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"transparent",color:"#FF9500",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>×</button>
         </div>)}
 
         {/* ── Ableton Link Panel ── */}
@@ -982,6 +935,7 @@ export default function KickAndSnare(){
                     <div style={{display:"flex",alignItems:"center",gap:3}}>
                       <span style={{fontSize:12,color:track.color}}>{track.icon}</span>
                       <span style={{fontSize:10,fontWeight:700,color:track.color,minWidth:34}}>{track.label}</span>
+                      <MidiTag id={track.id}/>
                       <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{width:18,height:20,border:"none",borderRadius:3,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>M</button>
                       <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{width:18,height:20,border:"none",borderRadius:3,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>S</button>
                       <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{width:22,height:20,border:"none",borderRadius:3,background:th.btn,color:th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}} title="Vider la ligne">CLR</button>
