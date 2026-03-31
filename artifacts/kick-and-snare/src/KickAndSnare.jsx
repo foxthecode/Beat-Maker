@@ -1622,18 +1622,21 @@ export default function KickAndSnare(){
                     const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                     return(
                       <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}${aud?"44":"22"}`,background:tr.color+(aud?"0a":"05"),padding:"6px 10px",display:"flex",flexDirection:"column",gap:5,transition:"opacity 0.1s",opacity:aud?1:0.65}}>
-                        {/* ── Header: 2-col grid — left: fold·icon·name·M·S·× | right: stacked H-sliders ── */}
+                        {/* ── Header: label row + knobs + dropdown ── */}
                         {(()=>{
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
-                          const uFx=(k,v)=>{setFx(prev=>{const nf={...(prev[tr.id]||defFx()),[k]:v};engine.uFx(tr.id,nf);return{...prev,[tr.id]:nf};});};
-                          const slH={position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0};
-                          const slLbl={fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
-                          const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
+                          const uFxL=(k,v)=>{setFx(prev=>{const nf={...(prev[tr.id]||defFx()),[k]:v};engine.uFx(tr.id,nf);return{...prev,[tr.id]:nf};});};
+                          const rk=9;const circ=2*Math.PI*rk;
+                          const volPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFxL("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                          const panPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFxL("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                          const vDisp=`${vol}`;
+                          const pDisp=pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`;
+                          const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+rk*Math.cos(toRad(sa));const y1=11+rk*Math.sin(toRad(sa));const x2=11+rk*Math.cos(toRad(ea));const y2=11+rk*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${rk},${rk} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                           return(
-                            <div style={{display:"grid",gridTemplateColumns:"auto 1fr",columnGap:6,rowGap:4,alignItems:"center"}}>
-                              {/* Row 1 left: fold + icon + label + cnt + M + S + × */}
-                              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                              {/* Row 1: fold + icon + label + cnt + M + S + ♪ + MIDI + CLR + × */}
+                              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,flexWrap:"wrap"}}>
                                 <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",flexShrink:0}}>{p.fold?"▶":"▼"}</span>
                                 <span style={{flexShrink:0,opacity:aud?1:0.4}}>{DrumSVG(tr.id,tr.color,flash===tr.id,18)}</span>
                                 <span style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
@@ -1645,53 +1648,46 @@ export default function KickAndSnare(){
                                 <button onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
                                 {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
-                              {/* Row 1 right: VOL horizontal slider — custom drag */}
-                              <div style={{display:"flex",alignItems:"center",gap:4}}>
-                                <span style={slLbl}>VOL</span>
-                                <div style={{flex:1,position:"relative",height:20,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`}
-                                  onPointerDown={e=>{e.preventDefault();const ref=e.currentTarget;ref.setPointerCapture(e.pointerId);const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=pe=>{pe.preventDefault();go(pe.clientX);};const up=()=>{ref.removeEventListener("pointermove",mv);};ref.addEventListener("pointermove",mv);ref.addEventListener("pointerup",up,{once:true});ref.addEventListener("pointercancel",up,{once:true});}}>
-                                  <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
-                                    <div style={{height:"100%",width:`${vol}%`,background:tr.color,borderRadius:2}}/>
+                              {/* Row 2: VOL knob + PAN knob + template dropdown */}
+                              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                <div onPointerDown={volPD} onDoubleClick={()=>uFxL("vol",80)} title={`VOL: ${vDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",flexShrink:0}}>
+                                  <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                    <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
+                                      <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
+                                      <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*vol/100} ${circ}`}/>
+                                    </svg>
+                                    <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
                                   </div>
-                                  <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:9,height:9,borderRadius:"50%",background:tr.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${tr.color}44`,pointerEvents:"none"}}/>
+                                  <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vDisp}</span>
                                 </div>
-                                <span style={slVal}>{vol}</span>
-                              </div>
-                              {/* Row 2 left: empty spacer (grid auto-sizes to match row 1 left) */}
-                              <div/>
-                              {/* Row 2 right: PAN horizontal slider */}
-                              <div style={{display:"flex",alignItems:"center",gap:4}}>
-                                <span style={slLbl}>PAN</span>
-                                <div style={{flex:1,position:"relative",height:10}}>
-                                  {/* Track */}
-                                  <div style={{position:"absolute",top:"50%",left:0,right:0,height:2,background:th.sBorder,borderRadius:1,transform:"translateY(-50%)"}}/>
-                                  {/* Center tick */}
-                                  <div style={{position:"absolute",top:0,bottom:0,left:"50%",width:1,background:tr.color+"55",transform:"translateX(-50%)"}}/>
-                                  {/* Fill bar from center outward */}
-                                  {pan!==0&&<div style={{position:"absolute",top:"50%",height:3,borderRadius:1,background:tr.color,transform:"translateY(-50%)",left:pan<0?`${50+(pan/100)*50}%`:"50%",width:`${Math.abs(pan/100)*50}%`}}/>}
-                                  {/* Thumb */}
-                                  <div style={{position:"absolute",top:"50%",left:`${(pan+100)/2}%`,width:8,height:8,borderRadius:"50%",background:tr.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${tr.color}33`,pointerEvents:"none"}}/>
-                                  {/* Hidden range input for interaction */}
-                                  <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
+                                <div onPointerDown={panPD} onDoubleClick={()=>uFxL("pan",0)} title={`PAN: ${pDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",flexShrink:0}}>
+                                  <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                    <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
+                                      <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
+                                      {panArc&&<path d={panArc} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round"/>}
+                                      <circle cx="11" cy="11" r="1.5" fill={tr.color}/>
+                                    </svg>
+                                    <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
+                                  </div>
+                                  <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pDisp}</span>
                                 </div>
-                                <span style={slVal}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
+                                <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,flex:1,fontSize:8}}>
+                                  <option value="">— Template —</option>
+                                  {EUCLID_REGIONS.map(reg=>(
+                                    <optgroup key={reg} label={reg}>
+                                      {EUCLID_TEMPLATES.filter(t=>t.region===reg).map(t=>(
+                                        <option key={t.name} value={t.name}>{t.name} · {t.N}st</option>
+                                      ))}
+                                    </optgroup>
+                                  ))}
+                                </select>
                               </div>
                             </div>
                           );
                         })()}
-                        {/* ── Body (unfolded): template + spinners only ── */}
+                        {/* ── Body (unfolded): N / HITS / ROT spinners ── */}
                         {!p.fold&&(
                           <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
-                              <option value="">— Load a template —</option>
-                              {EUCLID_REGIONS.map(r=>(
-                                <optgroup key={r} label={r}>
-                                  {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
-                                    <option key={t.name} value={t.name}>{t.name} · {t.N} steps</option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
                             <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
                               <span style={lbl0}>N</span>
                               <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
