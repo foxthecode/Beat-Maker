@@ -47,6 +47,29 @@ const defFx=()=>({pitch:0,fType:"lowpass",cut:20000,res:0,drive:0,crush:0,cThr:-
 const DELAY_DIVS=["1/4","1/8","1/16","1/4d","1/8d","1/4t","1/8t"];
 const divToSec=(div,bpm)=>{const b=60/bpm;const m={"1/4":b,"1/8":b/2,"1/16":b/4,"1/4d":b*1.5,"1/8d":b*0.75,"1/4t":b*2/3,"1/8t":b/3};return m[div]||b;};
 
+// ═══ Euclidean Templates ═══
+const EUCLID_TEMPLATES=[
+  {name:"Tresillo",   origin:"Afrique / Cuba",  region:"Afrique",    N:8,  hits:[0,3,6],           desc:"E(3,8) — rythme-racine universel",   instr:"kick"},
+  {name:"Fume Fume",  origin:"Ghana (Ewe)",      region:"Afrique",    N:12, hits:[0,2,4,7,9],       desc:"E(5,12) — chant ghanéen",            instr:"hihat"},
+  {name:"Bembé",      origin:"Yoruba / Cuba",    region:"Afrique",    N:12, hits:[0,2,3,5,7,8,10],  desc:"E(7,12) — cœur du jazz afro",        instr:"snare"},
+  {name:"Shiko",      origin:"Nigeria (Ewe)",    region:"Afrique",    N:16, hits:[0,4,6,10,12],     desc:"E(5,16) — danse rituelle",           instr:"perc"},
+  {name:"Soukous",    origin:"Congo",            region:"Afrique",    N:12, hits:[0,2,4,6,9,11],    desc:"Clave congolaise",                   instr:"hihat"},
+  {name:"Habanera",   origin:"Cuba",             region:"Afro-Cuban", N:8,  hits:[0,3,5,7],         desc:"Base du danzón et du tango",         instr:"kick"},
+  {name:"Cinquillo",  origin:"Cuba",             region:"Afro-Cuban", N:8,  hits:[0,2,3,5,6],       desc:"E(5,8) — son et guaracha",           instr:"perc"},
+  {name:"Clave 3-2",  origin:"Cuba (Son)",       region:"Afro-Cuban", N:16, hits:[0,3,6,10,12],     desc:"Épine dorsale de la musique cubaine", instr:"clap"},
+  {name:"Clave 2-3",  origin:"Cuba (Son)",       region:"Afro-Cuban", N:16, hits:[2,4,8,11,14],     desc:"Clave à sens inversé",               instr:"clap"},
+  {name:"Rumba Clave",origin:"Cuba (Rumba)",     region:"Afro-Cuban", N:16, hits:[0,3,7,10,12],     desc:"Plus syncopée — décalage du 3e beat",instr:"clap"},
+  {name:"Guaguancó",  origin:"Cuba (Rumba)",     region:"Afro-Cuban", N:12, hits:[0,3,4,6,10],      desc:"Rumba urbaine de La Havane",         instr:"snare"},
+  {name:"Baião",      origin:"Brésil (Nord-Est)",region:"Brésil",     N:16, hits:[0,3,8,11],        desc:"Zabumba du sertão",                  instr:"kick"},
+  {name:"Maracatu",   origin:"Pernambuco",       region:"Brésil",     N:16, hits:[0,6,10,12],       desc:"Rythme de la cour royale africaine", instr:"kick"},
+  {name:"Bossa Nova", origin:"Brésil (Rio)",     region:"Brésil",     N:16, hits:[0,3,6,8,11,14],   desc:"Violão de João Gilberto",            instr:"hihat"},
+  {name:"Surdo",      origin:"Brésil (Samba)",   region:"Brésil",     N:16, hits:[0,8],             desc:"Pulsation grave de la batucada",     instr:"kick"},
+  {name:"Caixa",      origin:"Brésil (Samba)",   region:"Brésil",     N:16, hits:[0,2,4,6,8,10,12,14],desc:"Caisse claire samba en croches",  instr:"snare"},
+  {name:"Xote",       origin:"Brésil (Nordeste)",region:"Brésil",     N:8,  hits:[0,2,5,7],         desc:"Quadrilha do forró",                 instr:"hihat"},
+];
+const EUCLID_REGIONS=["Afrique","Afro-Cuban","Brésil"];
+const EUCLID_RCOL={"Afrique":"#FFD60A","Afro-Cuban":"#FF9500","Brésil":"#30D158"};
+
 // Euclidean rhythm generator (Bjorklund)
 function euclidRhythm(hits,steps){
   if(hits<=0)return Array(steps).fill(0);
@@ -228,6 +251,7 @@ export default function KickAndSnare(){
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
+  const [euclidSel,setEuclidSel]=useState("kick");const [euclidRegion,setEuclidRegion]=useState("Afrique");const [euclidHov,setEuclidHov]=useState(null);
   const [fxO,setFxO]=useState(null);const [smpN,setSmpN]=useState({kick:"BWJAZZ Kick (default)",snare:"BB3 Snare (default)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
   const [stNudge,setStNudge]=useState(mkN(16));
@@ -661,7 +685,7 @@ export default function KickAndSnare(){
           })()}
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            {["sequencer","pads"].map(v=>(<button key={v} onClick={()=>setView(v)} style={pill(view===v,v==="pads"?"#5E5CE6":"#FF2D55")}>{v}</button>))}
+            {["sequencer","pads","euclid"].map(v=>(<button key={v} onClick={()=>setView(v)} style={pill(view===v,v==="pads"?"#5E5CE6":v==="euclid"?"#FFD60A":"#FF2D55")}>{v==="euclid"?"⬡ EUCLID":v}</button>))}
           </div>
         </div>
 
@@ -974,6 +998,122 @@ export default function KickAndSnare(){
           </div>
           <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Click or press key to trigger · Keyboard shortcut ⌨ in transport</div>
         </div>)}
+
+        {/* ── EUCLID VIEW ── */}
+        {view==="euclid"&&(()=>{
+          const CX=180,CY=180,R=155;
+          const evtx=(i,N,cx,cy,r)=>{const a=(2*Math.PI*i/N)-Math.PI/2;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};};
+          const eucToggle=(step,tid)=>{setPBank(p=>{const n=JSON.parse(JSON.stringify(p));n[cPat][tid][step]=n[cPat][tid][step]?0:100;return n;});};
+          const applyTpl=(t)=>{
+            const insTr=atO.find(tr=>tr.id===t.instr)||atO[0];if(!insTr)return;
+            const scaledHits=t.hits.map(h=>Math.min(STEPS-1,Math.round(h*STEPS/t.N)));
+            setPBank(p=>{const n=JSON.parse(JSON.stringify(p));n[cPat][insTr.id]=Array(STEPS).fill(0);scaledHits.forEach(s=>{n[cPat][insTr.id][s]=100;});return n;});
+            setEuclidSel(insTr.id);
+          };
+          const headAngle=cStep>=0?(2*Math.PI*cStep/STEPS)-Math.PI/2:-Math.PI/2;
+          const selTr=atO.find(tr=>tr.id===euclidSel)||atO[0];
+          const regTpls=EUCLID_TEMPLATES.filter(t=>t.region===euclidRegion);
+          const rc=EUCLID_RCOL[euclidRegion]||"#888";
+          return(
+            <div style={{padding:"8px 0"}}>
+              <div style={{display:"flex",gap:16,alignItems:"flex-start",justifyContent:"center",flexWrap:"wrap"}}>
+                {/* Instrument selector */}
+                <div style={{display:"flex",flexDirection:"column",gap:5,paddingTop:50}}>
+                  {atO.map(tr=>{
+                    const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
+                    return(<button key={tr.id} onClick={()=>setEuclidSel(tr.id)} style={{
+                      display:"flex",alignItems:"center",gap:7,padding:"7px 11px",borderRadius:7,
+                      border:`1px solid ${euclidSel===tr.id?tr.color+"88":th.sBorder}`,
+                      background:euclidSel===tr.id?tr.color+"18":"transparent",
+                      color:euclidSel===tr.id?tr.color:th.dim,
+                      fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",
+                    }}>
+                      <span style={{fontSize:12}}>{tr.icon}</span><span>{tr.label}</span>
+                      {cnt>0&&<span style={{marginLeft:2,background:tr.color+"2a",color:tr.color,borderRadius:3,padding:"1px 4px",fontSize:8,fontWeight:700}}>{cnt}</span>}
+                    </button>);
+                  })}
+                  <div style={{marginTop:6,fontSize:7,color:th.faint,letterSpacing:"0.08em"}}>ACTIF SÉL.</div>
+                </div>
+                {/* Polygon */}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+                  <svg width={360} height={360} style={{display:"block",overflow:"visible"}}>
+                    <circle cx={CX} cy={CY} r={R+14} fill="none" stroke={th.surface} strokeWidth={28}/>
+                    <polygon points={Array.from({length:STEPS},(_,i)=>{const v=evtx(i,STEPS,CX,CY,R);return`${v.x},${v.y}`;}).join(" ")} fill="none" stroke={th.sBorder} strokeWidth={1}/>
+                    <circle cx={CX} cy={CY} r={18} fill={th.surface} stroke={th.sBorder} strokeWidth={1}/>
+                    {[0.55,0.78].map(f=>(<circle key={f} cx={CX} cy={CY} r={R*f} fill="none" stroke={th.faint} strokeWidth={0.5} strokeDasharray="2 5" opacity={0.3}/>))}
+                    {cStep>=0&&<line x1={CX} y1={CY} x2={CX+(R+18)*Math.cos(headAngle)} y2={CY+(R+18)*Math.sin(headAngle)} stroke="#30D158" strokeWidth={2} strokeLinecap="round" opacity={0.85}/>}
+                    {Array.from({length:STEPS},(_,i)=>{
+                      const v=evtx(i,STEPS,CX,CY,R);
+                      const actTrs=atO.filter(tr=>(pat[tr.id]||[])[i]>0);
+                      const on=actTrs.length>0;const cur=i===cStep;const hov=euclidHov===i;const r0=on?12:7;
+                      return(
+                        <g key={i} style={{cursor:"pointer"}} onClick={()=>eucToggle(i,euclidSel)}
+                          onMouseEnter={()=>setEuclidHov(i)} onMouseLeave={()=>setEuclidHov(null)}>
+                          {cur&&on&&<circle cx={v.x} cy={v.y} r={r0+10} fill={actTrs[0].color+"18"}/>}
+                          <circle cx={v.x} cy={v.y} r={hov?r0+2:r0}
+                            fill={on?(cur?"#fff":th.surface):(hov?selTr.color+"18":th.stepOff)}
+                            stroke={on?(cur?"#fff":actTrs[0].color):(hov?selTr.color+"77":th.sBorder)} strokeWidth={on?1.5:1}/>
+                          {on&&actTrs.map((tr,di)=>{
+                            const off=actTrs.length>1?(di-(actTrs.length-1)/2)*7:0;
+                            return(<circle key={tr.id} cx={v.x+off} cy={v.y} r={3} fill={cur?"#000":tr.color} opacity={0.92}/>);
+                          })}
+                          <text x={v.x} y={v.y+(on?r0+11:16)} textAnchor="middle" fontSize={6}
+                            fill={cur?"#30D158":on?th.dim:th.faint} fontFamily="monospace" fontWeight={cur?700:400}>{i+1}</text>
+                        </g>
+                      );
+                    })}
+                    <text x={CX} y={CY+4} textAnchor="middle" fontSize={8} fill={playing?"#30D158":th.faint} fontFamily="monospace" fontWeight={700}>{playing?"▶":"■"}</text>
+                  </svg>
+                  <div style={{fontSize:7,color:th.faint,letterSpacing:"0.08em",textAlign:"center"}}>
+                    {STEPS} STEPS · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} HITS · CLIC = TOGGLE INSTRUMENT SÉLECTIONNÉ
+                  </div>
+                </div>
+                {/* Templates */}
+                <div style={{display:"flex",flexDirection:"column",gap:5,width:195}}>
+                  <div style={{fontSize:8,fontWeight:700,letterSpacing:"0.12em",color:"#FFD60A",marginBottom:2}}>TEMPLATES</div>
+                  <div style={{display:"flex",gap:3,marginBottom:4}}>
+                    {EUCLID_REGIONS.map(r=>(
+                      <button key={r} onClick={()=>setEuclidRegion(r)} style={{
+                        flex:1,padding:"4px 3px",borderRadius:4,fontSize:6.5,fontWeight:800,
+                        border:`1px solid ${euclidRegion===r?EUCLID_RCOL[r]+"66":th.sBorder}`,
+                        background:euclidRegion===r?EUCLID_RCOL[r]+"15":"transparent",
+                        color:euclidRegion===r?EUCLID_RCOL[r]:th.dim,
+                        cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em",
+                      }}>{r}</button>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:330,overflowY:"auto"}}>
+                    {regTpls.map(t=>{
+                      const ins=atO.find(tr=>tr.id===t.instr)||atO[0];const iCol=ins?.color||"#888";
+                      return(
+                        <button key={t.name} onClick={()=>applyTpl(t)} style={{
+                          textAlign:"left",padding:"7px 8px",borderRadius:6,border:`1px solid ${th.sBorder}`,
+                          background:th.surface,cursor:"pointer",fontFamily:"inherit",
+                        }}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                            <span style={{fontSize:9.5,fontWeight:800,color:th.text,letterSpacing:"0.04em"}}>{t.name}</span>
+                            <div style={{display:"flex",alignItems:"center",gap:3}}>
+                              <span style={{width:5,height:5,borderRadius:"50%",background:iCol,display:"inline-block"}}/>
+                              <span style={{fontSize:6.5,color:rc,fontWeight:700}}>{t.N}st</span>
+                            </div>
+                          </div>
+                          <div style={{fontSize:7,color:th.dim,marginBottom:1}}>{t.origin}</div>
+                          <div style={{fontSize:6.5,color:th.faint,fontStyle:"italic",marginBottom:4}}>{t.desc}</div>
+                          <div style={{display:"flex",gap:1.5,flexWrap:"wrap"}}>
+                            {Array.from({length:Math.min(t.N,16)},(_,i)=>(
+                              <div key={i} style={{width:t.N<=12?8:6,height:t.N<=12?8:6,borderRadius:2,
+                                background:t.hits.includes(i)?iCol:th.stepOff,flexShrink:0}}/>
+                            ))}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── SONG ARRANGER (foldable) ── */}
         <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
