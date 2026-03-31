@@ -1006,7 +1006,7 @@ export default function KickAndSnare(){
                         <div style={{display:"flex",gap:2}}>
                           <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
                           <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
-                          <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
+                          <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
                         </div>
                         {/* R1C3: VOL slider — custom drag */}
                         {(()=>{
@@ -1127,7 +1127,7 @@ export default function KickAndSnare(){
           const CX=190,CY=190;
           const R_OUT=162,R_IN=atO.length>1?38:148;
           const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
-          const getP=tid=>euclidParams[tid]||{N:trackSteps[tid]||STEPS,hits:0,rot:0,tpl:"",fold:false};
+          const getP=tid=>{const ep=euclidParams[tid]||{};const N=trackSteps[tid]||STEPS;return{N,hits:Math.min(ep.hits||0,N),rot:(ep.rot||0)%Math.max(N,1),tpl:ep.tpl||"",fold:ep.fold||false};};
           const writeP=(tid,up)=>setEuclidParams(p=>({...p,[tid]:{...getP(tid),...up}}));
           const applyE=(tid,N,hits,rot)=>{
             const raw=euclidRhythm(hits,N);
