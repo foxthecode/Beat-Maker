@@ -884,7 +884,6 @@ export default function KickAndSnare(){
               const hasSmp=!!smpN[track.id];const hasFx=fx[track.id]&&(fx[track.id].drive>0||fx[track.id].pitch!==0||fx[track.id].cut<20000||fx[track.id].onReverb||fx[track.id].onDelay);
               const isFO=fxO===track.id;
               const tSteps=trackSteps[track.id]||STEPS;
-              const beatSz=tSteps/4;
               const tsOpts=[16,32];const tsIdx=tsOpts.indexOf(tSteps<1?16:tSteps===8?16:tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
               const isCustomTs=tSteps!==STEPS;
               const hasRec=(pat[track.id]||[]).some(v=>v);const stLocked=hasRec;
@@ -910,8 +909,7 @@ export default function KickAndSnare(){
                     {Array(tSteps).fill(0).map((_,step)=>{
                       const ac=!!pat[track.id]?.[step];
                       const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep%tSteps===step;
-                      const isFirst=step%beatSz===0;const beatNum=Math.floor(step/beatSz);
-                      const gi={first:isFirst,gi:beatNum};
+                      const gs=Math.min(STEPS-1,Math.round(step*STEPS/tSteps));const gi=gInfo(gs);
                       const sn=stNudge[track.id]?.[step]||0;const vel=(stVel[track.id]?.[step]??100);
                       const prob=stProb[track.id]?.[step]??100;const ratch=stRatch[track.id]?.[step]||1;
                       const isDrag=dragInfo?.tid===track.id&&dragInfo?.step===step;
