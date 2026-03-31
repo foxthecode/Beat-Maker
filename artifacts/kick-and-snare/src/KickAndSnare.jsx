@@ -28,8 +28,8 @@ const ALL_TRACKS=[
 ];
 const TRACKS=ALL_TRACKS;
 const DEFAULT_ACTIVE=["kick","snare"];
-const DEFAULT_KEYS=["q","s","d","f","g","h","j","k"];
-const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247}; // __play__=CC118 __rec__=CC119 (Oxygen Pro Mini defaults)
+const DEFAULT_KEY_MAP={kick:"q",snare:"s",hihat:"d",clap:"f",tom:"g",ride:"h",crash:"j",perc:"k"};
+const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247,__tap__:null,__bpm__:null,__swing__:null}; // CC = value+128 (__play__=CC118 __rec__=CC119)
 const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 const midiNoteName=n=>n==null?"—":n>=128?`CC${n-128}`:NOTE_NAMES[n%12]+(Math.floor(n/12)-1);
 const MAX_PAT=8,NR=50;
@@ -265,7 +265,7 @@ export default function KickAndSnare(){
   const songPosRef=useRef(0);
   // Session
   // UI
-  const [rec,setRec]=useState(false);const [kMap,setKMap]=useState([...DEFAULT_KEYS]);const [showK,setShowK]=useState(false);
+  const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
   const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
   const [metro,setMetro]=useState(false);
   const [metroVol,setMetroVol]=useState(10);
@@ -310,18 +310,22 @@ export default function KickAndSnare(){
     times.push(now);if(times.length>4)times.shift();
     if(times.length>1){const ivs=[];for(let i=1;i<times.length;i++)ivs.push(times[i]-times[i-1]);const avg=ivs.reduce((a,b)=>a+b,0)/ivs.length;setBpm(Math.max(30,Math.min(300,Math.round(60000/avg))));}
   };
+  R.htap=handleTap;R.setBpmR=setBpm;R.setSwingR=setSwing;
 
   // MIDI note-only handler
   const onMidiAll=useCallback(ev=>{
     const b=ev.data[0];const status=b&0xF0;
     const byte1=ev.data[1];const byte2=ev.data[2];
     // CC messages (transport buttons, knobs…)
-    if(status===0xB0&&byte2>0){
+    if(status===0xB0){
       const addr=128+byte1; // CC0-127 stored as 128-255
-      if(R.mLearn){setMidiNoteMap(prev=>({...prev,[R.mLearn]:addr}));setMidiLearnTrack(null);return;}
+      if(R.mLearn&&byte2>0){setMidiNoteMap(prev=>({...prev,[R.mLearn]:addr}));setMidiLearnTrack(null);return;}
       const mapped=Object.entries(R.mnMap).find(([,n])=>n===addr)?.[0];
-      if(mapped==='__play__'){R.ss?.current?.();return;}
-      if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
+      if(mapped==='__play__'&&byte2>0){R.ss?.current?.();return;}
+      if(mapped==='__rec__'&&byte2>0){R.setRec?.(p=>!p);return;}
+      if(mapped==='__tap__'&&byte2>0){R.htap?.();return;}
+      if(mapped==='__bpm__'){R.setBpmR?.(Math.max(30,Math.min(300,30+Math.round(byte2/127*270))));return;}
+      if(mapped==='__swing__'){R.setSwingR?.(Math.round(byte2/127*100));return;}
       return;
     }
     // Note messages (pads, keys)
@@ -332,6 +336,7 @@ export default function KickAndSnare(){
       const mapped=Object.entries(R.mnMap).find(([,n])=>n===byte1)?.[0];
       if(mapped==='__play__'){R.ss?.current?.();return;}
       if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
+      if(mapped==='__tap__'){R.htap?.();return;}
       if(mapped&&R.at.includes(mapped)){R.trigPad?.(mapped,byte2/127);}
     }
   },[]);
@@ -446,7 +451,7 @@ export default function KickAndSnare(){
       if(e.key==="ArrowUp"){e.preventDefault();setBpm(p=>Math.min(300,p+5));return;}
       if(e.key==="ArrowDown"){e.preventDefault();setBpm(p=>Math.max(30,p-5));return;}
       if(e.key==="t"||e.key==="T"){handleTap();return;}
-      const k=e.key.toLowerCase();const idx=R.km.indexOf(k);if(idx>=0&&idx<R.at.length){e.preventDefault();trigPad(R.at[idx]);}
+      const k=e.key.toLowerCase();const tid=Object.keys(R.km).find(id=>R.km[id]===k);if(tid&&R.at.includes(tid)){e.preventDefault();trigPad(tid);}
     };window.addEventListener("keydown",down);return()=>window.removeEventListener("keydown",down);
   },[trigPad]);
 
@@ -735,7 +740,7 @@ export default function KickAndSnare(){
           }} style={{...pill(midiNotes||showMN,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
             <span style={{fontSize:11}}>🎹</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>
-              {midiNotes?"NOTES ●":midiErr?"NOTES ⚠":"NOTES"}
+              {midiNotes?"MIDI ●":midiErr?"MIDI ⚠":"MIDI"}
             </span>
             {midiLearnTrack&&<span style={{fontSize:7,fontWeight:900,color:"#FF2D55",animation:"rb 0.5s infinite"}}>LEARN</span>}
           </button>
@@ -776,9 +781,9 @@ export default function KickAndSnare(){
           </div>
           <div style={{marginTop:10,fontSize:9,fontWeight:700,color:"#5E5CE6",marginBottom:6}}>PAD KEYS</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {atO.map((tr,i)=>(<div key={tr.id} style={{display:"flex",alignItems:"center",gap:4}}>
+            {atO.map((tr)=>(<div key={tr.id} style={{display:"flex",alignItems:"center",gap:4}}>
               <span style={{fontSize:9,color:tr.color,fontWeight:700}}>{tr.icon}{tr.label}</span>
-              <input value={kMap[i]||""} onChange={e=>{const v=e.target.value.slice(-1).toLowerCase();setKMap(p=>{const n=[...p];n[i]=v;return n;});}} style={{width:28,height:24,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:"#FFD60A",fontSize:12,fontWeight:800,fontFamily:"inherit"}}/>
+              <input value={kMap[tr.id]||""} onChange={e=>{const v=e.target.value.slice(-1).toLowerCase();setKMap(p=>({...p,[tr.id]:v}));}} style={{width:28,height:24,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:"#FFD60A",fontSize:12,fontWeight:800,fontFamily:"inherit"}}/>
             </div>))}
           </div>
         </div>)}
@@ -786,7 +791,7 @@ export default function KickAndSnare(){
         {/* ── MIDI Note Mapping Panel ── */}
         {showMN&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${midiLearnTrack?"#FF9500":th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI NOTE MAPPING</span>
+            <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.12em"}}>🎹 MIDI MAPPING</span>
             <button onClick={()=>{setMidiNoteMap({...DEFAULT_MIDI_NOTES});setMidiLearnTrack(null);}} style={{padding:"2px 8px",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>RESET GM</button>
           </div>
 
@@ -834,6 +839,31 @@ export default function KickAndSnare(){
                     <span style={{fontSize:12,fontWeight:700,color:th.text,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{note!=null?midiNoteName(note):"—"}</span>
                     <span style={{fontSize:8,color:th.dim,minWidth:20}}>#{note??"-"}</span>
                     <input type="number" min={0} max={255} value={note??""} onChange={e=>{const v=Number(e.target.value);if(v>=0&&v<=255)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} placeholder="—" style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
+                    <button onClick={()=>setMidiLearnTrack(isLearning?null:ctrl.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
+                      {isLearning?"■ STOP":"LEARN"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Controllers: BPM, Swing, Tap */}
+          <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${th.sBorder}`}}>
+            <div style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>CONTROLLERS</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[
+                {id:'__tap__',icon:'👆',label:'TAP TEMPO',color:"#FFD60A",hint:"note or CC",max:255},
+                {id:'__bpm__',icon:'♩',label:'BPM',color:"#64D2FF",hint:"CC → 30–300",max:255,ccOnly:true},
+                {id:'__swing__',icon:'↕',label:'SWING',color:"#5E5CE6",hint:"CC → 0–100%",max:255,ccOnly:true},
+              ].map(ctrl=>{
+                const note=midiNoteMap[ctrl.id];const isLearning=midiLearnTrack===ctrl.id;
+                return(
+                  <div key={ctrl.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:isLearning?"rgba(255,45,85,0.08)":"transparent",border:`1px solid ${isLearning?"rgba(255,45,85,0.4)":th.sBorder}`,transition:"all 0.1s"}}>
+                    <span style={{fontSize:9,color:ctrl.color,fontWeight:800,minWidth:80}}>{ctrl.icon} {ctrl.label}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:note!=null?th.text:th.faint,minWidth:28,textAlign:"center",fontFamily:"monospace"}}>{midiNoteName(note)}</span>
+                    <span style={{fontSize:7,color:th.faint,flex:1}}>{ctrl.hint}</span>
+                    <input type="number" min={0} max={ctrl.max} value={note??""} placeholder="—" onChange={e=>{const v=Number(e.target.value);if(!isNaN(v)&&v>=0&&v<=ctrl.max)setMidiNoteMap(p=>({...p,[ctrl.id]:v}));}} style={{width:38,height:22,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,fontFamily:"inherit"}}/>
+                    {note!=null&&<button onClick={()=>setMidiNoteMap(p=>({...p,[ctrl.id]:null}))} style={{width:20,height:22,borderRadius:3,border:"1px solid rgba(255,55,95,0.25)",background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer"}}>×</button>}
                     <button onClick={()=>setMidiLearnTrack(isLearning?null:ctrl.id)} style={{padding:"3px 10px",borderRadius:4,border:`1px solid ${isLearning?"rgba(255,45,85,0.5)":"rgba(255,149,0,0.3)"}`,background:isLearning?"rgba(255,45,85,0.15)":"rgba(255,149,0,0.1)",color:isLearning?"#FF2D55":"#FF9500",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>
                       {isLearning?"■ STOP":"LEARN"}
                     </button>
@@ -1031,7 +1061,7 @@ export default function KickAndSnare(){
               style={{aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:`0 0 20px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
               <span style={{fontSize:32}}>{track.icon}</span>
               <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
-              <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[i]?.toUpperCase()||""}</span>
+              <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
               {/* VU in pads view */}
               <div style={{width:"80%",height:4,borderRadius:2,background:th.btn,overflow:"hidden"}}>
                 <div ref={el=>{if(el){vuRefs.current[track.id+"_pad"]=el;/* share ref for pads too */}}} style={{height:"100%",width:"0%",background:track.color,transition:"width 0.05s"}}/>
