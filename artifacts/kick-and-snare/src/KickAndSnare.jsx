@@ -508,12 +508,21 @@ export default function KickAndSnare(){
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
       const gSt=R.sig?.steps||16;
       if(R.view==="euclid"){
-        // Distribute N steps evenly across gSt global steps using ceil formula
-        // startI = first Euclid step that belongs to global step sn
-        // endI   = first Euclid step that belongs to global step sn+1
+        // Distribute N Euclid steps evenly across gSt global ticks.
+        // For N<=gSt: step i fires at tick round(i*gSt/N). Invert to find
+        //   which steps fire at tick sn → range [ceil((2sn-1)N/2gSt), ceil((2sn+1)N/2gSt))
+        // For N>gSt:  steps floor(sn*N/gSt)..floor((sn+1)*N/gSt)-1 fire at tick sn.
         const N=R.pb[R.cp]?._steps?.[tr.id]||gSt;
-        const startI=Math.ceil(sn*N/gSt);const endI=Math.ceil((sn+1)*N/gSt);
-        for(let j=startI;j<endI;j++){const jt=endI-startI>1?time+(j-startI)*bd/(endI-startI):time;playTrStep(tr,j,jt);}
+        let startI,endI;
+        if(N<=gSt){
+          startI=Math.max(0,Math.ceil((2*sn-1)*N/(2*gSt)));
+          endI=Math.min(N,Math.ceil((2*sn+1)*N/(2*gSt)));
+        }else{
+          startI=Math.floor(sn*N/gSt);
+          endI=Math.min(N,Math.floor((sn+1)*N/gSt));
+        }
+        const cnt=endI-startI;
+        for(let j=startI;j<endI;j++){playTrStep(tr,j,cnt>1?time+(j-startI)*bd/cnt:time);}
       }else{
         const tSteps=[gSt,gSt*2].includes(R.pb[R.cp]?._steps?.[tr.id])?R.pb[R.cp]._steps[tr.id]:gSt;
         const ratio=Math.max(1,Math.round(tSteps/gSt));
