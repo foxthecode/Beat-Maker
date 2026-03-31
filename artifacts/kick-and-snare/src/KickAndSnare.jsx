@@ -7,12 +7,12 @@ const THEMES={
 };
 
 const TIME_SIGS=[
-  {label:"4/4",beats:4,steps:16,groups:[4,4,4,4]},
-  {label:"3/4",beats:3,steps:12,groups:[4,4,4]},
-  {label:"6/8",beats:2,steps:12,groups:[6,6]},
-  {label:"5/4",beats:5,steps:20,groups:[4,4,4,4,4]},
-  {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]]},
-  {label:"5/8",beats:2,steps:10,groups:[6,4],groupOptions:[[6,4,"3+2"],[4,6,"2+3"]]},
+  {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0]},
+  {label:"3/4",beats:3,steps:12,groups:[3,3,3,3],accents:[0]},
+  {label:"6/8",beats:2,steps:12,groups:[6,6],accents:[0]},
+  {label:"5/4",beats:5,steps:20,groups:[4,4,4,4,4],accents:[0,3]},
+  {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0]},
+  {label:"5/8",beats:2,steps:10,groups:[6,4],groupOptions:[[6,4,"3+2"],[4,6,"2+3"]],accents:[0]},
 ];
 
 const ALL_TRACKS=[
@@ -442,7 +442,7 @@ export default function KickAndSnare(){
     o.connect(g);g.connect(engine.mg);o.start(time);o.stop(time+0.08);
     if(level!=="sub"){const nb=ctx.createBuffer(1,ctx.sampleRate*0.004,ctx.sampleRate);const dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1)*Math.exp(-i*4/dd.length);const ns=ctx.createBufferSource();ns.buffer=nb;const ng=ctx.createGain();ng.gain.setValueAtTime(vol*mv*0.6,time);ns.connect(ng);ng.connect(engine.mg);ns.start(time);}
   };
-  const isGS=(step,groups)=>{let a=0;for(let g=0;g<groups.length;g++){if(step===a)return{y:true,f:g===0};a+=groups[g];}return{y:false,f:false};};
+  const isGS=(step,groups,accents=[0])=>{let a=0;for(let g=0;g<groups.length;g++){if(step===a)return{y:true,f:accents.includes(g)};a+=groups[g];}return{y:false,f:false};};
 
   const nxtRef=useRef(0);const schRef=useRef(null);
   const schSt=useCallback((sn,time)=>{
@@ -480,7 +480,7 @@ export default function KickAndSnare(){
         if(nextPat!==R.cp){R.cp=nextPat;setCPat(nextPat);}
       }
       const st=nxtRef.current;schSt(R.step,st);
-      if(R.metro){const gs=isGS(R.step,gr);if(gs.y)playClk(st,gs.f?"accent":"beat");else playClk(st,"sub");}
+      if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);if(gs.y)playClk(st,gs.f?"accent":"beat");else playClk(st,"sub");}
       stepped=true;
       const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
       const sw=bd*(R.sw/100);nxtRef.current+=R.step%2===0?(bd-sw):(bd+sw);
