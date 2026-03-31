@@ -802,13 +802,14 @@ export default function KickAndSnare(){
           {/* Animated drummer mascot */}
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
-            const hK=(playing&&isAct("kick")&&!!pat.kick?.[cStep])||flash==="kick";
-            const hS=(playing&&isAct("snare")&&!!pat.snare?.[cStep])||flash==="snare";
-            const hH=(playing&&isAct("hihat")&&!!pat.hihat?.[cStep])||flash==="hihat";
-            const hR=(playing&&(isAct("ride")&&!!pat.ride?.[cStep]||isAct("crash")&&!!pat.crash?.[cStep]))||flash==="ride"||flash==="crash";
-            const hT=(playing&&isAct("tom")&&!!pat.tom?.[cStep])||flash==="tom";
-            const hC=(playing&&(isAct("clap")&&!!pat.clap?.[cStep]||isAct("perc")&&!!pat.perc?.[cStep]))||flash==="clap";
-            const hPerc=(playing&&isAct("perc")&&!!pat.perc?.[cStep])||flash==="perc";
+            const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
+            const hK=(playing&&isAct("kick")&&eHit("kick"))||flash==="kick";
+            const hS=(playing&&isAct("snare")&&eHit("snare"))||flash==="snare";
+            const hH=(playing&&isAct("hihat")&&eHit("hihat"))||flash==="hihat";
+            const hR=(playing&&(isAct("ride")&&eHit("ride")||isAct("crash")&&eHit("crash")))||flash==="ride"||flash==="crash";
+            const hT=(playing&&isAct("tom")&&eHit("tom"))||flash==="tom";
+            const hC=(playing&&(isAct("clap")&&eHit("clap")||isAct("perc")&&eHit("perc")))||flash==="clap";
+            const hPerc=(playing&&isAct("perc")&&eHit("perc"))||flash==="perc";
             const lHit=hS||hH||hC||hPerc;const rHit=hR||hT;const lA=hS?-55:hH?-30:(hC||hPerc)?-45:5;const rA=hR?-60:hT?-30:5;
             const anyHit=hK||hS||hH||hR||hT||hC||hPerc;
             const ac=(playing||anyHit)?"#FF9500":"#bbb";const hi="#FF2D55";
