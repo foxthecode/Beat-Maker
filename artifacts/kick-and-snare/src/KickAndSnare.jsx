@@ -27,6 +27,20 @@ const ALL_TRACKS=[
   {id:"perc",label:"PERC",color:"#BF5AF2",icon:"▲"},
 ];
 const TRACKS=ALL_TRACKS;
+// Mini SVG drum illustrations per track
+const DrumSVG=(id,color,hit=false,sz=22)=>{
+  const c=hit?"#FF2D55":color;const sw=hit?1.8:1.2;const bg=hit?color+"22":"none";
+  const s={display:"block",overflow:"visible",flexShrink:0,transition:"opacity 0.05s"};
+  if(id==="kick")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><ellipse cx="11" cy="15" rx="9" ry="6" fill={bg} stroke={c} strokeWidth={sw}/><ellipse cx="11" cy="15" rx="4.5" ry="2.8" fill="none" stroke={c} strokeWidth="0.5" opacity="0.45"/><line x1="2" y1="21" x2="2" y2="15" stroke={c} strokeWidth="1.1"/><line x1="20" y1="21" x2="20" y2="15" stroke={c} strokeWidth="1.1"/></svg>);
+  if(id==="snare")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><rect x="2" y="8" width="18" height="8" rx="2.5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="5.5" y1="9" x2="5.5" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="9" y1="9" x2="9" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="13" y1="9" x2="13" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="16.5" y1="9" x2="16.5" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/></svg>);
+  if(id==="hihat")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="8" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="8" rx="9" ry="2.5" fill={bg} stroke={c} strokeWidth={sw}/><ellipse cx="11" cy={hit?"6":"6.5"} rx="9" ry="2.5" fill="none" stroke={c} strokeWidth="0.8" opacity="0.65"/></svg>);
+  if(id==="clap")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><path d="M3,12 Q7.5,7 11,9.5 Q14.5,7 19,12" fill={bg} stroke={c} strokeWidth={sw} strokeLinecap="round"/><path d="M5.5,15.5 Q11,11 16.5,15.5" fill="none" stroke={c} strokeWidth="0.9" strokeLinecap="round" opacity="0.55"/></svg>);
+  if(id==="tom")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><ellipse cx="11" cy="11" rx="8" ry="5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="4" y1="16" x2="4" y2="21" stroke={c} strokeWidth="1.1"/><line x1="18" y1="16" x2="18" y2="21" stroke={c} strokeWidth="1.1"/></svg>);
+  if(id==="ride")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="7" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="7" rx="10" ry="2.8" fill={bg} stroke={c} strokeWidth={sw}/></svg>);
+  if(id==="crash")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="7" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="7" rx="10" ry="2.5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="5.5" y1="5" x2="3" y2="2" stroke={c} strokeWidth="0.9" opacity="0.7"/><line x1="16.5" y1="5" x2="19" y2="2" stroke={c} strokeWidth="0.9" opacity="0.7"/><line x1="11" y1="4.5" x2="11" y2="1.5" stroke={c} strokeWidth="0.9" opacity="0.7"/></svg>);
+  if(id==="perc")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><circle cx="11" cy="11" r="8" fill={bg} stroke={c} strokeWidth={sw}/><circle cx="11" cy="11" r="4" fill="none" stroke={c} strokeWidth="0.5" opacity="0.45"/></svg>);
+  return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><circle cx="11" cy="11" r="8" fill={bg} stroke={c} strokeWidth={sw}/><line x1="3" y1="19" x2="3" y2="22" stroke={c} strokeWidth="1"/><line x1="19" y1="19" x2="19" y2="22" stroke={c} strokeWidth="1"/></svg>);
+};
 const DEFAULT_ACTIVE=["kick","snare"];
 const DEFAULT_KEY_MAP={kick:"q",snare:"s",hihat:"d",clap:"f",tom:"g",ride:"h",crash:"j",perc:"k"};
 const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247,__tap__:null,__bpm__:null,__swing__:null}; // CC = value+128 (__play__=CC118 __rec__=CC119)
@@ -982,9 +996,9 @@ export default function KickAndSnare(){
                     const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
                     return(
                       <div style={{flexShrink:0,width:188,display:"grid",gridTemplateColumns:"auto auto 60px",columnGap:4,rowGap:3,alignItems:"center"}}>
-                        {/* R1C1: icon + label */}
+                        {/* R1C1: drum SVG + label */}
                         <div style={{display:"flex",alignItems:"center",gap:3}}>
-                          <span style={{fontSize:12,color:track.color,flexShrink:0}}>{track.icon}</span>
+                          {DrumSVG(track.id,track.color,playing&&!!pat[track.id]?.[cStep]&&aud)}
                           <span style={{fontSize:10,fontWeight:700,color:track.color,maxWidth:38,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
                           <MidiTag id={track.id}/>
                         </div>
@@ -1086,7 +1100,7 @@ export default function KickAndSnare(){
             {atO.map((track,i)=>(<button key={track.id}
               onPointerDown={e=>{e.preventDefault();trigPad(track.id);if(navigator.vibrate)navigator.vibrate(20);}}
               style={{aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:`0 0 20px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
-              <span style={{fontSize:32}}>{track.icon}</span>
+              {DrumSVG(track.id,track.color,flash===track.id,44)}
               <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
               <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
               {/* VU in pads view */}
@@ -1165,7 +1179,7 @@ export default function KickAndSnare(){
                               {/* Row 1 left: fold + icon + label + cnt + M + S + × */}
                               <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                                 <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",flexShrink:0}}>{p.fold?"▶":"▼"}</span>
-                                <span style={{fontSize:12,flexShrink:0,opacity:aud?1:0.5}}>{tr.icon}</span>
+                                <span style={{flexShrink:0,opacity:aud?1:0.4}}>{DrumSVG(tr.id,tr.color,playing&&!!pat[tr.id]?.[cStep]&&aud,18)}</span>
                                 <span style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
                                 {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 4px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
                                 <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
