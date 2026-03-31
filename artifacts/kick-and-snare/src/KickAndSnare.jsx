@@ -507,10 +507,19 @@ export default function KickAndSnare(){
     ALL_TRACKS.forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
       const gSt=R.sig?.steps||16;
-      const tSteps=R.view==="euclid"?(R.pb[R.cp]?._steps?.[tr.id]||gSt):([gSt,gSt*2].includes(R.pb[R.cp]?._steps?.[tr.id])?R.pb[R.cp]._steps[tr.id]:gSt);
-      const ratio=Math.max(1,Math.round(tSteps/gSt));
-      if(ratio>1){for(let i=0;i<ratio;i++)playTrStep(tr,sn*ratio+i,time+i*bd/ratio);}
-      else{playTrStep(tr,sn%tSteps,time);}
+      if(R.view==="euclid"){
+        // Distribute N steps evenly across gSt global steps using ceil formula
+        // startI = first Euclid step that belongs to global step sn
+        // endI   = first Euclid step that belongs to global step sn+1
+        const N=R.pb[R.cp]?._steps?.[tr.id]||gSt;
+        const startI=Math.ceil(sn*N/gSt);const endI=Math.ceil((sn+1)*N/gSt);
+        for(let j=startI;j<endI;j++){const jt=endI-startI>1?time+(j-startI)*bd/(endI-startI):time;playTrStep(tr,j,jt);}
+      }else{
+        const tSteps=[gSt,gSt*2].includes(R.pb[R.cp]?._steps?.[tr.id])?R.pb[R.cp]._steps[tr.id]:gSt;
+        const ratio=Math.max(1,Math.round(tSteps/gSt));
+        if(ratio>1){for(let i=0;i<ratio;i++)playTrStep(tr,sn*ratio+i,time+i*bd/ratio);}
+        else{playTrStep(tr,sn%tSteps,time);}
+      }
     });
   },[]);
 
@@ -1316,7 +1325,7 @@ export default function KickAndSnare(){
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
                       const p=getP(tr.id);const N=p.N;
-                      const curS=cStep>=0?cStep%N:-1;
+                      const curS=cStep>=0?Math.round(cStep*N/STEPS)%N:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
                       const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
