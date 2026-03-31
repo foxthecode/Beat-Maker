@@ -1004,7 +1004,7 @@ export default function KickAndSnare(){
           const CX=190,CY=190;
           const R_OUT=162,R_IN=atO.length>1?38:148;
           const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
-          const getP=tid=>euclidParams[tid]||{N:trackSteps[tid]||STEPS,hits:0,rot:0,tpl:""};
+          const getP=tid=>euclidParams[tid]||{N:trackSteps[tid]||STEPS,hits:0,rot:0,tpl:"",fold:false};
           const writeP=(tid,up)=>setEuclidParams(p=>({...p,[tid]:{...getP(tid),...up}}));
           const applyE=(tid,N,hits,rot)=>{
             const raw=euclidRhythm(hits,N);
@@ -1027,113 +1027,130 @@ export default function KickAndSnare(){
             const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);};
             window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
           };
+          const mkVelDrag=(tid,step,initVel)=>e=>{
+            e.preventDefault();e.stopPropagation();
+            const sy=e.clientY;let moved=false;let cv=initVel||0;
+            const mv=me=>{const dy=sy-me.clientY;if(Math.abs(dy)>4)moved=true;if(moved&&initVel>0){const nv=Math.max(1,Math.min(127,initVel+Math.round(dy/4)));if(nv!==cv){cv=nv;setPBank(pb=>{const n=[...pb];n[cPat][tid][step]=nv;return n;});}}};
+            const up=()=>{
+              if(!moved){setPBank(pb=>{const n=[...pb];n[cPat][tid][step]=n[cPat][tid][step]>0?0:100;return n;});}
+              window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
+            };
+            window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+          };
+          const btnSm={height:18,minWidth:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 3px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
+          const arw={width:16,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
+          const lbl0={fontSize:6.5,color:th.dim,fontWeight:700,letterSpacing:"0.07em",flexShrink:0};
+          const val0={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",flexShrink:0};
+          const sep0={fontSize:10,color:th.faint,flexShrink:0};
           return(
             <div style={{padding:"8px 0",overflowX:"auto"}}>
-              <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:680}}>
+              <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:720}}>
                 {/* ── LEFT: Track controls ── */}
-                <div style={{display:"flex",flexDirection:"column",gap:8,width:280,flexShrink:0}}>
-                  <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>PARAMÈTRES PAR PISTE</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6,width:310,flexShrink:0}}>
+                  <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>PISTES EUCLIDIENNES</div>
                   {atO.map((tr)=>{
                     const p=getP(tr.id);const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
+                    const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                     return(
-                      <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}33`,background:tr.color+"08",padding:"8px 10px",display:"flex",flexDirection:"column",gap:6}}>
-                        {/* Header */}
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <span style={{fontSize:13}}>{tr.icon}</span>
-                          <span style={{fontSize:10,fontWeight:800,color:tr.color,letterSpacing:"0.08em",flex:1}}>{tr.label}</span>
-                          {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 6px",fontSize:8,fontWeight:700}}>{cnt} hits</span>}
+                      <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}${aud?"44":"22"}`,background:tr.color+(aud?"0a":"05"),padding:"6px 10px",display:"flex",flexDirection:"column",gap:5,transition:"opacity 0.1s",opacity:aud?1:0.65}}>
+                        {/* ── Header row ── */}
+                        <div style={{display:"flex",alignItems:"center",gap:4}}>
+                          <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",width:10,flexShrink:0}}>{p.fold?"▶":"▼"}</span>
+                          <span style={{fontSize:13,flexShrink:0,opacity:aud?1:0.5}}>{tr.icon}</span>
+                          <span style={{flex:1,fontSize:10,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
+                          {cnt>0&&!p.fold&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 5px",fontSize:7,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
+                          <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
+                          <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
+                          {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                         </div>
-                        {/* Template dropdown */}
-                        <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
-                          <option value="">— Charger un template —</option>
-                          {EUCLID_REGIONS.map(r=>(
-                            <optgroup key={r} label={r}>
-                              {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
-                                <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-                        {/* ── Spinners: N · HITS · ROT on one row ── */}
-                        {(()=>{
-                          const arw={width:16,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",fontFamily:"inherit",lineHeight:"1",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
-                          const lbl={fontSize:6.5,color:th.dim,fontWeight:700,letterSpacing:"0.07em",flexShrink:0};
-                          const val={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",color:tr.color,flexShrink:0};
-                          const sep={fontSize:10,color:th.faint,flexShrink:0};
-                          return(
-                            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
-                              {/* N */}
-                              <span style={lbl}>N</span>
-                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
-                              <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕ to change" style={val}>{p.N}</span>
-                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
-                              <span style={sep}>·</span>
-                              {/* HITS */}
-                              <span style={lbl}>HITS</span>
-                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
-                              <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕ to change" style={val}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
-                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
-                              <span style={sep}>·</span>
-                              {/* ROT */}
-                              <span style={lbl}>ROT</span>
-                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
-                              <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕ to change" style={val}>+{p.rot}</span>
-                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
-                            </div>
-                          );
-                        })()}
+                        {/* ── Body (unfolded) ── */}
+                        {!p.fold&&(<>
+                          <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
+                            <option value="">— Charger un template —</option>
+                            {EUCLID_REGIONS.map(r=>(
+                              <optgroup key={r} label={r}>
+                                {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
+                                  <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                          <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
+                            <span style={lbl0}>N</span>
+                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
+                            <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
+                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
+                            <span style={sep0}>·</span>
+                            <span style={lbl0}>HITS</span>
+                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
+                            <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
+                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
+                            <span style={sep0}>·</span>
+                            <span style={lbl0}>ROT</span>
+                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
+                            <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
+                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
+                          </div>
+                        </>)}
                       </div>
                     );
                   })}
+                  {/* ── Add track ── */}
+                  {inact.length>0&&(
+                    !showAdd
+                      ?<button onClick={()=>setShowAdd(true)} style={{padding:"7px",borderRadius:7,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>+ ADD TRACK</button>
+                      :<div style={{borderRadius:7,border:`1px dashed ${th.sBorder}`,padding:"7px 8px"}}>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
+                          {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(a=>[...a,t.id]);setShowAdd(false);}} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
+                        </div>
+                        <button onClick={()=>setShowAdd(false)} style={{fontSize:8,color:th.dim,background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit"}}>✕ annuler</button>
+                      </div>
+                  )}
                 </div>
 
                 {/* ── RIGHT: Concentric rings SVG ── */}
                 <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flex:1}}>
                   <svg width={380} height={380} style={{display:"block",overflow:"visible"}}>
-                    {/* Background circle */}
                     <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
-                    {/* Rings per track */}
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
                       const p=getP(tr.id);const N=p.N;
                       const curS=cStep>=0?cStep%N:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
+                      const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                       return(
-                        <g key={tr.id}>
-                          {/* Guide ring */}
+                        <g key={tr.id} opacity={aud?1:0.3}>
                           <circle cx={CX} cy={CY} r={R} fill="none" stroke={tr.color} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.25}/>
-                          {/* Playhead */}
                           {playing&&curS>=0&&<line x1={CX} y1={CY} x2={CX+R*Math.cos(headA)} y2={CY+R*Math.sin(headA)} stroke={tr.color} strokeWidth={1.5} strokeLinecap="round" opacity={0.7}/>}
-                          {/* Vertices */}
                           {Array.from({length:N},(_,i)=>{
                             const a=(2*Math.PI*i/N)-Math.PI/2;
                             const vx=CX+R*Math.cos(a),vy=CY+R*Math.sin(a);
-                            const on=(pat[tr.id]||[])[i]>0;const cur=i===curS;
-                            const rv=cur?dotR+2:dotR;
+                            const vel=(pat[tr.id]||[])[i]||0;const on=vel>0;const cur=i===curS;
+                            const rv=(cur?dotR+2:dotR)+(on?Math.round((vel/127)*2.5):0);
+                            const vOp=on?0.35+(vel/127)*0.65:0.45;
                             return(
-                              <g key={i}>
-                                {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"22":"11")}/>}
+                              <g key={i} onPointerDown={mkVelDrag(tr.id,i,vel)} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none"}}>
+                                {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"28":"11")}/>}
                                 <circle cx={vx} cy={vy} r={rv}
                                   fill={on?tr.color:(cur?tr.color+"33":th.stepOff)}
                                   stroke={on?tr.color:th.sBorder}
                                   strokeWidth={on?0:0.5}
-                                  opacity={on?1:0.5}/>
+                                  opacity={on?vOp:0.45}/>
+                                {on&&vel<100&&<circle cx={vx} cy={vy} r={rv*0.4} fill="#000" opacity={0.18}/>}
                                 {N<=20&&<text x={vx} y={vy+rv+8} textAnchor="middle" fontSize={5} fill={on?tr.color:th.faint} fontFamily="monospace" opacity={0.7}>{i+1}</text>}
                               </g>
                             );
                           })}
-                          {/* Ring label */}
-                          <text x={CX+R+12} y={CY-(ti*(R_OUT-R_IN)/(Math.max(atO.length-1,1)))*0+4} textAnchor="start" fontSize={8} fill={tr.color} fontFamily="monospace" fontWeight={700} opacity={0.9}>{tr.icon}</text>
+                          <text x={CX+R+11} y={CY+4} textAnchor="start" fontSize={8} fill={tr.color} fontFamily="monospace" fontWeight={700} opacity={0.9}>{tr.icon}</text>
                         </g>
                       );
                     })}
-                    {/* Center */}
                     <circle cx={CX} cy={CY} r={16} fill={th.surface} stroke={th.sBorder} strokeWidth={1}/>
                     <text x={CX} y={CY+4} textAnchor="middle" fontSize={9} fill={playing?"#30D158":th.faint} fontFamily="monospace" fontWeight={700}>{playing?"▶":"■"}</text>
                   </svg>
                   <div style={{fontSize:7,color:th.faint,letterSpacing:"0.08em",textAlign:"center"}}>
-                    {atO.length} piste{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits total · lecture indépendante par anneau
+                    {atO.length} piste{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits · clic = toggle · drag ↕ = vélocité
                   </div>
                 </div>
               </div>
