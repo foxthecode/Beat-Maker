@@ -1441,18 +1441,14 @@ export default function KickAndSnare(){
                     const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+r*Math.cos(toRad(sa));const y1=11+r*Math.sin(toRad(sa));const x2=11+r*Math.cos(toRad(ea));const y2=11+r*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                     return(
                       <div style={{flexShrink:0,width:188,display:"flex",flexDirection:"column",gap:2,justifyContent:"flex-start"}}>
-                        {/* Row 1: [icon+label] ←→ [M·S·CLR] */}
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
-                          <div style={{display:"flex",alignItems:"center",gap:3,minWidth:0}}>
-                            {DrumSVG(track.id,track.color,flash===track.id)}
-                            <span style={{fontSize:10,fontWeight:700,color:track.color,maxWidth:56,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
-                            <MidiTag id={track.id}/>
-                          </div>
-                          <div style={{display:"flex",gap:2,flexShrink:0}}>
-                            <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
-                            <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
-                            <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
-                          </div>
+                        {/* Row 1: icon · label · MidiTag · M · S · CLR */}
+                        <div style={{display:"flex",alignItems:"center",gap:3}}>
+                          {DrumSVG(track.id,track.color,flash===track.id)}
+                          <span style={{fontSize:10,fontWeight:700,color:track.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:60}}>{track.label}</span>
+                          <MidiTag id={track.id}/>
+                          <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
+                          <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
+                          <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
                         </div>
                         {/* Row 2: [VOL+PAN knobs] ←→ [16st·♪·×] */}
                         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
