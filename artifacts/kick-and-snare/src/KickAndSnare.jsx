@@ -10,6 +10,7 @@ const TIME_SIGS=[
   {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0],stepDiv:4},
   {label:"3/4",beats:3,steps:12,groups:[4,4,4],accents:[0],stepDiv:4},
   {label:"6/8",beats:2,steps:12,groups:[6,6],accents:[0],stepDiv:4,subDiv:2},
+  {label:"12/8",beats:4,steps:24,groups:[6,6,6,6],accents:[0],stepDiv:4,subDiv:2},
   {label:"5/4",beats:5,steps:20,groups:[4,4,4,4,4],accents:[0,3],stepDiv:4},
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4},
   {label:"5/8",beats:2,steps:10,groups:[6,4],groupOptions:[[6,4,"3+2"],[4,6,"2+3"]],accents:[0],stepDiv:4},
@@ -204,11 +205,9 @@ export default function KickAndSnare(){
   const [themeName,setThemeName]=useState("dark");
   const th=THEMES[themeName];
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
-  const [cBeats,setCBeats]=useState(4);const [cSub,setCSub]=useState(4);
-  const [useC,setUseC]=useState(false);const [grpIdx,setGrpIdx]=useState(0);
-  const bSig=useC?{label:`${cBeats}/${cSub===4?4:8}`,beats:cBeats,steps:cBeats*cSub,groups:Array(cBeats).fill(cSub)}:tSig;
-  const aGrp=(!useC&&tSig.groupOptions)?tSig.groupOptions[grpIdx]?.slice(0,-1)||tSig.groups:bSig.groups;
-  const sig={...bSig,groups:aGrp};const STEPS=sig.steps;
+  const [grpIdx,setGrpIdx]=useState(0);
+  const aGrp=tSig.groupOptions?tSig.groupOptions[grpIdx]?.slice(0,-1)||tSig.groups:tSig.groups;
+  const sig={...tSig,groups:aGrp};const STEPS=sig.steps;
   const gInfo=s=>{let a=0;for(let g=0;g<sig.groups.length;g++){if(s<a+sig.groups[g])return{gi:g,first:s===a,pos:s-a};a+=sig.groups[g];}return{gi:0,first:false,pos:0};};
 
   const [pBank,setPBank]=useState([mkE(16)]);const [cPat,setCPat]=useState(0);
@@ -224,7 +223,7 @@ export default function KickAndSnare(){
     setStProb(sp=>resizeArr(sp,100));
     setStRatch(sr=>resizeArr(sr,1));
   };
-  const chSig=s=>{setTSig(s);setUseC(false);setGrpIdx(0);resize(s.steps);};
+  const chSig=s=>{setTSig(s);setGrpIdx(0);resize(s.steps);};
 
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
@@ -721,16 +720,9 @@ export default function KickAndSnare(){
         {showTS&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
           <div style={{fontSize:9,fontWeight:700,color:"#30D158",marginBottom:8}}>TIME SIGNATURE</div>
           <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
-            {TIME_SIGS.map(s=>(<button key={s.label} onClick={()=>chSig(s)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${!useC&&tSig.label===s.label?"rgba(48,209,88,0.4)":th.sBorder}`,background:!useC&&tSig.label===s.label?"rgba(48,209,88,0.1)":"transparent",color:!useC&&tSig.label===s.label?"#30D158":th.dim,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{s.label}</button>))}
+            {TIME_SIGS.map(s=>(<button key={s.label} onClick={()=>chSig(s)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${tSig.label===s.label?"rgba(48,209,88,0.4)":th.sBorder}`,background:tSig.label===s.label?"rgba(48,209,88,0.1)":"transparent",color:tSig.label===s.label?"#30D158":th.dim,fontSize:12,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{s.label}</button>))}
           </div>
-          {!useC&&tSig.groupOptions&&(<div style={{marginBottom:8}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{fontSize:9,color:th.dim}}>CUSTOM:</span>
-            <input type="number" min={1} max={15} value={cBeats} onChange={e=>setCBeats(Math.max(1,Math.min(15,Number(e.target.value))))} style={{width:36,height:26,textAlign:"center",borderRadius:4,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:12,fontWeight:800,fontFamily:"inherit"}}/>
-            <span style={{color:th.dim}}>/</span>
-            {[2,4].map(s=>(<button key={s} onClick={()=>setCSub(s)} style={{padding:"4px 10px",borderRadius:4,border:`1px solid ${cSub===s&&useC?"rgba(48,209,88,0.4)":th.sBorder}`,background:cSub===s&&useC?"rgba(48,209,88,0.1)":"transparent",color:cSub===s?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{s===2?"8":"4"}</button>))}
-            <button onClick={()=>{setUseC(true);resize(cBeats*cSub);}} style={{padding:"4px 12px",borderRadius:4,border:"none",background:"rgba(48,209,88,0.15)",color:"#30D158",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>APPLY</button>
-          </div>
+          {tSig.groupOptions&&(<div style={{marginBottom:8}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
         </div>)}
 
         {/* ── Keyboard Shortcut Cheat Sheet ── */}
