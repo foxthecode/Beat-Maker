@@ -1102,10 +1102,9 @@ export default function KickAndSnare(){
                       :<div style={{borderRadius:7,border:`1px dashed ${th.sBorder}`,padding:"7px 8px"}}>
                         <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
                           {inact.map(t=>(<button key={t.id} onClick={()=>{
-                            const defN=STEPS;const defH=Math.max(1,Math.round(defN/4));
-                            const raw=euclidRhythm(defH,defN);const rotated=raw.map(v=>v?100:0);
-                            setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:defH,rot:0,tpl:"",fold:false}}));
-                            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=[...rotated];n[cPat]=cp;return n;});
+                            const defN=STEPS;
+                            setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:0,rot:0,tpl:"",fold:false}}));
+                            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=Array(defN).fill(0);n[cPat]=cp;return n;});
                             setAct(a=>[...a,t.id]);setShowAdd(false);
                           }} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                         </div>
