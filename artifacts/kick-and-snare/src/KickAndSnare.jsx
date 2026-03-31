@@ -107,12 +107,18 @@ function euclidRhythm(hits,steps){
 class Eng{
   constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};}
   init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
-    // Global FX chain: mg → drive → comp → filter → out
-    this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample="2x";this.gDrv.curve=this._cv(0);
-    this.gCmp=this.ctx.createDynamicsCompressor();this.gCmp.threshold.value=0;this.gCmp.ratio.value=1;this.gCmp.attack.value=0.003;this.gCmp.release.value=0.15;
+    // Global FX chain: mg → drive → comp → makeup → filter(×2 24dB/oct) → out
+    this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample="4x";this.gDrv.curve=this._cv(0);
+    this.gCmp=this.ctx.createDynamicsCompressor();
+    this.gCmp.threshold.value=0;this.gCmp.ratio.value=1;
+    this.gCmp.knee.value=6;           // 6dB knee: punchy, not too hard
+    this.gCmp.attack.value=0.005;     // 5ms attack: lets transients through
+    this.gCmp.release.value=0.08;     // 80ms release: fast enough for drums
+    this.gCmpMakeup=this.ctx.createGain();this.gCmpMakeup.gain.value=1; // auto makeup
     this.gFlt=this.ctx.createBiquadFilter();this.gFlt.type="lowpass";this.gFlt.frequency.value=20000;
+    this.gFlt2=this.ctx.createBiquadFilter();this.gFlt2.type="lowpass";this.gFlt2.frequency.value=20000; // 2nd pole → 24dB/oct
     this.gOut=this.ctx.createGain();this.gOut.gain.value=1;
-    this.mg.connect(this.gDrv);this.gDrv.connect(this.gCmp);this.gCmp.connect(this.gFlt);this.gFlt.connect(this.gOut);this.gOut.connect(this.ctx.destination);
+    this.mg.connect(this.gDrv);this.gDrv.connect(this.gCmp);this.gCmp.connect(this.gCmpMakeup);this.gCmpMakeup.connect(this.gFlt);this.gFlt.connect(this.gFlt2);this.gFlt2.connect(this.gOut);this.gOut.connect(this.ctx.destination);
     // Global reverb bus
     this.gRvBus=this.ctx.createGain();this.gRvConv=this.ctx.createConvolver();
     this.gRvBus.connect(this.gRvConv);this.gRvConv.connect(this.gOut);
@@ -183,11 +189,18 @@ class Eng{
   uGfx(gfx){
     if(!this.ctx||!this.gDrv)return;const t=this.ctx.currentTime;
     this.gDrv.curve=gfx.drive.on?this._cv(gfx.drive.amt/100):this._cv(0);
-    this.gCmp.threshold.setTargetAtTime(gfx.comp.on?(gfx.comp.thr??-12):0,t,0.02);
-    this.gCmp.ratio.setTargetAtTime(gfx.comp.on?Math.max(1,gfx.comp.ratio??4):1,t,0.02);
-    this.gFlt.type=gfx.filter.on?(gfx.filter.type||"lowpass"):"lowpass";
-    this.gFlt.frequency.setTargetAtTime(gfx.filter.on?Math.max(20,gfx.filter.cut||18000):20000,t,0.02);
-    this.gFlt.Q.setTargetAtTime(gfx.filter.on?(gfx.filter.res||0):0,t,0.02);
+    // Comp + auto makeup gain
+    const cThr=gfx.comp.on?(gfx.comp.thr??-12):0;
+    const cRatio=gfx.comp.on?Math.max(1,gfx.comp.ratio??4):1;
+    this.gCmp.threshold.setTargetAtTime(cThr,t,0.02);
+    this.gCmp.ratio.setTargetAtTime(cRatio,t,0.02);
+    if(this.gCmpMakeup){const mkDb=gfx.comp.on?Math.max(0,-cThr*(1-1/cRatio)*0.5):0;this.gCmpMakeup.gain.setTargetAtTime(Math.min(6,Math.pow(10,mkDb/20)),t,0.05);}
+    // 2-stage filter: both poles track same freq/Q for 24dB/oct slope
+    const fType=gfx.filter.on?(gfx.filter.type||"lowpass"):"lowpass";
+    const fCut=gfx.filter.on?Math.max(20,gfx.filter.cut||18000):20000;
+    const fQ=gfx.filter.on?(gfx.filter.res||0):0;
+    this.gFlt.type=fType;this.gFlt.frequency.setTargetAtTime(fCut,t,0.02);this.gFlt.Q.setTargetAtTime(fQ,t,0.02);
+    if(this.gFlt2){this.gFlt2.type=fType;this.gFlt2.frequency.setTargetAtTime(fCut,t,0.02);this.gFlt2.Q.setTargetAtTime(fQ,t,0.02);}
     if(this.gDl)this.gDl.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay.time||0.25),t,0.02);
     if(this.gDlFb)this.gDlFb.gain.setTargetAtTime((gfx.delay.fdbk||35)/100,t,0.02);
     if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay.on?4500:20000,t,0.05);
@@ -200,7 +213,21 @@ class Eng{
       if(c.dry)c.dry.gain.setTargetAtTime(rvOn&&dlOn?0.3:rvOn||dlOn?0.6:1,t,0.02);
     });
   }
-  _cv(d){const k=Math.round(d*100);if(this._c[k])return this._c[k];const n=8192,a=new Float32Array(n),v=d*5;for(let i=0;i<n;i++){const x=i*2/n-1;a[i]=v===0?x:((1+v)*x)/(1+v*Math.abs(x));}this._c[k]=a;return a;}
+  _cv(d){
+    const k=Math.round(d*100);if(this._c[k])return this._c[k];
+    const n=8192,a=new Float32Array(n);
+    if(d===0){for(let i=0;i<n;i++)a[i]=i*2/n-1;}
+    else{
+      const v=d*6; // drive gain 0..6
+      const norm=Math.tanh(1+v); // normalizer so full-scale in = full-scale out
+      for(let i=0;i<n;i++){
+        const x=i*2/n-1;
+        const sat=Math.tanh(x*(1+v))/norm; // tanh saturation (tube odd harmonics)
+        a[i]=sat-0.05*sat*sat; // slight asymmetry → 2nd harmonic warmth
+      }
+    }
+    this._c[k]=a;return a;
+  }
   uFx(id,f){
     const c=this.ch[id];if(!c||!this.ctx)return;const t=this.ctx.currentTime;
     c.vol.gain.setTargetAtTime((f?.vol??80)/100,t,0.02);
@@ -358,71 +385,90 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
         ))}
       </div>
       {open&&(
-        <div style={{padding:"8px 14px 14px",display:"flex",gap:0,alignItems:"flex-start",overflowX:"auto"}}>
-          {/* REVERB */}
-          <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
-            <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec("reverb","on",!gfx.reverb.on)}/>
-            <div style={{display:"flex",gap:8,opacity:gfx.reverb.on?1:0.3,pointerEvents:gfx.reverb.on?"auto":"none"}}>
-              <Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/>
-              <Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/>
-            </div>
-            <SendRow sec="reverb" color="#64D2FF"/>
-          </div>
-          <Sep/>
-          {/* DELAY */}
-          <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-              <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec("delay","on",!gfx.delay.on)}/>
-              <button onClick={()=>{const ns=!gfx.delay.sync;const t=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx(p=>({...p,delay:{...p.delay,sync:ns,time:t}}));}} style={{marginLeft:"auto",padding:"1px 6px",borderRadius:3,border:`1px solid ${gfx.delay.sync?"#30D158":"rgba(48,209,88,0.3)"}`,background:gfx.delay.sync?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.sync?"#30D158":"rgba(48,209,88,0.5)",fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>SYNC</button>
-            </div>
-            <div style={{display:"flex",gap:8,opacity:gfx.delay.on?1:0.3,pointerEvents:gfx.delay.on?"auto":"none"}}>
-              {gfx.delay.sync?(
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:4}}>
-                    {["1/1","1/2","1/4","1/8","1/16","1/4.","1/8.","1/4t","1/8t"].map(d=>(
-                      <button key={d} onClick={()=>setGfx(p=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))} style={{padding:"2px 4px",borderRadius:3,border:`1px solid ${gfx.delay.syncDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,background:gfx.delay.syncDiv===d?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.syncDiv===d?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{d}</button>
-                    ))}
-                  </div>
-                  <div style={{fontSize:7,color:"#30D158",fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
+        <div style={{padding:"8px 14px 14px",display:"flex",gap:10,alignItems:"flex-start",overflowX:"auto"}}>
+
+          {/* ── SEND FX column ── */}
+          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+            <span style={{fontSize:6,fontWeight:800,color:"rgba(100,210,255,0.5)",letterSpacing:"0.12em",paddingLeft:2,textTransform:"uppercase"}}>Send FX</span>
+            <div style={{display:"flex",gap:0,alignItems:"flex-start",borderRadius:7,border:"1px solid rgba(100,210,255,0.12)",padding:"6px 6px 8px",background:"rgba(100,210,255,0.03)"}}>
+              {/* REVERB */}
+              <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
+                <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec("reverb","on",!gfx.reverb.on)}/>
+                <div style={{display:"flex",gap:8,opacity:gfx.reverb.on?1:0.3,pointerEvents:gfx.reverb.on?"auto":"none"}}>
+                  <Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/>
+                  <Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/>
                 </div>
-              ):(
-                <Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/>
-              )}
-              <Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/>
-            </div>
-            <SendRow sec="delay" color="#30D158"/>
-          </div>
-          <Sep/>
-          {/* FILTER */}
-          <div style={{minWidth:100,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-            <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec("filter","on",!gfx.filter.on)}/>
-            <div style={{display:"flex",gap:3,marginBottom:6}}>
-              {["lowpass","highpass","bandpass"].map(ft=>(
-                <button key={ft} onClick={()=>upSec("filter","type",ft)} style={{flex:1,padding:"2px 0",borderRadius:3,border:`1px solid ${gfx.filter.type===ft?"#FF9500":"transparent"}`,background:gfx.filter.type===ft?"rgba(255,149,0,0.1)":"transparent",color:gfx.filter.type===ft?"#FF9500":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{ft==="lowpass"?"LP":ft==="highpass"?"HP":"BP"}</button>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:8,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?"auto":"none"}}>
-              <Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/>
-              <Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/>
-            </div>
-          </div>
-          <Sep/>
-          {/* COMP */}
-          <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-            <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec("comp","on",!gfx.comp.on)}/>
-            <div style={{display:"flex",gap:8,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?"auto":"none"}}>
-              <Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={v=>Math.round(v)} onChange={v=>upSec("comp","thr",v)}/>
-              <Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/>
+                <SendRow sec="reverb" color="#64D2FF"/>
+              </div>
+              <Sep/>
+              {/* DELAY */}
+              <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                  <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec("delay","on",!gfx.delay.on)}/>
+                  <button onClick={()=>{const ns=!gfx.delay.sync;const t=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx(p=>({...p,delay:{...p.delay,sync:ns,time:t}}));}} style={{marginLeft:"auto",padding:"1px 6px",borderRadius:3,border:`1px solid ${gfx.delay.sync?"#30D158":"rgba(48,209,88,0.3)"}`,background:gfx.delay.sync?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.sync?"#30D158":"rgba(48,209,88,0.5)",fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>SYNC</button>
+                </div>
+                <div style={{display:"flex",gap:8,opacity:gfx.delay.on?1:0.3,pointerEvents:gfx.delay.on?"auto":"none"}}>
+                  {gfx.delay.sync?(
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:4}}>
+                        {["1/1","1/2","1/4","1/8","1/16","1/4.","1/8.","1/4t","1/8t"].map(d=>(
+                          <button key={d} onClick={()=>setGfx(p=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))} style={{padding:"2px 4px",borderRadius:3,border:`1px solid ${gfx.delay.syncDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,background:gfx.delay.syncDiv===d?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.syncDiv===d?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{d}</button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:7,color:"#30D158",fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
+                    </div>
+                  ):(
+                    <Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/>
+                  )}
+                  <Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/>
+                </div>
+                <SendRow sec="delay" color="#30D158"/>
+              </div>
             </div>
           </div>
-          <Sep/>
-          {/* DRIVE */}
-          <div style={{minWidth:65,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-            <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec("drive","on",!gfx.drive.on)}/>
-            <div style={{display:"flex",opacity:gfx.drive.on?1:0.3,pointerEvents:gfx.drive.on?"auto":"none"}}>
-              <Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/>
+
+          {/* ── section gap ── */}
+          <div style={{width:1,alignSelf:"stretch",background:"linear-gradient(to bottom,transparent,rgba(255,255,255,0.08),transparent)",flexShrink:0,margin:"4px 0"}}/>
+
+          {/* ── MASTER BUS column ── */}
+          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+            <span style={{fontSize:6,fontWeight:800,color:"rgba(255,149,0,0.5)",letterSpacing:"0.12em",paddingLeft:2,textTransform:"uppercase"}}>Master Bus</span>
+            <div style={{display:"flex",gap:0,alignItems:"flex-start",borderRadius:7,border:"1px solid rgba(255,149,0,0.12)",padding:"6px 6px 8px",background:"rgba(255,149,0,0.03)"}}>
+              {/* FILTER */}
+              <div style={{minWidth:100,flexShrink:0,paddingRight:6}}>
+                <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec("filter","on",!gfx.filter.on)}/>
+                <div style={{display:"flex",gap:3,marginBottom:6}}>
+                  {["lowpass","highpass","bandpass"].map(ft=>(
+                    <button key={ft} onClick={()=>upSec("filter","type",ft)} style={{flex:1,padding:"2px 0",borderRadius:3,border:`1px solid ${gfx.filter.type===ft?"#FF9500":"transparent"}`,background:gfx.filter.type===ft?"rgba(255,149,0,0.1)":"transparent",color:gfx.filter.type===ft?"#FF9500":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{ft==="lowpass"?"LP":ft==="highpass"?"HP":"BP"}</button>
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:8,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?"auto":"none"}}>
+                  <Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/>
+                  <Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/>
+                </div>
+              </div>
+              <Sep/>
+              {/* COMP */}
+              <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec("comp","on",!gfx.comp.on)}/>
+                <div style={{display:"flex",gap:8,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?"auto":"none"}}>
+                  <Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={v=>Math.round(v)} onChange={v=>upSec("comp","thr",v)}/>
+                  <Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/>
+                </div>
+                <div style={{fontSize:6,color:"rgba(94,92,230,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>auto makeup</div>
+              </div>
+              <Sep/>
+              {/* DRIVE */}
+              <div style={{minWidth:65,flexShrink:0,paddingLeft:6}}>
+                <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec("drive","on",!gfx.drive.on)}/>
+                <div style={{display:"flex",opacity:gfx.drive.on?1:0.3,pointerEvents:gfx.drive.on?"auto":"none"}}>
+                  <Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/>
+                </div>
+                <div style={{fontSize:6,color:"rgba(255,107,53,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>tanh sat</div>
+              </div>
             </div>
           </div>
+
         </div>
       )}
     </div>
