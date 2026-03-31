@@ -685,7 +685,12 @@ export default function KickAndSnare(){
           })()}
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            {["sequencer","pads","euclid"].map(v=>(<button key={v} onClick={()=>setView(v)} style={pill(view===v,v==="pads"?"#5E5CE6":v==="euclid"?"#FFD60A":"#FF2D55")}>{v==="euclid"?"⬡ EUCLID":v}</button>))}
+            <button onClick={()=>setView("pads")} style={pill(view==="pads","#5E5CE6")}>PADS</button>
+            {/* ── SEQUENCER + EUCLID grouped block ── */}
+            <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s"}}>
+              <button onClick={()=>setView("sequencer")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
+              <button onClick={()=>setView("euclid")} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
+            </div>
           </div>
         </div>
 
