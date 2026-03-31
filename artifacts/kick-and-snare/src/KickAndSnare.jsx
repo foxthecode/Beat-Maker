@@ -945,13 +945,13 @@ export default function KickAndSnare(){
                       {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                     </div>
                     <button title={`${tSteps} steps → ${nextTs}`} onClick={()=>{
-                      setPBank(pb=>{
-                        const n=[...pb];
-                        const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};
-                        const cur=cp[track.id]||Array(tSteps).fill(0);
-                        cp[track.id]=nextTs>cur.length?[...cur,...Array(nextTs-cur.length).fill(0)]:cur;
-                        n[cPat]=cp;return n;
-                      });
+                      const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};
+                      const remapObj=(obj,from,to)=>{const r={};Object.entries(obj||{}).forEach(([k,v])=>{const d=Math.min(to-1,Math.round(Number(k)*to/from));r[d]=v;});return r;};
+                      setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});
+                      setStVel(sv=>({...sv,[track.id]:remapObj(sv[track.id],tSteps,nextTs)}));
+                      setStNudge(sn=>({...sn,[track.id]:remapObj(sn[track.id],tSteps,nextTs)}));
+                      setStProb(sp=>({...sp,[track.id]:remapObj(sp[track.id],tSteps,nextTs)}));
+                      setStRatch(sr=>({...sr,[track.id]:remapObj(sr[track.id],tSteps,nextTs)}));
                     }} style={{height:16,border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",padding:"0 3px"}}>{tSteps}st</button>
                   </div>
                 </div>
