@@ -1262,8 +1262,8 @@ export default function KickAndSnare(){
           {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
           <button onClick={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}} style={pill(false,"#FF2D55")} title="Clear all hits">✕ CLEAR</button>
           <button onClick={()=>setShowK(!showK)} style={{...pill(showK,"#FFD60A"),display:"flex",alignItems:"center",gap:4}}>
-            <span style={{fontSize:22,lineHeight:1}}>⌨</span>
-            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>Keyb</span>
+            <span style={{fontSize:11,lineHeight:1}}>⌨</span>
+            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>KEYB</span>
           </button>
           <button onClick={async()=>{
             if(!midiNotes){const ok=await initMidi();if(!ok)return;setMidiNotes(true);}
