@@ -116,10 +116,11 @@ class Eng{
     // Global reverb bus
     this.gRvBus=this.ctx.createGain();this.gRvConv=this.ctx.createConvolver();
     this.gRvBus.connect(this.gRvConv);this.gRvConv.connect(this.gOut);
-    // Global delay bus
+    // Global delay bus (LP filter in feedback for natural echo darkening)
     this.gDlBus=this.ctx.createGain();this.gDl=this.ctx.createDelay(2);this.gDl.delayTime.value=0.25;
     this.gDlFb=this.ctx.createGain();this.gDlFb.gain.value=0.35;
-    this.gDlBus.connect(this.gDl);this.gDl.connect(this.gDlFb);this.gDlFb.connect(this.gDl);this.gDl.connect(this.gOut);
+    this.gDlLpf=this.ctx.createBiquadFilter();this.gDlLpf.type="lowpass";this.gDlLpf.frequency.value=4500;
+    this.gDlBus.connect(this.gDl);this.gDl.connect(this.gDlFb);this.gDlFb.connect(this.gDlLpf);this.gDlLpf.connect(this.gDl);this.gDl.connect(this.gOut);
     this._mkRv();TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();}
   async _loadDefaults(){
     // Pre-render all 808 sounds into AudioBuffers for playback-quality output
@@ -133,19 +134,38 @@ class Eng{
       }catch(e){console.warn("808 prerender failed:",id,e);}
     }
   }
-  _mkRv(decay){
-    const d=decay||2;const sr=this.ctx.sampleRate;const l=Math.ceil(sr*Math.min(5,d));
+  _mkRv(decay,size){
+    const d=Math.max(0.1,decay||2);const s=Math.max(0,Math.min(1,size??0.5));
+    const sr=this.ctx.sampleRate;
+    const pre=0.005+s*0.035; // pre-delay 5ms→40ms (room size)
+    const l=Math.ceil(sr*(Math.min(6,d)+pre));
     const b=this.ctx.createBuffer(2,l,sr);
-    const erTaps=[0.012,0.019,0.028,0.037,0.042,0.053,0.067];
-    const erGains=[0.7,0.5,0.6,0.35,0.4,0.3,0.25];
+    const erMults=[1,1.6,2.3,3.1,4.0,5.2,6.5];
+    const erGains=[0.72,0.58,0.52,0.42,0.36,0.28,0.21];
     for(let ch=0;ch<2;ch++){
       const data=b.getChannelData(ch);
-      for(let t=0;t<erTaps.length;t++){const idx=Math.floor(erTaps[t]*sr*(ch===1?1.05:1));if(idx<l)data[idx]+=(erGains[t]*(0.8+Math.random()*0.4))*(ch===0?1:0.9);}
-      for(let i=Math.floor(sr*0.08);i<l;i++){const t=i/sr;const env=Math.exp(-t*3/d);const lpf=Math.exp(-t*1.5/d);const noise=Math.random()*2-1;const raw=noise*env;data[i]+=(raw*lpf*0.5+(i>0?data[i-1]*0.3:0));}
+      const chOff=ch===1?(1+s*0.12):1; // stereo spread with size
+      for(let t=0;t<erMults.length;t++){
+        const idx=Math.floor(pre*erMults[t]*chOff*sr);
+        if(idx<l)data[idx]+=erGains[t]*(0.75+Math.random()*0.5);
+      }
+      const tailStart=Math.floor(pre*sr);
+      const density=0.25+s*0.55;  // bigger=denser tail
+      const hfRate=3-s*1.5;       // bigger=slower HF loss (brighter)
+      let sm1=0,sm2=0;
+      for(let i=tailStart;i<l;i++){
+        const tt=(i-tailStart)/sr;
+        const env=Math.exp(-tt*3/d);
+        const hf=Math.exp(-tt*hfRate/d);
+        const noise=Math.random()*2-1;
+        sm1=sm1*0.45+noise*env*hf*density*0.55;
+        sm2=sm2*0.30+sm1*0.70; // 2-pole LP for smooth tail
+        data[i]+=sm2;
+      }
     }
     this.rv=b;
   }
-  updateReverb(decay){this._mkRv(decay);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}};}
+  updateReverb(decay,size){this._mkRv(decay,size);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}};}
   _build(id){
     const c={};
     c.in=this.ctx.createGain();
@@ -168,8 +188,9 @@ class Eng{
     this.gFlt.type=gfx.filter.on?(gfx.filter.type||"lowpass"):"lowpass";
     this.gFlt.frequency.setTargetAtTime(gfx.filter.on?Math.max(20,gfx.filter.cut||18000):20000,t,0.02);
     this.gFlt.Q.setTargetAtTime(gfx.filter.on?(gfx.filter.res||0):0,t,0.02);
-    if(this.gDl)this.gDl.delayTime.setTargetAtTime(gfx.delay.time||0.25,t,0.02);
+    if(this.gDl)this.gDl.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay.time||0.25),t,0.02);
     if(this.gDlFb)this.gDlFb.gain.setTargetAtTime((gfx.delay.fdbk||35)/100,t,0.02);
+    if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay.on?4500:20000,t,0.05);
     Object.keys(this.ch).forEach(id=>{
       const c=this.ch[id];if(!c)return;
       const rvOn=gfx.reverb.on&&!!gfx.reverb.sends[id];
@@ -260,7 +281,10 @@ class Eng{
 const engine=new Eng();
 
 // ═══ Global FX Rack ═══
-function FXRack({gfx,setGfx,tracks,themeName="dark"}){
+const SYNC_DIVS=[{l:"1/1",b:4},{l:"1/2",b:2},{l:"1/4",b:1},{l:"1/8",b:0.5},{l:"1/16",b:0.25},{l:"1/4.",b:1.5},{l:"1/8.",b:0.75},{l:"1/4t",b:2/3},{l:"1/8t",b:1/3}];
+const syncDivTime=(div,bpmV)=>{const d=SYNC_DIVS.find(x=>x.l===div)||SYNC_DIVS[2];return Math.min(1.9,d.b*(60/Math.max(30,bpmV)));};
+
+function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
   const th=THEMES[themeName]||THEMES.dark;
   const [open,setOpen]=useState(true);
   const upSec=(sec,k,v)=>setGfx(p=>({...p,[sec]:{...p[sec],[k]:v}}));
@@ -339,17 +363,31 @@ function FXRack({gfx,setGfx,tracks,themeName="dark"}){
           <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
             <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec("reverb","on",!gfx.reverb.on)}/>
             <div style={{display:"flex",gap:8,opacity:gfx.reverb.on?1:0.3,pointerEvents:gfx.reverb.on?"auto":"none"}}>
-              <Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v);}}/>
-              <Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>upSec("reverb","size",v)}/>
+              <Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/>
+              <Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/>
             </div>
             <SendRow sec="reverb" color="#64D2FF"/>
           </div>
           <Sep/>
           {/* DELAY */}
-          <div style={{minWidth:110,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-            <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec("delay","on",!gfx.delay.on)}/>
+          <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+              <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec("delay","on",!gfx.delay.on)}/>
+              <button onClick={()=>{const ns=!gfx.delay.sync;const t=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx(p=>({...p,delay:{...p.delay,sync:ns,time:t}}));}} style={{marginLeft:"auto",padding:"1px 6px",borderRadius:3,border:`1px solid ${gfx.delay.sync?"#30D158":"rgba(48,209,88,0.3)"}`,background:gfx.delay.sync?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.sync?"#30D158":"rgba(48,209,88,0.5)",fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>SYNC</button>
+            </div>
             <div style={{display:"flex",gap:8,opacity:gfx.delay.on?1:0.3,pointerEvents:gfx.delay.on?"auto":"none"}}>
-              <Knob label="TIME" value={gfx.delay.time} min={0.05} max={1} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/>
+              {gfx.delay.sync?(
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:4}}>
+                    {["1/1","1/2","1/4","1/8","1/16","1/4.","1/8.","1/4t","1/8t"].map(d=>(
+                      <button key={d} onClick={()=>setGfx(p=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))} style={{padding:"2px 4px",borderRadius:3,border:`1px solid ${gfx.delay.syncDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,background:gfx.delay.syncDiv===d?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.syncDiv===d?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{d}</button>
+                    ))}
+                  </div>
+                  <div style={{fontSize:7,color:"#30D158",fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
+                </div>
+              ):(
+                <Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/>
+              )}
               <Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/>
             </div>
             <SendRow sec="delay" color="#30D158"/>
@@ -424,8 +462,12 @@ export default function KickAndSnare(){
   const [euclidParams,setEuclidParams]=useState({});
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
-  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{}},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}});
+  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}});
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
+  // BPM sync for delay
+  useEffect(()=>{
+    if(gfx.delay.sync){const t=syncDivTime(gfx.delay.syncDiv,bpm);setGfx(p=>({...p,delay:{...p.delay,time:t}}));}
+  },[bpm,gfx.delay.sync,gfx.delay.syncDiv]);
   const [stNudge,setStNudge]=useState(mkN(16));
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
@@ -1278,7 +1320,7 @@ export default function KickAndSnare(){
         </div>)}
 
         {/* ── Global FX Rack ── */}
-        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName}/>
+        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm}/>
 
         {/* ── Pattern Bank ── */}
         {view!=="pads"&&<div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8,padding:"5px 10px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
