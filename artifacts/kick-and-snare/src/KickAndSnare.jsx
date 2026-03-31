@@ -1598,34 +1598,8 @@ export default function KickAndSnare(){
           const lbl0={fontSize:6.5,color:th.dim,fontWeight:700,letterSpacing:"0.07em",flexShrink:0};
           const val0={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",flexShrink:0};
           const sep0={fontSize:10,color:th.faint,flexShrink:0};
-          // ── 4-beat metronome indicator ──
-          const curBeat=playing&&cStep>=0?Math.floor(cStep/4)%4:-1;
           return(
             <div style={{padding:"8px 0",overflowX:"auto"}}>
-              {/* ── Metro 4/4 strip ── */}
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,padding:"8px 12px",borderRadius:8,background:th.surface,border:`1px solid ${metro&&playing?"rgba(255,149,0,0.35)":th.sBorder}`}}>
-                <span style={{fontSize:7,fontWeight:800,letterSpacing:"0.1em",color:metro?th.text:th.faint}}>METRO</span>
-                {/* 4 beat dots */}
-                {[0,1,2,3].map(b=>{
-                  const active=curBeat===b;
-                  return(<div key={b} style={{width:26,height:26,borderRadius:"50%",border:`2px solid ${active?"#FF9500":metro?"rgba(255,149,0,0.25)":"rgba(255,149,0,0.1)"}`,background:active?"rgba(255,149,0,0.3)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.05s, border-color 0.05s",boxShadow:active?"0 0 10px rgba(255,149,0,0.55)":"none"}}>
-                    <span style={{fontSize:8,fontWeight:800,color:active?"#FF9500":metro?"rgba(255,149,0,0.4)":"rgba(255,149,0,0.2)"}}>{b+1}</span>
-                  </div>);
-                })}
-                <span style={{fontSize:9,color:th.faint,marginLeft:2}}>4/4</span>
-                {/* Volume slider */}
-                <div style={{display:"flex",alignItems:"center",gap:5,marginLeft:"auto"}}>
-                  <span style={{fontSize:7,fontWeight:700,color:metro?th.dim:th.faint,letterSpacing:"0.08em"}}>VOL</span>
-                  <div style={{width:80,position:"relative",height:20,cursor:"ew-resize",userSelect:"none",touchAction:"none"}}
-                    onPointerDown={e=>{e.preventDefault();const ref=e.currentTarget;ref.setPointerCapture(e.pointerId);const go=cx=>{const r=ref.getBoundingClientRect();setMetroVol(Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=pe=>{pe.preventDefault();go(pe.clientX);};const up=()=>{ref.removeEventListener("pointermove",mv);};ref.addEventListener("pointermove",mv);ref.addEventListener("pointerup",up,{once:true});ref.addEventListener("pointercancel",up,{once:true});}}>
-                    <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
-                      <div style={{height:"100%",width:`${metroVol}%`,background:metro?"#FF9500":"rgba(255,149,0,0.3)",borderRadius:2}}/>
-                    </div>
-                    <div style={{position:"absolute",top:"50%",left:`${metroVol}%`,width:9,height:9,borderRadius:"50%",background:metro?"#FF9500":"rgba(255,149,0,0.4)",transform:"translate(-50%,-50%)",boxShadow:metro?"0 0 0 2px rgba(255,149,0,0.3)":"none",pointerEvents:"none"}}/>
-                  </div>
-                  <span style={{fontSize:7,color:metro?th.dim:th.faint,minWidth:22,textAlign:"right"}}>{metroVol}%</span>
-                </div>
-              </div>
               <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:720}}>
                 {/* ── LEFT: Track controls ── */}
                 <div style={{display:"flex",flexDirection:"column",gap:6,width:310,flexShrink:0}}>
