@@ -30,7 +30,7 @@ const TRACKS=ALL_TRACKS;
 // Mini SVG drum illustrations per track
 const DrumSVG=(id,color,hit=false,sz=22)=>{
   const c=hit?"#FF2D55":color;const sw=hit?1.8:1.2;const bg=hit?color+"22":"none";
-  const s={display:"block",overflow:"visible",flexShrink:0,transition:"opacity 0.05s"};
+  const s={display:"block",overflow:"visible",flexShrink:0,transition:"opacity 0.05s",pointerEvents:"none"};
   if(id==="kick")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><ellipse cx="11" cy="15" rx="9" ry="6" fill={bg} stroke={c} strokeWidth={sw}/><ellipse cx="11" cy="15" rx="4.5" ry="2.8" fill="none" stroke={c} strokeWidth="0.5" opacity="0.45"/><line x1="2" y1="21" x2="2" y2="15" stroke={c} strokeWidth="1.1"/><line x1="20" y1="21" x2="20" y2="15" stroke={c} strokeWidth="1.1"/></svg>);
   if(id==="snare")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><rect x="2" y="8" width="18" height="8" rx="2.5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="5.5" y1="9" x2="5.5" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="9" y1="9" x2="9" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="13" y1="9" x2="13" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="16.5" y1="9" x2="16.5" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/></svg>);
   if(id==="hihat")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="8" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="8" rx="9" ry="2.5" fill={bg} stroke={c} strokeWidth={sw}/><ellipse cx="11" cy={hit?"6":"6.5"} rx="9" ry="2.5" fill="none" stroke={c} strokeWidth="0.8" opacity="0.65"/></svg>);
