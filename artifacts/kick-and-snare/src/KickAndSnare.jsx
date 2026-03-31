@@ -142,7 +142,7 @@ class Eng{
     c.drv.curve=f.onDrive?this._cv((f.drive||0)/100):this._cv(0);
     c.cmp.threshold.setTargetAtTime(f.onComp?(f.cThr||-24):0,t,0.02);
     c.cmp.ratio.setTargetAtTime(f.onComp?Math.max(1,f.cRat||1):1,t,0.02);
-    c.vol.gain.setTargetAtTime((f.vol||80)/100,t,0.02);
+    c.vol.gain.setTargetAtTime((f?.vol ?? 80)/100,t,0.02);
     if(c.pan.pan)c.pan.pan.setTargetAtTime((f.pan||0)/100,t,0.02);
     const wv=f.onReverb?(f.rMix||0)/100:0;const wd=f.onDelay?(f.dMix||0)/100:0;
     c.dry.gain.setTargetAtTime(Math.max(0.1,1-wv*0.5-wd*0.5),t,0.02);
@@ -672,7 +672,7 @@ export default function KickAndSnare(){
   return(
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
-      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-25deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(25deg)}}`}</style>
+      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}}`}</style>
       <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px"}}>
 
         {/* ── Header ── */}
@@ -742,12 +742,12 @@ export default function KickAndSnare(){
                     <line x1="55" y1="49" x2="60" y2="48" stroke={hK?hi:ac} strokeWidth={hK?2.5:2} strokeLinecap="round"/>
                   </g>
                   <path d="M44,18 Q43,28 44,36" fill="none" stroke={ac} strokeWidth="2.2" strokeLinecap="round"/>
-                  <g style={{transform:`rotate(${lHit?lA:playing?0:5}deg)`,transformOrigin:"38px 20px",transition:"transform 0.05s ease-out",animation:playing&&!lHit?"marm-l 0.45s ease-in-out infinite alternate":"none",transformBox:"fill-box"}}>
+                  <g style={{transformOrigin:"44px 20px",animation:lHit?"none":"marm-l 0.8s ease-in-out infinite alternate",transform:lHit?`rotate(${lA}deg)`:"",transition:lHit?"transform 0.04s ease-out":"none"}}>
                     <path d="M44,20 Q38,24 30,28" fill="none" stroke={lHit?hi:ac} strokeWidth={lHit?2.5:2} strokeLinecap="round"/>
                     <line x1="30" y1="28" x2="19" y2="22" stroke={lHit?hi:ac} strokeWidth={lHit?2.2:1.5} strokeLinecap="round"/>
                     {lHit&&<circle cx="19" cy="22" r="2" fill={hi} opacity="0.6"/>}
                   </g>
-                  <g style={{transform:`rotate(${rHit?-rA:playing?0:-5}deg)`,transformOrigin:"50px 20px",transition:"transform 0.05s ease-out",animation:playing&&!rHit?"marm-r 0.45s ease-in-out infinite alternate":"none",transformBox:"fill-box"}}>
+                  <g style={{transformOrigin:"44px 20px",animation:rHit?"none":"marm-r 0.8s ease-in-out infinite alternate",transform:rHit?`rotate(${-rA}deg)`:"",transition:rHit?"transform 0.04s ease-out":"none"}}>
                     <path d="M44,20 Q50,24 58,28" fill="none" stroke={rHit?hi:ac} strokeWidth={rHit?2.5:2} strokeLinecap="round"/>
                     <line x1="58" y1="28" x2="69" y2="22" stroke={rHit?hi:ac} strokeWidth={rHit?2.2:1.5} strokeLinecap="round"/>
                     {rHit&&<circle cx="69" cy="22" r="2" fill={hi} opacity="0.6"/>}
@@ -1008,17 +1008,22 @@ export default function KickAndSnare(){
                           <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
                           <button onClick={()=>setPat(p=>({...p,[track.id]:Array(tSteps).fill(0)}))} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
                         </div>
-                        {/* R1C3: VOL slider — big touch zone */}
-                        <div style={{display:"flex",alignItems:"center",gap:2}}>
-                          <span style={slLbl}>VOL</span>
-                          <div style={{flex:1,position:"relative",height:18,minWidth:0}} title={`VOL ${vol}`}>
-                            <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
-                              <div style={{height:"100%",width:`${vol}%`,background:track.color,borderRadius:2}}/>
+                        {/* R1C3: VOL slider — custom drag */}
+                        {(()=>{
+                          const onMD=e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=ev=>{ev.preventDefault();go(ev.clientX);};const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);};
+                          const onTS=e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.touches[0].clientX);const mv=ev=>{ev.preventDefault();go(ev.touches[0].clientX);};const up=()=>{window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);};
+                          return(
+                            <div style={{display:"flex",alignItems:"center",gap:2}}>
+                              <span style={slLbl}>VOL</span>
+                              <div style={{flex:1,position:"relative",height:20,minWidth:0,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`} onMouseDown={onMD} onTouchStart={onTS}>
+                                <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
+                                  <div style={{height:"100%",width:`${vol}%`,background:track.color,borderRadius:2}}/>
+                                </div>
+                                <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:9,height:9,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${track.color}44`,pointerEvents:"none"}}/>
+                              </div>
                             </div>
-                            <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:7,height:7,borderRadius:"50%",background:track.color,transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
-                            <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:0,cursor:"pointer",margin:0}}/>
-                          </div>
-                        </div>
+                          );
+                        })()}
                         {/* R2C1: 16st */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
                           <button title={stLocked?"Clear track to change resolution":`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,border:`1px solid ${stLocked?"rgba(255,55,95,0.25)":isCustomTs?track.color+"44":th.sBorder}`,background:stLocked?"rgba(255,55,95,0.06)":isCustomTs?track.color+"11":"transparent",color:stLocked?"rgba(255,55,95,0.5)":isCustomTs?track.color:th.dim,cursor:stLocked?"not-allowed":"pointer",opacity:stLocked?0.6:1,padding:"0 3px"}}>{tSteps}st</button>
@@ -1193,15 +1198,16 @@ export default function KickAndSnare(){
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
-                              {/* Row 1 right: VOL horizontal slider — big touch zone */}
+                              {/* Row 1 right: VOL horizontal slider — custom drag */}
                               <div style={{display:"flex",alignItems:"center",gap:4}}>
                                 <span style={slLbl}>VOL</span>
-                                <div style={{flex:1,position:"relative",height:18}} title={`VOL ${vol}`}>
+                                <div style={{flex:1,position:"relative",height:20,cursor:"ew-resize",userSelect:"none",touchAction:"none"}} title={`VOL ${vol}`}
+                                  onMouseDown={e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.clientX);const mv=ev=>{ev.preventDefault();go(ev.clientX);};const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);}}
+                                  onTouchStart={e=>{e.preventDefault();const ref=e.currentTarget;const go=cx=>{const r=ref.getBoundingClientRect();uFx("vol",Math.round(Math.max(0,Math.min(100,(cx-r.left)/r.width*100))));};go(e.touches[0].clientX);const mv=ev=>{ev.preventDefault();go(ev.touches[0].clientX);};const up=()=>{window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);}}>
                                   <div style={{position:"absolute",top:"50%",left:0,right:0,height:3,background:th.sBorder,borderRadius:2,transform:"translateY(-50%)",pointerEvents:"none"}}>
                                     <div style={{height:"100%",width:`${vol}%`,background:tr.color,borderRadius:2}}/>
                                   </div>
-                                  <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:7,height:7,borderRadius:"50%",background:tr.color,transform:"translate(-50%,-50%)",pointerEvents:"none"}}/>
-                                  <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slH}/>
+                                  <div style={{position:"absolute",top:"50%",left:`${vol}%`,width:9,height:9,borderRadius:"50%",background:tr.color,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 2px ${tr.color}44`,pointerEvents:"none"}}/>
                                 </div>
                                 <span style={slVal}>{vol}</span>
                               </div>
