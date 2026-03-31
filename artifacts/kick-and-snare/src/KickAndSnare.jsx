@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 
 const THEMES={
-  daylight:{bg:"linear-gradient(170deg,#F0EDE7 0%,#E6E2DB 100%)",surface:"rgba(0,0,0,0.06)",sBorder:"rgba(0,0,0,0.18)",text:"#1a1a1a",dim:"#666",faint:"#aaa",stepOff:"rgba(0,0,0,0.07)",stepAlt:"rgba(0,0,0,0.11)",cursor:"rgba(0,0,0,0.18)",btn:"rgba(0,0,0,0.09)",btnH:"rgba(0,0,0,0.16)"},
+  daylight:{bg:"linear-gradient(170deg,#F2EDE6 0%,#E8E1D8 100%)",surface:"rgba(255,255,255,0.72)",sBorder:"rgba(0,0,0,0.13)",text:"#1C1C1E",dim:"#44444A",faint:"#8A8A90",stepOff:"rgba(0,0,0,0.07)",stepAlt:"rgba(0,0,0,0.13)",cursor:"rgba(255,130,0,0.22)",btn:"rgba(0,0,0,0.08)",btnH:"rgba(0,0,0,0.15)"},
   dark:{bg:"linear-gradient(170deg,#0F0F0F 0%,#1A1A1A 100%)",surface:"rgba(255,255,255,0.04)",sBorder:"rgba(255,255,255,0.1)",text:"#F0F0F0",dim:"#777",faint:"#444",stepOff:"rgba(255,255,255,0.035)",stepAlt:"rgba(255,255,255,0.055)",cursor:"rgba(255,255,255,0.12)",btn:"rgba(255,255,255,0.07)",btnH:"rgba(255,255,255,0.13)"}
 };
 
@@ -311,6 +311,15 @@ export default function KickAndSnare(){
   // Euclid polyrhythm — independent per-track clocks
   const euclidClockR=useRef({});
   const [euclidCur,setEuclidCur]=useState({});
+  const euclidMetroR=useRef({nextTime:null,beat:0});
+  // Pad free-capture
+  const [capState,setCapState]=useState("idle"); // idle|recording|review
+  const capEventsRef=useRef([]);
+  const capStartRef=useRef(0);
+  const [capBars,setCapBars]=useState(1);
+  const [capAutoQ,setCapAutoQ]=useState(true);
+  const [capBeat,setCapBeat]=useState(-1);
+  const capTimerRef=useRef(null);
 
   const allT=[...ALL_TRACKS,...customTracks];
   const atO=act.map(id=>allT.find(t=>t.id===id)).filter(Boolean);
@@ -564,6 +573,13 @@ export default function KickAndSnare(){
         }
       });
       if(dirty){const cur={};ALL_TRACKS.forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
+      // Metro in Euclid: fixed 4/4 quarter-note click, independent of track N
+      if(R.metro){
+        const qn=60/R.bpm; // quarter-note duration
+        const em=euclidMetroR.current;
+        if(!em.nextTime||em.nextTime<ct-0.5){em.nextTime=ct+0.05;em.beat=0;}
+        while(em.nextTime<ct+0.1){playClk(em.nextTime,em.beat===0?"accent":"beat");em.beat=(em.beat+1)%4;em.nextTime+=qn;}
+      }
       schRef.current=setTimeout(schLoop,25);
       return;
     }
@@ -594,15 +610,50 @@ export default function KickAndSnare(){
     engine.init();
     if(playing){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
-      euclidClockR.current={};setEuclidCur({});
+      euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
       R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
-      euclidClockR.current={};setEuclidCur({});
+      euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);
     }
   };
   ssRef.current=startStop;
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
+
+  // ── Pad Free Capture ──
+  const startCapture=()=>{
+    clearTimeout(capTimerRef.current);
+    capEventsRef.current=[];capStartRef.current=performance.now();
+    setCapBeat(0);setCapState("recording");
+    const barMs=(60000/R.bpm)*4;
+    const beatMs=60000/R.bpm;
+    const tick=()=>{
+      const elapsed=performance.now()-capStartRef.current;
+      setCapBeat(Math.floor(elapsed/beatMs)%4);
+      if(elapsed>=barMs*capBars){clearTimeout(capTimerRef.current);setCapState("review");if(capAutoQ)applyCapture();}
+      else capTimerRef.current=setTimeout(tick,40);
+    };
+    capTimerRef.current=setTimeout(tick,40);
+  };
+  const stopCapture=()=>{clearTimeout(capTimerRef.current);setCapState("review");if(capAutoQ)applyCapture();};
+  const applyCapture=()=>{
+    const barMs=(60000/R.bpm)*4*capBars;
+    const steps=STEPS;const stepMs=barMs/steps;
+    const evs=capEventsRef.current;
+    setPat(p=>{
+      const np={...p};
+      evs.forEach(({tid,ms})=>{
+        const step=Math.round(ms/stepMs)%steps;
+        if(!np[tid])np[tid]=Array(steps).fill(0);
+        else if(np[tid].length!==steps)np[tid]=Array(steps).fill(0);
+        else np[tid]=[...np[tid]];
+        np[tid][step]=100;
+      });
+      return np;
+    });
+    setCapState("idle");setCapBeat(-1);
+  };
+  const cancelCapture=()=>{clearTimeout(capTimerRef.current);setCapState("idle");setCapBeat(-1);};
 
 
   // Step interactions
@@ -751,16 +802,17 @@ export default function KickAndSnare(){
             const hH=(playing&&isAct("hihat")&&!!pat.hihat?.[cStep])||flash==="hihat";
             const hR=(playing&&(isAct("ride")&&!!pat.ride?.[cStep]||isAct("crash")&&!!pat.crash?.[cStep]))||flash==="ride"||flash==="crash";
             const hT=(playing&&isAct("tom")&&!!pat.tom?.[cStep])||flash==="tom";
-            const hC=(playing&&isAct("clap")&&!!pat.clap?.[cStep])||flash==="clap"||flash==="perc";
-            const lHit=hS||hH||hC;const rHit=hR||hT;const lA=hS?-55:hH?-30:hC?-45:5;const rA=hR?-60:hT?-30:5;
-            const anyHit=hK||hS||hH||hR||hT||hC;
+            const hC=(playing&&(isAct("clap")&&!!pat.clap?.[cStep]||isAct("perc")&&!!pat.perc?.[cStep]))||flash==="clap";
+            const hPerc=(playing&&isAct("perc")&&!!pat.perc?.[cStep])||flash==="perc";
+            const lHit=hS||hH||hC||hPerc;const rHit=hR||hT;const lA=hS?-55:hH?-30:(hC||hPerc)?-45:5;const rA=hR?-60:hT?-30:5;
+            const anyHit=hK||hS||hH||hR||hT||hC||hPerc;
             const ac=(playing||anyHit)?"#FF9500":"#bbb";const hi="#FF2D55";
             const aHH=act.includes("hihat");const aS=act.includes("snare");const aK=act.includes("kick");
             const aT=act.includes("tom");const aR=act.includes("ride")||act.includes("crash");
-            const aP=act.includes("clap")||act.includes("perc");
+            const aClap=act.includes("clap");const aPerc=act.includes("perc");
             const show=(v)=>({opacity:v?1:0,transition:"opacity 0.4s, transform 0.4s",transform:v?"scale(1)":"scale(0.7)",transformOrigin:"center"});
             return(
-              <svg viewBox="0 0 110 52" width="110" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents"}}>
+              <svg viewBox="0 0 130 52" width="130" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents"}}>
                 {/* Hi-hat */}
                 <g style={show(aHH)}>
                   <line x1="14" y1="16" x2="14" y2="50" stroke="#ccc" strokeWidth="0.7"/>
@@ -791,6 +843,20 @@ export default function KickAndSnare(){
                   <ellipse cx="78" cy="12" rx="9" ry="2" fill={hR?"#fffbe8":"none"} stroke={hR?"#FFD60A":"#ccc"} strokeWidth={hR?1.5:0.7}/>
                   <ellipse cx="72" cy="40" rx="7" ry="4" fill="none" stroke="#ddd" strokeWidth="0.5"/>
                   {hR&&<><line x1="74" y1="9" x2="72" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="82" y1="9" x2="84" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="78" y1="9" x2="78" y2="4" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/></>}
+                </g>
+                {/* Perc — bongo pair */}
+                <g style={show(aPerc)}>
+                  <ellipse cx="116" cy="41" rx="6" ry="8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="116" cy="33" rx="6" ry="2.2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  <ellipse cx="125" cy="43" rx="5" ry="7" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="125" cy="36" rx="5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  {hPerc&&<><line x1="113" y1="30" x2="111" y2="26" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/><line x1="119" y1="30" x2="121" y2="26" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/></>}
+                </g>
+                {/* Clap — maracas shaker near musician */}
+                <g style={show(aClap)}>
+                  <ellipse cx="8" cy="28" rx="4" ry="5.5" fill={hC?"#5E5CE622":"none"} stroke={hC?"#5E5CE6":"#bbb"} strokeWidth={hC?1.3:0.7}/>
+                  <line x1="8" y1="33" x2="8" y2="45" stroke={hC?"#5E5CE6":"#bbb"} strokeWidth={hC?1.2:0.7}/>
+                  {hC&&<><line x1="4" y1="25" x2="2" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/><line x1="12" y1="25" x2="14" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>
                 <g style={{animation:playing?"mbob 0.45s ease-in-out infinite":anyHit?"none":"none",transformBox:"fill-box"}}>
                   <ellipse cx="44" cy="38" rx="6" ry="2" fill="none" stroke="#bbb" strokeWidth="0.8"/>
@@ -850,9 +916,9 @@ export default function KickAndSnare(){
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
               <span style={{fontSize:8,color:th.dim,letterSpacing:"0.15em"}}>BPM</span>
               <MidiTag id="__bpm__"/>
-              <button onClick={()=>setBpm(Math.max(30,bpm-1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:12,padding:"0 4px"}}>&lt;</button>
-              <span style={{fontSize:24,fontWeight:900,color:"#FF9500"}}>{bpm}</span>
-              <button onClick={()=>setBpm(Math.min(300,bpm+1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:12,padding:"0 4px"}}>&gt;</button>
+              <button onClick={()=>setBpm(Math.max(30,bpm-1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:11,padding:"0 3px"}}>&lt;</button>
+              <span style={{fontSize:17,fontWeight:900,color:"#FF9500"}}>{bpm}</span>
+              <button onClick={()=>setBpm(Math.min(300,bpm+1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:11,padding:"0 3px"}}>&gt;</button>
             </div>
             <input type="range" min={30} max={300} value={bpm} onChange={e=>setBpm(Number(e.target.value))} style={{width:"100%",height:4,accentColor:"#FF9500"}}/>
           </div>
@@ -862,24 +928,25 @@ export default function KickAndSnare(){
           </div>
           {view!=="euclid"&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
             <div style={{display:"flex",alignItems:"center",gap:3}}>
-              <span style={{fontSize:8,color:th.dim}}>SWING</span>
+              <span style={{fontSize:7,color:th.dim}}>SWING</span>
               <MidiTag id="__swing__"/>
             </div>
-            <span style={{fontSize:11,fontWeight:700,color:"#5E5CE6"}}>{swing}%</span>
-            <input type="range" min={0} max={100} value={swing} onChange={e=>setSwing(Number(e.target.value))} style={{width:55,height:3,accentColor:"#5E5CE6"}}/>
+            <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6"}}>{swing}%</span>
+            <input type="range" min={0} max={100} value={swing} onChange={e=>setSwing(Number(e.target.value))} style={{width:42,height:3,accentColor:"#5E5CE6"}}/>
           </div>}
           {view!=="euclid"&&<button onClick={()=>setShowTS(!showTS)} style={pill(showTS,"#30D158")}>{sig.label}</button>}
-          {view!=="euclid"&&(()=>{
+          {(()=>{
             const onMDown=e=>{e.preventDefault();const startY=e.touches?e.touches[0].clientY:e.clientY;const startVol=metroVol;let moved=false;
               const mv=ev=>{ev.preventDefault();const cy=ev.touches?ev.touches[0].clientY:ev.clientY;const dy=cy-startY;if(Math.abs(dy)>5){moved=true;setMetroVol(Math.max(0,Math.min(100,Math.round(startVol-dy*0.8))));}};
               const up=()=>{if(!moved)setMetro(p=>!p);window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};
               window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);};
             return(<div onMouseDown={onMDown} onTouchStart={onMDown} style={{...pill(metro,"#FF9500"),position:"relative",overflow:"hidden",touchAction:"none",userSelect:"none",cursor:"pointer"}}>
               <div style={{position:"absolute",bottom:0,left:0,right:0,height:`${metroVol}%`,background:metro?"rgba(255,149,0,0.12)":"transparent",borderRadius:6,transition:"height 0.15s",pointerEvents:"none"}}/>
-              <span style={{position:"relative",zIndex:1}}>METRO {metroVol}%</span>
+              <span style={{position:"relative",zIndex:1}}>{view==="euclid"?"METRO 4/4":`METRO ${metroVol}%`}</span>
             </div>);
           })()}
           {view!=="euclid"&&metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
+          <button onClick={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}} style={pill(false,"#FF2D55")} title="Clear all hits">✕ CLEAR</button>
           <button onClick={()=>setShowK(!showK)} style={{...pill(showK,"#FFD60A"),display:"flex",alignItems:"center",gap:4}}>
             <span style={{fontSize:22,lineHeight:1}}>⌨</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>Keyb</span>
@@ -1164,20 +1231,57 @@ export default function KickAndSnare(){
 
         {/* ── PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
-            {atO.map((track,i)=>(<button key={track.id}
-              onPointerDown={e=>{e.preventDefault();trigPad(track.id);if(navigator.vibrate)navigator.vibrate(20);}}
-              style={{aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:`0 0 20px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
-              {DrumSVG(track.id,track.color,flash===track.id,44)}
-              <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
-              <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
-              {/* VU in pads view */}
-              <div style={{width:"80%",height:4,borderRadius:2,background:th.btn,overflow:"hidden"}}>
-                <div ref={el=>{if(el){vuRefs.current[track.id+"_pad"]=el;/* share ref for pads too */}}} style={{height:"100%",width:"0%",background:track.color,transition:"width 0.05s"}}/>
+          {/* Capture toolbar */}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 12px",borderRadius:10,background:th.surface,border:`1px solid ${capState==="recording"?"#FF2D5566":th.sBorder}`,flexWrap:"wrap"}}>
+            <span style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>CAPTURE</span>
+            {capState==="idle"&&<button onClick={startCapture} style={{padding:"5px 12px",borderRadius:6,background:"rgba(255,45,85,0.15)",color:"#FF2D55",border:"1px solid rgba(255,45,85,0.35)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>● REC</button>}
+            {capState==="recording"&&<>
+              <button onClick={stopCapture} style={{padding:"5px 12px",borderRadius:6,background:"rgba(255,45,85,0.25)",color:"#FF2D55",border:"1px solid rgba(255,45,85,0.6)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",animation:"rb 0.6s infinite"}}>■ STOP</button>
+              <div style={{display:"flex",gap:4}}>
+                {[0,1,2,3].map(b=><div key={b} style={{width:10,height:10,borderRadius:"50%",background:b===capBeat?"#FF2D55":"rgba(255,45,85,0.2)",transition:"background 0.05s"}}/>)}
               </div>
-            </button>))}
+              <span style={{fontSize:8,color:"#FF2D55",fontWeight:700}}>
+                {Math.ceil(Math.max(0,(capBars*(60000/R.bpm)*4-(performance.now()-capStartRef.current))/1000))}s
+              </span>
+            </>}
+            {capState==="review"&&!capAutoQ&&<>
+              <button onClick={applyCapture} style={{padding:"5px 12px",borderRadius:6,background:"rgba(48,209,88,0.15)",color:"#30D158",border:"1px solid rgba(48,209,88,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✓ APPLY</button>
+              <button onClick={cancelCapture} style={{padding:"5px 10px",borderRadius:6,background:"transparent",color:th.dim,border:`1px solid ${th.sBorder}`,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
+            </>}
+            <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
+              <span style={{fontSize:7,color:th.dim}}>BARS</span>
+              {[1,2,4].map(b=><button key={b} onClick={()=>setCapBars(b)} style={{width:20,height:20,borderRadius:4,border:`1px solid ${capBars===b?"#FF9500":th.sBorder}`,background:capBars===b?"rgba(255,149,0,0.15)":"transparent",color:capBars===b?"#FF9500":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{b}</button>)}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{fontSize:7,color:th.dim}}>AUTO Q</span>
+              <button onClick={()=>setCapAutoQ(p=>!p)} style={{width:26,height:14,borderRadius:7,border:"none",background:capAutoQ?"#30D158":"rgba(0,0,0,0.2)",position:"relative",cursor:"pointer",transition:"background 0.15s",flexShrink:0}}>
+                <div style={{position:"absolute",top:2,left:capAutoQ?14:2,width:10,height:10,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+              </button>
+            </div>
           </div>
-          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Click or press key to trigger · Keyboard shortcut ⌨ in transport</div>
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
+            {atO.map((track,i)=>{
+              const isCapRec=capState==="recording";
+              return(<div key={track.id} style={{position:"relative"}}>
+                <button
+                  onPointerDown={e=>{
+                    e.preventDefault();
+                    if(isCapRec)capEventsRef.current.push({tid:track.id,ms:performance.now()-capStartRef.current});
+                    trigPad(track.id);if(navigator.vibrate)navigator.vibrate(20);
+                  }}
+                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:isCapRec?track.color+"66":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:isCapRec?`0 0 20px ${track.color}33`:`0 0 20px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
+                  {DrumSVG(track.id,track.color,flash===track.id,44)}
+                  <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
+                  <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
+                  <div style={{width:"80%",height:4,borderRadius:2,background:th.btn,overflow:"hidden"}}>
+                    <div ref={el=>{if(el){vuRefs.current[track.id+"_pad"]=el;}}} style={{height:"100%",width:"0%",background:track.color,transition:"width 0.05s"}}/>
+                  </div>
+                </button>
+                {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
+              </div>);
+            })}
+          </div>
+          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Tap to trigger · REC to capture free rhythm · AUTO Q quantizes to {STEPS} steps</div>
         </div>)}
 
         {/* ── EUCLID VIEW ── */}
@@ -1187,15 +1291,21 @@ export default function KickAndSnare(){
           const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
           const getP=tid=>{const ep=euclidParams[tid]||{};const N=trackSteps[tid]||STEPS;return{N,hits:Math.min(ep.hits||0,N),rot:(ep.rot||0)%Math.max(N,1),tpl:ep.tpl||"",fold:ep.fold||false};};
           const writeP=(tid,up)=>setEuclidParams(p=>({...p,[tid]:{...getP(tid),...up}}));
-          const applyE=(tid,N,hits,rot)=>{
-            const raw=euclidRhythm(hits,N);
-            const r2=rot%Math.max(N,1);
+          const applyE=(tid,N,hits,rot,baseArr=null)=>{
+            const raw=baseArr||euclidRhythm(hits,N);
+            const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
             const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=[...rotated];n[cPat]=cp;return n;});
           };
+          const clearTrack=(tid)=>{const N=getP(tid).N;writeP(tid,{hits:0,rot:0,tpl:""});setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=Array(N).fill(0);n[cPat]=cp;return n;});};
           const chN=(tid,newN)=>{const p=getP(tid);const h=Math.min(p.hits,newN);const r=p.rot%newN;writeP(tid,{N:newN,hits:h,rot:r});applyE(tid,newN,h,r);};
           const chH=(tid,h)=>{const p=getP(tid);writeP(tid,{hits:h,tpl:""});applyE(tid,p.N,h,p.rot);};
-          const chR=(tid,r)=>{const p=getP(tid);writeP(tid,{rot:r});applyE(tid,p.N,p.hits,r);};
+          const chR=(tid,r)=>{
+            const p=getP(tid);writeP(tid,{rot:r});
+            let base=null;
+            if(p.tpl){const t=EUCLID_TEMPLATES.find(x=>x.name===p.tpl);if(t&&t.N===p.N){base=Array(t.N).fill(0);t.hits.forEach(h=>{base[h]=1;});}}
+            applyE(tid,p.N,p.hits,r,base);
+          };
           const applyTplTo=(tid,t)=>{
             writeP(tid,{N:t.N,hits:t.hits.length,rot:0,tpl:t.name});
             const pp=Array(t.N).fill(0);t.hits.forEach(h=>{pp[h]=100;});
@@ -1278,6 +1388,7 @@ export default function KickAndSnare(){
                                 <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 <MidiTag id={tr.id}/>
+                                <button onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
                                 {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 1 right: VOL horizontal slider — custom drag */}
