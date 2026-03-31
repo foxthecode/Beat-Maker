@@ -385,35 +385,6 @@ function FXRack({gfx,setGfx,tracks,themeName="dark"}){
               <Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/>
             </div>
           </div>
-          <Sep/>
-          {/* MACROS */}
-          <div style={{minWidth:130,flexShrink:0,paddingLeft:6}}>
-            <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.1em",marginBottom:8,paddingBottom:4,borderBottom:`1px solid ${th.btn}`}}>MACROS</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {gfx.macros.map((m,i)=>{
-                const cfgs=[
-                  {sec:"reverb",key:"decay",min:0.1,max:6,color:"#64D2FF"},
-                  {sec:"delay", key:"time", min:0.05,max:1,color:"#30D158"},
-                  {sec:"filter",key:"cut",  min:20, max:20000,color:"#FF9500"},
-                  {sec:"drive", key:"amt",  min:0,  max:100,  color:"#FF6B35"},
-                ];
-                const cfg=cfgs[i];
-                return(
-                  <Knob key={i} label={m.label} size={44} value={m.val} min={0} max={1} color={cfg.color} fmt={v=>(v*100).toFixed(0)} unit="%"
-                    onChange={v=>{
-                      setGfx(p=>{
-                        const macros=[...p.macros];macros[i]={...macros[i],val:v};
-                        const mapped=cfg.min+v*(cfg.max-cfg.min);
-                        const wasOn=p[cfg.sec].on;
-                        return{...p,macros,[cfg.sec]:{...p[cfg.sec],[cfg.key]:mapped,on:v>0?true:wasOn}};
-                      });
-                      if(i===0&&engine.ctx)engine.updateReverb(cfg.min+v*(cfg.max-cfg.min));
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -453,7 +424,7 @@ export default function KickAndSnare(){
   const [euclidParams,setEuclidParams]=useState({});
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
-  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{}},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0},macros:[{label:"M1",val:0},{label:"M2",val:0},{label:"M3",val:0},{label:"M4",val:0}]});
+  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{}},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}});
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
   const [stNudge,setStNudge]=useState(mkN(16));
   const [stVel,setStVel]=useState(mkV(16));
