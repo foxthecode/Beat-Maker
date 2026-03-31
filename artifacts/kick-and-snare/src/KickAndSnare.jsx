@@ -1387,79 +1387,68 @@ export default function KickAndSnare(){
                     const f=fx[track.id]||defFx();
                     const vol=f.vol??80;const pan=f.pan??0;
                     const uFx=(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||defFx()),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
-                    const slLbl={fontSize:6,color:track.color,fontWeight:800,letterSpacing:"0.04em",flexShrink:0,width:16};
                     const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
+                    // VOL knob renderer
+                    const r=9;const circ=2*Math.PI*r;
+                    const volOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFx("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                    const panOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
+                    const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+r*Math.cos(toRad(sa));const y1=11+r*Math.sin(toRad(sa));const x2=11+r*Math.cos(toRad(ea));const y2=11+r*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                     return(
-                      <div style={{flexShrink:0,width:188,display:"grid",gridTemplateColumns:"auto auto",columnGap:4,rowGap:3,alignItems:"center"}}>
-                        {/* R1C1: drum SVG + label */}
-                        <div style={{display:"flex",alignItems:"center",gap:3}}>
-                          {DrumSVG(track.id,track.color,flash===track.id)}
-                          <span style={{fontSize:10,fontWeight:700,color:track.color,maxWidth:52,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
-                          <MidiTag id={track.id}/>
+                      <div style={{flexShrink:0,width:188,display:"flex",flexDirection:"column",gap:2,justifyContent:"center"}}>
+                        {/* Row 1: [icon+label] ←→ [M·S·CLR] */}
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
+                          <div style={{display:"flex",alignItems:"center",gap:3,minWidth:0}}>
+                            {DrumSVG(track.id,track.color,flash===track.id)}
+                            <span style={{fontSize:10,fontWeight:700,color:track.color,maxWidth:56,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{track.label}</span>
+                            <MidiTag id={track.id}/>
+                          </div>
+                          <div style={{display:"flex",gap:2,flexShrink:0}}>
+                            <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
+                            <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
+                            <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
+                          </div>
                         </div>
-                        {/* R1C2: M · S · CLR */}
-                        <div style={{display:"flex",gap:2}}>
-                          <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
-                          <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
-                          <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
-                        </div>
-                        {/* R2C1: VOL + PAN knobs inline */}
-                        <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                          {(()=>{
-                            const pct=vol;const disp=`${vol}`;
-                            const r=9;const circ=2*Math.PI*r;
-                            const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFx("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                            return(<div onPointerDown={onPD} onDoubleClick={()=>uFx("vol",80)} title={`VOL: ${disp} — drag ↕, dbl-click reset`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
+                        {/* Row 2: [VOL+PAN knobs] ←→ [16st·♪·×] */}
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
+                          <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                            {/* VOL knob */}
+                            <div onPointerDown={volOnPD} onDoubleClick={()=>uFx("vol",80)} title={`VOL: ${vol} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
                               <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
                                 <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
                                   <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
-                                  <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*pct/100} ${circ}`}/>
+                                  <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*vol/100} ${circ}`}/>
                                 </svg>
                                 <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
                               </div>
-                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{disp}</span>
-                            </div>);
-                          })()}
-                          {(()=>{
-                            const r=9;const cx=11,cy=11;
-                            const disp=pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`;
-                            const onPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                            const panArc=pan===0?null:(()=>{
-                              const toRad=d=>d*Math.PI/180;
-                              const startA=-90;const endA=startA+(pan/100)*180;
-                              const x1=cx+r*Math.cos(toRad(startA));const y1=cy+r*Math.sin(toRad(startA));
-                              const x2=cx+r*Math.cos(toRad(endA));const y2=cy+r*Math.sin(toRad(endA));
-                              const sweep=pan>0?1:0;
-                              return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${sweep} ${x2.toFixed(2)},${y2.toFixed(2)}`;
-                            })();
-                            return(<div onPointerDown={onPD} onDoubleClick={()=>uFx("pan",0)} title={`PAN: ${disp} — drag ↕, dbl-click center`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
+                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vol}</span>
+                            </div>
+                            {/* PAN knob */}
+                            <div onPointerDown={panOnPD} onDoubleClick={()=>uFx("pan",0)} title={`PAN: ${pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
                               <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
                                 <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
-                                  <circle cx={cx} cy={cy} r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
+                                  <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
                                   {panArc&&<path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round"/>}
-                                  <circle cx={cx} cy={cy} r="1.5" fill={track.color}/>
+                                  <circle cx="11" cy="11" r="1.5" fill={track.color}/>
                                 </svg>
                                 <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
                               </div>
-                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{disp}</span>
-                            </div>);
-                          })()}
+                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`}</span>
+                            </div>
+                          </div>
+                          {/* 16st · ♪ · × */}
+                          <div style={{display:"flex",gap:2,alignItems:"center",flexShrink:0}}>
+                            <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",cursor:"pointer",border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim}}>{tSteps}st</button>
+                            <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
+                            {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                          </div>
                         </div>
-                        {/* R2C2: 16st · ♪ · × */}
-                        <div style={{display:"flex",gap:2,alignItems:"center"}}>
-                          <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",cursor:"pointer",border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim}}>{tSteps}st</button>
-                          <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
-                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
-                        </div>
-                        {/* R3: sample name — spans all cols */}
-                        <div style={{gridColumn:"1/-1"}}>
-                          {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{smpN[track.id].substring(0,28)}</span>}
-                        </div>
+                        {/* Row 3: sample name */}
+                        {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block"}}>{smpN[track.id].substring(0,30)}</span>}
                       </div>
                     );
                   })()}
                   {/* Steps */}
-                  <div style={{display:"flex",gap:0,flex:1}}>
+                  <div style={{display:"flex",gap:0,flex:1,alignSelf:"center"}}>
                     {Array(tSteps).fill(0).map((_,step)=>{
                       const ac=!!pat[track.id]?.[step];
                       const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep%tSteps===step;
