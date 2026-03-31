@@ -1030,9 +1030,9 @@ export default function KickAndSnare(){
           const mkVelDrag=(tid,step,initVel)=>e=>{
             e.preventDefault();e.stopPropagation();
             const sy=e.clientY;let moved=false;let cv=initVel||0;
-            const mv=me=>{const dy=sy-me.clientY;if(Math.abs(dy)>4)moved=true;if(moved&&initVel>0){const nv=Math.max(1,Math.min(127,initVel+Math.round(dy/4)));if(nv!==cv){cv=nv;setPBank(pb=>{const n=[...pb];n[cPat][tid][step]=nv;return n;});}}};
+            const mv=me=>{const dy=sy-me.clientY;if(Math.abs(dy)>4)moved=true;if(moved&&initVel>0){const nv=Math.max(1,Math.min(127,initVel+Math.round(dy/4)));if(nv!==cv){cv=nv;setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=nv;n[cPat]=cp;return n;});}}};
             const up=()=>{
-              if(!moved){setPBank(pb=>{const n=[...pb];n[cPat][tid][step]=n[cPat][tid][step]>0?0:100;return n;});}
+              if(!moved){setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});}
               window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
             };
             window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
@@ -1101,7 +1101,13 @@ export default function KickAndSnare(){
                       ?<button onClick={()=>setShowAdd(true)} style={{padding:"7px",borderRadius:7,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>+ ADD TRACK</button>
                       :<div style={{borderRadius:7,border:`1px dashed ${th.sBorder}`,padding:"7px 8px"}}>
                         <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
-                          {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(a=>[...a,t.id]);setShowAdd(false);}} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
+                          {inact.map(t=>(<button key={t.id} onClick={()=>{
+                            const defN=STEPS;const defH=Math.max(1,Math.round(defN/4));
+                            const raw=euclidRhythm(defH,defN);const rotated=raw.map(v=>v?100:0);
+                            setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:defH,rot:0,tpl:"",fold:false}}));
+                            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=[...rotated];n[cPat]=cp;return n;});
+                            setAct(a=>[...a,t.id]);setShowAdd(false);
+                          }} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                         </div>
                         <button onClick={()=>setShowAdd(false)} style={{fontSize:8,color:th.dim,background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit"}}>✕ annuler</button>
                       </div>
