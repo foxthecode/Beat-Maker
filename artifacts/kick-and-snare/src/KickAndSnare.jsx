@@ -1152,13 +1152,24 @@ export default function KickAndSnare(){
           };
           const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
             e.preventDefault();e.stopPropagation();
+            const el=e.currentTarget;
+            el.setPointerCapture(e.pointerId);
             const sy=e.clientY;let moved=false;let cv=initVelPct;
-            const mv=me=>{const dy=sy-me.clientY;if(Math.abs(dy)>4)moved=true;if(moved&&isOn){const nv=Math.max(1,Math.min(100,initVelPct+Math.round(dy/3)));if(nv!==cv){cv=nv;setStVel(sv=>{const ns={...sv};ns[tid]=[...(ns[tid]||[])];ns[tid][step]=nv;return ns;});}}};
-            const up=()=>{
-              if(!moved){setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});}
-              window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
+            const mv=me=>{
+              me.preventDefault();
+              const dy=sy-me.clientY;
+              if(Math.abs(dy)>4)moved=true;
+              if(moved&&isOn){const nv=Math.max(1,Math.min(100,initVelPct+Math.round(dy/3)));if(nv!==cv){cv=nv;setStVel(sv=>{const ns={...sv};ns[tid]=[...(ns[tid]||[])];ns[tid][step]=nv;return ns;});}}
             };
-            window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+            const up=()=>{
+              el.removeEventListener('pointermove',mv);
+              el.removeEventListener('pointerup',up);
+              el.removeEventListener('pointercancel',up);
+              if(!moved){setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});}
+            };
+            el.addEventListener('pointermove',mv);
+            el.addEventListener('pointerup',up,{once:true});
+            el.addEventListener('pointercancel',up,{once:true});
           };
           const btnSm={height:18,minWidth:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 3px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
           const arw={width:16,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
