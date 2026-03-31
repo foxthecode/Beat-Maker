@@ -523,9 +523,11 @@ export default function KickAndSnare(){
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     // Push to ring buffer (always-on, cap 4 bars)
+    // Store step + beat phase so doCapture can use exact position when sequencer is playing
     const now=performance.now();
     if(R.ringBuf){
-      R.ringBuf.push({tid,t:now});
+      // Store the current sequencer step so doCapture can use it directly when seq is playing
+      R.ringBuf.push({tid,t:now,step:R.step});
       // Trim entries older than 4 bars
       const maxMs=(240000/Math.max(30,R.bpm))*4;
       while(R.ringBuf.length>0&&now-R.ringBuf[0].t>maxMs)R.ringBuf.shift();
@@ -707,19 +709,30 @@ export default function KickAndSnare(){
   const doCapture=()=>{
     if(!ringBufRef.current.length)return;
     const now=performance.now();
-    const barMs=(60000/Math.max(30,R.bpm))*4;
+    const glbSteps=R.sig?.steps||STEPS;
+    const barMs=(60000/Math.max(30,R.bpm))*4; // 1 bar in ms (4/4)
     const windowMs=barMs*capBars;
-    // Keep events in the last N bars window
     const relevant=ringBufRef.current.filter(e=>now-e.t<=windowMs);
+    if(!relevant.length)return;
     const tSteps=STEPS;
-    // Map each event to a step position
+    const stepDurMs=barMs/glbSteps; // duration of 1 step in ms
     const evs=relevant.map(e=>{
-      const msFromStart=windowMs-(now-e.t); // position within window [0, windowMs]
-      const exactStep=Math.max(0,(msFromStart/windowMs)*tSteps);
-      const stepQ=Math.round(exactStep)%tSteps;
-      const stepR=Math.floor(exactStep)%tSteps;
-      const fracInStep=exactStep-Math.floor(exactStep); // 0..1
-      const nudgeMs=Math.round(fracInStep*(60000/Math.max(30,R.bpm)/tSteps));
+      let stepQ,stepR,nudgeMs=0;
+      if(e.step>=0){
+        // Sequencer was playing: use stored step directly — exact and subdivision-correct
+        stepQ=e.step%tSteps;
+        stepR=e.step%tSteps;
+        nudgeMs=0;
+      }else{
+        // Sequencer was stopped: map position in window to step
+        // msFromStart: 0=oldest in window, windowMs=most recent
+        const msFromStart=windowMs-(now-e.t);
+        const exactStep=(msFromStart/windowMs)*tSteps;
+        stepQ=Math.min(tSteps-1,Math.round(exactStep)); // clamp, no modulo wrap
+        stepR=Math.min(tSteps-1,Math.floor(exactStep));
+        const fracInStep=exactStep-Math.floor(exactStep);
+        nudgeMs=Math.round(fracInStep*stepDurMs);
+      }
       return{tid:e.tid,stepQ,stepR,nudgeMs};
     });
     if(capAutoQ){
