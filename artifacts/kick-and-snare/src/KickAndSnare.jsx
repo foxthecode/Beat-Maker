@@ -738,8 +738,18 @@ export default function KickAndSnare(){
     setFx(p=>({...p,[id]:defFx()}));
     setAct(a=>[...a,id]);
     setNewTrackName("");setShowCustomInput(false);setShowAdd(false);
-    // Auto-open file picker so user can immediately load a sample
-    setTimeout(()=>ldFile(id),50);
+    // Load default sample (snare or kick alternating) then play a preview
+    const defB64=customTracks.length%2===0?DEFAULT_SAMPLES.snare:DEFAULT_SAMPLES.kick;
+    const defName=customTracks.length%2===0?"Snare (default)":"Kick (default)";
+    engine.init();
+    (async()=>{
+      try{
+        const ab=b64toAB(defB64);
+        engine.buf[id]=await engine.ctx.decodeAudioData(ab);
+        setSmpN(p=>({...p,[id]:defName}));
+        engine.play(id,0.7,0,R.fx[id]||defFx());
+      }catch(e){console.warn("Custom default sample failed",e);}
+    })();
   };
 
   // Shared custom track input UI (used in sequencer + euclid add panels)
