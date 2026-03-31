@@ -273,7 +273,7 @@ export default function KickAndSnare(){
   const [metroSub,setMetroSub]=useState("off");
   const midiRef=useRef({access:null,ins:[]});
   // MIDI Note Input (independent of clock sync)
-  const [midiNoteMap,setMidiNoteMap]=useState({...DEFAULT_MIDI_NOTES});
+  const [midiNoteMap,setMidiNoteMap]=useState({});
   const [midiLearnTrack,setMidiLearnTrack]=useState(null);
   const [midiLM,setMidiLM]=useState(false);
   const [midiNotes,setMidiNotes]=useState(false);
