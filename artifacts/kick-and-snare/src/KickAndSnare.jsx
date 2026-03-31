@@ -575,12 +575,15 @@ export default function KickAndSnare(){
         }
       });
       if(dirty){const cur={};ALL_TRACKS.forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
-      // Metro in Euclid: fixed 4/4 quarter-note click, independent of track N
+      // Metro in Euclid: 1/16th-note pulse (the Euclid grid step), accent every 4th (quarter note)
       if(R.metro){
-        const qn=60/R.bpm; // quarter-note duration
+        const sxt=(60/R.bpm)/4; // sixteenth note
         const em=euclidMetroR.current;
         if(!em.nextTime||em.nextTime<ct-0.5){em.nextTime=ct+0.05;em.beat=0;}
-        while(em.nextTime<ct+0.1){playClk(em.nextTime,em.beat===0?"accent":"beat");em.beat=(em.beat+1)%4;em.nextTime+=qn;}
+        while(em.nextTime<ct+0.1){
+          playClk(em.nextTime,em.beat===0?"accent":em.beat%2===0?"beat":"sub");
+          em.beat=(em.beat+1)%4;em.nextTime+=sxt;
+        }
       }
       schRef.current=setTimeout(schLoop,25);
       return;
@@ -944,7 +947,7 @@ export default function KickAndSnare(){
               window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);};
             return(<div onMouseDown={onMDown} onTouchStart={onMDown} style={{...pill(metro,"#FF9500"),position:"relative",overflow:"hidden",touchAction:"none",userSelect:"none",cursor:"pointer"}}>
               <div style={{position:"absolute",bottom:0,left:0,right:0,height:`${metroVol}%`,background:metro?"rgba(255,149,0,0.12)":"transparent",borderRadius:6,transition:"height 0.15s",pointerEvents:"none"}}/>
-              <span style={{position:"relative",zIndex:1}}>{view==="euclid"?"METRO 4/4":`METRO ${metroVol}%`}</span>
+              <span style={{position:"relative",zIndex:1}}>{view==="euclid"?"METRO ♩₁₆":`METRO ${metroVol}%`}</span>
             </div>);
           })()}
           {view!=="euclid"&&metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
