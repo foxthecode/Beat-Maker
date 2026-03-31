@@ -226,7 +226,7 @@ export default function KickAndSnare(){
   };
   const chSig=s=>{setTSig(s);setUseC(false);setGrpIdx(0);resize(s.steps);};
 
-  const [bpm,setBpm]=useState(120);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
+  const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
   const [fxO,setFxO]=useState(null);const [smpN,setSmpN]=useState({kick:"BWJAZZ Kick (default)",snare:"BB3 Snare (default)"});
@@ -245,7 +245,7 @@ export default function KickAndSnare(){
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState([...DEFAULT_KEYS]);const [showK,setShowK]=useState(false);
   const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
   const [metro,setMetro]=useState(false);
-  const [metroVol,setMetroVol]=useState(70);
+  const [metroVol,setMetroVol]=useState(10);
   const [dragInfo,setDragInfo]=useState(null);
   const [metroSub,setMetroSub]=useState("off");
   const midiRef=useRef({access:null,ins:[]});
@@ -698,7 +698,7 @@ export default function KickAndSnare(){
           })()}
           {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
           <button onClick={()=>setShowK(!showK)} style={{...pill(showK,"#FFD60A"),display:"flex",alignItems:"center",gap:4}}>
-            <span style={{fontSize:11}}>⌨</span>
+            <span style={{fontSize:22,lineHeight:1}}>⌨</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>Keyb</span>
           </button>
           <button onClick={async()=>{
