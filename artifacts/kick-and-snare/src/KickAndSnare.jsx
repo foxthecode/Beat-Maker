@@ -844,20 +844,20 @@ export default function KickAndSnare(){
                 <g style={show(aT)}>
                   <ellipse cx="52" cy="25" rx="7" ry="3" fill={hT?"#fff0e8":"none"} stroke={hT?hi:"#ccc"} strokeWidth={hT?1.2:0.6}/>
                 </g>
-                {/* Ride / Crash cymbal — moved closer (x=68) so arm reaches */}
-                <g style={show(aR)}>
+                {/* Ride / Crash cymbal — always visible, fades when not in act */}
+                <g opacity={aR?1:0.15} style={{transition:"opacity 0.3s"}}>
                   <line x1="68" y1="12" x2="68" y2="50" stroke="#ccc" strokeWidth="0.7"/>
                   <ellipse cx="68" cy="12" rx="9" ry="2" fill={hR?"#fffbe8":"none"} stroke={hR?"#FFD60A":"#ccc"} strokeWidth={hR?1.5:0.7}/>
                   <ellipse cx="62" cy="40" rx="7" ry="4" fill="none" stroke="#ddd" strokeWidth="0.5"/>
                   {hR&&<><line x1="64" y1="9" x2="62" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="72" y1="9" x2="74" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="68" y1="9" x2="68" y2="4" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>
-                {/* Perc — bongo pair (closer together) */}
-                <g style={show(aPerc)}>
-                  <ellipse cx="112" cy="41" rx="5.5" ry="7.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
-                  <ellipse cx="112" cy="33.5" rx="5.5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
-                  <ellipse cx="120" cy="43" rx="4.5" ry="6.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
-                  <ellipse cx="120" cy="36.5" rx="4.5" ry="1.8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
-                  {hPerc&&<><line x1="109" y1="31" x2="107" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/><line x1="115" y1="31" x2="117" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/></>}
+                {/* Perc — bongo pair, close to set (x=80/88) */}
+                <g opacity={aPerc?1:0.15} style={{transition:"opacity 0.3s"}}>
+                  <ellipse cx="81" cy="41" rx="5.5" ry="7.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="81" cy="33.5" rx="5.5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  <ellipse cx="89" cy="43" rx="4.5" ry="6.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="89" cy="36.5" rx="4.5" ry="1.8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  {hPerc&&<><line x1="78" y1="31" x2="76" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/><line x1="84" y1="31" x2="86" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/></>}
                 </g>
                 {/* Electronic pads — 1 per custom track, rack-mounted right side */}
                 {customTracks.length>0&&(()=>{
@@ -1178,7 +1178,7 @@ export default function KickAndSnare(){
                         <div style={{display:"flex",gap:2}}>
                           <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
                           <button onClick={()=>setFxO(isFO?null:track.id)} style={{...btnSt,width:22,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6}}>FX</button>
-                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                         </div>
                         {/* R2C3: PAN slider */}
                         <div style={{display:"flex",alignItems:"center",gap:2}}>
@@ -1411,7 +1411,7 @@ export default function KickAndSnare(){
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 <MidiTag id={tr.id}/>
                                 <button onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
-                                {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                                {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 1 right: VOL horizontal slider — custom drag */}
                               <div style={{display:"flex",alignItems:"center",gap:4}}>
