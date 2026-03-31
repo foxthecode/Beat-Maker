@@ -449,7 +449,7 @@ export default function KickAndSnare(){
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     if(R.rec&&R.step>=0){
-      const gSt=R.sig?.steps||16;const tSt=R.ts?.[tid]||gSt;const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
+      const gSt=R.sig?.steps||16;const tSt=R.ts?.[tid]||gSt;const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step;
       const v100=Math.max(1,Math.round(vel*100));
       setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
       setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
@@ -509,7 +509,7 @@ export default function KickAndSnare(){
       const tSteps=R.pb[R.cp]?._steps?.[tr.id]||(R.sig?.steps||16);
       const gSt=R.sig?.steps||16;const ratio=Math.max(1,Math.round(tSteps/gSt));
       if(ratio>1){for(let i=0;i<ratio;i++)playTrStep(tr,sn*ratio+i,time+i*bd/ratio);}
-      else{playTrStep(tr,sn%tSteps,time);}
+      else{playTrStep(tr,sn,time);}
     });
   },[]);
 
@@ -1058,7 +1058,7 @@ export default function KickAndSnare(){
                   <div style={{display:"flex",gap:0,flex:1}}>
                     {Array(tSteps).fill(0).map((_,step)=>{
                       const ac=!!pat[track.id]?.[step];
-                      const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep%tSteps===step;
+                      const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep===step;
                       const gs=Math.min(STEPS-1,Math.round(step*STEPS/tSteps));const gi=gInfo(gs);
                       const sn=stNudge[track.id]?.[step]||0;const vel=(stVel[track.id]?.[step]??100);
                       const prob=stProb[track.id]?.[step]??100;const ratch=stRatch[track.id]?.[step]||1;
@@ -1314,7 +1314,7 @@ export default function KickAndSnare(){
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
                       const p=getP(tr.id);const N=p.N;
-                      const curS=cStep>=0?cStep%N:-1;
+                      const curS=cStep>=0&&cStep<N?cStep:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
                       const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
