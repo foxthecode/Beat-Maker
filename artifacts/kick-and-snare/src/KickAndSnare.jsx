@@ -49,26 +49,26 @@ const divToSec=(div,bpm)=>{const b=60/bpm;const m={"1/4":b,"1/8":b/2,"1/16":b/4,
 
 // ═══ Euclidean Templates ═══
 const EUCLID_TEMPLATES=[
-  {name:"Tresillo",   origin:"Afrique / Cuba",  region:"Afrique",    N:8,  hits:[0,3,6],           desc:"E(3,8) — rythme-racine universel",   instr:"kick"},
-  {name:"Fume Fume",  origin:"Ghana (Ewe)",      region:"Afrique",    N:12, hits:[0,2,4,7,9],       desc:"E(5,12) — chant ghanéen",            instr:"hihat"},
-  {name:"Bembé",      origin:"Yoruba / Cuba",    region:"Afrique",    N:12, hits:[0,2,3,5,7,8,10],  desc:"E(7,12) — cœur du jazz afro",        instr:"snare"},
-  {name:"Shiko",      origin:"Nigeria (Ewe)",    region:"Afrique",    N:16, hits:[0,4,6,10,12],     desc:"E(5,16) — danse rituelle",           instr:"perc"},
-  {name:"Soukous",    origin:"Congo",            region:"Afrique",    N:12, hits:[0,2,4,6,9,11],    desc:"Clave congolaise",                   instr:"hihat"},
-  {name:"Habanera",   origin:"Cuba",             region:"Afro-Cuban", N:8,  hits:[0,3,5,7],         desc:"Base du danzón et du tango",         instr:"kick"},
-  {name:"Cinquillo",  origin:"Cuba",             region:"Afro-Cuban", N:8,  hits:[0,2,3,5,6],       desc:"E(5,8) — son et guaracha",           instr:"perc"},
-  {name:"Clave 3-2",  origin:"Cuba (Son)",       region:"Afro-Cuban", N:16, hits:[0,3,6,10,12],     desc:"Épine dorsale de la musique cubaine", instr:"clap"},
-  {name:"Clave 2-3",  origin:"Cuba (Son)",       region:"Afro-Cuban", N:16, hits:[2,4,8,11,14],     desc:"Clave à sens inversé",               instr:"clap"},
-  {name:"Rumba Clave",origin:"Cuba (Rumba)",     region:"Afro-Cuban", N:16, hits:[0,3,7,10,12],     desc:"Plus syncopée — décalage du 3e beat",instr:"clap"},
-  {name:"Guaguancó",  origin:"Cuba (Rumba)",     region:"Afro-Cuban", N:12, hits:[0,3,4,6,10],      desc:"Rumba urbaine de La Havane",         instr:"snare"},
-  {name:"Baião",      origin:"Brésil (Nord-Est)",region:"Brésil",     N:16, hits:[0,3,8,11],        desc:"Zabumba du sertão",                  instr:"kick"},
-  {name:"Maracatu",   origin:"Pernambuco",       region:"Brésil",     N:16, hits:[0,6,10,12],       desc:"Rythme de la cour royale africaine", instr:"kick"},
-  {name:"Bossa Nova", origin:"Brésil (Rio)",     region:"Brésil",     N:16, hits:[0,3,6,8,11,14],   desc:"Violão de João Gilberto",            instr:"hihat"},
-  {name:"Surdo",      origin:"Brésil (Samba)",   region:"Brésil",     N:16, hits:[0,8],             desc:"Pulsation grave de la batucada",     instr:"kick"},
-  {name:"Caixa",      origin:"Brésil (Samba)",   region:"Brésil",     N:16, hits:[0,2,4,6,8,10,12,14],desc:"Caisse claire samba en croches",  instr:"snare"},
-  {name:"Xote",       origin:"Brésil (Nordeste)",region:"Brésil",     N:8,  hits:[0,2,5,7],         desc:"Quadrilha do forró",                 instr:"hihat"},
+  {name:"Tresillo",   origin:"Africa / Cuba",   region:"Africa",     N:8,  hits:[0,3,6],           desc:"E(3,8) — universal root rhythm",     instr:"kick"},
+  {name:"Fume Fume",  origin:"Ghana (Ewe)",     region:"Africa",     N:12, hits:[0,2,4,7,9],       desc:"E(5,12) — Ghanaian song pattern",    instr:"hihat"},
+  {name:"Bembé",      origin:"Yoruba / Cuba",   region:"Africa",     N:12, hits:[0,2,3,5,7,8,10],  desc:"E(7,12) — heart of Afro jazz",       instr:"snare"},
+  {name:"Shiko",      origin:"Nigeria (Ewe)",   region:"Africa",     N:16, hits:[0,4,6,10,12],     desc:"E(5,16) — ritual dance pattern",     instr:"perc"},
+  {name:"Soukous",    origin:"Congo",           region:"Africa",     N:12, hits:[0,2,4,6,9,11],    desc:"Congolese clave",                    instr:"hihat"},
+  {name:"Habanera",   origin:"Cuba",            region:"Afro-Cuban", N:8,  hits:[0,3,5,7],         desc:"Foundation of danzón and tango",     instr:"kick"},
+  {name:"Cinquillo",  origin:"Cuba",            region:"Afro-Cuban", N:8,  hits:[0,2,3,5,6],       desc:"E(5,8) — son and guaracha",          instr:"perc"},
+  {name:"Clave 3-2",  origin:"Cuba (Son)",      region:"Afro-Cuban", N:16, hits:[0,3,6,10,12],     desc:"Backbone of Cuban music",            instr:"clap"},
+  {name:"Clave 2-3",  origin:"Cuba (Son)",      region:"Afro-Cuban", N:16, hits:[2,4,8,11,14],     desc:"Reversed clave direction",           instr:"clap"},
+  {name:"Rumba Clave",origin:"Cuba (Rumba)",    region:"Afro-Cuban", N:16, hits:[0,3,7,10,12],     desc:"More syncopated — 3rd beat shifted", instr:"clap"},
+  {name:"Guaguancó",  origin:"Cuba (Rumba)",    region:"Afro-Cuban", N:12, hits:[0,3,4,6,10],      desc:"Urban rumba from Havana",            instr:"snare"},
+  {name:"Baião",      origin:"Brazil (NE)",     region:"Brazil",     N:16, hits:[0,3,8,11],        desc:"Zabumba of the sertão",              instr:"kick"},
+  {name:"Maracatu",   origin:"Pernambuco",      region:"Brazil",     N:16, hits:[0,6,10,12],       desc:"African royal court rhythm",         instr:"kick"},
+  {name:"Bossa Nova", origin:"Brazil (Rio)",    region:"Brazil",     N:16, hits:[0,3,6,8,11,14],   desc:"João Gilberto's guitar pattern",     instr:"hihat"},
+  {name:"Surdo",      origin:"Brazil (Samba)",  region:"Brazil",     N:16, hits:[0,8],             desc:"Deep pulse of the batucada",         instr:"kick"},
+  {name:"Caixa",      origin:"Brazil (Samba)",  region:"Brazil",     N:16, hits:[0,2,4,6,8,10,12,14],desc:"Samba snare in eighth notes",      instr:"snare"},
+  {name:"Xote",       origin:"Brazil (NE)",     region:"Brazil",     N:8,  hits:[0,2,5,7],         desc:"Forró quadrilha pattern",            instr:"hihat"},
 ];
-const EUCLID_REGIONS=["Afrique","Afro-Cuban","Brésil"];
-const EUCLID_RCOL={"Afrique":"#FFD60A","Afro-Cuban":"#FF9500","Brésil":"#30D158"};
+const EUCLID_REGIONS=["Africa","Afro-Cuban","Brazil"];
+const EUCLID_RCOL={"Africa":"#FFD60A","Afro-Cuban":"#FF9500","Brazil":"#30D158"};
 
 // Euclidean rhythm generator (Bjorklund)
 function euclidRhythm(hits,steps){
@@ -796,16 +796,16 @@ export default function KickAndSnare(){
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:5,background:"rgba(48,209,88,0.1)",border:"1px solid rgba(48,209,88,0.3)"}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:"#30D158",display:"inline-block"}}/>
-                  <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>NOTES MIDI ACTIVES · {midiRef.current.ins?.length??0} port{midiRef.current.ins?.length===1?"":"s"}</span>
+                  <span style={{fontSize:8,color:"#30D158",fontWeight:700}}>MIDI NOTES ACTIVE · {midiRef.current.ins?.length??0} port{midiRef.current.ins?.length===1?"":"s"}</span>
                 </div>
-                <button onClick={()=>{setMidiNotes(false);setMidiLearnTrack(null);setMidiErr(null);}} style={{padding:"4px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>DÉSACTIVER</button>
+                <button onClick={()=>{setMidiNotes(false);setMidiLearnTrack(null);setMidiErr(null);}} style={{padding:"4px 12px",borderRadius:5,border:"1px solid rgba(255,45,85,0.4)",background:"rgba(255,45,85,0.1)",color:"#FF2D55",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>DISABLE</button>
               </div>
             ):(
-              <button onClick={async()=>{const ok=await initMidi();if(ok)setMidiNotes(true);}} style={{width:"100%",padding:"8px 0",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>▶ ACTIVER LES NOTES MIDI</button>
+              <button onClick={async()=>{const ok=await initMidi();if(ok)setMidiNotes(true);}} style={{width:"100%",padding:"8px 0",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.05em"}}>▶ ENABLE MIDI NOTES</button>
             )}
-            {midiErr&&<div style={{marginTop:6,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==='blocked'||midiErr==='noapi'?'⚠ Accès MIDI bloqué par le navigateur':'✕ Permission refusée — réessaie dans un onglet Chrome/Edge'}</div>}
+            {midiErr&&<div style={{marginTop:6,padding:"5px 8px",borderRadius:5,background:"rgba(255,149,0,0.07)",border:"1px solid rgba(255,149,0,0.2)",fontSize:8,color:"#FF9500",fontWeight:700}}>{midiErr==='blocked'||midiErr==='noapi'?'⚠ MIDI access blocked by browser':'✕ Permission denied — try in a Chrome/Edge tab'}</div>}
           </div>
-          {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Joue une note sur ton Oxygen Pro…</div>)}
+          {midiLearnTrack&&(<div style={{marginBottom:8,padding:"6px 10px",borderRadius:5,background:"rgba(255,45,85,0.12)",fontSize:9,color:"#FF2D55",fontWeight:700,textAlign:"center",animation:"rb 0.8s infinite"}}>● Play a note on your MIDI device…</div>)}
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {atO.map(tr=>{
               const note=midiNoteMap[tr.id];
@@ -823,7 +823,7 @@ export default function KickAndSnare(){
           </div>
           {/* Transport controls */}
           <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${th.sBorder}`}}>
-            <div style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>CONTRÔLES TRANSPORT</div>
+            <div style={{fontSize:7,color:th.dim,fontWeight:700,letterSpacing:"0.08em",marginBottom:6}}>TRANSPORT CONTROLS</div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {[{id:'__play__',icon:'▶',label:'START / STOP',color:"#30D158"},{id:'__rec__',icon:'⏺',label:'RECORD',color:"#FF2D55"}].map(ctrl=>{
                 const note=midiNoteMap[ctrl.id];
@@ -842,14 +842,14 @@ export default function KickAndSnare(){
               })}
             </div>
           </div>
-          <div style={{marginTop:8,fontSize:7,color:th.faint}}>Défauts GM : Kick=C2(36) Snare=D2(38) HH=F#2(42) Clap=D#2(39) Tom=A2(45) Ride=D#3(51) Crash=C#3(49) Perc=B2(47)</div>
+          <div style={{marginTop:8,fontSize:7,color:th.faint}}>GM defaults: Kick=C2(36) Snare=D2(38) HH=F#2(42) Clap=D#2(39) Tom=A2(45) Ride=D#3(51) Crash=C#3(49) Perc=B2(47)</div>
         </div>)}
 
         {/* ── Ableton Link Panel ── */}
         {showLink&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${linkConnected?"#BF5AF2":th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.12em"}}>🔗 ABLETON LINK BRIDGE</span>
-            {linkConnected&&<span style={{fontSize:9,fontWeight:700,color:"#30D158"}}>● {linkPeers} pair{linkPeers!==1?"s":""} connecté{linkPeers!==1?"s":""}</span>}
+            {linkConnected&&<span style={{fontSize:9,fontWeight:700,color:"#30D158"}}>● {linkPeers} peer{linkPeers!==1?"s":""} connected</span>}
           </div>
           <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8}}>
             <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}
@@ -871,10 +871,10 @@ export default function KickAndSnare(){
             border:`1px solid ${linkStatus==='connected'?"rgba(48,209,88,0.2)":linkStatus==='failed'?"rgba(255,149,0,0.2)":linkStatus==='connecting'?"rgba(191,90,242,0.2)":"transparent"}`}}>
             <span style={{fontSize:8,color:
               linkStatus==='connected'?"#30D158":linkStatus==='failed'?"#FF9500":linkStatus==='connecting'?"#BF5AF2":th.dim}}>
-              {linkStatus==='connected'&&`● ${linkPeers} pair${linkPeers!==1?"s":""} — BPM synchronisé avec Ableton Link`}
-              {linkStatus==='connecting'&&"⏳ Connexion en cours..."}
-              {linkStatus==='failed'&&"⚠ Échec — le bridge est-il lancé ? (node bridge.js dans link-bridge/)"}
-              {linkStatus==='idle'&&"Lance le bridge : cd link-bridge && npm i && node bridge.js"}
+              {linkStatus==='connected'&&`● ${linkPeers} peer${linkPeers!==1?"s":""} — BPM synced with Ableton Link`}
+              {linkStatus==='connecting'&&"⏳ Connecting..."}
+              {linkStatus==='failed'&&"⚠ Failed — is the bridge running? (node bridge.js in link-bridge/)"}
+              {linkStatus==='idle'&&"Run the bridge: cd link-bridge && npm i && node bridge.js"}
             </span>
           </div>
           <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
@@ -910,7 +910,7 @@ export default function KickAndSnare(){
           </div>
           {showSong&&(<div style={{padding:"0 12px 12px"}}>
             <div style={{marginBottom:10}}>
-              {songMode&&<span style={{fontSize:8,color:th.dim}}>Le séquenceur avance automatiquement dans la chaîne de patterns à chaque cycle</span>}
+              {songMode&&<span style={{fontSize:8,color:th.dim}}>The sequencer automatically advances through the pattern chain each cycle</span>}
             </div>
             {/* Chain rows */}
             <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
@@ -1004,7 +1004,7 @@ export default function KickAndSnare(){
                       <button onClick={()=>setFxO(isFO?null:track.id)} style={{width:22,height:18,border:"none",borderRadius:3,background:isFO?"rgba(191,90,242,0.25)":hasFx?"rgba(191,90,242,0.12)":th.btn,color:isFO||hasFx?"#BF5AF2":th.dim,fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>FX</button>
                       {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(fxO===track.id)setFxO(null);}} style={{width:18,height:18,border:"none",borderRadius:3,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                     </div>
-                    <button title={stLocked?`Effacer la piste pour changer la résolution`:`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{
+                    <button title={stLocked?`Clear the track to change resolution`:`${tSteps}st → ${nextTs}st`} disabled={stLocked} onClick={()=>{
                       const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};
                       setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});
                     }} style={{height:16,border:`1px solid ${stLocked?"rgba(255,55,95,0.25)":isCustomTs?track.color+"44":th.sBorder}`,borderRadius:3,background:stLocked?"rgba(255,55,95,0.06)":isCustomTs?track.color+"11":"transparent",color:stLocked?"rgba(255,55,95,0.5)":isCustomTs?track.color:th.dim,fontSize:7,fontWeight:800,cursor:stLocked?"not-allowed":"pointer",fontFamily:"inherit",padding:"0 3px",opacity:stLocked?0.6:1}}>{tSteps}st</button>
@@ -1238,7 +1238,7 @@ export default function KickAndSnare(){
                     <text x={CX} y={CY+4} textAnchor="middle" fontSize={9} fill={playing?"#30D158":th.faint} fontFamily="monospace" fontWeight={700}>{playing?"▶":"■"}</text>
                   </svg>
                   <div style={{fontSize:7,color:th.faint,letterSpacing:"0.08em",textAlign:"center"}}>
-                    {atO.length} piste{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits · clic = toggle · drag ↕ = vélocité
+                    {atO.length} track{atO.length>1?"s":""} · {atO.reduce((a,tr)=>a+(pat[tr.id]||[]).filter(v=>v>0).length,0)} hits · click = toggle · drag ↕ = velocity
                   </div>
                 </div>
               </div>
