@@ -393,14 +393,14 @@ export default function KickAndSnare(){
   const euclidClockR=useRef({});
   const [euclidCur,setEuclidCur]=useState({});
   const euclidMetroR=useRef({nextTime:null,beat:0});
-  // ── Pad Capture (ring buffer + overdub) ──
-  const [capState,setCapState]=useState("idle"); // idle|review
-  const [capBars,setCapBars]=useState(4);        // max bars to look back (1|2|4)
-  const [capAutoQ,setCapAutoQ]=useState(true);   // auto-quantize on CAPTURE
-  const [capReviewEvs,setCapReviewEvs]=useState([]); // [{tid,stepQ,stepR,nudge}] pending review
-  const [overdub,setOverdub]=useState(false);    // real-time step-write mode
-  const ringBufRef=useRef([]);                   // always-on ring: [{tid,t}]
-  const capTimerRef=useRef(null);
+  // ── Looper ──
+  const [loopBars,setLoopBars]=useState(1);
+  const [loopRec,setLoopRec]=useState(false);
+  const [loopPlaying,setLoopPlaying]=useState(false);
+  const [loopDisp,setLoopDisp]=useState([]); // [{tid,tOff,vel}] for display only
+  const [loopPlayhead,setLoopPlayhead]=useState(0); // 0..1
+  const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0});
+  const loopPhRef=useRef(null);
 
   const allT=[...ALL_TRACKS,...customTracks];
   const atO=act.map(id=>allT.find(t=>t.id===id)).filter(Boolean);
@@ -413,7 +413,7 @@ export default function KickAndSnare(){
   R.cp=cPat;R.bpm=bpm;R.sw=swing;R.rec=rec;R.km=kMap;R.sig=sig;R.metro=metro;R.mVol=metroVol;
   R.mSub=metroSub;R.prob=stProb;R.ratch=stRatch;R.view=view;
   R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.lkSync=linkSyncPlay;
-  R.overdub=overdub;R.ringBuf=ringBufRef.current;
+  R.loopRec=loopRec;
   R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;R.mNotes=midiNotes;
   // Tap tempo
   const handleTap=()=>{
@@ -522,25 +522,18 @@ export default function KickAndSnare(){
   const trigPad=useCallback((tid,vel=1)=>{
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
     setFlash(tid);setTimeout(()=>setFlash(null),100);
-    // Push to ring buffer (always-on, cap 4 bars)
-    // Store step + beat phase so doCapture can use exact position when sequencer is playing
+    // Looper recording
     const now=performance.now();
-    if(R.ringBuf){
-      // Store the current sequencer step so doCapture can use it directly when seq is playing
-      R.ringBuf.push({tid,t:now,step:R.step});
-      // Trim entries older than 4 bars
-      const maxMs=(240000/Math.max(30,R.bpm))*4;
-      while(R.ringBuf.length>0&&now-R.ringBuf[0].t>maxMs)R.ringBuf.shift();
-    }
-    // OVERDUB: write to current step
-    if(R.overdub&&R.step>=0){
-      const gSt=R.sig?.steps||16;const tSt=[gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt;const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
-      const v100=Math.max(1,Math.round(vel*100));
-      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
-      setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
+    if(R.loopRec&&loopRef.current.perfStart!==null){
+      const L=loopRef.current;
+      const tOff=(now-L.perfStart)%L.lengthMs;
+      const evId=`${Date.now()}-${Math.random()}`;
+      const ev={id:evId,tid,tOff,vel,pass:L.passId};
+      L.events.push(ev);
+      setLoopDisp(d=>[...d,{tid,tOff,vel}]);
     }
     // Legacy REC mode
-    if(R.rec&&!R.overdub&&R.step>=0){
+    if(R.rec&&R.step>=0){
       const gSt=R.sig?.steps||16;const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
       const v100=Math.max(1,Math.round(vel*100));
       setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
@@ -705,73 +698,81 @@ export default function KickAndSnare(){
   ssRef.current=startStop;
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
 
-  // ── Pad Capture: ring buffer retrospective ──
-  const doCapture=()=>{
-    if(!ringBufRef.current.length)return;
-    const now=performance.now();
-    const glbSteps=R.sig?.steps||STEPS;
-    const barMs=(60000/Math.max(30,R.bpm))*4; // 1 bar in ms (4/4)
-    const windowMs=barMs*capBars;
-    const relevant=ringBufRef.current.filter(e=>now-e.t<=windowMs);
-    if(!relevant.length)return;
-    const tSteps=STEPS;
-    const stepDurMs=barMs/glbSteps; // duration of 1 step in ms
-    const evs=relevant.map(e=>{
-      let stepQ,stepR,nudgeMs=0;
-      if(e.step>=0){
-        // Sequencer was playing: use stored step directly — exact and subdivision-correct
-        stepQ=e.step%tSteps;
-        stepR=e.step%tSteps;
-        nudgeMs=0;
-      }else{
-        // Sequencer was stopped: map position in window to step
-        // msFromStart: 0=oldest in window, windowMs=most recent
-        const msFromStart=windowMs-(now-e.t);
-        const exactStep=(msFromStart/windowMs)*tSteps;
-        stepQ=Math.min(tSteps-1,Math.round(exactStep)); // clamp, no modulo wrap
-        stepR=Math.min(tSteps-1,Math.floor(exactStep));
-        const fracInStep=exactStep-Math.floor(exactStep);
-        nudgeMs=Math.round(fracInStep*stepDurMs);
-      }
-      return{tid:e.tid,stepQ,stepR,nudgeMs};
-    });
-    if(capAutoQ){
-      commitCapture(evs,"quantize");
-    }else{
-      setCapReviewEvs(evs);setCapState("review");
-    }
-  };
-  const commitCapture=(evs,mode)=>{
-    const tSteps=STEPS;
-    const nudgeMap={}; // {tid:{step:nudgeMs}} — collected outside setPBank
-    setPBank(pb=>{
-      const n=[...pb];const cp={...n[R.cp]};
-      evs.forEach(({tid,stepQ,stepR,nudgeMs})=>{
-        if(!R.at.includes(tid))return;
-        const s=mode==="keep"?stepR:stepQ;
-        const capped=Math.max(0,Math.min(tSteps-1,s));
-        cp[tid]=[...(cp[tid]||Array(tSteps).fill(0))];
-        cp[tid][capped]=100;
-        if(mode==="keep"&&nudgeMs>0){
-          if(!nudgeMap[tid])nudgeMap[tid]={};
-          nudgeMap[tid][capped]=nudgeMs;
+  // ── Looper engine ──
+  const loopSchedFn=()=>{
+    const L=loopRef.current;const ctx=engine.ctx;
+    if(!ctx||L.audioStart===null)return;
+    const now=ctx.currentTime;const ahead=0.12;
+    const lenSec=L.lengthMs/1000;
+    const elapsed=now-L.audioStart;
+    const loopN=Math.floor(elapsed/lenSec);
+    L.events.forEach(ev=>{
+      const tSec=ev.tOff/1000;
+      for(let n=Math.max(0,loopN-1);n<=loopN+2;n++){
+        const evTime=L.audioStart+n*lenSec+tSec;
+        const key=`${ev.id}:${n}`;
+        if(evTime>=now-0.01&&evTime<=now+ahead&&!L.scheduled.has(key)){
+          L.scheduled.add(key);
+          const delay=Math.max(0,evTime-now);
+          engine.play(ev.tid,ev.vel,delay,R.fx[ev.tid]||defFx());
+          setTimeout(()=>L.scheduled.delete(key),(delay+1)*1000);
         }
-      });
-      n[R.cp]=cp;return n;
+      }
     });
-    // Apply nudge updates outside setPBank callback
-    if(Object.keys(nudgeMap).length>0){
-      setStNudge(sn=>{
-        const next={...sn};
-        Object.entries(nudgeMap).forEach(([tid,steps])=>{next[tid]={...(sn[tid]||{}),...steps};});
-        return next;
-      });
-    }
-    setCapState("idle");setCapReviewEvs([]);
+    L.schTimer=setTimeout(loopSchedFn,25);
   };
-  const doQuantize=()=>commitCapture(capReviewEvs,"quantize");
-  const doKeep=()=>commitCapture(capReviewEvs,"keep");
-  const doDiscard=()=>{setCapState("idle");setCapReviewEvs([]);};
+  const startLooper=()=>{
+    engine.init();
+    const L=loopRef.current;
+    L.lengthMs=(60000/Math.max(30,R.bpm))*4*loopBars;
+    L.audioStart=engine.ctx.currentTime;
+    L.perfStart=performance.now();
+    L.scheduled=new Set();
+    loopSchedFn();
+    // RAF playhead
+    const animate=()=>{
+      const LL=loopRef.current;
+      if(LL.audioStart===null||!engine.ctx)return;
+      const el=engine.ctx.currentTime-LL.audioStart;
+      const lenS=LL.lengthMs/1000;
+      setLoopPlayhead((el%lenS)/lenS);
+      loopPhRef.current=requestAnimationFrame(animate);
+    };
+    cancelAnimationFrame(loopPhRef.current);
+    loopPhRef.current=requestAnimationFrame(animate);
+    setLoopPlaying(true);
+  };
+  const stopLooper=()=>{
+    clearTimeout(loopRef.current.schTimer);
+    cancelAnimationFrame(loopPhRef.current);
+    loopRef.current.audioStart=null;
+    setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
+  };
+  const toggleLoopRec=()=>{
+    if(!loopPlaying){
+      // Arm + start
+      const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
+      setLoopRec(true);startLooper();
+    }else if(!loopRec){
+      // Overdub: add new pass
+      loopRef.current.passId++;setLoopRec(true);
+    }else{
+      // Stop recording, keep playing
+      setLoopRec(false);
+    }
+  };
+  const undoLoopPass=()=>{
+    const L=loopRef.current;
+    if(!L.passId)return;
+    L.events=L.events.filter(e=>e.pass<L.passId);
+    L.passId=Math.max(0,L.passId-1);
+    setLoopDisp([...L.events]);
+  };
+  const clearLooper=()=>{
+    stopLooper();
+    loopRef.current.events=[];loopRef.current.passId=0;
+    setLoopDisp([]);
+  };
 
 
   // Step interactions
@@ -1395,75 +1396,54 @@ export default function KickAndSnare(){
           </div>
         </>)}
 
-        {/* ── LIVE PADS ── */}
+        {/* ── LIVE PADS + LOOPER ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
-          {/* ─ Capture toolbar ─ */}
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 12px",borderRadius:10,background:th.surface,border:`1px solid ${overdub?"rgba(255,45,85,0.5)":th.sBorder}`,flexWrap:"wrap"}}>
-            {/* CAPTURE button */}
-            <button onClick={doCapture} disabled={capState==="review"} title={`Capture last ${capBars} bar${capBars>1?"s":""} from ring buffer`} style={{padding:"5px 14px",borderRadius:6,background:capState==="review"?"rgba(100,210,255,0.08)":"rgba(100,210,255,0.12)",color:"#64D2FF",border:`1px solid rgba(100,210,255,${capState==="review"?0.1:0.35})`,fontSize:9,fontWeight:700,cursor:capState==="review"?"default":"pointer",fontFamily:"inherit",opacity:capState==="review"?0.4:1}}>⊙ CAPTURE</button>
-            {/* OVERDUB button */}
-            <button onClick={()=>setOverdub(p=>!p)} title="Overdub: write to current step while playing" style={{padding:"5px 14px",borderRadius:6,background:overdub?"rgba(255,45,85,0.2)":"rgba(255,45,85,0.06)",color:overdub?"#FF2D55":"#FF2D55AA",border:`1px solid rgba(255,45,85,${overdub?0.6:0.2})`,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:overdub?`0 0 10px rgba(255,45,85,0.3)`:"none"}}>
-              {overdub?"● OVERDUB":"○ OVERDUB"}
-            </button>
-            {/* AUTO-Q toggle */}
-            <div style={{display:"flex",alignItems:"center",gap:4}}>
-              <span style={{fontSize:7,color:th.dim,fontWeight:700}}>AUTO-Q</span>
-              <button onClick={()=>setCapAutoQ(p=>!p)} style={{width:28,height:15,borderRadius:8,border:"none",background:capAutoQ?"#30D158":"rgba(255,255,255,0.08)",position:"relative",cursor:"pointer",transition:"background 0.15s",flexShrink:0,outline:"none"}}>
-                <div style={{position:"absolute",top:2.5,left:capAutoQ?15:2.5,width:10,height:10,borderRadius:"50%",background:"#fff",transition:"left 0.15s",boxShadow:"0 1px 3px rgba(0,0,0,0.4)"}}/>
-              </button>
-            </div>
-            {/* BARS selector */}
-            <div style={{display:"flex",alignItems:"center",gap:3,marginLeft:"auto"}}>
-              <span style={{fontSize:7,color:th.dim,fontWeight:700}}>BARS</span>
-              {[1,2,4].map(b=><button key={b} onClick={()=>setCapBars(b)} style={{width:20,height:20,borderRadius:4,border:`1px solid ${capBars===b?"#FF9500":th.sBorder}`,background:capBars===b?"rgba(255,149,0,0.15)":"transparent",color:capBars===b?"#FF9500":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{b}</button>)}
-            </div>
-          </div>
 
-          {/* ─ Review strip (post-capture, pushes pads down) ─ */}
-          {capState==="review"&&(()=>{
-            // Group events by track
-            const byTrack={};capReviewEvs.forEach(ev=>{if(!byTrack[ev.tid])byTrack[ev.tid]=[];byTrack[ev.tid].push(ev);});
-            const reviewTracks=atO.filter(t=>byTrack[t.id]);
-            return(<div style={{marginBottom:12,padding:"10px 12px",borderRadius:10,background:th.surface,border:"1px solid rgba(100,210,255,0.3)"}}>
-              <div style={{fontSize:8,fontWeight:800,color:"#64D2FF",letterSpacing:"0.12em",marginBottom:8}}>REVIEW CAPTURE — {capReviewEvs.length} hits</div>
-              {/* Per-track pastille strips */}
-              {reviewTracks.map(track=>(<div key={track.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
-                <span style={{fontSize:8,fontWeight:700,color:track.color,width:34,flexShrink:0,textAlign:"right"}}>{track.label}</span>
-                <div style={{flex:1,height:18,borderRadius:5,background:`${track.color}0d`,border:`1px solid ${track.color}30`,position:"relative",overflow:"hidden"}}>
-                  {byTrack[track.id].map((ev,i)=>(
-                    <div key={i} style={{position:"absolute",top:"50%",left:`${(ev.stepQ/STEPS)*100}%`,transform:"translate(-50%,-50%)",width:8,height:8,borderRadius:"50%",background:track.color,boxShadow:`0 0 6px ${track.color}88`}}/>
-                  ))}
-                </div>
-              </div>))}
-              {/* Review actions */}
-              <div style={{display:"flex",gap:8,marginTop:10,justifyContent:"flex-end"}}>
-                <button onClick={doKeep} title="Keep raw positions (with nudge)" style={{padding:"5px 14px",borderRadius:6,background:"rgba(48,209,88,0.12)",color:"#30D158",border:"1px solid rgba(48,209,88,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>GARDER</button>
-                <button onClick={doQuantize} title="Snap to nearest step" style={{padding:"5px 14px",borderRadius:6,background:"rgba(255,149,0,0.12)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>QUANTIZE</button>
-                <button onClick={doDiscard} style={{padding:"5px 12px",borderRadius:6,background:"transparent",color:th.dim,border:`1px solid ${th.sBorder}`,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>DISCARD</button>
+          {/* ─ Looper toolbar ─ */}
+          <div style={{marginBottom:10,padding:"10px 12px",borderRadius:10,background:th.surface,border:`1px solid ${loopRec?"rgba(255,45,85,0.55)":loopPlaying?"rgba(48,209,88,0.35)":th.sBorder}`,transition:"border-color 0.2s"}}>
+            {/* Row 1: controls */}
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              {/* LOOP length */}
+              <div style={{display:"flex",alignItems:"center",gap:3}}>
+                <span style={{fontSize:7,color:th.dim,fontWeight:700,marginRight:2}}>LOOP</span>
+                {[1,2,4].map(b=><button key={b} onClick={()=>{if(!loopPlaying)setLoopBars(b);}} style={{width:22,height:20,borderRadius:4,border:`1px solid ${loopBars===b?"#FF9500":th.sBorder}`,background:loopBars===b?"rgba(255,149,0,0.15)":"transparent",color:loopBars===b?"#FF9500":th.dim,fontSize:8,fontWeight:700,cursor:loopPlaying?"default":"pointer",fontFamily:"inherit",opacity:loopPlaying&&loopBars!==b?0.4:1}}>{b}</button>)}
+                <span style={{fontSize:7,color:th.faint}}>bar{loopBars>1?"s":""}</span>
               </div>
-            </div>);
-          })()}
-
-          {/* ─ Step Visualizer — full width, after capture section ─ */}
-          <div style={{marginBottom:12,padding:"8px 12px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
-            {atO.map(track=>{
-              const tSteps=trackSteps[track.id]||STEPS;
-              const steps=pat[track.id]||Array(tSteps).fill(0);
-              const hasHits=steps.some(Boolean);
-              return(<div key={track.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                <span style={{fontSize:7,fontWeight:700,color:hasHits?track.color:th.faint,width:34,flexShrink:0,textAlign:"right",letterSpacing:"0.03em"}}>{track.label}</span>
-                <div style={{flex:1,display:"grid",gridTemplateColumns:`repeat(${tSteps},1fr)`,gap:2}}>
-                  {Array.from({length:tSteps}).map((_,s)=>{
-                    const on=!!steps[s];
-                    const isCur=cStep===s&&playing;
-                    return(<div key={s}
-                      onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[track.id]=[...(cp[track.id]||Array(tSteps).fill(0))];cp[track.id][s]=cp[track.id][s]?0:100;n[cPat]=cp;return n;});}}
-                      style={{height:8,borderRadius:2,background:isCur?track.color:on?track.color+"CC":track.color+"18",cursor:"pointer",boxShadow:isCur?`0 0 5px ${track.color}`:"none",transition:"background 0.04s"}}
-                    />);
-                  })}
-                </div>
-              </div>);
-            })}
+              {/* REC */}
+              <button onClick={toggleLoopRec} style={{padding:"5px 14px",borderRadius:6,background:loopRec?"rgba(255,45,85,0.25)":"rgba(255,45,85,0.08)",color:"#FF2D55",border:`1px solid rgba(255,45,85,${loopRec?0.7:0.25})`,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:loopRec?"0 0 12px rgba(255,45,85,0.4)":"none",letterSpacing:"0.08em"}}>
+                {loopRec?"● REC":"○ REC"}
+              </button>
+              {/* PLAY / STOP */}
+              {loopPlaying
+                ?<button onClick={stopLooper} style={{padding:"5px 14px",borderRadius:6,background:"rgba(48,209,88,0.12)",color:"#30D158",border:"1px solid rgba(48,209,88,0.4)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>■ STOP</button>
+                :<button onClick={()=>{if(loopRef.current.events.length>0)startLooper();}} disabled={loopDisp.length===0} style={{padding:"5px 14px",borderRadius:6,background:"rgba(48,209,88,0.08)",color:loopDisp.length?"#30D158":"#30D15855",border:`1px solid rgba(48,209,88,${loopDisp.length?0.4:0.1})`,fontSize:9,fontWeight:700,cursor:loopDisp.length?"pointer":"default",fontFamily:"inherit"}}>▶ PLAY</button>
+              }
+              <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+                <button onClick={undoLoopPass} disabled={!loopDisp.length} style={{padding:"4px 10px",borderRadius:5,background:"transparent",color:th.dim,border:`1px solid ${th.sBorder}`,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:loopDisp.length?1:0.35}}>↩ UNDO</button>
+                <button onClick={clearLooper} disabled={!loopDisp.length&&!loopPlaying} style={{padding:"4px 10px",borderRadius:5,background:"rgba(255,55,95,0.08)",color:"#FF375F",border:"1px solid rgba(255,55,95,0.25)",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:loopDisp.length||loopPlaying?1:0.35}}>✕ CLEAR</button>
+              </div>
+            </div>
+            {/* Row 2: timeline */}
+            <div style={{marginTop:10,borderRadius:8,overflow:"hidden",background:`${th.bg}`,padding:"6px 0",position:"relative"}}>
+              {/* Tracks */}
+              {atO.map(track=>{
+                const evs=loopDisp.filter(e=>e.tid===track.id);
+                return(<div key={track.id} style={{display:"flex",alignItems:"center",gap:8,height:16,marginBottom:3}}>
+                  <span style={{fontSize:7,fontWeight:700,color:evs.length?track.color:th.faint,width:36,flexShrink:0,textAlign:"right"}}>{track.label}</span>
+                  <div style={{flex:1,height:10,borderRadius:3,background:track.color+"14",position:"relative",overflow:"visible"}}>
+                    {evs.map((ev,i)=>{
+                      const L=loopRef.current;const pct=(ev.tOff/L.lengthMs)*100;
+                      return(<div key={i} style={{position:"absolute",left:`${pct}%`,top:"50%",transform:"translate(-50%,-50%)",width:6,height:10,borderRadius:2,background:track.color,boxShadow:`0 0 4px ${track.color}88`}}/>);
+                    })}
+                  </div>
+                </div>);
+              })}
+              {/* Playhead */}
+              {loopPlaying&&<div style={{position:"absolute",top:0,bottom:0,left:`${loopPlayhead*100}%`,width:1.5,background:"rgba(255,255,255,0.55)",pointerEvents:"none",boxShadow:"0 0 6px rgba(255,255,255,0.4)",transform:"translateX(-50%)",zIndex:10,marginLeft:44}}/>}
+              {/* Loop boundary markers */}
+              <div style={{position:"absolute",top:0,right:0,width:1.5,background:"rgba(255,255,255,0.12)",height:"100%"}}/>
+              {!loopPlaying&&!loopDisp.length&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:44}}><span style={{fontSize:8,color:th.faint}}>press ● REC then tap pads</span></div>}
+            </div>
           </div>
 
           {/* ─ Pads grid ─ */}
@@ -1473,10 +1453,10 @@ export default function KickAndSnare(){
                 <button
                   onPointerDown={e=>{
                     e.preventDefault();
-                    trigPad(track.id, e.pointerType==="mouse"?1:110/127);
+                    trigPad(track.id,e.pointerType==="mouse"?1:110/127);
                     if(navigator.vibrate)navigator.vibrate(15);
                   }}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:overdub?track.color+"88":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:overdub?`0 0 22px ${track.color}44`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
+                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:loopRec?track.color+"88":track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:loopRec?`0 0 22px ${track.color}44`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
                   {DrumSVG(track.id,track.color,flash===track.id,44)}
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
@@ -1485,7 +1465,7 @@ export default function KickAndSnare(){
               </div>
             ))}
           </div>
-          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>Tap pads · CAPTURE → dernières {capBars} mesure{capBars>1?"s":""} → steps · OVERDUB écrit en temps réel</div>
+          <div style={{textAlign:"center",marginTop:12,fontSize:8,color:th.dim}}>● REC pour enregistrer · ▶ PLAY pour boucler · ○ REC pour overdub</div>
         </div>)}
 
         {/* ── EUCLID VIEW ── */}
