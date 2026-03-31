@@ -595,8 +595,8 @@ export default function KickAndSnare(){
   const MidiTag=({id})=>{
     const n=midiNoteMap[id]??null; // treat undefined as null
     const learning=midiLearnTrack===id;
-    // Hide only when: not mapped AND not in learn mode
-    if(n===null&&!midiLM)return null;
+    // Only visible during MIDI learn mode
+    if(!midiLM)return null;
     const handleClick=async e=>{
       e.stopPropagation();
       // If MIDI not yet active, initialize first
