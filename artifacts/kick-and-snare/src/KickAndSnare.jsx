@@ -1053,36 +1053,39 @@ export default function KickAndSnare(){
                     const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                     return(
                       <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}${aud?"44":"22"}`,background:tr.color+(aud?"0a":"05"),padding:"6px 10px",display:"flex",flexDirection:"column",gap:5,transition:"opacity 0.1s",opacity:aud?1:0.65}}>
-                        {/* ── Header row: fold · icon · name · cnt · M · S · × │ VOL · PAN ── */}
+                        {/* ── Header: 2-col grid — left: fold·icon·name·M·S·× | right: stacked H-sliders ── */}
                         {(()=>{
                           const f=fx[tr.id]||defFx();
                           const vol=f.vol??80;const pan=f.pan??0;
                           const uFx=(k,v)=>setFx(prev=>({...prev,[tr.id]:{...(prev[tr.id]||defFx()),[k]:v}}));
-                          const slV={writingMode:"vertical-lr",direction:"rtl",WebkitAppearance:"slider-vertical",width:14,height:52,cursor:"pointer",accentColor:tr.color,flexShrink:0};
+                          const slH={width:"100%",height:3,accentColor:tr.color,cursor:"pointer",display:"block"};
+                          const slLbl={fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em",flexShrink:0,width:18};
+                          const slVal={fontSize:6,color:th.faint,fontWeight:600,flexShrink:0,width:20,textAlign:"right"};
                           return(
-                            <div style={{display:"flex",alignItems:"center",gap:4}}>
-                              {/* Left group */}
-                              <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",width:10,flexShrink:0}}>{p.fold?"▶":"▼"}</span>
-                              <span style={{fontSize:12,flexShrink:0,opacity:aud?1:0.5}}>{tr.icon}</span>
-                              <span style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,minWidth:0}}>{tr.label}</span>
-                              {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 4px",fontSize:6.5,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
-                              <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
-                              <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
-                              {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
-                              {/* Divider */}
-                              <span style={{width:1,height:44,background:tr.color+"22",flexShrink:0,marginLeft:2}}/>
-                              {/* Right group: Vol + Pan always visible */}
-                              <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                                  <span style={{fontSize:5.5,color:tr.color,fontWeight:800,letterSpacing:"0.04em"}}>VOL</span>
-                                  <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slV}/>
-                                  <span style={{fontSize:5.5,color:th.faint,fontWeight:600}}>{vol}</span>
-                                </div>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                                  <span style={{fontSize:5.5,color:tr.color,fontWeight:800,letterSpacing:"0.04em"}}>PAN</span>
-                                  <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={slV}/>
-                                  <span style={{fontSize:5.5,color:th.faint,fontWeight:600}}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
-                                </div>
+                            <div style={{display:"grid",gridTemplateColumns:"auto 1fr",columnGap:6,rowGap:4,alignItems:"center"}}>
+                              {/* Row 1 left: fold + icon + label + cnt + M + S + × */}
+                              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                                <span onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{fontSize:8,color:th.dim,cursor:"pointer",userSelect:"none",flexShrink:0}}>{p.fold?"▶":"▼"}</span>
+                                <span style={{fontSize:12,flexShrink:0,opacity:aud?1:0.5}}>{tr.icon}</span>
+                                <span style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
+                                {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 4px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
+                                <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
+                                <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
+                                {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                              </div>
+                              {/* Row 1 right: VOL horizontal slider */}
+                              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                                <span style={slLbl}>VOL</span>
+                                <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slH}/>
+                                <span style={slVal}>{vol}</span>
+                              </div>
+                              {/* Row 2 left: empty spacer (grid auto-sizes to match row 1 left) */}
+                              <div/>
+                              {/* Row 2 right: PAN horizontal slider */}
+                              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                                <span style={slLbl}>PAN</span>
+                                <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={slH}/>
+                                <span style={slVal}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
                               </div>
                             </div>
                           );
