@@ -896,6 +896,43 @@ export default function KickAndSnare(){
           </div>
         </div>
 
+        {/* ── SONG ARRANGER (foldable) ── */}
+        <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
+          {/* Fold header */}
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",userSelect:"none"}}>
+            <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
+              <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.1em"}}>SONG ARRANGER</span>
+              <span style={{fontSize:10,color:th.dim}}>{showSong?"▲":"▼"}</span>
+            </div>
+            <button onClick={e=>{e.stopPropagation();setSongMode(p=>!p);}} style={{...pill(songMode,"#BF5AF2"),fontSize:8,padding:"2px 8px",animation:songMode&&playing?"pulse 1s infinite":"none"}}>
+              {songMode?(playing?"▶ ON":"ON"):"OFF"}
+            </button>
+          </div>
+          {showSong&&(<div style={{padding:"0 12px 12px"}}>
+            <div style={{marginBottom:10}}>
+              {songMode&&<span style={{fontSize:8,color:th.dim}}>Le séquenceur avance automatiquement dans la chaîne de patterns à chaque cycle</span>}
+            </div>
+            {/* Chain rows */}
+            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
+              {songChain.map((patIdx,chainIdx)=>{
+                const isActive=songMode&&playing&&songPosRef.current===chainIdx;
+                return(<div key={chainIdx} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",borderRadius:6,background:isActive?"rgba(191,90,242,0.08)":"transparent",border:`1px solid ${isActive?"rgba(191,90,242,0.3)":"transparent"}`}}>
+                  <span style={{width:16,fontSize:8,color:isActive?"#BF5AF2":th.faint,fontWeight:700,textAlign:"right",flexShrink:0}}>{chainIdx+1}</span>
+                  <div style={{display:"flex",gap:3,flex:1,flexWrap:"wrap"}}>
+                    {pBank.map((_,pi)=>(<button key={pi} onClick={()=>setSongChain(p=>{const n=[...p];n[chainIdx]=pi;return n;})} style={{width:26,height:22,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:800,border:`1px solid ${patIdx===pi?SEC_COL[pi%8]+"66":th.sBorder}`,background:patIdx===pi?SEC_COL[pi%8]+"20":"transparent",color:patIdx===pi?SEC_COL[pi%8]:th.dim}}>{pi+1}</button>))}
+                  </div>
+                  {isActive&&<span style={{fontSize:9,color:"#BF5AF2"}}>▶</span>}
+                  <button onClick={()=>setSongChain(p=>{const n=[...p];n.splice(chainIdx+1,0,patIdx);return n;})} title="Duplicate below" style={{width:18,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>+</button>
+                  {songChain.length>1&&<button onClick={()=>setSongChain(p=>p.filter((_,j)=>j!==chainIdx))} style={{width:18,height:18,border:"1px solid rgba(255,55,95,0.25)",borderRadius:3,background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>×</button>}
+                </div>);
+              })}
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>setSongChain(p=>[...p,cPat])} style={{padding:"4px 12px",borderRadius:6,border:"1px dashed rgba(191,90,242,0.35)",background:"transparent",color:"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ ADD STEP</button>
+              <button onClick={()=>setSongChain([cPat])} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>RESET</button>
+            </div>
+          </div>)}
+        </div>
 
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
@@ -1208,45 +1245,6 @@ export default function KickAndSnare(){
             </div>
           );
         })()}
-
-        {/* ── SONG ARRANGER (foldable) ── */}
-        <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
-          {/* Fold header */}
-          <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",userSelect:"none"}}>
-            <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
-              <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.1em"}}>SONG ARRANGER</span>
-              <span style={{fontSize:10,color:th.dim}}>{showSong?"▲":"▼"}</span>
-            </div>
-            <button onClick={e=>{e.stopPropagation();setSongMode(p=>!p);}} style={{...pill(songMode,"#BF5AF2"),fontSize:8,padding:"2px 8px",animation:songMode&&playing?"pulse 1s infinite":"none"}}>
-              {songMode?(playing?"▶ ON":"ON"):"OFF"}
-            </button>
-          </div>
-          {showSong&&(<div style={{padding:"0 12px 12px"}}>
-            <div style={{marginBottom:10}}>
-              {songMode&&<span style={{fontSize:8,color:th.dim}}>Le séquenceur avance automatiquement dans la chaîne de patterns à chaque cycle</span>}
-            </div>
-            {/* Chain rows */}
-            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
-              {songChain.map((patIdx,chainIdx)=>{
-                const isActive=songMode&&playing&&songPosRef.current===chainIdx;
-                return(<div key={chainIdx} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",borderRadius:6,background:isActive?"rgba(191,90,242,0.08)":"transparent",border:`1px solid ${isActive?"rgba(191,90,242,0.3)":"transparent"}`}}>
-                  <span style={{width:16,fontSize:8,color:isActive?"#BF5AF2":th.faint,fontWeight:700,textAlign:"right",flexShrink:0}}>{chainIdx+1}</span>
-                  <div style={{display:"flex",gap:3,flex:1,flexWrap:"wrap"}}>
-                    {pBank.map((_,pi)=>(<button key={pi} onClick={()=>setSongChain(p=>{const n=[...p];n[chainIdx]=pi;return n;})} style={{width:26,height:22,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:800,border:`1px solid ${patIdx===pi?SEC_COL[pi%8]+"66":th.sBorder}`,background:patIdx===pi?SEC_COL[pi%8]+"20":"transparent",color:patIdx===pi?SEC_COL[pi%8]:th.dim}}>{pi+1}</button>))}
-                  </div>
-                  {isActive&&<span style={{fontSize:9,color:"#BF5AF2"}}>▶</span>}
-                  <button onClick={()=>setSongChain(p=>{const n=[...p];n.splice(chainIdx+1,0,patIdx);return n;})} title="Duplicate below" style={{width:18,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>+</button>
-                  {songChain.length>1&&<button onClick={()=>setSongChain(p=>p.filter((_,j)=>j!==chainIdx))} style={{width:18,height:18,border:"1px solid rgba(255,55,95,0.25)",borderRadius:3,background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>×</button>}
-                </div>);
-              })}
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>setSongChain(p=>[...p,cPat])} style={{padding:"4px 12px",borderRadius:6,border:"1px dashed rgba(191,90,242,0.35)",background:"transparent",color:"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ ADD STEP</button>
-              <button onClick={()=>setSongChain([cPat])} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>RESET</button>
-            </div>
-          </div>)}
-        </div>
-
 
         {/* ── Step position visualizer ── */}
         <div style={{display:"flex",gap:0,marginTop:14,justifyContent:"center",height:22,alignItems:"flex-end"}}>
