@@ -727,7 +727,8 @@ export default function KickAndSnare(){
   const addCustomTrack=()=>{
     const name=newTrackName.trim();if(!name)return;
     const id=`ct_${Date.now()}`;const N=STEPS;
-    const t={id,label:name.toUpperCase().slice(0,10),icon:CUST_ICONS[customTracks.length%CUST_ICONS.length],color:SEC_COL[(customTracks.length+4)%SEC_COL.length]};
+    const usedCols=customTracks.map(c=>c.color);const custCol=SEC_COL.find(c=>!usedCols.includes(c))||SEC_COL[customTracks.length%SEC_COL.length];
+    const t={id,label:name.toUpperCase().slice(0,10),icon:CUST_ICONS[customTracks.length%CUST_ICONS.length],color:custCol};
     setCustomTracks(p=>[...p,t]);
     setPBank(pb=>pb.map(pat=>({...pat,[id]:Array(N).fill(0),_steps:{...(pat._steps||{}),[id]:N}})));
     setStVel(p=>({...p,[id]:Array(N).fill(100)}));
@@ -843,21 +844,36 @@ export default function KickAndSnare(){
                 <g style={show(aT)}>
                   <ellipse cx="52" cy="25" rx="7" ry="3" fill={hT?"#fff0e8":"none"} stroke={hT?hi:"#ccc"} strokeWidth={hT?1.2:0.6}/>
                 </g>
-                {/* Ride / Crash cymbal */}
+                {/* Ride / Crash cymbal — moved closer (x=68) so arm reaches */}
                 <g style={show(aR)}>
-                  <line x1="78" y1="12" x2="78" y2="50" stroke="#ccc" strokeWidth="0.7"/>
-                  <ellipse cx="78" cy="12" rx="9" ry="2" fill={hR?"#fffbe8":"none"} stroke={hR?"#FFD60A":"#ccc"} strokeWidth={hR?1.5:0.7}/>
-                  <ellipse cx="72" cy="40" rx="7" ry="4" fill="none" stroke="#ddd" strokeWidth="0.5"/>
-                  {hR&&<><line x1="74" y1="9" x2="72" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="82" y1="9" x2="84" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="78" y1="9" x2="78" y2="4" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/></>}
+                  <line x1="68" y1="12" x2="68" y2="50" stroke="#ccc" strokeWidth="0.7"/>
+                  <ellipse cx="68" cy="12" rx="9" ry="2" fill={hR?"#fffbe8":"none"} stroke={hR?"#FFD60A":"#ccc"} strokeWidth={hR?1.5:0.7}/>
+                  <ellipse cx="62" cy="40" rx="7" ry="4" fill="none" stroke="#ddd" strokeWidth="0.5"/>
+                  {hR&&<><line x1="64" y1="9" x2="62" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="72" y1="9" x2="74" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="68" y1="9" x2="68" y2="4" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>
-                {/* Perc — bongo pair */}
+                {/* Perc — bongo pair (closer together) */}
                 <g style={show(aPerc)}>
-                  <ellipse cx="116" cy="41" rx="6" ry="8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
-                  <ellipse cx="116" cy="33" rx="6" ry="2.2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
-                  <ellipse cx="125" cy="43" rx="5" ry="7" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
-                  <ellipse cx="125" cy="36" rx="5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
-                  {hPerc&&<><line x1="113" y1="30" x2="111" y2="26" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/><line x1="119" y1="30" x2="121" y2="26" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/></>}
+                  <ellipse cx="112" cy="41" rx="5.5" ry="7.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="112" cy="33.5" rx="5.5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  <ellipse cx="120" cy="43" rx="4.5" ry="6.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="120" cy="36.5" rx="4.5" ry="1.8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  {hPerc&&<><line x1="109" y1="31" x2="107" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/><line x1="115" y1="31" x2="117" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/></>}
                 </g>
+                {/* Electronic pads — 1 per custom track, rack-mounted right side */}
+                {customTracks.length>0&&(()=>{
+                  const total=customTracks.length;const padW=7;const gap=2;const startX=130-(total*(padW+gap)-gap);
+                  return(<g>
+                    <line x1={startX-1} y1="18" x2={130-(gap)} y2="18" stroke="#888" strokeWidth="0.6" opacity="0.5"/>
+                    {customTracks.map((ct,i)=>{
+                      const px=startX+i*(padW+gap);
+                      const hit=eHit(ct.id)&&playing&&act.includes(ct.id);
+                      return(<g key={ct.id}>
+                        <rect x={px} y="12" width={padW} height="5.5" rx="1.2" fill={hit?ct.color+"44":"none"} stroke={hit?ct.color:ct.color+"66"} strokeWidth={hit?1.2:0.6}/>
+                        {hit&&<ellipse cx={px+padW/2} cy="14.75" rx="1.5" ry="1" fill={ct.color} opacity="0.7"/>}
+                      </g>);
+                    })}
+                  </g>);
+                })()}
                 {/* Clap — maracas shaker near musician */}
                 <g style={show(aClap)}>
                   <ellipse cx="8" cy="28" rx="4" ry="5.5" fill={hC?"#5E5CE622":"none"} stroke={hC?"#5E5CE6":"#bbb"} strokeWidth={hC?1.3:0.7}/>
