@@ -100,9 +100,7 @@ class Eng{
   constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this.ana={};}
   init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.mg=this.ctx.createGain();this.mg.gain.value=0.8;this.mg.connect(this.ctx.destination);this._mkRv();TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();}
   async _loadDefaults(){
-    for(const [id,b64] of Object.entries(DEFAULT_SAMPLES)){
-      try{const ab=b64toAB(b64);this.buf[id]=await this.ctx.decodeAudioData(ab);}catch(e){console.warn("Default sample load failed:",id,e);}
-    }
+    // Default sounds are now 808 synthesis — no pre-loaded samples
   }
   _mkRv(decay){
     const d=decay||2;const sr=this.ctx.sampleRate;const l=Math.ceil(sr*Math.min(5,d));
@@ -164,16 +162,64 @@ class Eng{
     let mx=0;for(let i=0;i<buf.length;i++){const v=Math.abs(buf[i]-128)/128;if(v>mx)mx=v;}
     return mx;
   }
-  _syn(id,t,v,d){v*=0.8;const ctx=this.ctx;const S={
-    kick:()=>{const o=ctx.createOscillator(),o2=ctx.createOscillator(),g=ctx.createGain(),g2=ctx.createGain();o.type="sine";o.frequency.setValueAtTime(180,t);o.frequency.exponentialRampToValueAtTime(28,t+0.12);g.gain.setValueAtTime(v*1.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.5);o.connect(g);g.connect(d);o.start(t);o.stop(t+0.5);o2.type="sine";o2.frequency.setValueAtTime(55,t);g2.gain.setValueAtTime(v*0.6,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.4);o2.connect(g2);g2.connect(d);o2.start(t);o2.stop(t+0.4);const nb=ctx.createBuffer(1,ctx.sampleRate*0.008,ctx.sampleRate),dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1)*Math.exp(-i*8/dd.length);const ns=ctx.createBufferSource();ns.buffer=nb;const ng=ctx.createGain();ng.gain.setValueAtTime(v*0.4,t);ns.connect(ng);ng.connect(d);ns.start(t);},
-    snare:()=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type="triangle";o.frequency.setValueAtTime(220,t);o.frequency.exponentialRampToValueAtTime(120,t+0.04);g.gain.setValueAtTime(v*0.6,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.connect(g);g.connect(d);o.start(t);o.stop(t+0.1);const nb=ctx.createBuffer(1,ctx.sampleRate*0.18,ctx.sampleRate),dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1);const ns=ctx.createBufferSource();ns.buffer=nb;const bp=ctx.createBiquadFilter();bp.type="bandpass";bp.frequency.value=3500;bp.Q.value=1.5;const ng=ctx.createGain();ng.gain.setValueAtTime(v*0.7,t);ng.gain.exponentialRampToValueAtTime(0.001,t+0.18);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.18);},
-    hihat:()=>{const g=ctx.createGain();g.gain.setValueAtTime(v*0.3,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.06);g.connect(d);[4000,5340,6800].forEach(f=>{const o=ctx.createOscillator();o.type="square";o.frequency.value=f;const og=ctx.createGain();og.gain.value=0.3;o.connect(og);og.connect(g);o.start(t);o.stop(t+0.06);});const nb=ctx.createBuffer(1,ctx.sampleRate*0.04,ctx.sampleRate),dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const ns=ctx.createBufferSource();ns.buffer=nb;const hp=ctx.createBiquadFilter();hp.type="highpass";hp.frequency.value=9000;const ng=ctx.createGain();ng.gain.setValueAtTime(v*0.25,t);ng.gain.exponentialRampToValueAtTime(0.001,t+0.04);ns.connect(hp);hp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.04);},
-    clap:()=>{const g=ctx.createGain();g.connect(d);[0,0.01,0.02].forEach(off=>{const nb=ctx.createBuffer(1,ctx.sampleRate*0.01,ctx.sampleRate),dd=nb.getChannelData(0);for(let j=0;j<dd.length;j++)dd[j]=Math.random()*2-1;const ns=ctx.createBufferSource();ns.buffer=nb;const bp=ctx.createBiquadFilter();bp.type="bandpass";bp.frequency.value=2000;bp.Q.value=1;const ig=ctx.createGain();ig.gain.setValueAtTime(v*0.25,t+off);ig.gain.exponentialRampToValueAtTime(0.001,t+off+0.015);ns.connect(bp);bp.connect(ig);ig.connect(g);ns.start(t+off);ns.stop(t+off+0.015);});const nb=ctx.createBuffer(1,ctx.sampleRate*0.15,ctx.sampleRate),dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=(Math.random()*2-1);const ns=ctx.createBufferSource();ns.buffer=nb;const bp=ctx.createBiquadFilter();bp.type="bandpass";bp.frequency.value=1500;bp.Q.value=2;const ng=ctx.createGain();ng.gain.setValueAtTime(v*0.5,t+0.03);ng.gain.exponentialRampToValueAtTime(0.001,t+0.15);ns.connect(bp);bp.connect(ng);ng.connect(g);ns.start(t+0.03);ns.stop(t+0.15);},
-    tom:()=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type="sine";o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(60,t+0.15);g.gain.setValueAtTime(v*0.8,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.connect(g);g.connect(d);o.start(t);o.stop(t+0.3);},
-    ride:()=>{const nb=ctx.createBuffer(1,ctx.sampleRate*0.4,ctx.sampleRate),dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const ns=ctx.createBufferSource();ns.buffer=nb;const hp=ctx.createBiquadFilter();hp.type="highpass";hp.frequency.value=5500;const g=ctx.createGain();g.gain.setValueAtTime(v*0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);ns.connect(hp);hp.connect(g);g.connect(d);ns.start(t);ns.stop(t+0.4);},
-    crash:()=>{const nb=ctx.createBuffer(1,ctx.sampleRate*0.8,ctx.sampleRate),dd=nb.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const ns=ctx.createBufferSource();ns.buffer=nb;const hp=ctx.createBiquadFilter();hp.type="highpass";hp.frequency.value=3500;const g=ctx.createGain();g.gain.setValueAtTime(v*0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.8);ns.connect(hp);hp.connect(g);g.connect(d);ns.start(t);ns.stop(t+0.8);},
-    perc:()=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type="triangle";o.frequency.setValueAtTime(900,t);o.frequency.exponentialRampToValueAtTime(400,t+0.03);g.gain.setValueAtTime(v*0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.06);o.connect(g);g.connect(d);o.start(t);o.stop(t+0.06);},
-  };if(S[id])S[id]();}
+  _syn(id,t,v,d){
+    // ── TR-808 authentic synthesis ──────────────────────────────────────────
+    const ctx=this.ctx;
+    // Shared helpers
+    const noise=(dur)=>{const b=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*dur),ctx.sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=b;return s;};
+    const osc=(type,freq)=>{const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);return o;};
+    const gain=(val)=>{const g=ctx.createGain();g.gain.setValueAtTime(val,t);return g;};
+    const filt=(type,freq,q=0)=>{const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;return f;};
+    const S={
+      // 808 Bass Drum: deep sine with steep pitch sweep + click transient
+      kick:()=>{
+        const click=noise(0.005);const cg=gain(v*0.6);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);const chp=filt("highpass",100);click.connect(chp);chp.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.006);
+        const o=osc("sine",180);o.frequency.exponentialRampToValueAtTime(28,t+0.9);const g=gain(v*1.5);g.gain.exponentialRampToValueAtTime(0.001,t+1.1);o.connect(g);g.connect(d);o.start(t);o.stop(t+1.1);
+      },
+      // 808 Snare: bright tone body + bandpass noise snap
+      snare:()=>{
+        const o=osc("sine",200);o.frequency.exponentialRampToValueAtTime(150,t+0.06);const og=gain(v*0.6);og.gain.exponentialRampToValueAtTime(0.001,t+0.14);o.connect(og);og.connect(d);o.start(t);o.stop(t+0.14);
+        const ns=noise(0.22);const bp=filt("bandpass",2400,0.6);const ng=gain(v*0.85);ng.gain.exponentialRampToValueAtTime(0.001,t+0.22);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.22);
+      },
+      // 808 Closed Hi-Hat: 6-oscillator metallic mix through HPF, very short
+      hihat:()=>{
+        const mg=gain(1);mg.connect(d);const decay=0.045;
+        [80,119,167,219,273,329].forEach(f=>{const o=osc("square",f);const og=gain(v*0.06);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(og);og.connect(mg);o.start(t);o.stop(t+decay);});
+        const ns=noise(decay);const hp=filt("highpass",8000);const ng=gain(v*0.18);ng.gain.exponentialRampToValueAtTime(0.001,t+decay);ns.connect(hp);hp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+decay);
+      },
+      // 808 Clap: 4 staggered noise bursts + tail
+      clap:()=>{
+        [0,0.009,0.018,0.028].forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55,t+off);g.gain.exponentialRampToValueAtTime(0.001,t+off+0.012);ns.connect(bp);bp.connect(g);g.connect(d);ns.start(t+off);ns.stop(t+off+0.014);});
+        const tail=noise(0.2);const bp2=filt("bandpass",1000,0.8);const tg=gain(v*0.45);tg.gain.setValueAtTime(0,t);tg.gain.setValueAtTime(v*0.45,t+0.04);tg.gain.exponentialRampToValueAtTime(0.001,t+0.2);tail.connect(bp2);bp2.connect(tg);tg.connect(d);tail.start(t+0.04);tail.stop(t+0.21);
+      },
+      // 808 Low Tom: long pitched decay like kick but higher
+      tom:()=>{
+        const o=osc("sine",200);o.frequency.exponentialRampToValueAtTime(65,t+0.45);const g=gain(v*1.0);g.gain.exponentialRampToValueAtTime(0.001,t+0.55);o.connect(g);g.connect(d);o.start(t);o.stop(t+0.55);
+        const click=noise(0.005);const cg=gain(v*0.3);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);click.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.007);
+      },
+      // 808 Ride (rimshot): metallic ping
+      ride:()=>{
+        const mg=gain(1);mg.connect(d);[5500,7280].forEach(f=>{const o=osc("square",f);const og=gain(v*0.07);og.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.connect(og);og.connect(mg);o.start(t);o.stop(t+0.35);});
+        const ns=noise(0.35);const bp=filt("bandpass",5200,1.2);const ng=gain(v*0.15);ng.gain.exponentialRampToValueAtTime(0.001,t+0.35);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.35);
+      },
+      // 808 Crash: long noise swell + shimmer
+      crash:()=>{
+        const ns=noise(1.4);const hp=filt("highpass",2800);const bp=filt("bandpass",7000,0.5);const g=gain(v*0.5);g.gain.exponentialRampToValueAtTime(0.001,t+1.4);ns.connect(hp);hp.connect(bp);bp.connect(g);g.connect(d);ns.start(t);ns.stop(t+1.4);
+      },
+      // 808 Cowbell (perc slot): dual square oscillators, classic 808 cowbell
+      perc:()=>{
+        const mg=gain(1);mg.connect(d);const decay=0.5;
+        [562,845].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.25);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+decay);});
+      },
+    };
+    // Custom tracks (ct_*) → 808 cowbell pitch-shifted by track index
+    if(!S[id]){
+      const mg=gain(1);mg.connect(d);const decay=0.55;const shift=id.charCodeAt(3)%5;
+      [[520,800],[562,845],[600,900],[480,760],[640,960]][shift].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.28);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+decay);});
+      return;
+    }
+    S[id]();
+  }
 }
 const engine=new Eng();
 
@@ -268,7 +314,7 @@ export default function KickAndSnare(){
   const [customTracks,setCustomTracks]=useState([]);
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [euclidParams,setEuclidParams]=useState({});
-  const [fxO,setFxO]=useState(null);const [smpN,setSmpN]=useState({kick:"BWJAZZ Kick (default)",snare:"BB3 Snare (default)"});
+  const [fxO,setFxO]=useState(null);const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
   const [stNudge,setStNudge]=useState(mkN(16));
   const [stVel,setStVel]=useState(mkV(16));
@@ -738,18 +784,10 @@ export default function KickAndSnare(){
     setFx(p=>({...p,[id]:defFx()}));
     setAct(a=>[...a,id]);
     setNewTrackName("");setShowCustomInput(false);setShowAdd(false);
-    // Load default sample (snare or kick alternating) then play a preview
-    const defB64=customTracks.length%2===0?DEFAULT_SAMPLES.snare:DEFAULT_SAMPLES.kick;
-    const defName=customTracks.length%2===0?"Snare (default)":"Kick (default)";
+    // Default sound = 808 cowbell synth (no buffer loaded → engine._syn fallback)
+    setSmpN(p=>({...p,[id]:"808 Cowbell (synth)"}));
     engine.init();
-    (async()=>{
-      try{
-        const ab=b64toAB(defB64);
-        engine.buf[id]=await engine.ctx.decodeAudioData(ab);
-        setSmpN(p=>({...p,[id]:defName}));
-        engine.play(id,0.7,0,R.fx[id]||defFx());
-      }catch(e){console.warn("Custom default sample failed",e);}
-    })();
+    setTimeout(()=>engine.play(id,0.7,0,defFx()),50);
   };
 
   // Shared custom track input UI (used in sequencer + euclid add panels)
