@@ -1027,10 +1027,10 @@ export default function KickAndSnare(){
             const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);};
             window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
           };
-          const mkVelDrag=(tid,step,initVel)=>e=>{
+          const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
             e.preventDefault();e.stopPropagation();
-            const sy=e.clientY;let moved=false;let cv=initVel||0;
-            const mv=me=>{const dy=sy-me.clientY;if(Math.abs(dy)>4)moved=true;if(moved&&initVel>0){const nv=Math.max(1,Math.min(127,initVel+Math.round(dy/4)));if(nv!==cv){cv=nv;setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=nv;n[cPat]=cp;return n;});}}};
+            const sy=e.clientY;let moved=false;let cv=initVelPct;
+            const mv=me=>{const dy=sy-me.clientY;if(Math.abs(dy)>4)moved=true;if(moved&&isOn){const nv=Math.max(1,Math.min(100,initVelPct+Math.round(dy/3)));if(nv!==cv){cv=nv;setStVel(sv=>{const ns={...sv};ns[tid]=[...(ns[tid]||[])];ns[tid][step]=nv;return ns;});}}};
             const up=()=>{
               if(!moved){setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});}
               window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
@@ -1064,34 +1064,58 @@ export default function KickAndSnare(){
                           {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(fxO===tr.id)setFxO(null);}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                         </div>
                         {/* ── Body (unfolded) ── */}
-                        {!p.fold&&(<>
-                          <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
-                            <option value="">— Charger un template —</option>
-                            {EUCLID_REGIONS.map(r=>(
-                              <optgroup key={r} label={r}>
-                                {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
-                                  <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
-                                ))}
-                              </optgroup>
-                            ))}
-                          </select>
-                          <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
-                            <span style={lbl0}>N</span>
-                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
-                            <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
-                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
-                            <span style={sep0}>·</span>
-                            <span style={lbl0}>HITS</span>
-                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
-                            <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
-                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
-                            <span style={sep0}>·</span>
-                            <span style={lbl0}>ROT</span>
-                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
-                            <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
-                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
-                          </div>
-                        </>)}
+                        {!p.fold&&(()=>{
+                          const f=fx[tr.id]||defFx();
+                          const vol=f.vol??80;const pan=f.pan??0;
+                          const uFx=(k,v)=>setFx(prev=>({...prev,[tr.id]:{...(prev[tr.id]||defFx()),[k]:v}}));
+                          const slV={writingMode:"vertical-lr",direction:"rtl",WebkitAppearance:"slider-vertical",width:16,height:62,cursor:"pointer",accentColor:tr.color,flexShrink:0};
+                          return(
+                            <div style={{display:"flex",gap:6,alignItems:"flex-start"}}>
+                              {/* ── Left: template + spinners ── */}
+                              <div style={{flex:1,display:"flex",flexDirection:"column",gap:5,minWidth:0}}>
+                                <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={selStyle}>
+                                  <option value="">— Charger un template —</option>
+                                  {EUCLID_REGIONS.map(r=>(
+                                    <optgroup key={r} label={r}>
+                                      {EUCLID_TEMPLATES.filter(t=>t.region===r).map(t=>(
+                                        <option key={t.name} value={t.name}>{t.name} · {t.N} pas</option>
+                                      ))}
+                                    </optgroup>
+                                  ))}
+                                </select>
+                                <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
+                                  <span style={lbl0}>N</span>
+                                  <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
+                                  <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
+                                  <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
+                                  <span style={sep0}>·</span>
+                                  <span style={lbl0}>HITS</span>
+                                  <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
+                                  <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
+                                  <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
+                                  <span style={sep0}>·</span>
+                                  <span style={lbl0}>ROT</span>
+                                  <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
+                                  <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
+                                  <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
+                                </div>
+                              </div>
+                              {/* ── Right: Vol + Pan vertical sliders ── */}
+                              <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,paddingTop:2}}>
+                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                                  <span style={{fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em"}}>VOL</span>
+                                  <input type="range" min={0} max={100} step={1} value={vol} onChange={e=>uFx("vol",Number(e.target.value))} style={slV} title={`Volume ${vol}%`}/>
+                                  <span style={{fontSize:6,color:th.faint,fontWeight:600}}>{vol}</span>
+                                </div>
+                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                                  <span style={{fontSize:6,color:tr.color,fontWeight:800,letterSpacing:"0.05em"}}>PAN</span>
+                                  <input type="range" min={-100} max={100} step={1} value={pan} onChange={e=>uFx("pan",Number(e.target.value))} style={slV} title={`Pan ${pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}`}/>
+                                  <span style={{fontSize:6,color:th.faint,fontWeight:600}}>{pan===0?"C":pan<0?"L"+Math.abs(pan):"R"+pan}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -1131,18 +1155,19 @@ export default function KickAndSnare(){
                           {Array.from({length:N},(_,i)=>{
                             const a=(2*Math.PI*i/N)-Math.PI/2;
                             const vx=CX+R*Math.cos(a),vy=CY+R*Math.sin(a);
-                            const vel=(pat[tr.id]||[])[i]||0;const on=vel>0;const cur=i===curS;
-                            const rv=(cur?dotR+2:dotR)+(on?Math.round((vel/127)*2.5):0);
-                            const vOp=on?0.35+(vel/127)*0.65:0.45;
+                            const on=(pat[tr.id]||[])[i]>0;const cur=i===curS;
+                            const velPct=on?(stVel[tr.id]?.[i]??100):0;
+                            const rv=(cur?dotR+2:dotR)+(on?Math.round((velPct/100)*3):0);
+                            const vOp=on?0.3+(velPct/100)*0.7:0.45;
                             return(
-                              <g key={i} onPointerDown={mkVelDrag(tr.id,i,vel)} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none"}}>
+                              <g key={i} onPointerDown={mkVelDrag(tr.id,i,on,velPct)} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none"}}>
                                 {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"28":"11")}/>}
                                 <circle cx={vx} cy={vy} r={rv}
                                   fill={on?tr.color:(cur?tr.color+"33":th.stepOff)}
                                   stroke={on?tr.color:th.sBorder}
                                   strokeWidth={on?0:0.5}
                                   opacity={on?vOp:0.45}/>
-                                {on&&vel<100&&<circle cx={vx} cy={vy} r={rv*0.4} fill="#000" opacity={0.18}/>}
+                                {on&&velPct<80&&<circle cx={vx} cy={vy} r={rv*0.4} fill="#000" opacity={0.2}/>}
                                 {N<=20&&<text x={vx} y={vy+rv+8} textAnchor="middle" fontSize={5} fill={on?tr.color:th.faint} fontFamily="monospace" opacity={0.7}>{i+1}</text>}
                               </g>
                             );
