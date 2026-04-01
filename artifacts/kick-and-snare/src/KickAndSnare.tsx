@@ -1017,6 +1017,8 @@ export default function KickAndSnare(){
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
       R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
+      // Song arranger: reset to first pattern in chain so display + playback are in sync
+      if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);
     }
@@ -1032,6 +1034,7 @@ export default function KickAndSnare(){
       setRecCountdown(false);
       await engine.ensureRunning();
       R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
+      if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);setRec(true);
     },barMs);
