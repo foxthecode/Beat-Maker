@@ -161,7 +161,7 @@ export default function TransportBar({
   );
 
   const SwingCtrl = view !== "euclid" && (
-    <div data-hint={`SWING · Humanise le rythme en décalant les temps pairs · Actuellement ${swing}% · 0 = droit, 100 = shuffle max`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+    <div data-hint={`SWING · Décale les "ET" en retard pour le groove shuffle · 0 = droit · ~67% = swing triolet (jazz/hip-hop) · 100% = dotted shuffle max · Actuellement ${swing}%`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
         <span style={{ fontSize: 7, color: th.dim }}>SWING</span>
         <MidiTag id="__swing__" />
@@ -266,11 +266,11 @@ export default function TransportBar({
         </div>
         <div style={{ ...rowStyle }}>
           {TapBtn}
+          {VolKnob}
           {SwingCtrl}
           {TSBtn}
           {MetroBtn}
           {SubBtn}
-          {VolKnob}
           {!isPads && ClearBtn}
         </div>
         <div style={{ ...rowStyle }}>
@@ -289,11 +289,11 @@ export default function TransportBar({
       {!isPads && RecBtn}
       {BpmCtrl}
       {TapBtn}
+      {VolKnob}
       {SwingCtrl}
       {TSBtn}
       {MetroBtn}
       {SubBtn}
-      {VolKnob}
       {!isPads && ClearBtn}
       {KeybBtn}
       {MidiBtn}

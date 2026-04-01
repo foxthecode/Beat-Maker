@@ -1788,7 +1788,8 @@ export default function KickAndSnare(){
       const st=nxtRef.current;schSt(R.step,st);
       if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);const sd=cs.subDiv||1;if(gs.y)playClk(st,gs.f?"accent":"beat");else if(R.step%sd===0)playClk(st,"sub");}
       const bd=cs.stepDiv?(60/R.bpm)/cs.stepDiv:(60/R.bpm)*cs.beats/cs.steps;
-      const sw=bd*(R.sw/100);nxtRef.current+=R.step%2===0?(bd-sw):(bd+sw);
+      // Swing: AND notes arrive late (shuffle feel). Range ×0.5 so 67%≈triplet, 100%=dotted.
+      const sw=bd*(R.sw/100)*0.5;nxtRef.current+=R.step%2===0?(bd+sw):(bd-sw);
     }
     setCStep(R.step);
     {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
