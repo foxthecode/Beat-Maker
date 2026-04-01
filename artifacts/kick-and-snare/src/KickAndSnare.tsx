@@ -558,6 +558,8 @@ export default function KickAndSnare(){
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
   },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
+  // Activating looper countdown → automatically enable transport metro
+  useEffect(()=>{if(loopMetro)setMetro(true);},[loopMetro]);
   // BPM sync for delay
   useEffect(()=>{
     if(gfx.delay.sync){const t=syncDivTime(gfx.delay.syncDiv,bpm);setGfx(p=>({...p,delay:{...p.delay,time:t}}));}
@@ -591,7 +593,7 @@ export default function KickAndSnare(){
   const [showLooper,setShowLooper]=useState(false);
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
-  const [loopMetro,setLoopMetro]=useState(true);
+  const [loopMetro,setLoopMetro]=useState(false);
   // masterVol → engine gain + localStorage (0d)
   useEffect(()=>{
     if(engine.ctx)engine.mg.gain.setTargetAtTime(masterVol/100,engine.ctx.currentTime,0.02);
