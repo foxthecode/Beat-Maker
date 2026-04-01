@@ -1957,38 +1957,41 @@ export default function KickAndSnare(){
           </div>
           {/* Animated drummer mascot + kit selector + UNDO/REDO */}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
-          {/* ── Kit selector ↑/name/↓ ── */}
+          {/* ── Kit selector ◀ [icon · NAME] ▶ ── */}
           {(()=>{
             const curKit=DRUM_KITS[kitIdx]||DRUM_KITS[0];
-            const btnSt=(dir)=>({
-              width:20,height:16,border:`1px solid ${th.sBorder}`,borderRadius:3,
-              background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              fontFamily:"inherit",padding:0,lineHeight:1,
-              transition:"all 0.12s",
-            });
+            const arrowBtn=(label,onClick,title)=>(
+              <button onClick={onClick} title={title} style={{
+                width:22,height:22,border:"1px solid rgba(255,149,0,0.28)",
+                borderRadius:6,background:"rgba(255,149,0,0.07)",
+                color:"#FF9500",fontSize:11,fontWeight:900,cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontFamily:"inherit",padding:0,lineHeight:1,
+                transition:"background 0.12s,border-color 0.12s,transform 0.08s",
+                flexShrink:0,
+              }}
+              onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,149,0,0.18)";(e.currentTarget as HTMLButtonElement).style.borderColor="rgba(255,149,0,0.55)";}}
+              onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,149,0,0.07)";(e.currentTarget as HTMLButtonElement).style.borderColor="rgba(255,149,0,0.28)";}}
+              onMouseDown={e=>{(e.currentTarget as HTMLButtonElement).style.transform="scale(0.88)";}}
+              onMouseUp={e=>{(e.currentTarget as HTMLButtonElement).style.transform="scale(1)";}}
+              >{label}</button>
+            );
             return(
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0}}>
-                <button
-                  style={btnSt("up")}
-                  onClick={()=>{const ni=(kitIdx-1+DRUM_KITS.length)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);}}
-                  title="Previous kit"
-                >▲</button>
+              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                {arrowBtn("‹",()=>{const ni=(kitIdx-1+DRUM_KITS.length)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);},"Previous kit")}
                 <div style={{
-                  minWidth:58,maxWidth:70,padding:"2px 4px",borderRadius:4,
-                  border:`1px solid ${th.sBorder}`,background:th.surface,
-                  textAlign:"center",fontSize:7,fontWeight:700,
-                  color:"#FF9500",letterSpacing:"0.04em",lineHeight:1.3,
-                  cursor:"default",userSelect:"none",
+                  display:"flex",flexDirection:"column",alignItems:"center",
+                  minWidth:66,padding:"3px 7px 4px",borderRadius:7,
+                  background:"linear-gradient(160deg,rgba(255,149,0,0.13) 0%,rgba(255,45,85,0.09) 100%)",
+                  border:"1px solid rgba(255,149,0,0.22)",
+                  boxShadow:"0 0 10px rgba(255,149,0,0.08) inset",
+                  cursor:"default",userSelect:"none",position:"relative",overflow:"hidden",
                 }}>
-                  <div style={{fontSize:10}}>{curKit.icon}</div>
-                  <div style={{fontSize:6.5,color:th.dim,letterSpacing:"0.06em",textTransform:"uppercase"}}>{curKit.name}</div>
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
+                  <span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curKit.icon}</span>
+                  <span style={{fontSize:6,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",marginTop:1,whiteSpace:"nowrap"}}>{curKit.name}</span>
                 </div>
-                <button
-                  style={btnSt("down")}
-                  onClick={()=>{const ni=(kitIdx+1)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);}}
-                  title="Next kit"
-                >▼</button>
+                {arrowBtn("›",()=>{const ni=(kitIdx+1)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);},"Next kit")}
               </div>
             );
           })()}
