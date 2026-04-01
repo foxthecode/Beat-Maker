@@ -48,8 +48,9 @@ export default function LooperPanel({
 
   const barCount = loopDisp ? new Set(loopDisp.map(e => e.tid)).size : 0;
   const BARS_OPTS = [1, 2, 4];
-  const QUANT_OPTS = [4, 8, 16, 32];
-  const QUANT_LABELS = { 4: "1/4", 8: "1/8", 16: "1/16", 32: "1/32" };
+  const QUANT_OPTS = [4, 8, 12, 16, 24, 32];
+  const QUANT_LABELS = { 4: "1/4", 8: "1/8", 12: "1/8T", 16: "1/16", 24: "1/16T", 32: "1/32" };
+  const QUANT_TRIPLET = new Set([12, 24]);
 
   const recLabel = loopRec
     ? "■ STOP REC"
@@ -112,25 +113,32 @@ export default function LooperPanel({
         border: "1px solid rgba(255,255,255,0.06)",
       }}>
         <span style={{ fontSize: 7, color: th.dim, letterSpacing: "0.07em", flexShrink: 0 }}>QUANT</span>
-        {QUANT_OPTS.map(d => (
-          <button
-            key={d}
-            onClick={() => setQuantDiv(d)}
-            style={{
-              padding: "2px 7px", borderRadius: 4, cursor: "pointer",
-              fontFamily: "inherit", fontSize: 7, fontWeight: 700,
-              border: `1px solid ${quantDiv === d ? "#FFD60A88" : "rgba(255,255,255,0.1)"}`,
-              background: quantDiv === d ? "#FFD60A18" : "transparent",
-              color: quantDiv === d ? "#FFD60A" : th.dim,
-              letterSpacing: "0.06em",
-            }}
-          >{QUANT_LABELS[d]}</button>
-        ))}
+        {QUANT_OPTS.map(d => {
+          const isTriplet = QUANT_TRIPLET.has(d);
+          const accent = isTriplet ? "#64D2FF" : "#FFD60A";
+          const active = quantDiv === d;
+          return (
+            <button
+              key={d}
+              onClick={() => setQuantDiv(d)}
+              title={isTriplet ? `Triolet ${QUANT_LABELS[d]}` : QUANT_LABELS[d]}
+              style={{
+                padding: "2px 7px", borderRadius: 4, cursor: "pointer",
+                fontFamily: "inherit", fontSize: 7, fontWeight: 700,
+                border: `1px solid ${active ? accent + "88" : "rgba(255,255,255,0.1)"}`,
+                background: active ? accent + "18" : "transparent",
+                color: active ? accent : isTriplet ? "#64D2FF88" : th.dim,
+                letterSpacing: "0.06em",
+                fontStyle: isTriplet ? "italic" : "normal",
+              }}
+            >{QUANT_LABELS[d]}</button>
+          );
+        })}
         {/* Apply quantize button */}
         <button
           onClick={() => onQuantize && onQuantize(quantDiv)}
           disabled={!loopDisp || loopDisp.length === 0}
-          title={`Snap tous les hits à ${QUANT_LABELS[quantDiv]}`}
+          title={`Snap tous les hits à ${QUANT_LABELS[quantDiv]}${QUANT_TRIPLET.has(quantDiv) ? " (triolet)" : ""}`}
           style={{
             padding: "2px 9px", borderRadius: 4, cursor: (!loopDisp || !loopDisp.length) ? "not-allowed" : "pointer",
             fontFamily: "inherit", fontSize: 7, fontWeight: 800,
