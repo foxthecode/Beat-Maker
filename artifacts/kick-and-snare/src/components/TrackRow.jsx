@@ -167,6 +167,7 @@ function TrackRow({
                 onPointerDown={e => onStepDown(step, e)}
                 onContextMenu={e => onContextMenu(step, e)}
                 data-step="true"
+                className={isCur && ac && !isDrag ? "stepPulse" : ""}
                 style={{
                   flex: isPortrait ? "0 0 24px" : 1, minWidth: isPortrait ? 24 : 0,
                   height: isPortrait ? 32 : undefined, aspectRatio: isPortrait ? undefined : "1",
@@ -175,8 +176,8 @@ function TrackRow({
                   scrollSnapAlign: "start",
                   marginLeft: gi.first && step > 0 ? 6 : 2, touchAction: "none", userSelect: "none", WebkitTouchCallout: "none",
                   background: isCur && gi.first ? "rgba(255,149,0,0.45)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,
-                  boxShadow: ac && isCur ? `0 0 10px ${track.color},inset 0 0 5px ${track.color}` : "none",
-                  transform: isDrag ? "scale(1.15)" : ac && isCur ? "scale(1.08)" : "scale(1)",
+                  boxShadow: ac && isCur ? `0 0 18px ${track.color},0 0 40px ${track.color}66,inset 0 0 8px ${track.color}44` : "none",
+                  transform: isDrag ? "scale(1.15)" : "scale(1)",
                   transition: isDrag ? "none" : "all 0.08s",
                   border: isDrag ? `1px solid ${dragAxis === "v" ? "#FFD60A" : dragAxis === "h" ? "#64D2FF" : "transparent"}` : ac ? `1px solid ${track.color}` : `1px solid ${th.sBorder}`,
                 }}>

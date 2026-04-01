@@ -7,6 +7,7 @@ import PatternBank from "./components/PatternBank.jsx";
 import TrackRow from "./components/TrackRow.jsx";
 import LooperPanel from "./components/LooperPanel.jsx";
 import { useAppState } from "./hooks/useAppState.js";
+import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 /** All built-in drum track IDs plus any custom track string. */
@@ -82,6 +83,58 @@ const DEFAULT_FX = Object.freeze({
 
 const DELAY_DIVS=["1/4","1/8","1/16","1/4d","1/8d","1/4t","1/8t"];
 const divToSec=(div,bpm)=>{const b=60/bpm;const m={"1/4":b,"1/8":b/2,"1/16":b/4,"1/4d":b*1.5,"1/8d":b*0.75,"1/4t":b*2/3,"1/8t":b/3};return m[div]||b;};
+
+// ── CP-C: URL share encode/decode (pure) ─────────────────────────────────────
+function encodeStateURL(d:{bpm:number,sig:string,act:string[],muted:Record<string,boolean>,pat:Record<string,number[]>,fx:Record<string,any>}):string{
+  // Encode steps as hex nibbles (4 steps → 1 hex char)
+  const patHex:Record<string,string>={};
+  Object.entries(d.pat).forEach(([tid,steps])=>{
+    let h="";for(let i=0;i<steps.length;i+=4){let n=0;for(let j=0;j<4;j++)if(steps[i+j])n|=(1<<j);h+=n.toString(16);}
+    patHex[tid]=h;
+  });
+  const payload={v:1,bpm:d.bpm,sig:d.sig,act:d.act,
+    muted:Object.keys(d.muted).filter(k=>d.muted[k]),
+    pat:patHex,fx:d.fx};
+  return btoa(JSON.stringify(payload)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+}
+function decodeStateURL(hash:string):{bpm:number,sig:string,act:string[],muted:string[],pat:Record<string,number[]>,fx:Record<string,any>}|null{
+  try{
+    const json=atob(hash.replace(/-/g,"+").replace(/_/g,"/"));
+    const d=JSON.parse(json);
+    if(d.v!==1)return null;
+    const pat:Record<string,number[]>={};
+    Object.entries(d.pat as Record<string,string>).forEach(([tid,h])=>{
+      const steps:number[]=[];
+      for(let i=0;i<h.length;i++){const n=parseInt(h[i],16);for(let j=0;j<4;j++)steps.push((n>>j)&1);}
+      pat[tid]=steps;
+    });
+    return{bpm:d.bpm,sig:d.sig,act:d.act,muted:d.muted||[],pat,fx:d.fx||{}};
+  }catch{return null;}
+}
+
+// ── CP-B: WAV encoder (pure) ──────────────────────────────────────────────────
+function encodeWAV(buffer:AudioBuffer):ArrayBuffer{
+  const numCh=buffer.numberOfChannels,sr=buffer.sampleRate;
+  const samples=buffer.length,bps=16;
+  const ba=numCh*bps/8,byr=sr*ba,ds=samples*ba;
+  const ab=new ArrayBuffer(44+ds);
+  const v=new DataView(ab);
+  const ws=(o:number,s:string)=>[...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+  ws(0,"RIFF");v.setUint32(4,36+ds,true);
+  ws(8,"WAVE");ws(12,"fmt ");
+  v.setUint32(16,16,true);v.setUint16(20,1,true);
+  v.setUint16(22,numCh,true);v.setUint32(24,sr,true);
+  v.setUint32(28,byr,true);v.setUint16(32,ba,true);
+  v.setUint16(34,bps,true);ws(36,"data");
+  v.setUint32(40,ds,true);
+  let off=44;
+  for(let i=0;i<samples;i++)
+    for(let ch=0;ch<numCh;ch++){
+      const s=Math.max(-1,Math.min(1,buffer.getChannelData(ch)[i]));
+      v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;
+    }
+  return ab;
+}
 
 // ═══ Euclidean Templates ═══
 const EUCLID_TEMPLATES=[
@@ -337,11 +390,36 @@ const engine=new Eng();
 const SYNC_DIVS=[{l:"1/1",b:4},{l:"1/2",b:2},{l:"1/4",b:1},{l:"1/8",b:0.5},{l:"1/16",b:0.25},{l:"1/4.",b:1.5},{l:"1/8.",b:0.75},{l:"1/4t",b:2/3},{l:"1/8t",b:1/3}];
 const syncDivTime=(div,bpmV)=>{const d=SYNC_DIVS.find(x=>x.l===div)||SYNC_DIVS[2];return Math.min(1.9,d.b*(60/Math.max(30,bpmV)));};
 
+const FX_PRESETS=[
+  {id:"clean",name:"Clean",color:"#8E8E93",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}}},
+  {id:"room",name:"Room",color:"#64D2FF",gfx:{reverb:{on:true,decay:0.8,size:0.4,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}}},
+  {id:"hall",name:"Hall",color:"#64D2FF",gfx:{reverb:{on:true,decay:3.5,size:0.82,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-18,ratio:3},drive:{on:false,amt:0}}},
+  {id:"tape_echo",name:"Tape Echo",color:"#30D158",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:true,time:0.375,fdbk:55,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:9000,res:1},comp:{on:false,thr:-12,ratio:4},drive:{on:true,amt:12}}},
+  {id:"slap",name:"Slap",color:"#30D158",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:true,time:0.08,fdbk:18,sends:{},sync:false,syncDiv:"1/8"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}}},
+  {id:"lofi",name:"Lo-Fi",color:"#FF9500",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:4000,res:2},comp:{on:true,thr:-18,ratio:4},drive:{on:true,amt:22}}},
+  {id:"warmth",name:"Warmth",color:"#FF6B35",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:12000,res:0},comp:{on:true,thr:-12,ratio:3},drive:{on:true,amt:25}}},
+  {id:"stadium",name:"Stadium",color:"#BF5AF2",gfx:{reverb:{on:true,decay:4.2,size:0.9,sends:{}},delay:{on:true,time:0.5,fdbk:35,sends:{},sync:false,syncDiv:"1/2"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-16,ratio:4},drive:{on:false,amt:0}}},
+  {id:"dark",name:"Dark",color:"#8E8E93",gfx:{reverb:{on:true,decay:1.8,size:0.6,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:3500,res:1},comp:{on:true,thr:-14,ratio:5},drive:{on:false,amt:0}}},
+  {id:"pumping",name:"Pumping",color:"#5E5CE6",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-28,ratio:14},drive:{on:true,amt:8}}},
+];
+
 function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false}){
   const th=THEMES[themeName]||THEMES.dark;
   const [open,setOpen]=useState(false);
+  const [showPresets,setShowPresets]=useState(false);
   const upSec=(sec,k,v)=>setGfx(p=>({...p,[sec]:{...p[sec],[k]:v}}));
   const upSend=(sec,tid,v)=>setGfx(p=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
+  const loadPreset=(preset)=>{
+    setGfx(p=>{
+      const sends_rv=p.reverb?.sends||{};const sends_dl=p.delay?.sends||{};
+      const ng=JSON.parse(JSON.stringify(preset.gfx));
+      ng.reverb={...ng.reverb,sends:sends_rv};
+      ng.delay={...ng.delay,sends:sends_dl};
+      if(engine.ctx)setTimeout(()=>engine.uGfx(ng),20);
+      return ng;
+    });
+    setShowPresets(false);
+  };
 
   // SVG circular knob (drag up/down)
   const Knob=({label,value,min,max,color,onChange,fmt,unit,size=48})=>{
@@ -403,14 +481,34 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
   const activeCount=["reverb","delay","filter","comp","drive"].filter(s=>gfx[s].on).length;
   return(
     <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${open?"rgba(191,90,242,0.3)":th.sBorder}`,overflow:"hidden"}}>
-      <div onClick={()=>setOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 14px",cursor:"pointer",userSelect:"none"}}>
-        <span style={{fontSize:8,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.14em"}}>FX RACK</span>
-        <span style={{fontSize:9,color:th.dim,marginRight:4}}>{open?"▲":"▼"}</span>
-        {activeCount>0&&<span style={{fontSize:7,padding:"1px 6px",borderRadius:3,background:"rgba(191,90,242,0.12)",color:"#BF5AF2",fontWeight:700}}>{activeCount} active</span>}
-        {["reverb","delay","filter","comp","drive"].filter(s=>gfx[s].on).map(s=>(
-          <span key={s} style={{fontSize:7,padding:"1px 5px",borderRadius:3,background:`rgba(${s==="reverb"?"100,210,255":s==="delay"?"48,209,88":s==="filter"?"255,149,0":s==="comp"?"94,92,230":"255,149,0"},0.12)`,color:s==="reverb"?"#64D2FF":s==="delay"?"#30D158":s==="filter"?"#FF9500":s==="comp"?"#5E5CE6":"#FF9500",fontWeight:700,letterSpacing:"0.08em"}}>{s.slice(0,3).toUpperCase()}</span>
-        ))}
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 14px",userSelect:"none"}}>
+        <div onClick={()=>setOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
+          <span style={{fontSize:8,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.14em"}}>FX RACK</span>
+          <span style={{fontSize:9,color:th.dim}}>{open?"▲":"▼"}</span>
+          {activeCount>0&&<span style={{fontSize:7,padding:"1px 6px",borderRadius:3,background:"rgba(191,90,242,0.12)",color:"#BF5AF2",fontWeight:700}}>{activeCount} active</span>}
+          {["reverb","delay","filter","comp","drive"].filter(s=>gfx[s].on).map(s=>(
+            <span key={s} style={{fontSize:7,padding:"1px 5px",borderRadius:3,background:`rgba(${s==="reverb"?"100,210,255":s==="delay"?"48,209,88":s==="filter"?"255,149,0":s==="comp"?"94,92,230":"255,149,0"},0.12)`,color:s==="reverb"?"#64D2FF":s==="delay"?"#30D158":s==="filter"?"#FF9500":s==="comp"?"#5E5CE6":"#FF9500",fontWeight:700,letterSpacing:"0.08em"}}>{s.slice(0,3).toUpperCase()}</span>
+          ))}
+        </div>
+        <button
+          onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);if(!open)setOpen(false);}}
+          style={{padding:"2px 8px",borderRadius:5,border:`1px solid ${showPresets?"#BF5AF255":th.sBorder}`,background:showPresets?"rgba(191,90,242,0.12)":"transparent",color:showPresets?"#BF5AF2":th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}
+        >PRESETS</button>
       </div>
+      {showPresets&&(
+        <div style={{padding:"0 14px 10px",borderTop:`1px solid ${th.sBorder}`}}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,paddingTop:8}}>
+            {FX_PRESETS.map(preset=>(
+              <button key={preset.id} onClick={()=>loadPreset(preset)}
+                style={{padding:"3px 9px",borderRadius:5,border:`1px solid ${preset.color}44`,background:`${preset.color}12`,color:preset.color,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",transition:"all 0.1s"}}
+                onMouseEnter={e=>{e.currentTarget.style.background=`${preset.color}28`;e.currentTarget.style.borderColor=`${preset.color}88`;}}
+                onMouseLeave={e=>{e.currentTarget.style.background=`${preset.color}12`;e.currentTarget.style.borderColor=`${preset.color}44`;}}
+              >{preset.name}</button>
+            ))}
+          </div>
+          <p style={{margin:"6px 0 0",fontSize:7,color:th.dim,letterSpacing:"0.04em"}}>Les sends par piste sont préservés au changement de preset</p>
+        </div>
+      )}
       {open&&(
         <div style={{padding:"8px 14px 14px",display:"flex",flexDirection:isPortrait?"column":"row",gap:10,alignItems:"flex-start",overflowX:isPortrait?"visible":"auto"}}>
 
@@ -505,6 +603,9 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 // ═══ Main ═══
 export default function KickAndSnare(){
   const appState=useAppState();
+  const {state:appSt,setLaunched,markTipShown,addUsageTime}=appState;
+  const [overlayVisible,setOverlayVisible]=useState(!appSt.launched);
+  const [showCheatSheet,setShowCheatSheet]=useState(false);
   const [themeName,setThemeName]=useState("dark");
   const th=THEMES[themeName];
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
@@ -529,6 +630,11 @@ export default function KickAndSnare(){
   const chSig=s=>{setTSig(s);setGrpIdx(0);resize(s.steps);};
 
   const [isAudioReady,setIsAudioReady]=useState(false);
+  // ── CP-B: Export WAV ──
+  const [exportState,setExportState]=useState<"idle"|"rendering">("idle");
+  const [exportBars,setExportBars]=useState<1|2|4>(1);
+  // ── CP-C: URL share ──
+  const [shareCopied,setShareCopied]=useState(false);
   // ── H.1a: Mobile detection ──
   const isMobile=useMemo(()=>/Android|iPhone|iPad/i.test(navigator.userAgent)||window.innerWidth<768,[]);
   const isMobileRef=useRef(isMobile);
@@ -1028,7 +1134,117 @@ export default function KickAndSnare(){
     }
   };
   ssRef.current=startStop;
+
+  // CP-E: First launch — load Boom Bap + auto-start + mark launched
+  useEffect(()=>{
+    if(!appSt.launched){
+      const bb=SEQUENCER_TEMPLATES.find(t=>t.name==="Boom Bap");
+      if(bb){
+        setBpm(bb.bpm);
+        setPBank(pb=>{const n=[...pb];const cp={...n[0]};
+          if(bb.steps?.kick)cp.kick=[...bb.steps.kick];
+          if(bb.steps?.snare)cp.snare=[...bb.steps.snare];
+          if(bb.steps?.hihat)cp.hihat=[...bb.steps.hihat];
+          n[0]=cp;return n;
+        });
+        setAct(a=>[...new Set([...a,"kick","snare","hihat"])]);
+      }
+      setTimeout(()=>engine.ensureRunning().then(()=>{if(!R.playing)ssRef.current?.();}),800);
+      setLaunched();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  // CP-E: Usage time tracking
+  useEffect(()=>{
+    const iv=setInterval(()=>addUsageTime(1),1000);
+    return()=>clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  // ── CP-C: Decode URL hash on mount ───────────────────────────────────────────
+  useEffect(()=>{
+    const hash=window.location.hash.slice(1);
+    if(!hash)return;
+    const decoded=decodeStateURL(hash);
+    if(!decoded)return;
+    setBpm(Math.max(30,Math.min(300,decoded.bpm)));
+    const matchSig=TIME_SIGS.find(s=>s.label===decoded.sig);
+    if(matchSig){setTSig(matchSig);setGrpIdx(0);resize(matchSig.steps);}
+    setAct(decoded.act.filter(id=>allT.find(t=>t.id===id)));
+    const mutedObj:Record<string,boolean>={};
+    decoded.muted.forEach((id:string)=>{mutedObj[id]=true;});
+    setMuted(mutedObj);
+    setPat(p=>({...p,...decoded.pat}));
+    if(Object.keys(decoded.fx).length)setFx(p=>({...p,...decoded.fx}));
+    // Clear hash after loading so refresh doesn't re-apply
+    history.replaceState(null,"",window.location.pathname+window.location.search);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  const shareURL=()=>{
+    const hash=encodeStateURL({bpm,sig:tSig.label,act,muted,pat,fx});
+    const url=`${window.location.origin}${window.location.pathname}#${hash}`;
+    navigator.clipboard.writeText(url).then(()=>{
+      setShareCopied(true);setTimeout(()=>setShareCopied(false),2000);
+    }).catch(()=>{
+      // Fallback: select text from a temp input
+      const inp=document.createElement("input");
+      inp.value=url;document.body.appendChild(inp);inp.select();
+      document.execCommand("copy");document.body.removeChild(inp);
+      setShareCopied(true);setTimeout(()=>setShareCopied(false),2000);
+    });
+  };
+
   // F.1a: REC without playback — countdown 1 bar then auto-start
+  // ── CP-B: Export WAV ─────────────────────────────────────────────────────────
+  const exportWAV=async()=>{
+    await engine.ensureRunning();
+    setExportState("rendering");
+    try{
+      const dur=(60/bpm)*sig.beats*exportBars;
+      const sr=engine.ctx.sampleRate;
+      const offCtx=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);
+      const sd=dur/sig.steps;
+      atO.forEach(tr=>{
+        if(muted[tr.id])return;
+        if(soloed&&soloed!==tr.id)return;
+        for(let s=0;s<sig.steps;s++){
+          if(!pat[tr.id]?.[s])continue;
+          const vel=(stVel[tr.id]?.[s]??100)/100;
+          const nm=stNudge[tr.id]?.[s]||0;
+          const t=Math.max(0.001,s*sd+nm/1000);
+          const dst=offCtx.createGain();
+          dst.gain.value=vel;dst.connect(offCtx.destination);
+          const fo=fx[tr.id]||{...DEFAULT_FX};
+          if(engine.buf[tr.id]){
+            // Custom sample: schedule in offline context
+            const src=offCtx.createBufferSource();
+            src.buffer=engine.buf[tr.id];
+            const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+            src.playbackRate.value=r;
+            src.connect(dst);src.start(t);
+          }else{
+            engine._syn(tr.id,t,vel,dst,offCtx,
+              {sDec:fo.sDec??1,sTune:fo.sTune??1,
+               sPunch:fo.sPunch??1,sSnap:fo.sSnap??1,
+               sBody:fo.sBody??1,sTone:fo.sTone??1});
+          }
+        }
+      });
+      const rd=await offCtx.startRendering();
+      const wav=encodeWAV(rd);
+      const blob=new Blob([wav],{type:"audio/wav"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
+      a.download=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar.wav`;
+      a.click();URL.revokeObjectURL(url);
+    }catch(e){console.error("Export WAV error",e);}
+    setExportState("idle");
+  };
+
   const onRecClick=()=>{
     if(playing){setRec(p=>!p);return;}
     // Click REC while stopped → countdown 1 bar → start + rec
@@ -1183,6 +1399,24 @@ export default function KickAndSnare(){
   const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
   R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
 
+  const loadTemplate=(tpl:typeof SEQUENCER_TEMPLATES[0])=>{
+    pushHistory();
+    const allIds=[...ALL_TRACKS.map(t=>t.id),...customTracks.map(t=>t.id)];
+    setPBank(pb=>{
+      const n=[...pb];const curr={...n[cPat]};
+      allIds.forEach(id=>{if(Array.isArray(curr[id]))curr[id]=Array(curr[id].length||STEPS).fill(0);});
+      Object.entries(tpl.steps).forEach(([tid,steps])=>{curr[tid]=[...steps as number[]];});
+      curr._name=tpl.name;n[cPat]=curr;return n;
+    });
+    const tplIds=Object.keys(tpl.steps);
+    setStVel(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(100);});return n;});
+    setStNudge(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(0);});return n;});
+    setStProb(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(100);});return n;});
+    setStRatch(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(1);});return n;});
+    if(tpl.bpm)setBpm(tpl.bpm);
+    setSwipeToast(`✓ ${tpl.name}`);setTimeout(()=>setSwipeToast(null),800);
+  };
+
   const handleClick=(tid,step)=>{pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});};
   const didDragRef=useRef(false);
   const startDrag=(tid,step,e)=>{
@@ -1327,6 +1561,18 @@ export default function KickAndSnare(){
     );
   };
 
+  // CP-E: Tip badge helper
+  const TipBadge=({id,text,color="#FFD60A"}:{id:string;text:string;color?:string})=>{
+    if(appSt.tipsShown.includes(id))return null;
+    return(
+      <div style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,background:`${color}14`,border:`1px solid ${color}44`,margin:"4px 0 8px",position:"relative"}}>
+        <span style={{fontSize:10}}>{color==="#FFD60A"?"💡":color==="#30D158"?"🎵":"💡"}</span>
+        <span style={{fontSize:9,color,fontWeight:700,letterSpacing:"0.03em",flex:1}}>{text}</span>
+        <button onClick={()=>markTipShown(id)} style={{background:"transparent",border:"none",color,fontSize:11,cursor:"pointer",padding:"0 2px",lineHeight:1,flexShrink:0}}>✕</button>
+      </div>
+    );
+  };
+
   return(<>
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
@@ -1341,7 +1587,7 @@ export default function KickAndSnare(){
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
             <div>
-              <div style={{fontSize:18,fontWeight:800,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>KICK & SNARE</div>
+              <div className="gradientShift" style={{fontSize:24,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
               <div style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM EXPERIENCE</div>
             </div>
           </div>
@@ -1498,6 +1744,8 @@ export default function KickAndSnare(){
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
+          exportState={exportState} exportBars={exportBars} setExportBars={setExportBars} onExport={exportWAV}
+          onShare={shareURL} shareCopied={shareCopied}
         />
 
         {/* ── Time Signature ── */}
@@ -1597,10 +1845,12 @@ export default function KickAndSnare(){
           showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
           STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}
           patNameEdit={patNameEdit} setPatNameEdit={setPatNameEdit}
+          onLoadTemplate={loadTemplate}
         />}
 
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
+          <TipBadge id="seq_steps" text="Tape sur une case pour activer un son · Double-tape pour reset · Long-press = probabilité" color="#FF2D55"/>
           <div style={{display:"flex",flexDirection:"column",gap:0,position:"relative"}}
             onTouchStart={e=>{touchSwipeRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY,target:e.target};}}
             onTouchEnd={e=>{
@@ -1685,6 +1935,7 @@ export default function KickAndSnare(){
 
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
+          <TipBadge id="pads_tap" text="Joue en live ! Appuie sur un pad pour déclencher un son · REC pour enregistrer un loop" color="#5E5CE6"/>
           {/* ── Looper banner (foldable) ── */}
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
             <button onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
@@ -1711,6 +1962,12 @@ export default function KickAndSnare(){
                   onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
                   themeName={themeName} isPortrait={isPortrait}
                   bpm={bpm} tracks={atO}
+                  onMoveHit={(idx,newTOff)=>{
+                    const L=loopRef.current;
+                    if(!L.events[idx])return;
+                    L.events[idx]={...L.events[idx],tOff:Math.max(0,newTOff)};
+                    setLoopDisp([...L.events]);
+                  }}
                 />
               </div>
             )}
@@ -1748,6 +2005,8 @@ export default function KickAndSnare(){
         {view==="euclid"&&(()=>{
           const CX=190,CY=190;
           const R_OUT=162,R_IN=atO.length>1?38:148;
+          // E: Euclid tips rendered below the SVG (inside the IIFE so we can include them)
+
           const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
           const getP=tid=>{const ep=euclidParams[tid]||{};const N=trackSteps[tid]||STEPS;return{N,hits:Math.min(ep.hits||0,N),rot:(ep.rot||0)%Math.max(N,1),tpl:ep.tpl||"",fold:ep.fold||false};};
           const writeP=(tid,up)=>setEuclidParams(p=>({...p,[tid]:{...getP(tid),...up}}));
@@ -1845,6 +2104,8 @@ export default function KickAndSnare(){
           const sep0={fontSize:10,color:th.faint,flexShrink:0};
           return(
             <div style={{padding:"8px 0",overflowX:isPortrait?"visible":"auto"}}>
+              <TipBadge id="euclid_n" text="N = nombre de steps · HITS = nombre de sons · Tourne la roue pour créer des rythmes" color="#FFD60A"/>
+              <TipBadge id="euclid_edit" text="Appuie sur EDIT pour placer facilement tes sons sur la grille euclidienne" color="#30D158"/>
               <div style={{display:"flex",flexDirection:isPortrait?"column":"row",gap:16,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
                 {/* ── LEFT: Track controls ── */}
                 <div style={{display:"flex",flexDirection:"column",gap:6,width:380,flexShrink:0}}>
@@ -1999,6 +2260,7 @@ export default function KickAndSnare(){
                                 <circle cx={vx} cy={vy} r={Math.max(28,rv+20)} fill="transparent"
                                   style={{cursor:"pointer",touchAction:"none"}}
                                   onPointerDown={mkVelDrag(tr.id,i,on,velPct)}/>
+                                {on&&<circle cx={vx} cy={vy} r={rv+12} fill={tr.color} opacity={0.15} style={{animation:"haloRing 0.6s ease-in-out infinite",pointerEvents:"none"}}/>}
                                 {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"28":"11")} style={{pointerEvents:"none"}}/>}
                                 {/* I.1b: feedback flash circle */}
                                 {hasFeedback&&<circle cx={vx} cy={vy} r={rv+12} fill={tr.color} opacity={0.35} style={{pointerEvents:"none"}}/>}
@@ -2030,9 +2292,22 @@ export default function KickAndSnare(){
         })()}
 
 
-        <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
-          KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Hold step → probabilité
-        </div>
+        {(()=>{
+          const anyStep=atO.some(tr=>(pat[tr.id]||[]).some(v=>v>0));
+          const msg=!anyStep
+            ?"Tape sur une case pour placer un son"
+            :!playing
+              ?"Lance la lecture pour entendre"
+              :appSt.usageSeconds<120
+                ?"Drag ↕ sur un step = vélocité · Hold = probabilité"
+                :null;
+          return(
+            <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px 0",borderTop:`1px solid ${th.sBorder}`,display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
+              {msg&&<span style={{fontSize:8,color:th.faint,letterSpacing:"0.04em"}}>{msg}</span>}
+              <button onClick={()=>setShowCheatSheet(true)} style={{fontSize:9,fontWeight:700,color:th.dim,background:"transparent",border:`1px solid ${th.sBorder}`,borderRadius:12,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>?</button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Velocity picker popup (Euclid long-press) ── */}
@@ -2117,6 +2392,64 @@ export default function KickAndSnare(){
         </div>
         <div style={{fontSize:22,fontWeight:800,color:"#fff",letterSpacing:"0.18em"}}>TAP TO START</div>
         <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",letterSpacing:"0.06em"}}>Audio requires interaction to start</div>
+      </div>
+    )}
+
+    {/* ── CP-E: Onboarding Overlay ── */}
+    {overlayVisible&&(
+      <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,transition:"opacity 0.3s",opacity:overlayVisible?1:0}}>
+        <div style={{maxWidth:460,width:"100%",borderRadius:18,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",padding:"36px 28px",display:"flex",flexDirection:"column",alignItems:"center",gap:20,backdropFilter:"blur(20px)"}}>
+          <div style={{fontSize:28,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite",textAlign:"center"}}>KICK &amp; SNARE</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.3em",textAlign:"center",marginTop:-12}}>DRUM EXPERIENCE</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",textAlign:"center",lineHeight:1.6,fontWeight:500}}>Ton séquenceur de batterie TR-808 dans le navigateur. Crée des grooves, enregistre des loops, explore les rythmes euclidiens.</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,width:"100%"}}>
+            {[
+              {icon:"◆",label:"Séquenceur",desc:"Place tes sons\nstep by step",col:"#FF2D55"},
+              {icon:"⬡",label:"Euclid",desc:"Rythmes\nalgorithmiques",col:"#FFD60A"},
+              {icon:"⊙",label:"Looper",desc:"Enregistre\nen live",col:"#BF5AF2"},
+              {icon:"⊞",label:"Live Pads",desc:"Joue\nen temps réel",col:"#5E5CE6"},
+            ].map(({icon,label,desc,col})=>(
+              <div key={label} style={{padding:"12px 10px",borderRadius:10,background:`${col}0A`,border:`1px solid ${col}33`,display:"flex",flexDirection:"column",gap:4}}>
+                <div style={{fontSize:18,color:col}}>{icon}</div>
+                <div style={{fontSize:10,fontWeight:800,color:col,letterSpacing:"0.06em"}}>{label}</div>
+                <div style={{fontSize:8,color:"rgba(255,255,255,0.45)",whiteSpace:"pre-line",lineHeight:1.5}}>{desc}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>{setOverlayVisible(false);}} style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#FF2D55,#FF9500)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>C&apos;est parti !</button>
+          <button onClick={()=>setOverlayVisible(false)} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.35)",fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>Je connais déjà →</button>
+        </div>
+      </div>
+    )}
+
+    {/* ── CP-E: Cheat-sheet popup ── */}
+    {showCheatSheet&&(
+      <div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,0.75)"}} onClick={()=>setShowCheatSheet(false)}>
+        <div onClick={e=>e.stopPropagation()} style={{position:"fixed",bottom:60,left:"50%",transform:"translateX(-50%)",width:"min(440px,96vw)",borderRadius:14,background:th.surface,border:`1px solid ${th.sBorder}`,padding:"20px 18px",boxShadow:"0 8px 40px rgba(0,0,0,0.7)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:10,fontWeight:900,color:th.text,letterSpacing:"0.12em"}}>CHEAT SHEET</div>
+            <button onClick={()=>setShowCheatSheet(false)} style={{background:"transparent",border:"none",color:th.dim,fontSize:13,cursor:"pointer"}}>✕</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 18px"}}>
+            {[
+              ["Espace","Lecture / Stop"],
+              ["Tap","Activer un step"],
+              ["Drag ↕ step","Vélocité"],
+              ["Drag ↔ step","Nudge timing"],
+              ["Long-press step","Probabilité"],
+              ["Double-tap step","Reset"],
+              ["Swipe ← / →","Undo / Redo"],
+              ["Long-press PAT","Nommer le pattern"],
+              ["Vue EUCLID → EDIT","Placer les sons visuellement"],
+              ["VOL MASTER","Drag ↕ en jaune (transport)"],
+            ].map(([k,v])=>(
+              <div key={k} style={{display:"flex",flexDirection:"column",padding:"4px 0",borderBottom:`1px solid ${th.sBorder}`}}>
+                <span style={{fontSize:8,fontWeight:800,color:"#FF9500"}}>{k}</span>
+                <span style={{fontSize:8,color:th.dim}}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )}
   </>);

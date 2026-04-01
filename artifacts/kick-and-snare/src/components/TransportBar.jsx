@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { THEMES } from "../theme.js";
 
 const pill=(on,c)=>({padding:"5px 11px",borderRadius:6,border:`1px solid ${on?c+"55":on===false?"rgba(255,45,85,0.25)":"rgba(255,255,255,0.12)"}`,background:on?c+"18":"transparent",color:on?c:"inherit",fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.07em",textTransform:"uppercase",fontFamily:"inherit"});
@@ -15,9 +15,18 @@ export default function TransportBar({
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
+  exportState, exportBars, setExportBars, onExport,
+  onShare, shareCopied,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
+  const [bpmFlash, setBpmFlash] = useState(false);
+  const bpmFlashTRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(bpmFlashTRef.current);
+    setBpmFlash(true);
+    bpmFlashTRef.current = setTimeout(() => setBpmFlash(false), 150);
+  }, [bpm]);
 
   const onMDown = e => {
     e.preventDefault();
@@ -66,9 +75,9 @@ export default function TransportBar({
 
   const VolKnob = (
     <div onPointerDown={onVolDown} title="VOL MASTER (drag ↕, double-tap = 80)" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none", position: "relative", overflow: "hidden", padding: "4px 8px", borderRadius: 6, border: `1px solid rgba(255,255,255,0.12)`, minWidth: 50 }}>
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${masterVol}%`, background: "rgba(255,149,0,0.1)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${masterVol}%`, background: "rgba(255,214,10,0.1)", pointerEvents: "none" }} />
       <span style={{ position: "relative", fontSize: 7, color: th.dim, letterSpacing: "0.1em", fontWeight: 700 }}>VOL</span>
-      <span style={{ position: "relative", fontSize: 10, fontWeight: 800, color: "#FF9500" }}>{masterVol}</span>
+      <span style={{ position: "relative", fontSize: 10, fontWeight: 800, color: "#FFD60A" }}>{masterVol}</span>
     </div>
   );
 
@@ -125,7 +134,7 @@ export default function TransportBar({
         <span style={{ fontSize: 8, color: th.dim, letterSpacing: "0.15em" }}>BPM</span>
         <MidiTag id="__bpm__" />
         <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&lt;</button>
-        <span style={{ fontSize: 17, fontWeight: 900, color: "#FF9500" }}>{bpm}</span>
+        <span className={bpmFlash ? "bpmFlash" : ""} style={{ fontSize: 28, fontWeight: 900, color: "#FF9500", display: "inline-block" }}>{bpm}</span>
         <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&gt;</button>
       </div>
       <input type="range" min={30} max={300} value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "100%", height: 4, accentColor: "#FF9500" }} />
@@ -167,6 +176,29 @@ export default function TransportBar({
 
   const ClearBtn = (
     <button onClick={onClear} style={pill(false, "#FF2D55")} title="Clear all hits">✕ CLEAR</button>
+  );
+
+  const ExportBtn = onExport && (
+    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+      {[1,2,4].map(n => (
+        <button key={n} onClick={() => setExportBars(n)}
+          style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
+          disabled={playing || exportState==="rendering"}
+        >{n}b</button>
+      ))}
+      <button onClick={onExport}
+        disabled={playing || exportState==="rendering"}
+        style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
+        title="Export WAV"
+      >{exportState==="rendering" ? "⏳" : "⬇ WAV"}</button>
+    </div>
+  );
+
+  const ShareBtn = onShare && (
+    <button onClick={onShare}
+      style={{ ...pill(shareCopied, "#30D158"), color: shareCopied ? "#30D158" : "inherit", minWidth: 0 }}
+      title="Copy share URL"
+    >{shareCopied ? "✓ COPIED" : "⬆ SHARE"}</button>
   );
 
   const KeybBtn = (
@@ -217,6 +249,8 @@ export default function TransportBar({
           {KeybBtn}
           {MidiBtn}
           {LinkBtn}
+          {ShareBtn}
+          {ExportBtn}
         </div>
       </div>
     );
@@ -237,6 +271,8 @@ export default function TransportBar({
       {KeybBtn}
       {MidiBtn}
       {LinkBtn}
+      {ShareBtn}
+      {ExportBtn}
     </div>
   );
 }

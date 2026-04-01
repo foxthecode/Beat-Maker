@@ -70,6 +70,15 @@
   50%      { opacity: 0.45; }
 }
 
+/* ── Class-based animation rules ── */
+.stepPulse {
+  animation: stepPulse 0.25s ease-in-out 1;
+}
+
+.bpmFlash {
+  animation: bpmFlash 0.15s ease-out 1;
+}
+
 /* ── REC countdown bar ── */
 @keyframes recCountBar {
   from { width: 100%; }

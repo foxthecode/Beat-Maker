@@ -8,6 +8,7 @@ export default function LooperPanel({
   onToggleRec, onFreshRec, onTogglePlay, onUndo, onClear,
   themeName, isPortrait,
   bpm, tracks,
+  onMoveHit,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
 
@@ -140,22 +141,55 @@ export default function LooperPanel({
                 </div>
               );
             })}
-            {/* Recorded hits */}
+            {/* Recorded hits — draggable */}
             {hasEvents && loopDisp.map((ev, i) => {
               const pct = Math.min(99.5, (ev.tOff / loopDurMs) * 100);
               const color = trackColorMap[ev.tid] || "#BF5AF2";
+              const canDrag = !!onMoveHit && !loopRec;
               return (
                 <div key={i} style={{
                   position: "absolute",
                   left: `${pct}%`,
-                  top: "30%",
+                  top: 0,
                   bottom: 0,
-                  width: 2,
-                  borderRadius: "1px 1px 0 0",
-                  background: color,
-                  opacity: 0.5 + (ev.vel || 0.8) * 0.5,
-                  pointerEvents: "none",
-                }} />
+                  width: canDrag ? 10 : 2,
+                  transform: canDrag ? "translateX(-4px)" : "none",
+                  display: "flex",
+                  alignItems: "flex-end",
+                  justifyContent: "center",
+                  cursor: canDrag ? "ew-resize" : "default",
+                  pointerEvents: canDrag ? "auto" : "none",
+                  touchAction: "none",
+                  zIndex: 2,
+                }}
+                onPointerDown={canDrag ? e => {
+                  e.preventDefault();e.stopPropagation();
+                  const gridEl=e.currentTarget.parentElement;
+                  const rect=gridEl.getBoundingClientRect();
+                  const startX=e.clientX,startTOff=ev.tOff;
+                  const snapMs=loopDurMs/(loopBars*16);
+                  const mv=me=>{
+                    const dx=me.clientX-startX;
+                    const dMs=(dx/rect.width)*loopDurMs;
+                    const raw=startTOff+dMs;
+                    const snapped=Math.max(0,Math.min(loopDurMs-snapMs,Math.round(raw/snapMs)*snapMs));
+                    onMoveHit&&onMoveHit(i,snapped);
+                  };
+                  const up=()=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);};
+                  window.addEventListener("pointermove",mv);
+                  window.addEventListener("pointerup",up);
+                } : undefined}
+                >
+                  <div style={{
+                    width: 2,
+                    height: "70%",
+                    borderRadius: "1px 1px 0 0",
+                    background: color,
+                    opacity: 0.5 + (ev.vel || 0.8) * 0.5,
+                    pointerEvents: "none",
+                    flexShrink: 0,
+                  }} />
+                </div>
               );
             })}
             {/* Playhead */}
