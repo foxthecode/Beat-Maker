@@ -13,7 +13,6 @@ export default function TransportBar({
   hasMidiApi, hasLinkApi, midiNotes, setMidiNotes, initMidi, midiLearnTrack, setMidiLearnTrack,
   isPortrait, isAudioReady,
   masterVol, setMasterVol,
-  beatViz,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
 }) {
@@ -128,34 +127,6 @@ export default function TransportBar({
         <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&lt;</button>
         <span style={{ fontSize: 17, fontWeight: 900, color: "#FF9500" }}>{bpm}</span>
         <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&gt;</button>
-        {beatViz && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 6 }}>
-            {/* Textual beat counter: bar.beat */}
-            <span style={{
-              fontSize: 11, fontWeight: 700, color: "#FF9500",
-              letterSpacing: "0.05em", minWidth: 28, textAlign: "right",
-              fontVariantNumeric: "tabular-nums",
-            }}>
-              {Math.floor(beatViz.beat / beatViz.numBeats) + 1}:{(beatViz.beat % beatViz.numBeats) + 1}
-            </span>
-            {/* Pulse dots */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              {Array.from({ length: beatViz.numBeats }, (_, i) => {
-                const isCur = i === (beatViz.beat % beatViz.numBeats);
-                const decay = isCur ? Math.max(0.4, 1 - beatViz.frac * 0.6) : 0;
-                return (
-                  <div key={i} style={{
-                    width: isCur ? 10 : 6, height: isCur ? 10 : 6,
-                    borderRadius: "50%",
-                    background: isCur ? `rgba(255,149,0,${decay})` : "rgba(255,255,255,0.15)",
-                    boxShadow: isCur ? `0 0 8px rgba(255,149,0,${decay})` : "none",
-                    flexShrink: 0,
-                  }} />
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
       <input type="range" min={30} max={300} value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "100%", height: 4, accentColor: "#FF9500" }} />
     </div>

@@ -604,19 +604,6 @@ export default function KickAndSnare(){
   const [metroSub,setMetroSub]=useState("off");
   // Activating looper countdown → automatically enable transport metro
   useEffect(()=>{if(loopMetro)setMetro(true);},[loopMetro]);
-  // RAF-based beat position indicator — reads audio clock directly for drift-free display
-  useEffect(()=>{
-    if(!playing){if(beatRafRef.current)cancelAnimationFrame(beatRafRef.current);setBeatViz(null);return;}
-    const nb=sig?.beats||4;const tick=()=>{
-      if(!engine.ctx){beatRafRef.current=requestAnimationFrame(tick);return;}
-      const elapsed=Math.max(0,engine.ctx.currentTime-playStartRef.current);
-      const beatDur=60/Math.max(30,R.bpm);const tb=elapsed/beatDur;
-      const totalBeat=Math.floor(tb);
-      setBeatViz({beat:totalBeat,frac:tb-totalBeat,numBeats:nb});
-      beatRafRef.current=requestAnimationFrame(tick);
-    };beatRafRef.current=requestAnimationFrame(tick);
-    return()=>{if(beatRafRef.current)cancelAnimationFrame(beatRafRef.current);};
-  },[playing]);
   // Android WebView / PWA compat
   const [ctxSuspended,setCtxSuspended]=useState(false);
   const hasMidiApi=typeof navigator!=='undefined'&&typeof navigator.requestMIDIAccess==='function';
@@ -908,9 +895,6 @@ export default function KickAndSnare(){
   const isGS=(step,groups,accents=[0])=>{let a=0;for(let g=0;g<groups.length;g++){if(step===a)return{y:true,f:accents.includes(g)};a+=groups[g];}return{y:false,f:false};};
 
   const nxtRef=useRef(0);const schRef=useRef(null);
-  const playStartRef=useRef(0); // audio ctx time when playback started
-  const beatRafRef=useRef<number|null>(null);
-  const [beatViz,setBeatViz]=useState<{beat:number,frac:number,numBeats:number}|null>(null);
   const schSt=useCallback((sn,time)=>{
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
     const prob=R.prob,ratch=R.ratch,cs=R.sig;
@@ -1032,8 +1016,7 @@ export default function KickAndSnare(){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
-      R.step=-1;songPosRef.current=0;
-      const _t0=engine.ctx.currentTime+0.05;nxtRef.current=_t0;playStartRef.current=_t0;
+      R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
       // Song arranger: reset to first pattern in chain so display + playback are in sync
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
@@ -1050,7 +1033,7 @@ export default function KickAndSnare(){
     setTimeout(async()=>{
       setRecCountdown(false);
       await engine.ensureRunning();
-      R.step=-1;songPosRef.current=0;if(engine.ctx){const _t0=engine.ctx.currentTime+0.05;nxtRef.current=_t0;playStartRef.current=_t0;}
+      R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);setRec(true);
@@ -1508,7 +1491,6 @@ export default function KickAndSnare(){
           midiLearnTrack={midiLearnTrack} setMidiLearnTrack={setMidiLearnTrack}
           isPortrait={isPortrait} isAudioReady={isAudioReady}
           masterVol={masterVol} setMasterVol={setMasterVol}
-          beatViz={beatViz}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
         />

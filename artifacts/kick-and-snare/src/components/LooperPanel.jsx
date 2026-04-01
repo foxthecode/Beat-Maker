@@ -94,8 +94,9 @@ export default function LooperPanel({
         if (!showGrid) return null;
         const trackColorMap = {};
         (tracks || []).forEach(t => { trackColorMap[t.id] = t.color; });
-        const playPct = loopPlaying && loopDurMs > 0
-          ? Math.min(99.5, ((loopPlayhead || 0) / loopDurMs) * 100)
+        // loopPlayhead is already a ratio 0..1 (set by RAF in KickAndSnare)
+        const playPct = (loopPlaying || loopRec) && loopDurMs > 0
+          ? Math.min(99.5, (loopPlayhead || 0) * 100)
           : null;
         return (
           <div style={{ position: "relative", height: 32, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 4, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
