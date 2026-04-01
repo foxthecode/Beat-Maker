@@ -478,7 +478,9 @@ class Eng{
     const ppOn=gfx.pingpong?.on??false;
     if(this.gPpBus)this.gPpBus.gain.setTargetAtTime(ppOn?1:0,t,0.05);
     if(this.gPpDlL&&this.gPpDlR){
-      const ppTime=gfx.pingpong?.sync?syncDivTime(gfx.pingpong?.syncDiv??'1/4',120):(gfx.pingpong?.time??0.25);
+      // Use the pre-computed time stored in gfx (kept in sync with BPM by the React useEffect).
+      // Do NOT recompute from syncDiv here — that path used hardcoded 120 BPM.
+      const ppTime=gfx.pingpong?.time??0.25;
       this.gPpDlL.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.02);
       this.gPpDlR.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.02);
     }
@@ -649,7 +651,19 @@ const CHAIN_META:{[k:string]:{label:string,color:string,short:string}}={
   filter:{label:'FILTER', color:'#FF9500', short:'FLT'},
 };
 
+const GFX_DRY={
+  reverb:{on:false,decay:1.5,size:0.5,type:'room',sends:{}},
+  delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
+  filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,sends:{}},
+  comp:{on:false,thr:-12,ratio:4,attack:5,release:80,sends:{}},
+  drive:{on:false,amt:0,mode:'tanh',sends:{}},
+  chorus:{on:false,rate:0.8,depth:30,sends:{}},
+  flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+  pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+};
+
 const FX_PRESETS=[
+  {name:'DRY',color:'#8E8E93',gfx:GFX_DRY},
   {name:'Trap',color:'#FF2D55',gfx:{
     reverb: {on:true, decay:0.8,size:0.3,type:'plate',sends:{snare:true,clap:true}},
     delay:  {on:true, time:0.25,fdbk:25,sends:{hihat:true},sync:true,syncDiv:'1/8'},
@@ -901,7 +915,27 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
         </div>
         {/* Spectrum analyser mini */}
         {open&&<svg ref={specRef} width={80} height={20} style={{flexShrink:0,borderRadius:3,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}/>}
-        <button data-hint={showPresets?"Fermer les presets FX · Sélectionne un preset pour reconfigurer tout le FX Rack en un clic":"PRESETS FX · Charge une configuration complète d'effets en un clic : Club, Lo-Fi, Techno, Space, Dry…"} onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
+        {/* BYPASS ALL — one-click mute of every global FX */}
+        <button data-hint={activeCount===0?"BYPASS · Tous les effets globaux sont désactivés · Clic pour restorer le dernier preset":"BYPASS ALL · Désactive tous les effets globaux d'un seul clic · Utile pour comparer dry/wet"}
+          onClick={e=>{
+            e.stopPropagation();
+            setGfx(p=>{
+              // If any FX is active: bypass all (store snapshot for future restore via DRY preset)
+              const anyOn=['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'].some(k=>p[k]?.on);
+              if(!anyOn)return p; // already bypassed
+              const ng=JSON.parse(JSON.stringify(p));
+              ['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'].forEach(k=>{if(ng[k])ng[k].on=false;});
+              return ng;
+            });
+          }}
+          style={{padding:'2px 8px',borderRadius:5,border:`1px solid ${activeCount>0?'rgba(255,45,85,0.4)':th.sBorder}`,
+            background:activeCount>0?'rgba(255,45,85,0.08)':'transparent',
+            color:activeCount>0?'#FF2D55':th.faint,
+            fontSize:7,fontWeight:activeCount>0?800:400,cursor:activeCount>0?'pointer':'default',
+            fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0,opacity:activeCount>0?1:0.4}}>
+          BYPASS
+        </button>
+        <button data-hint={showPresets?"Fermer les presets FX · Sélectionne un preset pour reconfigurer tout le FX Rack en un clic":"PRESETS FX · Charge une configuration complète d'effets en un clic : DRY, Trap, Lo-Fi, Techno, Afro, Stadium…"} onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
           style={{padding:'2px 8px',borderRadius:5,border:`1px solid ${showPresets?'#BF5AF255':th.sBorder}`,background:showPresets?'rgba(191,90,242,0.12)':'transparent',color:showPresets?'#BF5AF2':th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0}}>
           PRESETS
         </button>
@@ -1289,10 +1323,15 @@ export default function KickAndSnare(){
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
   },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
-  // BPM sync for delay
+  // BPM sync for delay and ping-pong — recalculate time when BPM or syncDiv changes
   useEffect(()=>{
-    if(gfx.delay.sync){const t=syncDivTime(gfx.delay.syncDiv,bpm);setGfx(p=>({...p,delay:{...p.delay,time:t}}));}
-  },[bpm,gfx.delay.sync,gfx.delay.syncDiv]);
+    setGfx(p=>{
+      let nd={...p};
+      if(p.delay.sync){nd={...nd,delay:{...p.delay,time:syncDivTime(p.delay.syncDiv,bpm)}};}
+      if(p.pingpong?.sync){nd={...nd,pingpong:{...p.pingpong,time:syncDivTime(p.pingpong.syncDiv??'1/4',bpm)}};}
+      return nd;
+    });
+  },[bpm]);
   const [stNudge,setStNudge]=useState(mkN(16));
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
@@ -2063,13 +2102,15 @@ export default function KickAndSnare(){
   };
   const _armLoopRec=async(forcedStart?:number)=>{
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
-    // Pre-compute lengthMs and audioStart SYNCHRONOUSLY before any await.
-    // Without this, there is a race window where R.loopRec=true but L.audioStart===null
-    // (startLooper awaits ensureRunning first), so the very first pad hit is silently dropped.
+    // Guarantee engine.ctx exists BEFORE opening the capture gate.
+    // Without this, two races exist:
+    //  1) ctx===null on first use → eager audioStart can't be set → gate opens blind
+    //  2) startLooper's ensureRunning yields AFTER R.loopRec=true → audioStart set too late
+    // By awaiting ensureRunning() first, ctx is always valid when we set audioStart,
+    // and R.loopRec=true is only raised when both audioStart AND lengthMs are ready.
+    await engine.ensureRunning();
     L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
-    if(forcedStart!==undefined){L.audioStart=forcedStart;}
-    else if(engine.ctx){L.audioStart=engine.ctx.currentTime;}
-    // Now it's safe to open the capture gate — trigPad will pass all three guards
+    L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx!.currentTime;
     R.loopRec=true;
     setLoopRec(true);await startLooper(true,forcedStart);
   };
