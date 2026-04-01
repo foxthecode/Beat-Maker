@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { THEMES } from "../theme.js";
 import { SEQUENCER_TEMPLATES } from "../sequencerTemplates.ts";
+import { EUCLID_TEMPLATES } from "../euclidTemplates.ts";
 
 function MiniGrid({ steps = [], color, n = 16 }) {
   const sz = n > 16 ? 2.5 : 3.5;
@@ -16,106 +17,127 @@ function MiniGrid({ steps = [], color, n = 16 }) {
   );
 }
 
-function TemplateDropdown({ onLoad, th, view }) {
-  const [open, setOpen] = useState(false);
-  const [variant, setVariant] = useState("16");
-  const ref = useRef(null);
+// Mini euclidean circle preview — N dots arranged in a circle, hits highlighted
+function EuclidDots({ hits, N, rot = 0, color }) {
+  const r = 10;
+  const dots = Array.from({ length: N }, (_, i) => {
+    const angle = (i / N) * 2 * Math.PI - Math.PI / 2;
+    const x = 12 + r * Math.cos(angle);
+    const y = 12 + r * Math.sin(angle);
+    // Euclidean algorithm: Bjorklund
+    const idx = (i - rot + N) % N;
+    // Simple approximation: hit if floor(idx * hits / N) > floor((idx-1) * hits / N)
+    const isHit = Math.floor((idx + 1) * hits / N) > Math.floor(idx * hits / N);
+    return { x, y, isHit };
+  });
+  return (
+    <svg width={24} height={24} style={{ flexShrink: 0 }}>
+      {dots.map((d, i) => (
+        <circle key={i} cx={d.x} cy={d.y} r={d.isHit ? 2.5 : 1.5}
+          fill={d.isHit ? color : "rgba(255,255,255,0.12)"} />
+      ))}
+    </svg>
+  );
+}
 
+function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const isEuclid = view === "euclid";
+  const templates = isEuclid ? EUCLID_TEMPLATES : SEQUENCER_TEMPLATES;
   const n = variant === "32" ? 32 : 16;
+
+  const accentColor = isEuclid ? "#FFD60A" : "#5E5CE6";
 
   const toggle = () => setOpen(o => !o);
 
   const load = (tpl) => {
-    onLoad && onLoad(tpl, variant);
+    if (isEuclid) {
+      onLoadEuclid && onLoadEuclid(tpl);
+    } else {
+      onLoad && onLoad(tpl, variant);
+    }
     setOpen(false);
   };
 
+  // Close on outside click
+  const handleBlur = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+  };
+
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative" }} onBlur={handleBlur} tabIndex={-1}>
       <button
         onClick={toggle}
         style={{
           display: "flex", alignItems: "center", gap: 5,
           padding: "2px 8px", borderRadius: 5, cursor: "pointer",
-          border: `1px solid ${open ? "#5E5CE699" : th.sBorder}`,
-          background: open ? "#5E5CE618" : "transparent",
-          color: open ? "#5E5CE6" : th.dim,
+          border: `1px solid ${open ? accentColor + "99" : th.sBorder}`,
+          background: open ? accentColor + "18" : "transparent",
+          color: open ? accentColor : th.dim,
           fontSize: 8, fontWeight: open ? 800 : 500,
           letterSpacing: "0.06em", fontFamily: "inherit",
         }}
       >
-        <span>TEMPLATES</span>
+        <span>{isEuclid ? "⬡ PRESETS" : "TEMPLATES"}</span>
         <span style={{ fontSize: 7 }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
         <div style={{
           position: "absolute", top: "calc(100% + 4px)", left: 0,
-          zIndex: 200, width: 320,
-          background: "#1a1a1e", border: `1px solid #5E5CE644`,
-          borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+          zIndex: 300, width: isEuclid ? 300 : 320,
+          background: "#1a1a1e", border: `1px solid ${accentColor}44`,
+          borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
           overflow: "hidden",
         }}>
-          {/* Header: 16 / 32 toggle */}
+          {/* Header */}
           <div style={{
             display: "flex", alignItems: "center", gap: 6,
-            padding: "8px 10px 6px",
+            padding: "7px 10px 6px",
             borderBottom: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(255,255,255,0.02)",
           }}>
-            <span style={{ fontSize: 8, color: th.dim, flex: 1, letterSpacing: "0.06em" }}>STEPS</span>
-            {["16","32"].map(v => (
-              <button
-                key={v}
-                onClick={() => setVariant(v)}
-                style={{
-                  padding: "2px 10px", borderRadius: 5, cursor: "pointer",
-                  fontFamily: "inherit", fontSize: 8, fontWeight: 700,
-                  border: `1px solid ${variant === v ? "#5E5CE688" : th.sBorder}`,
-                  background: variant === v ? "#5E5CE622" : "transparent",
-                  color: variant === v ? "#5E5CE6" : th.dim,
-                  letterSpacing: "0.08em",
-                }}
-              >{v}</button>
-            ))}
-            {variant === "32" && (
-              <span style={{ fontSize: 7, color: "#FFD60A", letterSpacing: "0.04em" }}>+FINE</span>
+            <span style={{ fontSize: 8, color: accentColor, fontWeight: 800, letterSpacing: "0.08em", flex: 1 }}>
+              {isEuclid ? "⬡ EUCLIDEAN PRESETS" : "■ STEP TEMPLATES"}
+            </span>
+            {!isEuclid && (
+              <span style={{ fontSize: 7, color: th.faint }}>{variant} steps</span>
             )}
           </div>
 
           {/* Template list */}
-          <div style={{ maxHeight: 280, overflowY: "auto" }}>
-            {SEQUENCER_TEMPLATES.map(tpl => {
-              const has32 = !!tpl.steps32;
-              const disabled = variant === "32" && !has32;
-              const stepsK = variant === "32" && tpl.steps32 ? tpl.steps32.kick : tpl.steps.kick;
-              const stepsS = variant === "32" && tpl.steps32
+          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+            {templates.map(tpl => {
+              const stepsK = !isEuclid && (variant === "32" && tpl.steps32
+                ? tpl.steps32.kick : tpl.steps.kick);
+              const stepsS = !isEuclid && (variant === "32" && tpl.steps32
                 ? (tpl.steps32.snare || tpl.steps32.clap || Object.values(tpl.steps32)[1])
-                : (tpl.steps.snare || tpl.steps.clap || Object.values(tpl.steps)[1]);
-              const stepsH = variant === "32" && tpl.steps32
+                : (tpl.steps.snare || tpl.steps.clap || Object.values(tpl.steps)[1]));
+              const stepsH = !isEuclid && (variant === "32" && tpl.steps32
                 ? (tpl.steps32.hihat || Object.values(tpl.steps32)[2])
-                : (tpl.steps.hihat || Object.values(tpl.steps)[2]);
-              const trackCount = Object.keys(
-                variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps
-              ).length;
+                : (tpl.steps.hihat || Object.values(tpl.steps)[2]));
+              const disabled = !isEuclid && variant === "32" && !tpl.steps32;
 
               return (
                 <div
                   key={tpl.id}
                   onClick={() => !disabled && load(tpl)}
-                  title={disabled ? "Pas de variante 32 steps" : `Charger ${tpl.name} — ${tpl.bpm || "?"}bpm`}
+                  title={disabled ? "Pas de variante 32 steps" : tpl.description || tpl.name}
                   style={{
-                    display: "flex", flexDirection: "column", gap: 3,
+                    display: "flex", flexDirection: "column", gap: isEuclid ? 4 : 3,
                     padding: "7px 10px",
                     borderBottom: "1px solid rgba(255,255,255,0.04)",
                     cursor: disabled ? "not-allowed" : "pointer",
                     opacity: disabled ? 0.38 : 1,
                     transition: "background 0.08s",
                   }}
-                  onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = `${tpl.color}12`; }}
+                  onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = `${tpl.color}10`; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
                 >
+                  {/* Row 1 — icon + name + metadata */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 13, lineHeight: 1 }}>{tpl.icon}</span>
+                    <span style={{ fontSize: isEuclid ? 11 : 13, lineHeight: 1, opacity: 0.85 }}>{tpl.icon}</span>
                     <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, flex: 1, letterSpacing: "0.02em" }}>
                       {tpl.name}
                     </span>
@@ -125,13 +147,37 @@ function TemplateDropdown({ onLoad, th, view }) {
                     {tpl.bpm && (
                       <span style={{ fontSize: 7, color: th.faint, letterSpacing: "0.06em" }}>{tpl.bpm}</span>
                     )}
-                    <span style={{ fontSize: 7, color: "#30D15899", letterSpacing: "0.06em" }}>
-                      {trackCount}trk
-                    </span>
+                    {!isEuclid && (
+                      <span style={{ fontSize: 7, color: "#30D15899", letterSpacing: "0.06em" }}>
+                        {Object.keys(variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps).length}trk
+                      </span>
+                    )}
                   </div>
-                  <MiniGrid steps={stepsK} color={tpl.color} n={n} />
-                  {stepsS && <MiniGrid steps={stepsS} color={tpl.color + "77"} n={n} />}
-                  {stepsH && <MiniGrid steps={stepsH} color={tpl.color + "44"} n={n} />}
+
+                  {/* Row 2 — Euclid: circle previews / Sequencer: mini grids */}
+                  {isEuclid ? (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      {Object.entries(tpl.params).map(([tid, p]) => (
+                        <div key={tid} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                          <EuclidDots hits={p.hits} N={p.N} rot={p.rot || 0} color={tpl.color} />
+                          <span style={{ fontSize: 5.5, color: tpl.color + "99", letterSpacing: "0.05em", fontFamily: "monospace" }}>
+                            E({p.hits},{p.N})
+                          </span>
+                        </div>
+                      ))}
+                      {tpl.description && (
+                        <span style={{ fontSize: 6, color: th.faint, flex: 1, lineHeight: 1.3, minWidth: 80 }}>
+                          {tpl.description.split('—')[1]?.trim() || ""}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <MiniGrid steps={stepsK} color={tpl.color} n={n} />
+                      {stepsS && <MiniGrid steps={stepsS} color={tpl.color + "77"} n={n} />}
+                      {stepsH && <MiniGrid steps={stepsH} color={tpl.color + "44"} n={n} />}
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -142,7 +188,9 @@ function TemplateDropdown({ onLoad, th, view }) {
             borderTop: "1px solid rgba(255,255,255,0.05)",
             letterSpacing: "0.04em",
           }}>
-            Vélocités humanisées incluses · Toutes pistes activées automatiquement
+            {isEuclid
+              ? "Polyrhythmes euclidiens · Sources: Toussaint 2005"
+              : "Vélocités humanisées incluses · Toutes pistes activées auto"}
           </div>
         </div>
       )}
@@ -155,11 +203,13 @@ export default function PatternBank({
   songChain, setSongChain, songMode, setSongMode, showSong, setShowSong,
   playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait=false,
   patNameEdit, setPatNameEdit,
-  onLoadTemplate,
+  onLoadTemplate, onLoadEuclidTemplate,
   view,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const longPressRef = useRef(null);
+  const [variant, setVariant] = useState("16");
+  const isEuclid = view === "euclid";
 
   const startLongPress = (i) => {
     longPressRef.current = setTimeout(() => { setPatNameEdit && setPatNameEdit(i); }, 500);
@@ -168,18 +218,42 @@ export default function PatternBank({
     if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
   };
 
-  const handleLoadTemplate = (tpl, variant) => {
-    onLoadTemplate && onLoadTemplate(tpl, variant);
-  };
-
   return (
     <>
       {/* ── Pattern Bank ── */}
       <div style={{ marginBottom: 8, padding: "5px 10px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           <span style={{ fontSize: 8, color: th.dim }}>PAT</span>
+
+          {/* 16 / 32 step toggle — always visible, sequencer only */}
+          {!isEuclid && (
+            <div style={{ display: "flex", gap: 2 }}>
+              {["16", "32"].map(v => (
+                <button
+                  key={v}
+                  onClick={() => setVariant(v)}
+                  style={{
+                    padding: "1px 7px", borderRadius: 4, cursor: "pointer",
+                    fontFamily: "inherit", fontSize: 7.5, fontWeight: 700,
+                    border: `1px solid ${variant === v ? "#5E5CE688" : th.sBorder}`,
+                    background: variant === v ? "#5E5CE622" : "transparent",
+                    color: variant === v ? "#5E5CE6" : th.dim,
+                    letterSpacing: "0.06em",
+                  }}
+                >{v}</button>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", position: "relative", zIndex: 10 }}>
-            <TemplateDropdown onLoad={handleLoadTemplate} th={th} view={view} />
+            <TemplateDropdown
+              onLoad={onLoadTemplate}
+              onLoadEuclid={onLoadEuclidTemplate}
+              th={th}
+              view={view}
+              variant={variant}
+              setVariant={setVariant}
+            />
             {pBank.length < MAX_PAT && (
               <button
                 onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }}
@@ -246,52 +320,54 @@ export default function PatternBank({
         </div>
       </div>
 
-      {/* ── Song Arranger ── */}
-      <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${showSong ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
-          <div onClick={() => setShowSong(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
-            <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGER</span>
-            <span style={{ fontSize: 10, color: th.dim }}>{showSong ? "▲" : "▼"}</span>
-          </div>
-          <button
-            onClick={e => { e.stopPropagation(); setSongMode(p => !p); }}
-            style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${songMode ? "#BF5AF255" : "rgba(255,255,255,0.12)"}`, background: songMode ? "#BF5AF218" : "transparent", color: songMode ? "#BF5AF2" : "inherit", fontSize: 8, fontWeight: 700, cursor: "pointer", letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "inherit", animation: songMode && playing ? "pulse 1s infinite" : "none" }}
-          >
-            {songMode ? (playing ? "▶ ON" : "ON") : "OFF"}
-          </button>
-        </div>
-        {showSong && (
-          <div style={{ padding: "0 12px 12px" }}>
-            <div style={{ marginBottom: 10 }}>
-              {songMode && <span style={{ fontSize: 8, color: th.dim }}>The sequencer automatically advances through the pattern chain each cycle</span>}
+      {/* ── Song Arranger — sequencer only ── */}
+      {!isEuclid && (
+        <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${showSong ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
+            <div onClick={() => setShowSong(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGER</span>
+              <span style={{ fontSize: 10, color: th.dim }}>{showSong ? "▲" : "▼"}</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
-              {songChain.map((patIdx, chainIdx) => {
-                const isActive = songMode && playing && songPosRef.current === chainIdx;
-                return (
-                  <div key={chainIdx} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", borderRadius: 6, background: isActive ? "rgba(191,90,242,0.08)" : "transparent", border: `1px solid ${isActive ? "rgba(191,90,242,0.3)" : "transparent"}` }}>
-                    <span style={{ width: 16, fontSize: 8, color: isActive ? "#BF5AF2" : th.faint, fontWeight: 700, textAlign: "right", flexShrink: 0 }}>{chainIdx + 1}</span>
-                    <div style={{ display: "flex", gap: 3, flex: 1, flexWrap: "wrap" }}>
-                      {pBank.map((_, pi) => (
-                        <button key={pi} onClick={() => setSongChain(p => { const n = [...p]; n[chainIdx] = pi; return n; })} style={{ width: 26, height: 22, borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 9, fontWeight: 800, border: `1px solid ${patIdx === pi ? SEC_COL[pi % 8] + "66" : th.sBorder}`, background: patIdx === pi ? SEC_COL[pi % 8] + "20" : "transparent", color: patIdx === pi ? SEC_COL[pi % 8] : th.dim }}>{pi + 1}</button>
-                      ))}
+            <button
+              onClick={e => { e.stopPropagation(); setSongMode(p => !p); }}
+              style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${songMode ? "#BF5AF255" : "rgba(255,255,255,0.12)"}`, background: songMode ? "#BF5AF218" : "transparent", color: songMode ? "#BF5AF2" : "inherit", fontSize: 8, fontWeight: 700, cursor: "pointer", letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "inherit", animation: songMode && playing ? "pulse 1s infinite" : "none" }}
+            >
+              {songMode ? (playing ? "▶ ON" : "ON") : "OFF"}
+            </button>
+          </div>
+          {showSong && (
+            <div style={{ padding: "0 12px 12px" }}>
+              <div style={{ marginBottom: 10 }}>
+                {songMode && <span style={{ fontSize: 8, color: th.dim }}>The sequencer automatically advances through the pattern chain each cycle</span>}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
+                {songChain.map((patIdx, chainIdx) => {
+                  const isActive = songMode && playing && songPosRef.current === chainIdx;
+                  return (
+                    <div key={chainIdx} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", borderRadius: 6, background: isActive ? "rgba(191,90,242,0.08)" : "transparent", border: `1px solid ${isActive ? "rgba(191,90,242,0.3)" : "transparent"}` }}>
+                      <span style={{ width: 16, fontSize: 8, color: isActive ? "#BF5AF2" : th.faint, fontWeight: 700, textAlign: "right", flexShrink: 0 }}>{chainIdx + 1}</span>
+                      <div style={{ display: "flex", gap: 3, flex: 1, flexWrap: "wrap" }}>
+                        {pBank.map((_, pi) => (
+                          <button key={pi} onClick={() => setSongChain(p => { const n = [...p]; n[chainIdx] = pi; return n; })} style={{ width: 26, height: 22, borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 9, fontWeight: 800, border: `1px solid ${patIdx === pi ? SEC_COL[pi % 8] + "66" : th.sBorder}`, background: patIdx === pi ? SEC_COL[pi % 8] + "20" : "transparent", color: patIdx === pi ? SEC_COL[pi % 8] : th.dim }}>{pi + 1}</button>
+                        ))}
+                      </div>
+                      {isActive && <span style={{ fontSize: 9, color: "#BF5AF2" }}>▶</span>}
+                      <button onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })} title="Dupliquer cette ligne" style={{ padding: "0 6px", height: 18, border: "1px solid rgba(48,209,88,0.35)", borderRadius: 3, background: "transparent", color: "#30D158", fontSize: 8, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, letterSpacing: "0.04em", fontFamily: "inherit" }}>⊕ DUP</button>
+                      {songChain.length > 1 && (
+                        <button onClick={() => setSongChain(p => p.filter((_, j) => j !== chainIdx))} style={{ width: 18, height: 18, border: "1px solid rgba(255,55,95,0.25)", borderRadius: 3, background: "transparent", color: "#FF375F", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+                      )}
                     </div>
-                    {isActive && <span style={{ fontSize: 9, color: "#BF5AF2" }}>▶</span>}
-                    <button onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })} title="Dupliquer cette ligne en dessous" style={{ padding: "0 6px", height: 18, border: `1px solid rgba(48,209,88,0.35)`, borderRadius: 3, background: "transparent", color: "#30D158", fontSize: 8, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, letterSpacing: "0.04em", fontFamily: "inherit" }}>⊕ DUP</button>
-                    {songChain.length > 1 && (
-                      <button onClick={() => setSongChain(p => p.filter((_, j) => j !== chainIdx))} style={{ width: 18, height: 18, border: "1px solid rgba(255,55,95,0.25)", borderRadius: 3, background: "transparent", color: "#FF375F", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => setSongChain(p => [...p, cPat])} style={{ padding: "4px 12px", borderRadius: 6, border: "1px dashed rgba(191,90,242,0.35)", background: "transparent", color: "#BF5AF2", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ ADD STEP</button>
+                <button onClick={() => setSongChain([cPat])} style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 9, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>RESET</button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setSongChain(p => [...p, cPat])} style={{ padding: "4px 12px", borderRadius: 6, border: "1px dashed rgba(191,90,242,0.35)", background: "transparent", color: "#BF5AF2", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ ADD STEP</button>
-              <button onClick={() => setSongChain([cPat])} style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 9, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>RESET</button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

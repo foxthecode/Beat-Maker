@@ -8,6 +8,7 @@ import TrackRow from "./components/TrackRow.jsx";
 import LooperPanel from "./components/LooperPanel.jsx";
 import { useAppState } from "./hooks/useAppState.js";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
+import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 /** All built-in drum track IDs plus any custom track string. */
@@ -109,26 +110,6 @@ function encodeWAV(buffer:AudioBuffer):ArrayBuffer{
   return ab;
 }
 
-// ═══ Euclidean Templates ═══
-const EUCLID_TEMPLATES=[
-  {name:"Tresillo",   origin:"Africa / Cuba",   region:"Africa",     N:8,  hits:[0,3,6],           desc:"E(3,8) — universal root rhythm",     instr:"kick"},
-  {name:"Fume Fume",  origin:"Ghana (Ewe)",     region:"Africa",     N:12, hits:[0,2,4,7,9],       desc:"E(5,12) — Ghanaian song pattern",    instr:"hihat"},
-  {name:"Bembé",      origin:"Yoruba / Cuba",   region:"Africa",     N:12, hits:[0,2,3,5,7,8,10],  desc:"E(7,12) — heart of Afro jazz",       instr:"snare"},
-  {name:"Shiko",      origin:"Nigeria (Ewe)",   region:"Africa",     N:16, hits:[0,4,6,10,12],     desc:"E(5,16) — ritual dance pattern",     instr:"perc"},
-  {name:"Soukous",    origin:"Congo",           region:"Africa",     N:12, hits:[0,2,4,6,9,11],    desc:"Congolese clave",                    instr:"hihat"},
-  {name:"Habanera",   origin:"Cuba",            region:"Afro-Cuban", N:8,  hits:[0,3,5,7],         desc:"Foundation of danzón and tango",     instr:"kick"},
-  {name:"Cinquillo",  origin:"Cuba",            region:"Afro-Cuban", N:8,  hits:[0,2,3,5,6],       desc:"E(5,8) — son and guaracha",          instr:"perc"},
-  {name:"Clave 3-2",  origin:"Cuba (Son)",      region:"Afro-Cuban", N:16, hits:[0,3,6,10,12],     desc:"Backbone of Cuban music",            instr:"clap"},
-  {name:"Clave 2-3",  origin:"Cuba (Son)",      region:"Afro-Cuban", N:16, hits:[2,4,8,11,14],     desc:"Reversed clave direction",           instr:"clap"},
-  {name:"Rumba Clave",origin:"Cuba (Rumba)",    region:"Afro-Cuban", N:16, hits:[0,3,7,10,12],     desc:"More syncopated — 3rd beat shifted", instr:"clap"},
-  {name:"Guaguancó",  origin:"Cuba (Rumba)",    region:"Afro-Cuban", N:12, hits:[0,3,4,6,10],      desc:"Urban rumba from Havana",            instr:"snare"},
-  {name:"Baião",      origin:"Brazil (NE)",     region:"Brazil",     N:16, hits:[0,3,8,11],        desc:"Zabumba of the sertão",              instr:"kick"},
-  {name:"Maracatu",   origin:"Pernambuco",      region:"Brazil",     N:16, hits:[0,6,10,12],       desc:"African royal court rhythm",         instr:"kick"},
-  {name:"Bossa Nova", origin:"Brazil (Rio)",    region:"Brazil",     N:16, hits:[0,3,6,8,11,14],   desc:"João Gilberto's guitar pattern",     instr:"hihat"},
-  {name:"Surdo",      origin:"Brazil (Samba)",  region:"Brazil",     N:16, hits:[0,8],             desc:"Deep pulse of the batucada",         instr:"kick"},
-  {name:"Caixa",      origin:"Brazil (Samba)",  region:"Brazil",     N:16, hits:[0,2,4,6,8,10,12,14],desc:"Samba snare in eighth notes",      instr:"snare"},
-  {name:"Xote",       origin:"Brazil (NE)",     region:"Brazil",     N:8,  hits:[0,2,5,7],         desc:"Forró quadrilha pattern",            instr:"hihat"},
-];
 const EUCLID_REGIONS=["Africa","Afro-Cuban","Brazil"];
 const EUCLID_RCOL={"Africa":"#FFD60A","Afro-Cuban":"#FF9500","Brazil":"#30D158"};
 
@@ -1485,6 +1466,25 @@ export default function KickAndSnare(){
     setTimeout(()=>setSwipeToast(null),1200);
   };
 
+  // ── Euclid template loader ─────────────────────────────────────────────────
+  const loadEuclidTemplate=(tpl:EuclidTemplate)=>{
+    pushHistory();
+    const paramEntries=Object.entries(tpl.params);
+    // Set euclidParams for each track defined in the template
+    setEuclidParams(prev=>{
+      const next={...prev};
+      paramEntries.forEach(([tid,p])=>{
+        next[tid]={N:p.N,hits:p.hits,rot:p.rot??0,tpl:tpl.name,fold:false};
+      });
+      return next;
+    });
+    // Activate those tracks
+    setAct(prev=>{const next=[...prev];paramEntries.forEach(([tid])=>{if(!next.includes(tid))next.push(tid);});return next;});
+    if(tpl.bpm)setBpm(tpl.bpm);
+    setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidean`);
+    setTimeout(()=>setSwipeToast(null),1400);
+  };
+
   const handleClick=(tid,step)=>{pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});};
   const didDragRef=useRef(false);
   const startDrag=(tid,step,e)=>{
@@ -1911,7 +1911,7 @@ export default function KickAndSnare(){
           showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
           STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}
           patNameEdit={patNameEdit} setPatNameEdit={setPatNameEdit}
-          onLoadTemplate={loadTemplate} view={view}
+          onLoadTemplate={loadTemplate} onLoadEuclidTemplate={loadEuclidTemplate} view={view}
         />}
 
         {/* ── SEQUENCER ── */}
