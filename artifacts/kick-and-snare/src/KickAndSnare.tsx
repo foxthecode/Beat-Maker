@@ -1141,8 +1141,8 @@ export default function KickAndSnare(){
         _armLoopRec();
       }
     }else if(!loopRec){
-      // Playing but not recording → stop looper
-      stopLooper();return;
+      // Playing but not recording → overdub: add new pass over existing loop
+      loopRef.current.passId++;setLoopRec(true);
     }else{
       // Stop recording, keep playing
       setLoopRec(false);

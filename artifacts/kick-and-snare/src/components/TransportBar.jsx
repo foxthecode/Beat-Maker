@@ -194,12 +194,14 @@ export default function TransportBar({
 
   const rowStyle = { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" };
 
+  const isPads = view === "pads";
+
   if (isPortrait) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
         <div style={{ ...rowStyle }}>
-          {PlayBtn}
-          {RecBtn}
+          {!isPads && PlayBtn}
+          {!isPads && RecBtn}
           {BpmCtrl}
         </div>
         <div style={{ ...rowStyle }}>
@@ -209,7 +211,7 @@ export default function TransportBar({
           {MetroBtn}
           {SubBtn}
           {VolKnob}
-          {ClearBtn}
+          {!isPads && ClearBtn}
         </div>
         <div style={{ ...rowStyle }}>
           {KeybBtn}
@@ -222,8 +224,8 @@ export default function TransportBar({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}`, flexWrap: "wrap" }}>
-      {PlayBtn}
-      {RecBtn}
+      {!isPads && PlayBtn}
+      {!isPads && RecBtn}
       {BpmCtrl}
       {TapBtn}
       {SwingCtrl}
@@ -231,7 +233,7 @@ export default function TransportBar({
       {MetroBtn}
       {SubBtn}
       {VolKnob}
-      {ClearBtn}
+      {!isPads && ClearBtn}
       {KeybBtn}
       {MidiBtn}
       {LinkBtn}
