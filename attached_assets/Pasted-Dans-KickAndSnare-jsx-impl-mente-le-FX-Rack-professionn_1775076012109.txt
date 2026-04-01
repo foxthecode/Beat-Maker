@@ -1,0 +1,1607 @@
+Dans KickAndSnare.jsx, implémente le FX Rack professionnel complet :
+reverb Freeverb, drive multi-mode, compresseur amélioré, transient shaper,
+spectrum analyser, presets, chorus, flanger, filter LFO, ping-pong delay,
+et réordonnancement dynamique de la chaîne.
+
+PRÉREQUIS : Prompts 0 et H appliqués et validés.
+NE PAS TOUCHER : scheduler (schLoop/schSt), states de pattern (pBank,
+stVel, stNudge, stProb, stRatch), vues sequencer/euclid/pads, _syn(),
+renderShape(), trigPad(), looper.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARTIE 0 — NOUVEAUX STATES REACT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+0a. Dans KickAndSnare.jsx, remplace le useState initial de gfx par :
+
+    const [gfx, setGfx] = useState({
+      reverb:  { on:false, decay:1.5, size:0.5, type:'room', sends:{} },
+      delay:   { on:false, time:0.25, fdbk:35, sends:{},
+                 sync:false, syncDiv:'1/4' },
+      filter:  { on:false, type:'lowpass', cut:18000, res:0,
+                 lfo:false, lfoRate:1.0, lfoDepth:0, lfoShape:'sine' },
+      comp:    { on:false, thr:-12, ratio:4, attack:5, release:80 },
+      drive:   { on:false, amt:0, mode:'tanh' },
+      chorus:  { on:false, rate:0.8, depth:30, sends:{} },
+      flanger: { on:false, rate:0.3, depth:50, feedback:60, sends:{} },
+      pingpong:{ on:false, time:0.25, fdbk:50,
+                 sync:false, syncDiv:'1/4', sends:{} },
+    });
+
+0b. Ajoute deux nouveaux states pour la chaîne dynamique :
+
+    const [fxChainOrder, setFxChainOrder] = useState(
+      ['drive','comp','filter']
+    );
+    const [fxSendPos, setFxSendPos] = useState({
+      reverb:'post', delay:'post', chorus:'post',
+      flanger:'post', pingpong:'post',
+    });
+
+0c. Dans defFx(), ajoute les nouveaux paramètres :
+    onTransient: false,
+    tsAttack:    0,    // dB -12..+12
+    tsSustain:   0,    // dB -12..+12
+
+0d. Ajoute le useEffect qui reconstruit la chaîne quand l'ordre change.
+    Place-le avec les autres useEffect, après celui sur gfx :
+    useEffect(() => {
+      if (engine.ctx) engine.rebuildChain(fxChainOrder, fxSendPos);
+    }, [fxChainOrder, fxSendPos]);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARTIE 1 — MOTEUR AUDIO (classe Eng)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1a. Remplace _mkRv() par l'algorithme Freeverb complet :
+
+    _mkRv(decay=2, size=0.5, type='room') {
+      const sr = this.ctx.sampleRate;
+      const scale = sr / 44100;
+      const cfgs = {
+        plate: { roomSize:0.52, damp:0.82, preDelay:0.002 },
+        room:  { roomSize:0.50+size*0.3, damp:0.5+size*0.3,
+                 preDelay:0.01+size*0.02 },
+        hall:  { roomSize:0.75+size*0.2, damp:0.3+size*0.2,
+                 preDelay:0.025+size*0.04 },
+      };
+      const cfg = cfgs[type] || cfgs.room;
+      const { roomSize, damp } = cfg;
+      const preDelaySamples = Math.floor(cfg.preDelay * sr);
+      const totalSamples = Math.ceil(
+        sr * (Math.min(8, decay) + cfg.preDelay + 0.1));
+      const buf = this.ctx.createBuffer(2, totalSamples, sr);
+
+      const combDelaysL = [1116,1188,1277,1356,1422,1491,1557,1617]
+        .map(d => Math.floor(d * scale));
+      const combDelaysR = combDelaysL.map(d => d + 23);
+      const apDelays    = [556,441,341,225]
+        .map(d => Math.floor(d * scale));
+
+      for (let ch = 0; ch < 2; ch++) {
+        const data = buf.getChannelData(ch);
+        const combDelays = ch === 0 ? combDelaysL : combDelaysR;
+        const combBufs = combDelays.map(d => new Float32Array(d));
+        const combPos  = new Int32Array(combDelays.length);
+        const combFilt = new Float32Array(combDelays.length);
+        const apBufs   = apDelays.map(d => new Float32Array(d));
+        const apPos    = new Int32Array(apDelays.length);
+
+        for (let i = 0; i < totalSamples; i++) {
+          const input = (i === preDelaySamples) ? 1.0 : 0.0;
+          let combOut = 0;
+          for (let c = 0; c < combBufs.length; c++) {
+            const b = combBufs[c], pos = combPos[c];
+            const delayed = b[pos];
+            combFilt[c] = delayed*(1-damp) + combFilt[c]*damp;
+            b[pos] = input + combFilt[c] * roomSize;
+            combPos[c] = (pos + 1) % b.length;
+            combOut += delayed;
+          }
+          combOut *= 0.015;
+          let apOut = combOut;
+          for (let a = 0; a < apBufs.length; a++) {
+            const b = apBufs[a], pos = apPos[a];
+            const delayed = b[pos];
+            const w = apOut + delayed * 0.5;
+            b[pos] = w;
+            apPos[a] = (pos + 1) % b.length;
+            apOut = delayed - 0.5 * w;
+          }
+          data[i] = apOut;
+        }
+      }
+      this.rv = buf;
+    }
+
+1b. Remplace updateReverb() :
+    updateReverb(decay, size, type='room') {
+      this._mkRv(decay, size, type);
+      if (this.gRvConv) {
+        try { this.gRvConv.buffer = this.rv; } catch(e) {}
+      }
+    }
+
+1c. Remplace _cv(d) par _buildCurve(mode, amt) :
+
+    _buildCurve(mode='tanh', amt=0) {
+      const key = mode + '_' + Math.round(amt * 100);
+      if (this._c[key]) return this._c[key];
+      const n = 8192, a = new Float32Array(n), d = amt;
+      for (let i = 0; i < n; i++) {
+        const x = i * 2 / n - 1;
+        if (mode === 'tanh') {
+          const v = d*6, norm = v>0 ? Math.tanh(1+v) : 1;
+          const sat = v>0 ? Math.tanh(x*(1+v))/norm : x;
+          a[i] = sat - 0.05*sat*sat;
+        } else if (mode === 'tape') {
+          const v = d*3;
+          a[i] = Math.max(-0.95, Math.min(0.95,
+            x*(1+v)/(1+v*Math.abs(x))));
+        } else if (mode === 'tube') {
+          const v = d*4, norm = Math.tanh(1+v);
+          const sat = Math.tanh(x*(1+v))/norm;
+          a[i] = x >= 0 ? sat : sat*(1 - d*0.4);
+        } else if (mode === 'bit') {
+          const bits = Math.max(2, Math.round(12 - d*10));
+          const steps = Math.pow(2, bits-1);
+          const srDiv = Math.max(1, Math.round(d*8));
+          const idx = Math.floor(i/srDiv)*srDiv;
+          const xSrc = idx*2/n - 1;
+          a[i] = Math.round(xSrc*steps)/steps;
+        }
+      }
+      this._c[key] = a;
+      return a;
+    }
+
+1d. Remplace entièrement init() en intégrant TOUS les nouveaux noeuds.
+    La méthode complète doit construire les noeuds dans cet ordre,
+    SANS connecter les noeuds série manuellement
+    (rebuildChain() s'en charge à la fin) :
+
+    init() {
+      if (this.ctx) return;
+      this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+
+      // ── Master input gain ──
+      this.mg = this.ctx.createGain();
+      this.mg.gain.value = 0.8;
+
+      // ── Noeuds série (drive, comp, filter) ──
+      // Drive
+      this.gDrv = this.ctx.createWaveShaper();
+      this.gDrv.oversample = '4x';
+      this.gDrv.curve = this._buildCurve('tanh', 0);
+      // Comp
+      this.gCmp = this.ctx.createDynamicsCompressor();
+      this.gCmp.threshold.value = 0;
+      this.gCmp.ratio.value = 1;
+      this.gCmp.knee.value = 6;
+      this.gCmp.attack.value = 0.005;
+      this.gCmp.release.value = 0.08;
+      this.gCmpMakeup = this.ctx.createGain();
+      this.gCmpMakeup.gain.value = 1;
+      // Connecte comp → makeup (connexion interne au bloc comp)
+      this.gCmp.connect(this.gCmpMakeup);
+      // Filter (2 pôles = 24dB/oct)
+      this.gFlt = this.ctx.createBiquadFilter();
+      this.gFlt.type = 'lowpass';
+      this.gFlt.frequency.value = 20000;
+      this.gFlt2 = this.ctx.createBiquadFilter();
+      this.gFlt2.type = 'lowpass';
+      this.gFlt2.frequency.value = 20000;
+      // Connexion interne au bloc filter
+      this.gFlt.connect(this.gFlt2);
+
+      // ── Sortie master ──
+      this.gOut = this.ctx.createGain();
+      this.gOut.gain.value = 1;
+      this.gOut.connect(this.ctx.destination);
+
+      // ── LFO filtre ──
+      this.gFltLfo = this.ctx.createOscillator();
+      this.gFltLfo.type = 'sine';
+      this.gFltLfo.frequency.value = 1.0;
+      this.gFltLfoDepth = this.ctx.createGain();
+      this.gFltLfoDepth.gain.value = 0;
+      this.gFltLfo.connect(this.gFltLfoDepth);
+      this.gFltLfoDepth.connect(this.gFlt.frequency);
+      this.gFltLfoDepth.connect(this.gFlt2.frequency);
+      this.gFltLfo.start();
+
+      // ── Reverb bus ──
+      this.gRvBus = this.ctx.createGain();
+      this.gRvConv = this.ctx.createConvolver();
+      this.gRvBus.connect(this.gRvConv);
+      this.gRvConv.connect(this.gOut);
+
+      // ── Delay bus ──
+      this.gDlBus = this.ctx.createGain();
+      this.gDl = this.ctx.createDelay(2);
+      this.gDl.delayTime.value = 0.25;
+      this.gDlFb = this.ctx.createGain();
+      this.gDlFb.gain.value = 0.35;
+      this.gDlLpf = this.ctx.createBiquadFilter();
+      this.gDlLpf.type = 'lowpass';
+      this.gDlLpf.frequency.value = 4500;
+      this.gDlBus.connect(this.gDl);
+      this.gDl.connect(this.gDlFb);
+      this.gDlFb.connect(this.gDlLpf);
+      this.gDlLpf.connect(this.gDl);
+      this.gDl.connect(this.gOut);
+
+      // ── Chorus bus ──
+      this.gChoBus = this.ctx.createGain();
+      this.gChoBus.gain.value = 0;
+      this.gChoDlL = this.ctx.createDelay(0.05);
+      this.gChoDlR = this.ctx.createDelay(0.05);
+      this.gChoDlL.delayTime.value = 0.020;
+      this.gChoDlR.delayTime.value = 0.023;
+      this.gChoLfo = this.ctx.createOscillator();
+      this.gChoLfo.type = 'sine';
+      this.gChoLfo.frequency.value = 0.8;
+      this.gChoDepthL = this.ctx.createGain();
+      this.gChoDepthL.gain.value = 0.003;
+      this.gChoDepthR = this.ctx.createGain();
+      this.gChoDepthR.gain.value = -0.003;
+      this.gChoMerge = this.ctx.createChannelMerger(2);
+      this.gChoLfo.connect(this.gChoDepthL);
+      this.gChoLfo.connect(this.gChoDepthR);
+      this.gChoDepthL.connect(this.gChoDlL.delayTime);
+      this.gChoDepthR.connect(this.gChoDlR.delayTime);
+      this.gChoBus.connect(this.gChoDlL);
+      this.gChoBus.connect(this.gChoDlR);
+      this.gChoDlL.connect(this.gChoMerge, 0, 0);
+      this.gChoDlR.connect(this.gChoMerge, 0, 1);
+      this.gChoMerge.connect(this.gOut);
+      this.gChoLfo.start();
+
+      // ── Flanger bus ──
+      this.gFlaBus = this.ctx.createGain();
+      this.gFlaBus.gain.value = 0;
+      this.gFlaDl = this.ctx.createDelay(0.02);
+      this.gFlaDl.delayTime.value = 0.003;
+      this.gFlaFb = this.ctx.createGain();
+      this.gFlaFb.gain.value = 0.6;
+      this.gFlaLfo = this.ctx.createOscillator();
+      this.gFlaLfo.type = 'sine';
+      this.gFlaLfo.frequency.value = 0.3;
+      this.gFlaDepth = this.ctx.createGain();
+      this.gFlaDepth.gain.value = 0.002;
+      this.gFlaWet = this.ctx.createGain();
+      this.gFlaWet.gain.value = 0.7;
+      this.gFlaLfo.connect(this.gFlaDepth);
+      this.gFlaDepth.connect(this.gFlaDl.delayTime);
+      this.gFlaBus.connect(this.gFlaDl);
+      this.gFlaDl.connect(this.gFlaFb);
+      this.gFlaFb.connect(this.gFlaDl);
+      this.gFlaDl.connect(this.gFlaWet);
+      this.gFlaWet.connect(this.gOut);
+      this.gFlaLfo.start();
+
+      // ── Ping-Pong Delay bus ──
+      this.gPpBus = this.ctx.createGain();
+      this.gPpBus.gain.value = 0;
+      this.gPpDlL = this.ctx.createDelay(2.0);
+      this.gPpDlR = this.ctx.createDelay(2.0);
+      this.gPpDlL.delayTime.value = 0.25;
+      this.gPpDlR.delayTime.value = 0.25;
+      this.gPpPanL = this.ctx.createStereoPanner
+        ? this.ctx.createStereoPanner() : this.ctx.createGain();
+      this.gPpPanR = this.ctx.createStereoPanner
+        ? this.ctx.createStereoPanner() : this.ctx.createGain();
+      if (this.gPpPanL.pan) this.gPpPanL.pan.value = -0.9;
+      if (this.gPpPanR.pan) this.gPpPanR.pan.value =  0.9;
+      this.gPpFbLR = this.ctx.createGain();
+      this.gPpFbLR.gain.value = 0.5;
+      this.gPpFbRL = this.ctx.createGain();
+      this.gPpFbRL.gain.value = 0.5;
+      this.gPpLpf = this.ctx.createBiquadFilter();
+      this.gPpLpf.type = 'lowpass';
+      this.gPpLpf.frequency.value = 5000;
+      this.gPpBus.connect(this.gPpDlL);
+      this.gPpBus.connect(this.gPpDlR);
+      this.gPpDlL.connect(this.gPpFbLR);
+      this.gPpFbLR.connect(this.gPpLpf);
+      this.gPpLpf.connect(this.gPpDlR);
+      this.gPpDlR.connect(this.gPpFbRL);
+      this.gPpFbRL.connect(this.gPpDlL);
+      this.gPpDlL.connect(this.gPpPanL);
+      this.gPpDlR.connect(this.gPpPanR);
+      this.gPpPanL.connect(this.gOut);
+      this.gPpPanR.connect(this.gOut);
+
+      // ── Spectrum Analyser ──
+      this.gAnalyser = this.ctx.createAnalyser();
+      this.gAnalyser.fftSize = 512;
+      this.gAnalyser.smoothingTimeConstant = 0.8;
+      this.gOut.connect(this.gAnalyser);
+
+      // ── Initialise la reverb et les tracks ──
+      this._mkRv(2, 0.5, 'room');
+      TRACKS.forEach(t => this._build(t.id));
+      this._loadDefaults();
+
+      // ── Construit la chaîne série initiale via rebuildChain ──
+      // IMPORTANT : ne pas connecter mg/gDrv/gCmp/gFlt manuellement ici
+      this._chainOrder = ['drive','comp','filter'];
+      this._sendPositions = {};
+      this.rebuildChain(this._chainOrder, this._sendPositions);
+    }
+
+1e. Remplace _build(id) pour ajouter tsAtk et les nouveaux sends :
+
+    _build(id) {
+      const c = {};
+      c.in     = this.ctx.createGain();
+      // Transient shaper (entre in et vol)
+      c.tsAtk  = this.ctx.createGain();
+      c.tsAtk.gain.value = 1;
+      c.vol    = this.ctx.createGain(); c.vol.gain.value = 0.8;
+      c.pan    = this.ctx.createStereoPanner
+        ? this.ctx.createStereoPanner() : this.ctx.createGain();
+      c.dry    = this.ctx.createGain(); c.dry.gain.value = 1;
+      // Sends
+      c.rvSend  = this.ctx.createGain(); c.rvSend.gain.value = 0;
+      c.dlSend  = this.ctx.createGain(); c.dlSend.gain.value = 0;
+      c.choSend = this.ctx.createGain(); c.choSend.gain.value = 0;
+      c.flaSend = this.ctx.createGain(); c.flaSend.gain.value = 0;
+      c.ppSend  = this.ctx.createGain(); c.ppSend.gain.value = 0;
+      // Chaîne par track
+      c.in.connect(c.tsAtk);
+      c.tsAtk.connect(c.vol);
+      c.vol.connect(c.pan);
+      c.pan.connect(c.dry);
+      c.dry.connect(this.mg);
+      c.pan.connect(c.rvSend);  c.rvSend.connect(this.gRvBus);
+      c.pan.connect(c.dlSend);  c.dlSend.connect(this.gDlBus);
+      c.pan.connect(c.choSend); c.choSend.connect(this.gChoBus);
+      c.pan.connect(c.flaSend); c.flaSend.connect(this.gFlaBus);
+      c.pan.connect(c.ppSend);  c.ppSend.connect(this.gPpBus);
+      this.ch[id] = c;
+    }
+
+1f. Ajoute la méthode rebuildChain() :
+
+    rebuildChain(order=['drive','comp','filter'], sendPositions={}) {
+      if (!this.ctx) return;
+
+      // Noeuds série : chaque entrée et sortie du bloc
+      // Note : comp est un bloc de 2 noeuds (gCmp → gCmpMakeup)
+      //        filter est un bloc de 2 noeuds (gFlt → gFlt2)
+      //        drive est un noeud simple (gDrv)
+      const seriesIn = {
+        drive:  this.gDrv,
+        comp:   this.gCmp,
+        filter: this.gFlt,
+      };
+      const seriesOut = {
+        drive:  this.gDrv,
+        comp:   this.gCmpMakeup,
+        filter: this.gFlt2,
+      };
+
+      // Déconnecte proprement tous les noeuds série
+      // (sans toucher aux connexions internes comp et filter)
+      const safeDisc = node => {
+        try { node.disconnect(); } catch(e) {}
+      };
+      safeDisc(this.mg);
+      safeDisc(this.gDrv);
+      safeDisc(this.gCmpMakeup);
+      safeDisc(this.gFlt2);
+      // Note : gCmp→gCmpMakeup et gFlt→gFlt2 restent connectés
+      // (connexions internes aux blocs, créées dans init())
+
+      const chain = order.filter(id => seriesIn[id]);
+
+      if (chain.length === 0) {
+        this.mg.connect(this.gOut);
+      } else {
+        this.mg.connect(seriesIn[chain[0]]);
+        for (let i = 0; i < chain.length - 1; i++) {
+          seriesOut[chain[i]].connect(seriesIn[chain[i+1]]);
+        }
+        seriesOut[chain[chain.length-1]].connect(this.gOut);
+      }
+
+      this._chainOrder = chain;
+      this._sendPositions = sendPositions;
+    }
+
+1g. Remplace uGfx(gfx) entièrement par cette version complète
+    qui gère tous les effets :
+
+    uGfx(gfx) {
+      if (!this.ctx || !this.gDrv) return;
+      const t = this.ctx.currentTime;
+
+      // ── Drive ──
+      const driveMode = gfx.drive?.mode || 'tanh';
+      const driveAmt  = gfx.drive?.on ? (gfx.drive.amt/100) : 0;
+      this.gDrv.curve = this._buildCurve(driveMode, driveAmt);
+
+      // ── Comp ──
+      const cThr   = gfx.comp?.on ? (gfx.comp.thr  ?? -12) : 0;
+      const cRatio = gfx.comp?.on ? Math.max(1, gfx.comp.ratio ?? 4) : 1;
+      this.gCmp.threshold.setTargetAtTime(cThr, t, 0.02);
+      this.gCmp.ratio.setTargetAtTime(cRatio, t, 0.02);
+      if (gfx.comp?.on) {
+        const att = Math.max(0.001, Math.min(0.1,
+          (gfx.comp.attack  ?? 5)  / 1000));
+        const rel = Math.max(0.02,  Math.min(0.5,
+          (gfx.comp.release ?? 80) / 1000));
+        this.gCmp.attack.setTargetAtTime(att, t, 0.02);
+        this.gCmp.release.setTargetAtTime(rel, t, 0.02);
+      } else {
+        this.gCmp.attack.setTargetAtTime(0.005, t, 0.02);
+        this.gCmp.release.setTargetAtTime(0.08,  t, 0.02);
+      }
+      if (this.gCmpMakeup) {
+        const mkDb = gfx.comp?.on
+          ? Math.max(0, -cThr*(1-1/cRatio)*0.5) : 0;
+        this.gCmpMakeup.gain.setTargetAtTime(
+          Math.min(6, Math.pow(10, mkDb/20)), t, 0.05);
+      }
+
+      // ── Filter ──
+      const fType = gfx.filter?.on ? (gfx.filter.type||'lowpass') : 'lowpass';
+      const fCut  = gfx.filter?.on ? Math.max(20, gfx.filter.cut||18000) : 20000;
+      const fQ    = gfx.filter?.on ? (gfx.filter.res||0) : 0;
+      this.gFlt.type  = fType;
+      this.gFlt2.type = fType;
+      this.gFlt.frequency.setTargetAtTime(fCut, t, 0.02);
+      this.gFlt2.frequency.setTargetAtTime(fCut, t, 0.02);
+      this.gFlt.Q.setTargetAtTime(fQ, t, 0.02);
+      this.gFlt2.Q.setTargetAtTime(fQ, t, 0.02);
+      // LFO filtre
+      const fltLfoOn = gfx.filter?.on && (gfx.filter?.lfo ?? false);
+      if (this.gFltLfo) {
+        const shape = gfx.filter?.lfoShape || 'sine';
+        if (this.gFltLfo.type !== shape) this.gFltLfo.type = shape;
+        this.gFltLfo.frequency.setTargetAtTime(
+          Math.max(0.05, gfx.filter?.lfoRate ?? 1.0), t, 0.05);
+      }
+      if (this.gFltLfoDepth) {
+        const depth = fltLfoOn
+          ? (gfx.filter?.lfoDepth ?? 0) / 100 * 8000 : 0;
+        this.gFltLfoDepth.gain.setTargetAtTime(depth, t, 0.05);
+      }
+
+      // ── Delay ──
+      if (this.gDl)
+        this.gDl.delayTime.setTargetAtTime(
+          Math.min(1.9, gfx.delay?.time||0.25), t, 0.02);
+      if (this.gDlFb)
+        this.gDlFb.gain.setTargetAtTime(
+          (gfx.delay?.fdbk||35)/100, t, 0.02);
+      if (this.gDlLpf)
+        this.gDlLpf.frequency.setTargetAtTime(
+          gfx.delay?.on ? 4500 : 20000, t, 0.05);
+
+      // ── Reverb (sends par track) ──
+      if (this.gRvConv && this.rv)
+        try { this.gRvConv.buffer = this.rv; } catch(e) {}
+
+      // ── Chorus ──
+      const choOn = gfx.chorus?.on ?? false;
+      if (this.gChoBus)
+        this.gChoBus.gain.setTargetAtTime(choOn ? 1 : 0, t, 0.05);
+      if (this.gChoLfo)
+        this.gChoLfo.frequency.setTargetAtTime(
+          Math.max(0.1, gfx.chorus?.rate ?? 0.8), t, 0.05);
+      if (this.gChoDepthL && this.gChoDepthR) {
+        const depth = (gfx.chorus?.depth ?? 30) / 100 * 0.006;
+        this.gChoDepthL.gain.setTargetAtTime( depth, t, 0.05);
+        this.gChoDepthR.gain.setTargetAtTime(-depth, t, 0.05);
+      }
+
+      // ── Flanger ──
+      const flaOn = gfx.flanger?.on ?? false;
+      if (this.gFlaBus)
+        this.gFlaBus.gain.setTargetAtTime(flaOn ? 1 : 0, t, 0.05);
+      if (this.gFlaLfo)
+        this.gFlaLfo.frequency.setTargetAtTime(
+          Math.max(0.05, gfx.flanger?.rate ?? 0.3), t, 0.05);
+      if (this.gFlaDepth) {
+        const depth = (gfx.flanger?.depth ?? 50) / 100 * 0.004;
+        this.gFlaDepth.gain.setTargetAtTime(depth, t, 0.05);
+      }
+      if (this.gFlaFb)
+        this.gFlaFb.gain.setTargetAtTime(
+          Math.min(0.9, (gfx.flanger?.feedback ?? 60)/100), t, 0.05);
+
+      // ── Ping-Pong ──
+      const ppOn = gfx.pingpong?.on ?? false;
+      if (this.gPpBus)
+        this.gPpBus.gain.setTargetAtTime(ppOn ? 1 : 0, t, 0.05);
+      if (this.gPpDlL && this.gPpDlR) {
+        const ppTime = gfx.pingpong?.sync
+          ? syncDivTime(gfx.pingpong?.syncDiv ?? '1/4', 120)
+          : (gfx.pingpong?.time ?? 0.25);
+        this.gPpDlL.delayTime.setTargetAtTime(
+          Math.min(1.9, ppTime), t, 0.02);
+        this.gPpDlR.delayTime.setTargetAtTime(
+          Math.min(1.9, ppTime), t, 0.02);
+      }
+      if (this.gPpFbLR && this.gPpFbRL) {
+        const fb = Math.min(0.85, (gfx.pingpong?.fdbk ?? 50)/100);
+        this.gPpFbLR.gain.setTargetAtTime(fb, t, 0.02);
+        this.gPpFbRL.gain.setTargetAtTime(fb, t, 0.02);
+      }
+      if (this.gPpLpf)
+        this.gPpLpf.frequency.setTargetAtTime(
+          ppOn ? 5000 : 20000, t, 0.05);
+
+      // ── Sends par track (reverb, delay, chorus, flanger, pingpong) ──
+      Object.keys(this.ch).forEach(id => {
+        const c = this.ch[id];
+        if (!c) return;
+        const rvOn  = gfx.reverb?.on  && !!gfx.reverb?.sends?.[id];
+        const dlOn  = gfx.delay?.on   && !!gfx.delay?.sends?.[id];
+        const choS  = choOn && !!gfx.chorus?.sends?.[id];
+        const flaS  = flaOn && !!gfx.flanger?.sends?.[id];
+        const ppS   = ppOn  && !!gfx.pingpong?.sends?.[id];
+        if (c.rvSend)  c.rvSend.gain.setTargetAtTime(
+          rvOn  ? 0.85 : 0, t, 0.02);
+        if (c.dlSend)  c.dlSend.gain.setTargetAtTime(
+          dlOn  ? 0.85 : 0, t, 0.02);
+        if (c.choSend) c.choSend.gain.setTargetAtTime(
+          choS  ? 0.70 : 0, t, 0.02);
+        if (c.flaSend) c.flaSend.gain.setTargetAtTime(
+          flaS  ? 0.60 : 0, t, 0.02);
+        if (c.ppSend)  c.ppSend.gain.setTargetAtTime(
+          ppS   ? 0.70 : 0, t, 0.02);
+        // Dry restore
+        const anySend = rvOn||dlOn||choS||flaS||ppS;
+        const manySend = [rvOn,dlOn,choS,flaS,ppS].filter(Boolean).length > 1;
+        if (c.dry) c.dry.gain.setTargetAtTime(
+          manySend?0.3:anySend?0.6:1, t, 0.6);
+      });
+    }
+
+1h. Remplace uFx(id, f) pour inclure le transient shaper :
+
+    uFx(id, f) {
+      const c = this.ch[id];
+      if (!c || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      c.vol.gain.setTargetAtTime((f?.vol ?? 80)/100, t, 0.02);
+      if (c.pan?.pan)
+        c.pan.pan.setTargetAtTime((f?.pan ?? 0)/100, t, 0.02);
+      // Transient shaper
+      if (c.tsAtk) {
+        if (f?.onTransient && (f.tsAttack!==0 || f.tsSustain!==0)) {
+          const atkGain = Math.pow(10, (f.tsAttack||0)/20);
+          c.tsAtk.gain.setTargetAtTime(atkGain, t, 0.001);
+          c.tsAtk.gain.setTargetAtTime(
+            Math.pow(10, (f.tsSustain||0)/20),
+            t + 0.015, 0.04);
+        } else {
+          c.tsAtk.gain.setTargetAtTime(1, t, 0.02);
+        }
+      }
+    }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARTIE 2 — CONSTANTES UI (avant les composants)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2a. Ajoute FX_PRESETS et CHAIN_META avant le composant FXRack :
+
+const CHAIN_META = {
+  drive:  { label:'DRIVE',  color:'#FF6B35', short:'DRV' },
+  comp:   { label:'COMP',   color:'#5E5CE6', short:'CMP' },
+  filter: { label:'FILTER', color:'#FF9500', short:'FLT' },
+};
+
+const FX_PRESETS = [
+  { name:'Trap', color:'#FF2D55', gfx:{
+    reverb:  {on:true,decay:0.8,size:0.3,type:'plate',
+              sends:{snare:true,clap:true}},
+    delay:   {on:true,time:0.25,fdbk:25,sends:{hihat:true},
+              sync:true,syncDiv:'1/8'},
+    filter:  {on:false,type:'lowpass',cut:18000,res:0,
+              lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:    {on:true,thr:-18,ratio:6,attack:3,release:60},
+    drive:   {on:true,amt:15,mode:'tanh'},
+    chorus:  {on:false,rate:0.8,depth:30,sends:{}},
+    flanger: {on:true,rate:0.5,depth:60,feedback:70,
+              sends:{hihat:true}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,
+              syncDiv:'1/4',sends:{}},
+  }},
+  { name:'Boom Bap', color:'#FF9500', gfx:{
+    reverb:  {on:true,decay:1.2,size:0.4,type:'room',
+              sends:{snare:true}},
+    delay:   {on:false,time:0.25,fdbk:35,sends:{},
+              sync:false,syncDiv:'1/4'},
+    filter:  {on:false,type:'lowpass',cut:18000,res:0,
+              lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:    {on:true,thr:-12,ratio:4,attack:8,release:100},
+    drive:   {on:true,amt:8,mode:'tape'},
+    chorus:  {on:true,rate:0.5,depth:20,
+              sends:{ride:true,crash:true}},
+    flanger: {on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,
+              syncDiv:'1/4',sends:{}},
+  }},
+  { name:'Techno', color:'#64D2FF', gfx:{
+    reverb:  {on:true,decay:2.0,size:0.6,type:'hall',
+              sends:{crash:true,ride:true}},
+    delay:   {on:true,time:0.25,fdbk:40,sends:{hihat:true},
+              sync:true,syncDiv:'1/4'},
+    filter:  {on:true,type:'highpass',cut:80,res:0,
+              lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:    {on:true,thr:-8,ratio:8,attack:2,release:50},
+    drive:   {on:false,amt:0,mode:'tanh'},
+    chorus:  {on:false,rate:0.8,depth:30,sends:{}},
+    flanger: {on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:true,time:0.25,fdbk:40,sync:true,
+              syncDiv:'1/4',sends:{kick:true}},
+  }},
+  { name:'Lo-Fi', color:'#BF5AF2', gfx:{
+    reverb:  {on:true,decay:0.6,size:0.2,type:'room',
+              sends:{snare:true,hihat:true}},
+    delay:   {on:false,time:0.25,fdbk:35,sends:{},
+              sync:false,syncDiv:'1/4'},
+    filter:  {on:true,type:'lowpass',cut:8000,res:2,
+              lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:    {on:true,thr:-6,ratio:3,attack:15,release:200},
+    drive:   {on:true,amt:35,mode:'bit'},
+    chorus:  {on:true,rate:1.2,depth:60,
+              sends:{kick:true,snare:true,hihat:true}},
+    flanger: {on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,
+              syncDiv:'1/4',sends:{}},
+  }},
+  { name:'Afro', color:'#30D158', gfx:{
+    reverb:  {on:true,decay:1.0,size:0.4,type:'room',
+              sends:{perc:true,clap:true}},
+    delay:   {on:true,time:0.375,fdbk:30,sends:{hihat:true},
+              sync:true,syncDiv:'1/8'},
+    filter:  {on:false,type:'lowpass',cut:18000,res:0,
+              lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:    {on:true,thr:-14,ratio:3,attack:10,release:120},
+    drive:   {on:false,amt:0,mode:'tanh'},
+    chorus:  {on:false,rate:0.8,depth:30,sends:{}},
+    flanger: {on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:true,time:0.188,fdbk:35,sync:true,
+              syncDiv:'1/8',sends:{perc:true,clap:true}},
+  }},
+];
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARTIE 3 — COMPOSANT FXRack (UI complète)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3a. Remplace la signature du composant FXRack pour accepter
+    les nouvelles props :
+
+    function FXRack({ gfx, setGfx, tracks, themeName='dark',
+                      bpm=120, midiLM=false, MidiTag=()=>null,
+                      trackFx, onTrackFxChange,
+                      fxChainOrder, setFxChainOrder,
+                      fxSendPos, setFxSendPos }) {
+
+3b. Dans FXRack, ajoute les states internes et la détection mobile :
+
+    const [showPresets,  setShowPresets]  = useState(false);
+    const [dragIdx,      setDragIdx]      = useState(null);
+    const [dragOverIdx,  setDragOverIdx]  = useState(null);
+    const [grDb,         setGrDb]         = useState(0);
+    const specRef = useRef(null);
+    const rafRef  = useRef(null);
+
+    const [screenW, setScreenW] = useState(
+      typeof window !== 'undefined' ? window.innerWidth : 1024);
+    useEffect(() => {
+      const h = () => setScreenW(window.innerWidth);
+      window.addEventListener('resize', h);
+      return () => window.removeEventListener('resize', h);
+    }, []);
+    const useArrows = screenW < 600;
+
+3c. VU-mètre compresseur :
+    useEffect(() => {
+      if (!gfx.comp.on || !engine.ctx) { setGrDb(0); return; }
+      const id = setInterval(() => {
+        if (engine.gCmp) setGrDb(Math.abs(engine.gCmp.reduction)||0);
+      }, 80);
+      return () => clearInterval(id);
+    }, [gfx.comp.on]);
+
+3d. Spectrum analyser :
+    useEffect(() => {
+      if (!open || !engine.ctx || !engine.gAnalyser) return;
+      const analyser = engine.gAnalyser;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const draw = () => {
+        analyser.getByteFrequencyData(data);
+        const svg = specRef.current;
+        if (!svg) return;
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        const W=200,H=40,N=64;
+        const step = Math.floor(data.length/N);
+        for (let i=0;i<N;i++) {
+          const val = data[i*step]/255;
+          const h = Math.max(1, val*H);
+          const hue = 220 - val*160;
+          const rect = document.createElementNS(
+            'http://www.w3.org/2000/svg','rect');
+          rect.setAttribute('x', i*(W/N));
+          rect.setAttribute('y', H-h);
+          rect.setAttribute('width', (W/N)-1);
+          rect.setAttribute('height', h);
+          rect.setAttribute('fill', `hsl(${hue},80%,${40+val*30}%)`);
+          rect.setAttribute('opacity','0.8');
+          svg.appendChild(rect);
+        }
+        rafRef.current = requestAnimationFrame(draw);
+      };
+      draw();
+      return () => cancelAnimationFrame(rafRef.current);
+    }, [open]);
+
+3e. Handlers drag & drop et flèches :
+
+    const handleDragStart = idx => setDragIdx(idx);
+    const handleDragOver  = idx => {
+      if (dragIdx===null||dragIdx===idx) return;
+      setDragOverIdx(idx);
+    };
+    const handleDrop = targetIdx => {
+      if (dragIdx===null||dragIdx===targetIdx) {
+        setDragIdx(null); setDragOverIdx(null); return;
+      }
+      const n = [...fxChainOrder];
+      const [moved] = n.splice(dragIdx,1);
+      n.splice(targetIdx,0,moved);
+      setFxChainOrder(n);
+      setDragIdx(null); setDragOverIdx(null);
+    };
+    const handleMoveLeft = idx => {
+      if (idx===0) return;
+      const n=[...fxChainOrder];
+      [n[idx-1],n[idx]]=[n[idx],n[idx-1]];
+      setFxChainOrder(n);
+    };
+    const handleMoveRight = idx => {
+      if (idx===fxChainOrder.length-1) return;
+      const n=[...fxChainOrder];
+      [n[idx],n[idx+1]]=[n[idx+1],n[idx]];
+      setFxChainOrder(n);
+    };
+
+3f. Composant ChainSlot (défini à l'intérieur de FXRack) :
+
+    const ChainSlot = ({id,index,total}) => {
+      const meta = CHAIN_META[id];
+      if (!meta) return null;
+      return (
+        <div
+          data-chainidx={index}
+          draggable={!useArrows}
+          onDragStart={!useArrows?()=>handleDragStart(index):undefined}
+          onDragOver={!useArrows?e=>{e.preventDefault();handleDragOver(index);}:undefined}
+          onDrop={!useArrows?e=>{e.preventDefault();handleDrop(index);}:undefined}
+          onDragEnd={!useArrows?()=>{setDragIdx(null);setDragOverIdx(null);}:undefined}
+          onTouchStart={!useArrows?e=>{e.stopPropagation();handleDragStart(index);
+            if(navigator.vibrate)navigator.vibrate(10);}:undefined}
+          onTouchMove={!useArrows?e=>{e.preventDefault();
+            const touch=e.touches[0];
+            let el=document.elementFromPoint(touch.clientX,touch.clientY);
+            while(el&&el.dataset.chainidx===undefined)el=el.parentElement;
+            if(el?.dataset?.chainidx!==undefined){
+              const idx=parseInt(el.dataset.chainidx);
+              if(!isNaN(idx))handleDragOver(idx);
+            }}:undefined}
+          onTouchEnd={!useArrows?e=>{e.preventDefault();
+            if(dragOverIdx!==null)handleDrop(dragOverIdx);
+            else{setDragIdx(null);setDragOverIdx(null);}
+          }:undefined}
+          style={{display:'flex',alignItems:'center',gap:4,
+            padding:'4px 8px',borderRadius:6,
+            border:`1px solid ${dragOverIdx===index?meta.color:meta.color+'44'}`,
+            background:dragOverIdx===index?meta.color+'22':meta.color+'0a',
+            cursor:useArrows?'default':'grab',
+            userSelect:'none',touchAction:'none',
+            transition:'all 0.15s',
+            transform:dragOverIdx===index?'scale(1.04)':'scale(1)'}}>
+          <span style={{fontSize:7,fontWeight:800,color:meta.color,
+            opacity:0.5,minWidth:10}}>{index+1}</span>
+          <span style={{fontSize:8,fontWeight:800,color:meta.color,
+            letterSpacing:'0.06em'}}>{meta.short}</span>
+          {useArrows&&(
+            <div style={{display:'flex',gap:2,marginLeft:2}}>
+              <button onClick={()=>handleMoveLeft(index)}
+                disabled={index===0}
+                style={{width:14,height:14,border:'none',borderRadius:3,
+                  cursor:index===0?'default':'pointer',
+                  background:'transparent',
+                  color:index===0?th.faint:meta.color,
+                  fontSize:9,padding:0,lineHeight:1,
+                  display:'flex',alignItems:'center',
+                  justifyContent:'center'}}>←</button>
+              <button onClick={()=>handleMoveRight(index)}
+                disabled={index===total-1}
+                style={{width:14,height:14,border:'none',borderRadius:3,
+                  cursor:index===total-1?'default':'pointer',
+                  background:'transparent',
+                  color:index===total-1?th.faint:meta.color,
+                  fontSize:9,padding:0,lineHeight:1,
+                  display:'flex',alignItems:'center',
+                  justifyContent:'center'}}>→</button>
+            </div>
+          )}
+          {!useArrows&&(
+            <span style={{fontSize:9,color:meta.color,opacity:0.4,
+              marginLeft:2,letterSpacing:'-2px'}}>⠿</span>
+          )}
+        </div>
+      );
+    };
+
+3g. Dans le return du composant FXRack, remplace le contenu complet
+    par ce rendu structuré. Le composant retourne :
+
+    <div style={{marginBottom:8,borderRadius:10,background:th.surface,
+      border:`1px solid ${open?'rgba(191,90,242,0.3)':th.sBorder}`,
+      overflow:'hidden'}}>
+
+      {/* ── En-tête ── */}
+      <div onClick={()=>setOpen(p=>!p)}
+        style={{display:'flex',alignItems:'center',gap:8,
+          padding:'6px 14px',cursor:'pointer',userSelect:'none'}}>
+        <span style={{fontSize:8,fontWeight:800,color:'#BF5AF2',
+          letterSpacing:'0.14em'}}>FX RACK</span>
+        <span style={{fontSize:9,color:th.dim,marginRight:4}}>
+          {open?'▲':'▼'}
+        </span>
+        {/* Compteur effets actifs */}
+        {activeCount>0&&(
+          <span style={{fontSize:7,padding:'1px 6px',borderRadius:3,
+            background:'rgba(191,90,242,0.12)',color:'#BF5AF2',
+            fontWeight:700}}>{activeCount} active</span>
+        )}
+        {/* Badges effets actifs */}
+        {['reverb','delay','filter','comp','drive',
+          'chorus','flanger','pingpong']
+          .filter(s=>gfx[s]?.on)
+          .map(s=>(
+            <span key={s} style={{fontSize:7,padding:'1px 5px',
+              borderRadius:3,fontWeight:700,letterSpacing:'0.08em',
+              background:
+                s==='reverb'?'rgba(100,210,255,0.12)':
+                s==='delay'?'rgba(48,209,88,0.12)':
+                s==='filter'?'rgba(255,149,0,0.12)':
+                s==='comp'?'rgba(94,92,230,0.12)':
+                s==='drive'?'rgba(255,107,53,0.12)':
+                s==='chorus'?'rgba(94,92,230,0.12)':
+                s==='flanger'?'rgba(255,55,95,0.12)':
+                'rgba(255,214,10,0.12)',
+              color:
+                s==='reverb'?'#64D2FF':
+                s==='delay'?'#30D158':
+                s==='filter'?'#FF9500':
+                s==='comp'?'#5E5CE6':
+                s==='drive'?'#FF6B35':
+                s==='chorus'?'#5E5CE6':
+                s==='flanger'?'#FF375F':'#FFD60A'}}>
+              {s==='pingpong'?'P-P':s.slice(0,3).toUpperCase()}
+            </span>
+          ))
+        }
+        {/* Bouton PRESETS */}
+        <button onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
+          style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,
+            border:`1px solid ${showPresets?'#BF5AF2':'rgba(191,90,242,0.3)'}`,
+            background:showPresets?'rgba(191,90,242,0.1)':'transparent',
+            color:'#BF5AF2',fontSize:6,fontWeight:800,
+            cursor:'pointer',fontFamily:'inherit'}}>
+          PRESETS
+        </button>
+      </div>
+
+      {/* ── Presets panel ── */}
+      {showPresets&&(
+        <div style={{padding:'6px 14px 8px',
+          borderTop:`1px solid ${th.sBorder}`,
+          display:'flex',gap:4,flexWrap:'wrap'}}>
+          {FX_PRESETS.map(p=>(
+            <button key={p.name}
+              onClick={()=>{
+                setGfx(prev=>({
+                  ...prev,
+                  reverb:{...p.gfx.reverb,
+                    sends:{...prev.reverb.sends,...p.gfx.reverb.sends}},
+                  delay:{...p.gfx.delay,
+                    sends:{...prev.delay.sends,...p.gfx.delay.sends}},
+                  filter:{...p.gfx.filter},
+                  comp:{...p.gfx.comp},
+                  drive:{...p.gfx.drive},
+                  chorus:{...p.gfx.chorus,
+                    sends:{...prev.chorus?.sends,...p.gfx.chorus.sends}},
+                  flanger:{...p.gfx.flanger,
+                    sends:{...prev.flanger?.sends,...p.gfx.flanger.sends}},
+                  pingpong:{...p.gfx.pingpong,
+                    sends:{...prev.pingpong?.sends,...p.gfx.pingpong.sends}},
+                }));
+                if(engine.ctx)
+                  engine.updateReverb(
+                    p.gfx.reverb.decay,
+                    p.gfx.reverb.size,
+                    p.gfx.reverb.type);
+                setShowPresets(false);
+              }}
+              style={{padding:'4px 10px',borderRadius:5,
+                border:`1px solid ${p.color}44`,
+                background:p.color+'14',color:p.color,
+                fontSize:8,fontWeight:700,cursor:'pointer',
+                fontFamily:'inherit'}}>
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {open&&(<>
+
+        {/* ── Chain order + Send PRE/POST ── */}
+        <div style={{padding:'6px 14px 8px',
+          borderBottom:`1px solid ${th.sBorder}`,
+          display:'flex',flexDirection:'column',gap:6}}>
+
+          {/* Ligne chaîne série */}
+          <div style={{display:'flex',alignItems:'center',
+            gap:4,flexWrap:'wrap'}}>
+            <span style={{fontSize:6,fontWeight:800,color:th.faint,
+              letterSpacing:'0.1em',minWidth:36}}>CHAIN</span>
+            <span style={{fontSize:6,color:th.faint,padding:'2px 5px',
+              borderRadius:3,border:`1px solid ${th.sBorder}`}}>IN</span>
+            <span style={{fontSize:8,color:th.faint}}>→</span>
+            {fxChainOrder.map((id,index)=>(
+              <React.Fragment key={id}>
+                <ChainSlot id={id} index={index}
+                  total={fxChainOrder.length}/>
+                {index<fxChainOrder.length-1&&(
+                  dragOverIdx===index+1&&dragIdx!==null ? (
+                    <div style={{width:3,height:28,borderRadius:2,
+                      background:CHAIN_META[fxChainOrder[dragIdx]]?.color||'#fff',
+                      flexShrink:0}}/>
+                  ) : (
+                    <span style={{fontSize:8,color:th.faint,
+                      flexShrink:0}}>→</span>
+                  )
+                )}
+              </React.Fragment>
+            ))}
+            <span style={{fontSize:8,color:th.faint}}>→</span>
+            <span style={{fontSize:6,color:th.faint,padding:'2px 5px',
+              borderRadius:3,border:`1px solid ${th.sBorder}`}}>OUT</span>
+            <button
+              onClick={()=>setFxChainOrder(['drive','comp','filter'])}
+              style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,
+                border:`1px solid ${th.sBorder}`,background:'transparent',
+                color:th.faint,fontSize:5,cursor:'pointer',
+                fontFamily:'inherit'}}>RESET</button>
+          </div>
+
+          {/* Ligne sends PRE/POST */}
+          <div style={{display:'flex',alignItems:'center',
+            gap:6,flexWrap:'wrap'}}>
+            <span style={{fontSize:6,fontWeight:800,color:th.faint,
+              letterSpacing:'0.1em',minWidth:36}}>SENDS</span>
+            {[
+              {id:'reverb',   label:'RV', color:'#64D2FF'},
+              {id:'delay',    label:'DL', color:'#30D158'},
+              {id:'chorus',   label:'CH', color:'#5E5CE6'},
+              {id:'flanger',  label:'FL', color:'#FF375F'},
+              {id:'pingpong', label:'PP', color:'#FFD60A'},
+            ].map(({id,label,color})=>(
+              <div key={id}
+                style={{display:'flex',alignItems:'center',gap:2}}>
+                <span style={{fontSize:6,fontWeight:700,color}}>
+                  {label}
+                </span>
+                <button
+                  onClick={()=>setFxSendPos(p=>({
+                    ...p,[id]:p[id]==='pre'?'post':'pre'}))}
+                  style={{padding:'1px 4px',borderRadius:3,fontSize:5,
+                    fontWeight:800,cursor:'pointer',fontFamily:'inherit',
+                    border:`1px solid ${fxSendPos[id]==='pre'?color:color+'44'}`,
+                    background:fxSendPos[id]==='pre'?color+'22':'transparent',
+                    color:fxSendPos[id]==='pre'?color:th.faint}}>
+                  {fxSendPos[id]==='pre'?'PRE':'POST'}
+                </button>
+              </div>
+            ))}
+            <span style={{fontSize:5,color:th.faint,
+              fontStyle:'italic',marginLeft:4}}>
+              PRE = avant bus · POST = après
+            </span>
+          </div>
+        </div>
+
+        {/* ── Colonnes d'effets ── */}
+        <div style={{padding:'8px 14px 14px',display:'flex',
+          gap:10,alignItems:'flex-start',overflowX:'auto'}}>
+
+          {/* ════ SEND FX ════ */}
+          <div style={{display:'flex',flexDirection:'column',
+            gap:4,flexShrink:0}}>
+            <span style={{fontSize:6,fontWeight:800,
+              color:'rgba(100,210,255,0.5)',letterSpacing:'0.12em',
+              paddingLeft:2,textTransform:'uppercase'}}>Send FX</span>
+            <div style={{display:'flex',gap:0,alignItems:'flex-start',
+              borderRadius:7,border:'1px solid rgba(100,210,255,0.12)',
+              padding:'6px 6px 8px',
+              background:'rgba(100,210,255,0.03)'}}>
+
+              {/* REVERB */}
+              <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
+                <SecLabel label="REVERB" color="#64D2FF"
+                  active={gfx.reverb.on}
+                  onToggle={()=>upSec('reverb','on',!gfx.reverb.on)}
+                  midiId="__rev_on__"/>
+                {/* Sélecteur type PLT/RM/HLL */}
+                <div style={{display:'flex',gap:3,marginBottom:6}}>
+                  {['plate','room','hall'].map(tp=>(
+                    <button key={tp}
+                      onClick={()=>{
+                        upSec('reverb','type',tp);
+                        if(engine.ctx)engine.updateReverb(
+                          gfx.reverb.decay,gfx.reverb.size,tp);
+                      }}
+                      style={{flex:1,padding:'2px 0',borderRadius:3,
+                        border:`1px solid ${gfx.reverb.type===tp?'#64D2FF':'transparent'}`,
+                        background:gfx.reverb.type===tp?'rgba(100,210,255,0.1)':'transparent',
+                        color:gfx.reverb.type===tp?'#64D2FF':th.faint,
+                        fontSize:6,fontWeight:700,cursor:'pointer',
+                        fontFamily:'inherit'}}>
+                      {tp==='plate'?'PLT':tp==='room'?'RM':'HLL'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:'flex',gap:8,
+                  opacity:gfx.reverb.on?1:0.3,
+                  pointerEvents:gfx.reverb.on?'auto':'none'}}>
+                  <Knob label="DECAY" value={gfx.reverb.decay}
+                    min={0.1} max={6} color="#64D2FF" unit="s"
+                    fmt={v=>v.toFixed(1)}
+                    onChange={v=>{upSec('reverb','decay',v);
+                      if(engine.ctx)engine.updateReverb(
+                        v,gfx.reverb.size,gfx.reverb.type);}}/>
+                  <Knob label="SIZE" value={gfx.reverb.size}
+                    min={0} max={1} color="#64D2FF"
+                    fmt={v=>(v*100).toFixed(0)} unit="%"
+                    onChange={v=>{upSec('reverb','size',v);
+                      if(engine.ctx)engine.updateReverb(
+                        gfx.reverb.decay,v,gfx.reverb.type);}}/>
+                </div>
+                <SendRow sec="reverb" color="#64D2FF"/>
+              </div>
+
+              <Sep/>
+
+              {/* DELAY */}
+              <div style={{minWidth:130,flexShrink:0,
+                paddingLeft:6,paddingRight:6}}>
+                <div style={{display:'flex',alignItems:'center',
+                  gap:6,marginBottom:6}}>
+                  <SecLabel label="DELAY" color="#30D158"
+                    active={gfx.delay.on}
+                    onToggle={()=>upSec('delay','on',!gfx.delay.on)}
+                    midiId="__dly_on__"/>
+                  <button onClick={()=>{
+                    const ns=!gfx.delay.sync;
+                    const t2=ns?syncDivTime(gfx.delay.syncDiv,bpm)
+                              :gfx.delay.time;
+                    setGfx(p=>({...p,delay:{...p.delay,sync:ns,time:t2}}));
+                  }} style={{marginLeft:'auto',padding:'1px 6px',
+                    borderRadius:3,fontSize:6,fontWeight:800,
+                    cursor:'pointer',fontFamily:'inherit',
+                    border:`1px solid ${gfx.delay.sync?'#30D158':'rgba(48,209,88,0.3)'}`,
+                    background:gfx.delay.sync?'rgba(48,209,88,0.15)':'transparent',
+                    color:gfx.delay.sync?'#30D158':'rgba(48,209,88,0.5)'}}>
+                    SYNC
+                  </button>
+                </div>
+                <div style={{display:'flex',gap:8,
+                  opacity:gfx.delay.on?1:0.3,
+                  pointerEvents:gfx.delay.on?'auto':'none'}}>
+                  {gfx.delay.sync?(
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',flexWrap:'wrap',
+                        gap:2,marginBottom:4}}>
+                        {['1/1','1/2','1/4','1/8','1/16',
+                          '1/4.','1/8.','1/4t','1/8t'].map(d=>(
+                          <button key={d}
+                            onClick={()=>setGfx(p=>({...p,delay:{
+                              ...p.delay,syncDiv:d,
+                              time:syncDivTime(d,bpm)}}))}
+                            style={{padding:'2px 4px',borderRadius:3,
+                              fontSize:6,fontWeight:700,cursor:'pointer',
+                              fontFamily:'inherit',
+                              border:`1px solid ${gfx.delay.syncDiv===d?'#30D158':'rgba(48,209,88,0.2)'}`,
+                              background:gfx.delay.syncDiv===d?'rgba(48,209,88,0.15)':'transparent',
+                              color:gfx.delay.syncDiv===d?'#30D158':th.faint}}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:7,color:'#30D158',
+                        fontWeight:700,textAlign:'center'}}>
+                        {gfx.delay.time.toFixed(3)}s
+                      </div>
+                    </div>
+                  ):(
+                    <Knob label="TIME" value={gfx.delay.time}
+                      min={0.01} max={1.9} color="#30D158" unit="s"
+                      fmt={v=>v.toFixed(2)}
+                      onChange={v=>upSec('delay','time',v)}/>
+                  )}
+                  <Knob label="FDBK" value={gfx.delay.fdbk}
+                    min={0} max={95} color="#30D158"
+                    fmt={v=>Math.round(v)} unit="%"
+                    onChange={v=>upSec('delay','fdbk',v)}/>
+                </div>
+                <SendRow sec="delay" color="#30D158"/>
+              </div>
+
+              <Sep/>
+
+              {/* CHORUS */}
+              <div style={{minWidth:110,flexShrink:0,
+                paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="CHORUS" color="#5E5CE6"
+                  active={gfx.chorus?.on??false}
+                  onToggle={()=>upSec('chorus','on',
+                    !(gfx.chorus?.on??false))}/>
+                <div style={{display:'flex',gap:8,
+                  opacity:(gfx.chorus?.on??false)?1:0.3,
+                  pointerEvents:(gfx.chorus?.on??false)?'auto':'none'}}>
+                  <Knob label="RATE" value={gfx.chorus?.rate??0.8}
+                    min={0.1} max={5} color="#5E5CE6" unit="Hz"
+                    fmt={v=>v.toFixed(1)}
+                    onChange={v=>upSec('chorus','rate',v)}/>
+                  <Knob label="DEPTH" value={gfx.chorus?.depth??30}
+                    min={0} max={100} color="#5E5CE6" unit="%"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('chorus','depth',v)}/>
+                </div>
+                <SendRow sec="chorus" color="#5E5CE6"/>
+              </div>
+
+              <Sep/>
+
+              {/* FLANGER */}
+              <div style={{minWidth:130,flexShrink:0,
+                paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="FLANGER" color="#FF375F"
+                  active={gfx.flanger?.on??false}
+                  onToggle={()=>upSec('flanger','on',
+                    !(gfx.flanger?.on??false))}/>
+                <div style={{display:'flex',gap:8,
+                  opacity:(gfx.flanger?.on??false)?1:0.3,
+                  pointerEvents:(gfx.flanger?.on??false)?'auto':'none'}}>
+                  <Knob label="RATE" value={gfx.flanger?.rate??0.3}
+                    min={0.05} max={3} color="#FF375F" unit="Hz"
+                    fmt={v=>v.toFixed(2)}
+                    onChange={v=>upSec('flanger','rate',v)}/>
+                  <Knob label="DEPTH" value={gfx.flanger?.depth??50}
+                    min={0} max={100} color="#FF375F" unit="%"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('flanger','depth',v)}/>
+                  <Knob label="FDBK" value={gfx.flanger?.feedback??60}
+                    min={0} max={90} color="#FF375F" unit="%"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('flanger','feedback',v)}/>
+                </div>
+                <SendRow sec="flanger" color="#FF375F"/>
+                <div style={{fontSize:6,
+                  color:'rgba(255,55,95,0.5)',marginTop:4,
+                  letterSpacing:'0.06em'}}>jet plane</div>
+              </div>
+
+              <Sep/>
+
+              {/* PING-PONG */}
+              <div style={{minWidth:140,flexShrink:0,paddingLeft:6}}>
+                <div style={{display:'flex',alignItems:'center',
+                  gap:6,marginBottom:6}}>
+                  <SecLabel label="PING-PONG" color="#FFD60A"
+                    active={gfx.pingpong?.on??false}
+                    onToggle={()=>upSec('pingpong','on',
+                      !(gfx.pingpong?.on??false))}/>
+                  <button onClick={()=>{
+                    const ns=!(gfx.pingpong?.sync??false);
+                    const tt=ns?syncDivTime(
+                      gfx.pingpong?.syncDiv??'1/4',bpm)
+                      :gfx.pingpong?.time??0.25;
+                    setGfx(p=>({...p,pingpong:{
+                      ...p.pingpong,sync:ns,time:tt}}));
+                  }} style={{marginLeft:'auto',padding:'1px 6px',
+                    borderRadius:3,fontSize:6,fontWeight:800,
+                    cursor:'pointer',fontFamily:'inherit',
+                    border:`1px solid ${gfx.pingpong?.sync?'#FFD60A':'rgba(255,214,10,0.3)'}`,
+                    background:gfx.pingpong?.sync?'rgba(255,214,10,0.15)':'transparent',
+                    color:gfx.pingpong?.sync?'#FFD60A':'rgba(255,214,10,0.5)'}}>
+                    SYNC
+                  </button>
+                </div>
+                <div style={{display:'flex',gap:8,
+                  opacity:(gfx.pingpong?.on??false)?1:0.3,
+                  pointerEvents:(gfx.pingpong?.on??false)?'auto':'none'}}>
+                  {gfx.pingpong?.sync?(
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',flexWrap:'wrap',
+                        gap:2,marginBottom:4}}>
+                        {['1/1','1/2','1/4','1/8','1/16'].map(d=>(
+                          <button key={d}
+                            onClick={()=>setGfx(p=>({...p,pingpong:{
+                              ...p.pingpong,syncDiv:d,
+                              time:syncDivTime(d,bpm)}}))}
+                            style={{padding:'2px 4px',borderRadius:3,
+                              fontSize:6,fontWeight:700,cursor:'pointer',
+                              fontFamily:'inherit',
+                              border:`1px solid ${gfx.pingpong?.syncDiv===d?'#FFD60A':'rgba(255,214,10,0.2)'}`,
+                              background:gfx.pingpong?.syncDiv===d?'rgba(255,214,10,0.15)':'transparent',
+                              color:gfx.pingpong?.syncDiv===d?'#FFD60A':th.faint}}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:7,color:'#FFD60A',
+                        fontWeight:700,textAlign:'center'}}>
+                        {(gfx.pingpong?.time??0.25).toFixed(3)}s L⟷R
+                      </div>
+                    </div>
+                  ):(
+                    <Knob label="TIME" value={gfx.pingpong?.time??0.25}
+                      min={0.05} max={1.9} color="#FFD60A" unit="s"
+                      fmt={v=>v.toFixed(2)}
+                      onChange={v=>upSec('pingpong','time',v)}/>
+                  )}
+                  <Knob label="FDBK" value={gfx.pingpong?.fdbk??50}
+                    min={0} max={85} color="#FFD60A" unit="%"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('pingpong','fdbk',v)}/>
+                </div>
+                <SendRow sec="pingpong" color="#FFD60A"/>
+              </div>
+
+            </div>
+          </div>
+
+          <div style={{width:1,alignSelf:'stretch',
+            background:'linear-gradient(to bottom,transparent,rgba(255,255,255,0.08),transparent)',
+            flexShrink:0,margin:'4px 0'}}/>
+
+          {/* ════ MASTER BUS ════ */}
+          <div style={{display:'flex',flexDirection:'column',
+            gap:4,flexShrink:0}}>
+            <span style={{fontSize:6,fontWeight:800,
+              color:'rgba(255,149,0,0.5)',letterSpacing:'0.12em',
+              paddingLeft:2,textTransform:'uppercase'}}>Master Bus</span>
+            <div style={{display:'flex',gap:0,alignItems:'flex-start',
+              borderRadius:7,border:'1px solid rgba(255,149,0,0.12)',
+              padding:'6px 6px 8px',
+              background:'rgba(255,149,0,0.03)'}}>
+
+              {/* FILTER + LFO */}
+              <div style={{minWidth:100,flexShrink:0,paddingRight:6}}>
+                <SecLabel label="FILTER" color="#FF9500"
+                  active={gfx.filter.on}
+                  onToggle={()=>upSec('filter','on',!gfx.filter.on)}
+                  midiId="__flt_on__"/>
+                <div style={{display:'flex',gap:3,marginBottom:6}}>
+                  {['lowpass','highpass','bandpass'].map(ft=>(
+                    <button key={ft} onClick={()=>upSec('filter','type',ft)}
+                      style={{flex:1,padding:'2px 0',borderRadius:3,
+                        border:`1px solid ${gfx.filter.type===ft?'#FF9500':'transparent'}`,
+                        background:gfx.filter.type===ft?'rgba(255,149,0,0.1)':'transparent',
+                        color:gfx.filter.type===ft?'#FF9500':th.faint,
+                        fontSize:6,fontWeight:700,cursor:'pointer',
+                        fontFamily:'inherit'}}>
+                      {ft==='lowpass'?'LP':ft==='highpass'?'HP':'BP'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:'flex',gap:8,
+                  opacity:gfx.filter.on?1:0.3,
+                  pointerEvents:gfx.filter.on?'auto':'none'}}>
+                  <Knob label="CUT" value={gfx.filter.cut}
+                    min={20} max={20000} color="#FF9500"
+                    fmt={v=>v>=1000?(v/1000).toFixed(1)+'k':Math.round(v)+'Hz'}
+                    onChange={v=>upSec('filter','cut',v)}/>
+                  <Knob label="RES" value={gfx.filter.res}
+                    min={0} max={25} color="#FF9500"
+                    fmt={v=>v.toFixed(1)}
+                    onChange={v=>upSec('filter','res',v)}/>
+                </div>
+                {/* LFO toggle + shape */}
+                <div style={{marginTop:6,display:'flex',
+                  alignItems:'center',gap:4}}>
+                  <button
+                    onClick={()=>upSec('filter','lfo',
+                      !(gfx.filter.lfo??false))}
+                    style={{padding:'1px 6px',borderRadius:3,fontSize:6,
+                      fontWeight:800,cursor:'pointer',fontFamily:'inherit',
+                      border:`1px solid ${gfx.filter.lfo?'#FF9500':'rgba(255,149,0,0.3)'}`,
+                      background:gfx.filter.lfo?'rgba(255,149,0,0.15)':'transparent',
+                      color:gfx.filter.lfo?'#FF9500':'rgba(255,149,0,0.5)'}}>
+                    LFO {gfx.filter.lfo?'ON':'OFF'}
+                  </button>
+                  {gfx.filter.lfo&&
+                    ['sine','triangle','square'].map(sh=>(
+                      <button key={sh}
+                        onClick={()=>upSec('filter','lfoShape',sh)}
+                        style={{padding:'1px 4px',borderRadius:3,
+                          fontSize:7,fontWeight:700,cursor:'pointer',
+                          fontFamily:'inherit',
+                          border:`1px solid ${gfx.filter.lfoShape===sh?'#FF9500':'transparent'}`,
+                          background:gfx.filter.lfoShape===sh?'rgba(255,149,0,0.1)':'transparent',
+                          color:gfx.filter.lfoShape===sh?'#FF9500':th.faint}}>
+                        {sh==='sine'?'∿':sh==='triangle'?'△':'□'}
+                      </button>
+                    ))
+                  }
+                </div>
+                {gfx.filter.lfo&&(
+                  <div style={{display:'flex',gap:8,marginTop:4,
+                    opacity:gfx.filter.on?1:0.3,
+                    pointerEvents:gfx.filter.on?'auto':'none'}}>
+                    <Knob label="L.RATE"
+                      value={gfx.filter.lfoRate??1.0}
+                      min={0.05} max={8} color="#FF9500" unit="Hz"
+                      fmt={v=>v.toFixed(2)}
+                      onChange={v=>upSec('filter','lfoRate',v)}/>
+                    <Knob label="L.DEPTH"
+                      value={gfx.filter.lfoDepth??0}
+                      min={0} max={100} color="#FF9500" unit="%"
+                      fmt={v=>Math.round(v)}
+                      onChange={v=>upSec('filter','lfoDepth',v)}/>
+                  </div>
+                )}
+              </div>
+
+              <Sep/>
+
+              {/* COMP + ATT/REL + VU-mètre */}
+              <div style={{minWidth:90,flexShrink:0,
+                paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="COMP" color="#5E5CE6"
+                  active={gfx.comp.on}
+                  onToggle={()=>upSec('comp','on',!gfx.comp.on)}
+                  midiId="__cmp_on__"/>
+                <div style={{display:'flex',gap:8,
+                  opacity:gfx.comp.on?1:0.3,
+                  pointerEvents:gfx.comp.on?'auto':'none'}}>
+                  <Knob label="THR" value={gfx.comp.thr}
+                    min={-60} max={0} color="#5E5CE6" unit="dB"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('comp','thr',v)}/>
+                  <Knob label="RATIO" value={gfx.comp.ratio}
+                    min={1} max={20} color="#5E5CE6" unit=":1"
+                    fmt={v=>v.toFixed(1)}
+                    onChange={v=>upSec('comp','ratio',v)}/>
+                </div>
+                <div style={{display:'flex',gap:8,marginTop:4,
+                  opacity:gfx.comp.on?1:0.3,
+                  pointerEvents:gfx.comp.on?'auto':'none'}}>
+                  <Knob label="ATT" value={gfx.comp.attack??5}
+                    min={1} max={100} color="#5E5CE6" unit="ms"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('comp','attack',v)}/>
+                  <Knob label="REL" value={gfx.comp.release??80}
+                    min={20} max={500} color="#5E5CE6" unit="ms"
+                    fmt={v=>Math.round(v)}
+                    onChange={v=>upSec('comp','release',v)}/>
+                </div>
+                {/* VU-mètre GR */}
+                <div style={{marginTop:4,display:'flex',
+                  alignItems:'center',gap:4}}>
+                  <div style={{flex:1,height:3,borderRadius:2,
+                    background:th.sBorder,overflow:'hidden'}}>
+                    <div style={{height:'100%',
+                      width:`${Math.min(100,(grDb/20)*100)}%`,
+                      background:grDb>6?'#FF2D55':
+                                 grDb>3?'#FF9500':'#5E5CE6',
+                      transition:'width 0.08s',borderRadius:2}}/>
+                  </div>
+                  <span style={{fontSize:6,color:'#5E5CE6',
+                    fontFamily:'monospace',minWidth:24,
+                    textAlign:'right'}}>
+                    {grDb>0.1?`-${grDb.toFixed(1)}`:' 0.0'}dB
+                  </span>
+                </div>
+              </div>
+
+              <Sep/>
+
+              {/* DRIVE multi-mode */}
+              <div style={{minWidth:85,flexShrink:0,paddingLeft:6,
+                paddingRight:6}}>
+                <SecLabel label="DRIVE" color="#FF6B35"
+                  active={gfx.drive.on}
+                  onToggle={()=>upSec('drive','on',!gfx.drive.on)}
+                  midiId="__drv_on__"/>
+                <div style={{display:'flex',gap:2,marginBottom:4}}>
+                  {[{k:'tanh',l:'TUBE'},{k:'tape',l:'TAPE'},
+                    {k:'tube',l:'TRI'},{k:'bit',l:'BIT'}].map(({k,l})=>(
+                    <button key={k} onClick={()=>upSec('drive','mode',k)}
+                      style={{flex:1,padding:'2px 0',borderRadius:3,
+                        border:`1px solid ${gfx.drive.mode===k?'#FF6B35':'transparent'}`,
+                        background:gfx.drive.mode===k?'rgba(255,107,53,0.1)':'transparent',
+                        color:gfx.drive.mode===k?'#FF6B35':th.faint,
+                        fontSize:5,fontWeight:700,cursor:'pointer',
+                        fontFamily:'inherit'}}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:'flex',
+                  opacity:gfx.drive.on?1:0.3,
+                  pointerEvents:gfx.drive.on?'auto':'none'}}>
+                  <Knob label="AMT" value={gfx.drive.amt}
+                    min={0} max={100} color="#FF6B35"
+                    fmt={v=>Math.round(v)} unit="%"
+                    onChange={v=>upSec('drive','amt',v)}/>
+                </div>
+                <div style={{fontSize:6,
+                  color:'rgba(255,107,53,0.5)',marginTop:4,
+                  textAlign:'center',letterSpacing:'0.08em'}}>
+                  {gfx.drive.mode||'tanh'} sat
+                </div>
+              </div>
+
+              <Sep/>
+
+              {/* TRANSIENT shaper par track */}
+              <div style={{minWidth:120,flexShrink:0,paddingLeft:6}}>
+                <div style={{fontSize:8,fontWeight:800,color:'#30D158',
+                  marginBottom:8,paddingBottom:4,
+                  borderBottom:'1px solid rgba(48,209,88,0.2)'}}>
+                  TRANSIENT
+                </div>
+                <div style={{fontSize:6,color:th.faint,marginBottom:4,
+                  letterSpacing:'0.06em'}}>ATK PER TRACK</div>
+                {tracks.slice(0,6).map(tr=>{
+                  const tFx = trackFx?.[tr.id] || {};
+                  return(
+                    <div key={tr.id} style={{display:'flex',
+                      alignItems:'center',gap:4,marginBottom:3}}>
+                      <span style={{fontSize:6,color:tr.color,
+                        fontWeight:700,minWidth:24}}>
+                        {tr.label.slice(0,2)}
+                      </span>
+                      <input type="range" min={-12} max={12} step={1}
+                        value={tFx.tsAttack||0}
+                        onChange={e=>onTrackFxChange?.(
+                          tr.id,'tsAttack',Number(e.target.value))}
+                        style={{width:50,height:2,
+                          accentColor:tr.color}}/>
+                      <span style={{fontSize:6,color:tr.color,
+                        minWidth:24,fontFamily:'monospace'}}>
+                        {(tFx.tsAttack||0)>0?'+':''}
+                        {tFx.tsAttack||0}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div style={{fontSize:5,color:th.faint,marginTop:2}}>
+                  - = softer · + = punchier
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* ── Spectrum Analyser ── */}
+        <div style={{padding:'0 14px 10px'}}>
+          <div style={{borderTop:`1px solid ${th.sBorder}`,
+            paddingTop:6}}>
+            <span style={{fontSize:6,color:th.faint,
+              letterSpacing:'0.1em',display:'block',
+              marginBottom:3}}>SPECTRUM</span>
+            <svg ref={specRef} width="200" height="40"
+              style={{display:'block',borderRadius:4,
+                background:'rgba(0,0,0,0.2)'}}/>
+          </div>
+        </div>
+
+      </>)}
+    </div>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARTIE 4 — PASSAGE DES PROPS À FXRack
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4a. Dans KickAndSnare.jsx, trouve le composant <FXRack .../>
+    et remplace-le par :
+
+    <FXRack
+      gfx={gfx}
+      setGfx={setGfx}
+      tracks={atO}
+      themeName={themeName}
+      bpm={bpm}
+      midiLM={midiLM}
+      MidiTag={MidiTag}
+      trackFx={fx}
+      onTrackFxChange={(tid,key,val)=>{
+        setFx(prev=>{
+          const nf={...(prev[tid]||defFx()),[key]:val};
+          engine.uFx(tid,nf);
+          return{...prev,[tid]:nf};
+        });
+      }}
+      fxChainOrder={fxChainOrder}
+      setFxChainOrder={setFxChainOrder}
+      fxSendPos={fxSendPos}
+      setFxSendPos={setFxSendPos}
+    />
+
+4b. Dans le useEffect existant sur gfx, ajoute l'appel à rebuildChain
+    si le contexte audio existe déjà (pour que uGfx soit toujours
+    appelé après rebuildChain, pas avant) :
+    useEffect(() => {
+      if (engine.ctx) {
+        engine.rebuildChain(fxChainOrder, fxSendPos);
+        engine.uGfx(gfx);
+      }
+    }, [gfx, fxChainOrder, fxSendPos]);
+
+    Note : fusionne les deux useEffect (celui sur gfx et celui sur
+    fxChainOrder) en un seul pour garantir l'ordre d'exécution.
+
+4c. Mets à jour le compteur activeCount dans FXRack :
+    const activeCount = [
+      'reverb','delay','filter','comp','drive',
+      'chorus','flanger','pingpong'
+    ].filter(s => gfx[s]?.on).length;
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CHECKPOINT COMPLET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AUDIO — algorithmes :
+□ Reverb ROOM : queue dense et naturelle (Freeverb)
+□ Reverb PLATE vs HALL : caractères clairement distincts
+□ Drive TUBE vs TAPE vs TRI vs BIT : 4 sons distincts
+□ Drive BIT à 100% : artefacts lo-fi musicaux
+□ Comp ATT 1ms vs 100ms : différence d'attaque audible
+□ Filter LFO ON, depth 80% : balayage audible
+□ Filter LFO shape square : balayage abrupt
+□ Chorus sur hihat : épaississement stéréo
+□ Flanger feedback 80% : effet jet plane
+□ Ping-pong sur kick : rebonds L/R distincts
+□ Ping-pong sync 1/4 : en tempo avec la lecture
+
+CHAÎNE DYNAMIQUE :
+□ Ordre initial : DRV → CMP → FLT visible dans le rack
+□ Flèches ← → visibles sur écran < 600px
+□ Clic → sur DRV : ordre devient CMP → DRV → FLT
+□ Son change immédiatement après réordonnancement
+□ Drag & drop sur tablette : slot se déplace
+□ RESET : remet drive → comp → filter
+□ Send RV en PRE : reverb alimente avant drive
+□ Send RV en POST : comportement original
+
+UI :
+□ VU-mètre GR bouge en temps réel quand comp actif
+□ Transient shaper kick +12dB : attaque nettement plus forte
+□ Spectrum analyser : barres animées pendant lecture
+□ Preset "Trap" : flanger hihat actif
+□ Preset "Lo-Fi" : filtre LP + bitcrush + chorus épais
+□ Preset "Techno" : ping-pong kick actif
+□ Badges effets actifs dans l'en-tête du rack
+□ Pas de clic/artefact au switch Drive mode pendant lecture
+□ Pas de feedback infini flanger à 90% (capped 0.9)
+□ Pas d'erreur console au démarrage
+□ Pas de régression scheduler/pattern/vues
+
+COMMIT : "CP-FX-COMPLET : FX Rack professionnel unifié validé"

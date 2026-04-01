@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 import { THEMES } from "./theme.js";
 import { DrumSVG } from "./drumSVG.tsx";
@@ -81,6 +81,10 @@ const DEFAULT_FX = Object.freeze({
   sSnap:1.0, // noise/snap amount ×
   sBody:1.0, // sine body amplitude ×
   sTone:1.0, // brightness/high-freq ×
+  // Transient shaper
+  onTransient:false,
+  tsAttack:0,   // dB -12..+12
+  tsSustain:0,  // dB -12..+12
 });
 
 // ── Drum Kits — real samples + synthesis fallback ─────────────────────────────
@@ -211,29 +215,93 @@ function euclidRhythm(hits,steps){
 
 // ═══ Audio Engine ═══
 class Eng{
-  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;}
-  init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
-    // Global FX chain: mg → drive → comp → makeup → filter(×2 24dB/oct) → out
-    this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample="4x";this.gDrv.curve=this._cv(0);
+  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};}
+  init(){
+    if(this.ctx)return;
+    this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    // ── Master input gain ──
+    this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
+    // ── Drive (WaveShaper) ──
+    this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample='4x';
+    this.gDrv.curve=this._buildCurve('tanh',0);
+    // ── Comp + auto-makeup ──
     this.gCmp=this.ctx.createDynamicsCompressor();
     this.gCmp.threshold.value=0;this.gCmp.ratio.value=1;
-    this.gCmp.knee.value=6;           // 6dB knee: punchy, not too hard
-    this.gCmp.attack.value=0.005;     // 5ms attack: lets transients through
-    this.gCmp.release.value=0.08;     // 80ms release: fast enough for drums
-    this.gCmpMakeup=this.ctx.createGain();this.gCmpMakeup.gain.value=1; // auto makeup
-    this.gFlt=this.ctx.createBiquadFilter();this.gFlt.type="lowpass";this.gFlt.frequency.value=20000;
-    this.gFlt2=this.ctx.createBiquadFilter();this.gFlt2.type="lowpass";this.gFlt2.frequency.value=20000; // 2nd pole → 24dB/oct
+    this.gCmp.knee.value=6;this.gCmp.attack.value=0.005;this.gCmp.release.value=0.08;
+    this.gCmpMakeup=this.ctx.createGain();this.gCmpMakeup.gain.value=1;
+    this.gCmp.connect(this.gCmpMakeup); // internal block connection
+    // ── Filter 2×12dB = 24dB/oct ──
+    this.gFlt=this.ctx.createBiquadFilter();this.gFlt.type='lowpass';this.gFlt.frequency.value=20000;
+    this.gFlt2=this.ctx.createBiquadFilter();this.gFlt2.type='lowpass';this.gFlt2.frequency.value=20000;
+    this.gFlt.connect(this.gFlt2); // internal block connection
+    // ── Master output ──
     this.gOut=this.ctx.createGain();this.gOut.gain.value=1;
-    this.mg.connect(this.gDrv);this.gDrv.connect(this.gCmp);this.gCmp.connect(this.gCmpMakeup);this.gCmpMakeup.connect(this.gFlt);this.gFlt.connect(this.gFlt2);this.gFlt2.connect(this.gOut);this.gOut.connect(this.ctx.destination);
-    // Global reverb bus
+    this.gOut.connect(this.ctx.destination);
+    // ── Filter LFO ──
+    this.gFltLfo=this.ctx.createOscillator();this.gFltLfo.type='sine';this.gFltLfo.frequency.value=1.0;
+    this.gFltLfoDepth=this.ctx.createGain();this.gFltLfoDepth.gain.value=0;
+    this.gFltLfo.connect(this.gFltLfoDepth);
+    this.gFltLfoDepth.connect(this.gFlt.frequency);
+    this.gFltLfoDepth.connect(this.gFlt2.frequency);
+    this.gFltLfo.start();
+    // ── Reverb bus ──
     this.gRvBus=this.ctx.createGain();this.gRvConv=this.ctx.createConvolver();
     this.gRvBus.connect(this.gRvConv);this.gRvConv.connect(this.gOut);
-    // Global delay bus (LP filter in feedback for natural echo darkening)
+    // ── Delay bus ──
     this.gDlBus=this.ctx.createGain();this.gDl=this.ctx.createDelay(2);this.gDl.delayTime.value=0.25;
     this.gDlFb=this.ctx.createGain();this.gDlFb.gain.value=0.35;
-    this.gDlLpf=this.ctx.createBiquadFilter();this.gDlLpf.type="lowpass";this.gDlLpf.frequency.value=4500;
+    this.gDlLpf=this.ctx.createBiquadFilter();this.gDlLpf.type='lowpass';this.gDlLpf.frequency.value=4500;
     this.gDlBus.connect(this.gDl);this.gDl.connect(this.gDlFb);this.gDlFb.connect(this.gDlLpf);this.gDlLpf.connect(this.gDl);this.gDl.connect(this.gOut);
-    this._mkRv();TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();}
+    // ── Chorus bus ──
+    this.gChoBus=this.ctx.createGain();this.gChoBus.gain.value=0;
+    this.gChoDlL=this.ctx.createDelay(0.05);this.gChoDlR=this.ctx.createDelay(0.05);
+    this.gChoDlL.delayTime.value=0.020;this.gChoDlR.delayTime.value=0.023;
+    this.gChoLfo=this.ctx.createOscillator();this.gChoLfo.type='sine';this.gChoLfo.frequency.value=0.8;
+    this.gChoDepthL=this.ctx.createGain();this.gChoDepthL.gain.value=0.003;
+    this.gChoDepthR=this.ctx.createGain();this.gChoDepthR.gain.value=-0.003;
+    this.gChoMerge=this.ctx.createChannelMerger(2);
+    this.gChoLfo.connect(this.gChoDepthL);this.gChoLfo.connect(this.gChoDepthR);
+    this.gChoDepthL.connect(this.gChoDlL.delayTime);this.gChoDepthR.connect(this.gChoDlR.delayTime);
+    this.gChoBus.connect(this.gChoDlL);this.gChoBus.connect(this.gChoDlR);
+    this.gChoDlL.connect(this.gChoMerge,0,0);this.gChoDlR.connect(this.gChoMerge,0,1);
+    this.gChoMerge.connect(this.gOut);this.gChoLfo.start();
+    // ── Flanger bus ──
+    this.gFlaBus=this.ctx.createGain();this.gFlaBus.gain.value=0;
+    this.gFlaDl=this.ctx.createDelay(0.02);this.gFlaDl.delayTime.value=0.003;
+    this.gFlaFb=this.ctx.createGain();this.gFlaFb.gain.value=0.6;
+    this.gFlaLfo=this.ctx.createOscillator();this.gFlaLfo.type='sine';this.gFlaLfo.frequency.value=0.3;
+    this.gFlaDepth=this.ctx.createGain();this.gFlaDepth.gain.value=0.002;
+    this.gFlaWet=this.ctx.createGain();this.gFlaWet.gain.value=0.7;
+    this.gFlaLfo.connect(this.gFlaDepth);this.gFlaDepth.connect(this.gFlaDl.delayTime);
+    this.gFlaBus.connect(this.gFlaDl);this.gFlaDl.connect(this.gFlaFb);this.gFlaFb.connect(this.gFlaDl);
+    this.gFlaDl.connect(this.gFlaWet);this.gFlaWet.connect(this.gOut);this.gFlaLfo.start();
+    // ── Ping-Pong Delay bus ──
+    this.gPpBus=this.ctx.createGain();this.gPpBus.gain.value=0;
+    this.gPpDlL=this.ctx.createDelay(2.0);this.gPpDlR=this.ctx.createDelay(2.0);
+    this.gPpDlL.delayTime.value=0.25;this.gPpDlR.delayTime.value=0.25;
+    this.gPpPanL=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
+    this.gPpPanR=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
+    if(this.gPpPanL.pan)this.gPpPanL.pan.value=-0.9;
+    if(this.gPpPanR.pan)this.gPpPanR.pan.value=0.9;
+    this.gPpFbLR=this.ctx.createGain();this.gPpFbLR.gain.value=0.5;
+    this.gPpFbRL=this.ctx.createGain();this.gPpFbRL.gain.value=0.5;
+    this.gPpLpf=this.ctx.createBiquadFilter();this.gPpLpf.type='lowpass';this.gPpLpf.frequency.value=5000;
+    this.gPpBus.connect(this.gPpDlL);this.gPpBus.connect(this.gPpDlR);
+    this.gPpDlL.connect(this.gPpFbLR);this.gPpFbLR.connect(this.gPpLpf);this.gPpLpf.connect(this.gPpDlR);
+    this.gPpDlR.connect(this.gPpFbRL);this.gPpFbRL.connect(this.gPpDlL);
+    this.gPpDlL.connect(this.gPpPanL);this.gPpDlR.connect(this.gPpPanR);
+    this.gPpPanL.connect(this.gOut);this.gPpPanR.connect(this.gOut);
+    // ── Spectrum Analyser ──
+    this.gAnalyser=this.ctx.createAnalyser();
+    this.gAnalyser.fftSize=512;this.gAnalyser.smoothingTimeConstant=0.8;
+    this.gOut.connect(this.gAnalyser);
+    // ── Build reverb IR + track channels ──
+    this._mkRv(2,0.5,'room');
+    TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();
+    // ── Initial serial chain ──
+    this._chainOrder=['drive','comp','filter'];this._sendPositions={};
+    this.rebuildChain(this._chainOrder,this._sendPositions);
+  }
   async _loadDefaults(){
     // Pre-render all 808 sounds into AudioBuffers for playback-quality output
     const durs={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
@@ -254,122 +322,231 @@ class Eng{
       await this._resumeP;
     }
   }
-  _mkRv(decay,size){
-    const d=Math.max(0.1,decay||2);const s=Math.max(0,Math.min(1,size??0.5));
+  _mkRv(decay=2,size=0.5,type='room'){
     const sr=this.ctx.sampleRate;
-    const pre=0.005+s*0.035; // pre-delay 5ms→40ms (room size)
-    const l=Math.ceil(sr*(Math.min(6,d)+pre));
-    const b=this.ctx.createBuffer(2,l,sr);
-    const erMults=[1,1.6,2.3,3.1,4.0,5.2,6.5];
-    const erGains=[0.72,0.58,0.52,0.42,0.36,0.28,0.21];
+    const scale=sr/44100;
+    const cfgs={
+      plate:{roomSize:0.52,damp:0.82,preDelay:0.002},
+      room: {roomSize:0.50+size*0.3,damp:0.5+size*0.3,preDelay:0.01+size*0.02},
+      hall: {roomSize:0.75+size*0.2,damp:0.3+size*0.2,preDelay:0.025+size*0.04},
+    };
+    const cfg=cfgs[type]||cfgs.room;
+    const{roomSize,damp}=cfg;
+    const preDelaySamples=Math.floor(cfg.preDelay*sr);
+    const totalSamples=Math.ceil(sr*(Math.min(8,decay)+cfg.preDelay+0.1));
+    const buf=this.ctx.createBuffer(2,totalSamples,sr);
+    const combDelaysL=[1116,1188,1277,1356,1422,1491,1557,1617].map(d=>Math.floor(d*scale));
+    const combDelaysR=combDelaysL.map(d=>d+23);
+    const apDelays=[556,441,341,225].map(d=>Math.floor(d*scale));
     for(let ch=0;ch<2;ch++){
-      const data=b.getChannelData(ch);
-      const chOff=ch===1?(1+s*0.12):1; // stereo spread with size
-      for(let t=0;t<erMults.length;t++){
-        const idx=Math.floor(pre*erMults[t]*chOff*sr);
-        if(idx<l)data[idx]+=erGains[t]*(0.75+Math.random()*0.5);
-      }
-      const tailStart=Math.floor(pre*sr);
-      const density=0.25+s*0.55;  // bigger=denser tail
-      const hfRate=3-s*1.5;       // bigger=slower HF loss (brighter)
-      let sm1=0,sm2=0;
-      for(let i=tailStart;i<l;i++){
-        const tt=(i-tailStart)/sr;
-        const env=Math.exp(-tt*3/d);
-        const hf=Math.exp(-tt*hfRate/d);
-        const noise=Math.random()*2-1;
-        sm1=sm1*0.45+noise*env*hf*density*0.55;
-        sm2=sm2*0.30+sm1*0.70; // 2-pole LP for smooth tail
-        data[i]+=sm2;
+      const data=buf.getChannelData(ch);
+      const combDelays=ch===0?combDelaysL:combDelaysR;
+      const combBufs=combDelays.map(d=>new Float32Array(d));
+      const combPos=new Int32Array(combDelays.length);
+      const combFilt=new Float32Array(combDelays.length);
+      const apBufs=apDelays.map(d=>new Float32Array(d));
+      const apPos=new Int32Array(apDelays.length);
+      for(let i=0;i<totalSamples;i++){
+        const input=(i===preDelaySamples)?1.0:0.0;
+        let combOut=0;
+        for(let c=0;c<combBufs.length;c++){
+          const b=combBufs[c],pos=combPos[c];
+          const delayed=b[pos];
+          combFilt[c]=delayed*(1-damp)+combFilt[c]*damp;
+          b[pos]=input+combFilt[c]*roomSize;
+          combPos[c]=(pos+1)%b.length;
+          combOut+=delayed;
+        }
+        combOut*=0.015;
+        let apOut=combOut;
+        for(let a=0;a<apBufs.length;a++){
+          const b=apBufs[a],pos=apPos[a];
+          const delayed=b[pos];
+          const w=apOut+delayed*0.5;
+          b[pos]=w;
+          apPos[a]=(pos+1)%b.length;
+          apOut=delayed-0.5*w;
+        }
+        data[i]=apOut;
       }
     }
-    this.rv=b;
+    this.rv=buf;
   }
-  updateReverb(decay,size){this._mkRv(decay,size);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}}
-  setSerialOrder(order:string[]){
-    if(!this.ctx||!this.gDrv)return;
-    // All 5 effects as serial blocks: in = entry node, o = exit node
-    // delay/reverb: tracks still feed gDlBus/gRvBus via sends; their OUTPUTS chain serially
-    const B:Record<string,{i:AudioNode,o:AudioNode}>={
-      filter:{i:this.gFlt,   o:this.gFlt2},
-      comp:  {i:this.gCmp,   o:this.gCmpMakeup},
-      drive: {i:this.gDrv,   o:this.gDrv},
-      delay: {i:this.gDlBus, o:this.gDl},
-      reverb:{i:this.gRvBus, o:this.gRvConv},
-    };
-    // ─── 1. Disconnect all exit connections ───
-    [this.mg,this.gFlt2,this.gCmpMakeup,this.gDrv,this.gRvConv].forEach(n=>{try{n.disconnect();}catch(e){}});
-    try{this.gDl.disconnect();}catch(e){}
-    // ─── 2. Restore intra-block connections ───
-    try{this.gDl.connect(this.gDlFb);}catch(e){}  // delay feedback loop
-    // gCmp→gCmpMakeup and gFlt→gFlt2 and gDlBus→gDl and gRvBus→gRvConv
-    // are set in init() and not touched above — they persist
-    // ─── 3. Chain all blocks in the specified order: mg → B[0] → B[1] → … → gOut ───
-    let prev:AudioNode=this.mg;
-    order.filter(s=>B[s]).forEach(s=>{prev.connect(B[s].i);prev=B[s].o;});
-    prev.connect(this.gOut);
+  updateReverb(decay,size,type='room'){this._mkRv(decay,size,type);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}}
+  rebuildChain(order=['drive','comp','filter'],sendPositions={}){
+    if(!this.ctx)return;
+    const seriesIn={drive:this.gDrv,comp:this.gCmp,filter:this.gFlt};
+    const seriesOut={drive:this.gDrv,comp:this.gCmpMakeup,filter:this.gFlt2};
+    const safeDisc=node=>{try{node.disconnect();}catch(e){}};
+    safeDisc(this.mg);safeDisc(this.gDrv);safeDisc(this.gCmpMakeup);safeDisc(this.gFlt2);
+    const chain=order.filter(id=>seriesIn[id]);
+    if(chain.length===0){
+      this.mg.connect(this.gOut);
+    }else{
+      this.mg.connect(seriesIn[chain[0]]);
+      for(let i=0;i<chain.length-1;i++)seriesOut[chain[i]].connect(seriesIn[chain[i+1]]);
+      seriesOut[chain[chain.length-1]].connect(this.gOut);
+    }
+    this._chainOrder=chain;this._sendPositions=sendPositions;
   }
+  setSerialOrder(order:string[]){this.rebuildChain(order,this._sendPositions);}
   _build(id){
     const c={};
     c.in=this.ctx.createGain();
+    c.tsAtk=this.ctx.createGain();c.tsAtk.gain.value=1;
     c.vol=this.ctx.createGain();c.vol.gain.value=0.8;
     c.pan=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
     c.dry=this.ctx.createGain();c.dry.gain.value=1;
     c.rvSend=this.ctx.createGain();c.rvSend.gain.value=0;
     c.dlSend=this.ctx.createGain();c.dlSend.gain.value=0;
-    c.in.connect(c.vol);c.vol.connect(c.pan);
+    c.choSend=this.ctx.createGain();c.choSend.gain.value=0;
+    c.flaSend=this.ctx.createGain();c.flaSend.gain.value=0;
+    c.ppSend=this.ctx.createGain();c.ppSend.gain.value=0;
+    c.in.connect(c.tsAtk);c.tsAtk.connect(c.vol);c.vol.connect(c.pan);
     c.pan.connect(c.dry);c.dry.connect(this.mg);
     c.pan.connect(c.rvSend);c.rvSend.connect(this.gRvBus);
     c.pan.connect(c.dlSend);c.dlSend.connect(this.gDlBus);
+    c.pan.connect(c.choSend);c.choSend.connect(this.gChoBus);
+    c.pan.connect(c.flaSend);c.flaSend.connect(this.gFlaBus);
+    c.pan.connect(c.ppSend);c.ppSend.connect(this.gPpBus);
     this.ch[id]=c;
   }
   uGfx(gfx){
-    if(!this.ctx||!this.gDrv)return;const t=this.ctx.currentTime;
-    this.gDrv.curve=gfx.drive.on?this._cv(gfx.drive.amt/100):this._cv(0);
-    // Comp + auto makeup gain
-    const cThr=gfx.comp.on?(gfx.comp.thr??-12):0;
-    const cRatio=gfx.comp.on?Math.max(1,gfx.comp.ratio??4):1;
+    if(!this.ctx||!this.gDrv)return;
+    const t=this.ctx.currentTime;
+    // ── Drive ──
+    const driveMode=gfx.drive?.mode||'tanh';
+    const driveAmt=gfx.drive?.on?(gfx.drive.amt/100):0;
+    this.gDrv.curve=this._buildCurve(driveMode,driveAmt);
+    // ── Comp ──
+    const cThr=gfx.comp?.on?(gfx.comp.thr??-12):0;
+    const cRatio=gfx.comp?.on?Math.max(1,gfx.comp.ratio??4):1;
     this.gCmp.threshold.setTargetAtTime(cThr,t,0.02);
     this.gCmp.ratio.setTargetAtTime(cRatio,t,0.02);
-    if(this.gCmpMakeup){const mkDb=gfx.comp.on?Math.max(0,-cThr*(1-1/cRatio)*0.5):0;this.gCmpMakeup.gain.setTargetAtTime(Math.min(6,Math.pow(10,mkDb/20)),t,0.05);}
-    // 2-stage filter: both poles track same freq/Q for 24dB/oct slope
-    const fType=gfx.filter.on?(gfx.filter.type||"lowpass"):"lowpass";
-    const fCut=gfx.filter.on?Math.max(20,gfx.filter.cut||18000):20000;
-    const fQ=gfx.filter.on?(gfx.filter.res||0):0;
-    this.gFlt.type=fType;this.gFlt.frequency.setTargetAtTime(fCut,t,0.02);this.gFlt.Q.setTargetAtTime(fQ,t,0.02);
-    if(this.gFlt2){this.gFlt2.type=fType;this.gFlt2.frequency.setTargetAtTime(fCut,t,0.02);this.gFlt2.Q.setTargetAtTime(fQ,t,0.02);}
-    if(this.gDl)this.gDl.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay.time||0.25),t,0.02);
-    if(this.gDlFb)this.gDlFb.gain.setTargetAtTime((gfx.delay.fdbk||35)/100,t,0.02);
-    if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay.on?4500:20000,t,0.05);
+    if(gfx.comp?.on){
+      const att=Math.max(0.001,Math.min(0.1,(gfx.comp.attack??5)/1000));
+      const rel=Math.max(0.02,Math.min(0.5,(gfx.comp.release??80)/1000));
+      this.gCmp.attack.setTargetAtTime(att,t,0.02);
+      this.gCmp.release.setTargetAtTime(rel,t,0.02);
+    }else{
+      this.gCmp.attack.setTargetAtTime(0.005,t,0.02);
+      this.gCmp.release.setTargetAtTime(0.08,t,0.02);
+    }
+    if(this.gCmpMakeup){
+      const mkDb=gfx.comp?.on?Math.max(0,-cThr*(1-1/cRatio)*0.5):0;
+      this.gCmpMakeup.gain.setTargetAtTime(Math.min(6,Math.pow(10,mkDb/20)),t,0.05);
+    }
+    // ── Filter ──
+    const fType=gfx.filter?.on?(gfx.filter.type||'lowpass'):'lowpass';
+    const fCut=gfx.filter?.on?Math.max(20,gfx.filter.cut||18000):20000;
+    const fQ=gfx.filter?.on?(gfx.filter.res||0):0;
+    this.gFlt.type=fType;this.gFlt2.type=fType;
+    this.gFlt.frequency.setTargetAtTime(fCut,t,0.02);this.gFlt2.frequency.setTargetAtTime(fCut,t,0.02);
+    this.gFlt.Q.setTargetAtTime(fQ,t,0.02);this.gFlt2.Q.setTargetAtTime(fQ,t,0.02);
+    // Filter LFO
+    const fltLfoOn=gfx.filter?.on&&(gfx.filter?.lfo??false);
+    if(this.gFltLfo){
+      const shape=gfx.filter?.lfoShape||'sine';
+      if(this.gFltLfo.type!==shape)this.gFltLfo.type=shape;
+      this.gFltLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.filter?.lfoRate??1.0),t,0.05);
+    }
+    if(this.gFltLfoDepth){
+      const depth=fltLfoOn?(gfx.filter?.lfoDepth??0)/100*8000:0;
+      this.gFltLfoDepth.gain.setTargetAtTime(depth,t,0.05);
+    }
+    // ── Delay ──
+    if(this.gDl)this.gDl.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay?.time||0.25),t,0.02);
+    if(this.gDlFb)this.gDlFb.gain.setTargetAtTime((gfx.delay?.fdbk||35)/100,t,0.02);
+    if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay?.on?4500:20000,t,0.05);
+    // ── Chorus ──
+    const choOn=gfx.chorus?.on??false;
+    if(this.gChoBus)this.gChoBus.gain.setTargetAtTime(choOn?1:0,t,0.05);
+    if(this.gChoLfo)this.gChoLfo.frequency.setTargetAtTime(Math.max(0.1,gfx.chorus?.rate??0.8),t,0.05);
+    if(this.gChoDepthL&&this.gChoDepthR){
+      const depth=(gfx.chorus?.depth??30)/100*0.006;
+      this.gChoDepthL.gain.setTargetAtTime(depth,t,0.05);
+      this.gChoDepthR.gain.setTargetAtTime(-depth,t,0.05);
+    }
+    // ── Flanger ──
+    const flaOn=gfx.flanger?.on??false;
+    if(this.gFlaBus)this.gFlaBus.gain.setTargetAtTime(flaOn?1:0,t,0.05);
+    if(this.gFlaLfo)this.gFlaLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.flanger?.rate??0.3),t,0.05);
+    if(this.gFlaDepth){const depth=(gfx.flanger?.depth??50)/100*0.004;this.gFlaDepth.gain.setTargetAtTime(depth,t,0.05);}
+    if(this.gFlaFb)this.gFlaFb.gain.setTargetAtTime(Math.min(0.9,(gfx.flanger?.feedback??60)/100),t,0.05);
+    // ── Ping-Pong ──
+    const ppOn=gfx.pingpong?.on??false;
+    if(this.gPpBus)this.gPpBus.gain.setTargetAtTime(ppOn?1:0,t,0.05);
+    if(this.gPpDlL&&this.gPpDlR){
+      const ppTime=gfx.pingpong?.sync?syncDivTime(gfx.pingpong?.syncDiv??'1/4',120):(gfx.pingpong?.time??0.25);
+      this.gPpDlL.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.02);
+      this.gPpDlR.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.02);
+    }
+    if(this.gPpFbLR&&this.gPpFbRL){
+      const fb=Math.min(0.85,(gfx.pingpong?.fdbk??50)/100);
+      this.gPpFbLR.gain.setTargetAtTime(fb,t,0.02);this.gPpFbRL.gain.setTargetAtTime(fb,t,0.02);
+    }
+    if(this.gPpLpf)this.gPpLpf.frequency.setTargetAtTime(ppOn?5000:20000,t,0.05);
+    // ── Sends per track ──
     Object.keys(this.ch).forEach(id=>{
       const c=this.ch[id];if(!c)return;
-      const rvAmt=(gfx.reverb.sends[id]||0);const rvOn=gfx.reverb.on&&rvAmt>0;
-      const dlAmt=(gfx.delay.sends[id]||0);const dlOn=gfx.delay.on&&dlAmt>0;
-      if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?rvAmt/100*0.9:0,t,0.02);
-      if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?dlAmt/100*0.9:0,t,0.02);
-      // Slow dry restore (0.6s TC) so reverb/delay tails ring out naturally before dry gain compensates
-      if(c.dry)c.dry.gain.setTargetAtTime(rvOn&&dlOn?0.3:rvOn||dlOn?0.6:1,t,0.6);
+      const rvOn=gfx.reverb?.on&&!!gfx.reverb?.sends?.[id];
+      const dlOn=gfx.delay?.on&&!!gfx.delay?.sends?.[id];
+      const choS=choOn&&!!gfx.chorus?.sends?.[id];
+      const flaS=flaOn&&!!gfx.flanger?.sends?.[id];
+      const ppS=ppOn&&!!gfx.pingpong?.sends?.[id];
+      if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?0.85:0,t,0.02);
+      if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?0.85:0,t,0.02);
+      if(c.choSend)c.choSend.gain.setTargetAtTime(choS?0.70:0,t,0.02);
+      if(c.flaSend)c.flaSend.gain.setTargetAtTime(flaS?0.60:0,t,0.02);
+      if(c.ppSend)c.ppSend.gain.setTargetAtTime(ppS?0.70:0,t,0.02);
+      const anySend=rvOn||dlOn||choS||flaS||ppS;
+      const manySend=[rvOn,dlOn,choS,flaS,ppS].filter(Boolean).length>1;
+      if(c.dry)c.dry.gain.setTargetAtTime(manySend?0.3:anySend?0.6:1,t,0.6);
     });
   }
-  _cv(d){
-    const k=Math.round(d*100);if(this._c[k])return this._c[k];
-    const n=8192,a=new Float32Array(n);
-    if(d===0){for(let i=0;i<n;i++)a[i]=i*2/n-1;}
-    else{
-      const v=d*6; // drive gain 0..6
-      const norm=Math.tanh(1+v); // normalizer so full-scale in = full-scale out
-      for(let i=0;i<n;i++){
-        const x=i*2/n-1;
-        const sat=Math.tanh(x*(1+v))/norm; // tanh saturation (tube odd harmonics)
-        a[i]=sat-0.05*sat*sat; // slight asymmetry → 2nd harmonic warmth
+  _buildCurve(mode='tanh',amt=0){
+    const key=mode+'_'+Math.round(amt*100);
+    if(this._c[key])return this._c[key];
+    const n=8192,a=new Float32Array(n),d=amt;
+    for(let i=0;i<n;i++){
+      const x=i*2/n-1;
+      if(mode==='tanh'){
+        const v=d*6,norm=v>0?Math.tanh(1+v):1;
+        const sat=v>0?Math.tanh(x*(1+v))/norm:x;
+        a[i]=sat-0.05*sat*sat;
+      }else if(mode==='tape'){
+        const v=d*3;
+        a[i]=Math.max(-0.95,Math.min(0.95,x*(1+v)/(1+v*Math.abs(x))));
+      }else if(mode==='tube'){
+        const v=d*4,norm=Math.tanh(1+v);
+        const sat=Math.tanh(x*(1+v))/norm;
+        a[i]=x>=0?sat:sat*(1-d*0.4);
+      }else if(mode==='bit'){
+        const bits=Math.max(2,Math.round(12-d*10));
+        const steps=Math.pow(2,bits-1);
+        const srDiv=Math.max(1,Math.round(d*8));
+        const idx=Math.floor(i/srDiv)*srDiv;
+        const xSrc=idx*2/n-1;
+        a[i]=Math.round(xSrc*steps)/steps;
+      }else{
+        a[i]=x;
       }
     }
-    this._c[k]=a;return a;
+    this._c[key]=a;return a;
   }
   uFx(id,f){
     const c=this.ch[id];if(!c||!this.ctx)return;const t=this.ctx.currentTime;
     c.vol.gain.setTargetAtTime((f?.vol??80)/100,t,0.02);
-    if(c.pan.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,t,0.02);
+    if(c.pan?.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,t,0.02);
+    if(c.tsAtk){
+      if(f?.onTransient&&(f.tsAttack!==0||f.tsSustain!==0)){
+        const atkGain=Math.pow(10,(f.tsAttack||0)/20);
+        c.tsAtk.gain.setTargetAtTime(atkGain,t,0.001);
+        c.tsAtk.gain.setTargetAtTime(Math.pow(10,(f.tsSustain||0)/20),t+0.015,0.04);
+      }else{
+        c.tsAtk.gain.setTargetAtTime(1,t,0.02);
+      }
+    }
   }
   async load(id,file){this.init();if(!this.ch[id])this._build(id);try{const a=await file.arrayBuffer();this.buf[id]=await this.ctx.decodeAudioData(a);return true;}catch(e){return false;}}
   async loadUrl(id,url){
@@ -465,20 +642,85 @@ const engine=new Eng();
 const SYNC_DIVS=[{l:"1/1",b:4},{l:"1/2",b:2},{l:"1/4",b:1},{l:"1/8",b:0.5},{l:"1/16",b:0.25},{l:"1/4.",b:1.5},{l:"1/8.",b:0.75},{l:"1/4t",b:2/3},{l:"1/8t",b:1/3}];
 const syncDivTime=(div,bpmV)=>{const d=SYNC_DIVS.find(x=>x.l===div)||SYNC_DIVS[2];return Math.min(1.9,d.b*(60/Math.max(30,bpmV)));};
 
+const CHAIN_META:{[k:string]:{label:string,color:string,short:string}}={
+  drive: {label:'DRIVE',  color:'#FF6B35', short:'DRV'},
+  comp:  {label:'COMP',   color:'#5E5CE6', short:'CMP'},
+  filter:{label:'FILTER', color:'#FF9500', short:'FLT'},
+};
+
 const FX_PRESETS=[
-  {id:"clean",name:"Clean",color:"#8E8E93",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}}},
-  {id:"room",name:"Room",color:"#64D2FF",gfx:{reverb:{on:true,decay:0.8,size:0.4,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}}},
-  {id:"hall",name:"Hall",color:"#64D2FF",gfx:{reverb:{on:true,decay:3.5,size:0.82,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-18,ratio:3},drive:{on:false,amt:0}}},
-  {id:"tape_echo",name:"Tape Echo",color:"#30D158",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:true,time:0.375,fdbk:55,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:9000,res:1},comp:{on:false,thr:-12,ratio:4},drive:{on:true,amt:12}}},
-  {id:"slap",name:"Slap",color:"#30D158",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:true,time:0.08,fdbk:18,sends:{},sync:false,syncDiv:"1/8"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}}},
-  {id:"lofi",name:"Lo-Fi",color:"#FF9500",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:4000,res:2},comp:{on:true,thr:-18,ratio:4},drive:{on:true,amt:22}}},
-  {id:"warmth",name:"Warmth",color:"#FF6B35",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:12000,res:0},comp:{on:true,thr:-12,ratio:3},drive:{on:true,amt:25}}},
-  {id:"stadium",name:"Stadium",color:"#BF5AF2",gfx:{reverb:{on:true,decay:4.2,size:0.9,sends:{}},delay:{on:true,time:0.5,fdbk:35,sends:{},sync:false,syncDiv:"1/2"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-16,ratio:4},drive:{on:false,amt:0}}},
-  {id:"dark",name:"Dark",color:"#8E8E93",gfx:{reverb:{on:true,decay:1.8,size:0.6,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:true,type:"lowpass",cut:3500,res:1},comp:{on:true,thr:-14,ratio:5},drive:{on:false,amt:0}}},
-  {id:"pumping",name:"Pumping",color:"#5E5CE6",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-28,ratio:14},drive:{on:true,amt:8}}},
+  {name:'Trap',color:'#FF2D55',gfx:{
+    reverb: {on:true, decay:0.8,size:0.3,type:'plate',sends:{snare:true,clap:true}},
+    delay:  {on:true, time:0.25,fdbk:25,sends:{hihat:true},sync:true,syncDiv:'1/8'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-18,ratio:6,attack:3,release:60},
+    drive:  {on:true, amt:15,mode:'tanh'},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:true, rate:0.5,depth:60,feedback:70,sends:{hihat:true}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+  }},
+  {name:'Boom Bap',color:'#FF9500',gfx:{
+    reverb: {on:true, decay:1.2,size:0.4,type:'room',sends:{snare:true}},
+    delay:  {on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-12,ratio:4,attack:8,release:100},
+    drive:  {on:true, amt:8,mode:'tape'},
+    chorus: {on:true, rate:0.5,depth:20,sends:{ride:true,crash:true}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+  }},
+  {name:'Techno',color:'#64D2FF',gfx:{
+    reverb: {on:true, decay:2.0,size:0.6,type:'hall',sends:{crash:true,ride:true}},
+    delay:  {on:true, time:0.25,fdbk:40,sends:{hihat:true},sync:true,syncDiv:'1/4'},
+    filter: {on:true, type:'highpass',cut:80,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-8,ratio:8,attack:2,release:50},
+    drive:  {on:false,amt:0,mode:'tanh'},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:true,time:0.25,fdbk:40,sync:true,syncDiv:'1/4',sends:{kick:true}},
+  }},
+  {name:'Lo-Fi',color:'#BF5AF2',gfx:{
+    reverb: {on:true, decay:0.6,size:0.2,type:'room',sends:{snare:true,hihat:true}},
+    delay:  {on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
+    filter: {on:true, type:'lowpass',cut:8000,res:2,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-6,ratio:3,attack:15,release:200},
+    drive:  {on:true, amt:35,mode:'bit'},
+    chorus: {on:true, rate:1.2,depth:60,sends:{kick:true,snare:true,hihat:true}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+  }},
+  {name:'Afro',color:'#30D158',gfx:{
+    reverb: {on:true, decay:1.0,size:0.4,type:'room',sends:{perc:true,clap:true}},
+    delay:  {on:true, time:0.375,fdbk:30,sends:{hihat:true},sync:true,syncDiv:'1/8'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-14,ratio:3,attack:10,release:120},
+    drive:  {on:false,amt:0,mode:'tanh'},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:true,time:0.188,fdbk:35,sync:true,syncDiv:'1/8',sends:{perc:true,clap:true}},
+  }},
+  {name:'Stadium',color:'#BF5AF2',gfx:{
+    reverb: {on:true, decay:4.2,size:0.9,type:'hall',sends:{snare:true,clap:true,crash:true}},
+    delay:  {on:true, time:0.5,fdbk:35,sends:{},sync:false,syncDiv:'1/2'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-16,ratio:4,attack:5,release:80},
+    drive:  {on:false,amt:0,mode:'tanh'},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+  }},
+  {name:'Pumping',color:'#5E5CE6',gfx:{
+    reverb: {on:false,decay:1.5,size:0.5,type:'room',sends:{}},
+    delay:  {on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    comp:   {on:true, thr:-28,ratio:14,attack:2,release:40},
+    drive:  {on:true, amt:8,mode:'tanh'},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+  }},
 ];
 
-// Per-FX static metadata (label, color, type)
 const FX_CHAIN_DEF:{sec:string,label:string,color:string,type:"serial"|"send"}[]=[
   {sec:"filter",label:"FILTER",color:"#FF9500",type:"serial"},
   {sec:"comp",  label:"COMP",  color:"#5E5CE6",type:"serial"},
@@ -487,21 +729,59 @@ const FX_CHAIN_DEF:{sec:string,label:string,color:string,type:"serial"|"send"}[]
   {sec:"reverb",label:"REVERB",color:"#64D2FF",type:"send"},
 ];
 
-function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false,fxChainOrder=[],setFxChainOrder=(_o:string[])=>{},onChainOrderChange=(_o:string[])=>{}}){
+function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false,fxChainOrder=[],setFxChainOrder=(_o:string[])=>{},onChainOrderChange=(_o:string[])=>{},fxSendPos={reverb:'post',delay:'post',chorus:'post',flanger:'post',pingpong:'post'},setFxSendPos=(_p:any)=>{},trackFx={},onTrackFxChange=(_id:string,_k:string,_v:any)=>{}}){
   const th=THEMES[themeName]||THEMES.dark;
   const [open,setOpen]=useState(false);
   const [showPresets,setShowPresets]=useState(false);
-  const [dragSec,setDragSec]=useState<string|null>(null);
-  const [dragOverSec,setDragOverSec]=useState<string|null>(null);
+  const [dragIdx,setDragIdx]=useState<number|null>(null);
+  const [dragOverIdx,setDragOverIdx]=useState<number|null>(null);
+  const [grDb,setGrDb]=useState(0);
+  const specRef=useRef(null);
+  const rafRef=useRef(null);
+  const [screenW,setScreenW]=useState(typeof window!=='undefined'?window.innerWidth:1024);
+  useEffect(()=>{const h=()=>setScreenW(window.innerWidth);window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h);},[]);
+  const useArrows=screenW<600;
+  useEffect(()=>{
+    if(!gfx.comp.on||!engine.ctx){setGrDb(0);return;}
+    const id=setInterval(()=>{if(engine.gCmp)setGrDb(Math.abs(engine.gCmp.reduction)||0);},80);
+    return()=>clearInterval(id);
+  },[gfx.comp.on]);
+  useEffect(()=>{
+    if(!open||!engine.ctx||!engine.gAnalyser)return;
+    const analyser=engine.gAnalyser;
+    const data=new Uint8Array(analyser.frequencyBinCount);
+    const draw=()=>{
+      analyser.getByteFrequencyData(data);
+      const svg=specRef.current;if(!svg)return;
+      while(svg.firstChild)svg.removeChild(svg.firstChild);
+      const W=200,H=40,N=64,step=Math.floor(data.length/N);
+      for(let i=0;i<N;i++){
+        const val=data[i*step]/255,h=Math.max(1,val*H),hue=220-val*160;
+        const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+        rect.setAttribute('x',String(i*(W/N)));rect.setAttribute('y',String(H-h));
+        rect.setAttribute('width',String((W/N)-1));rect.setAttribute('height',String(h));
+        rect.setAttribute('fill',`hsl(${hue},80%,${40+val*30}%)`);rect.setAttribute('opacity','0.8');
+        svg.appendChild(rect);
+      }
+      rafRef.current=requestAnimationFrame(draw);
+    };
+    draw();return()=>cancelAnimationFrame(rafRef.current);
+  },[open]);
   const upSec=(sec:string,k:string,v:any)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],[k]:v}}));
   const upSend=(sec:string,tid:string,v:any)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
-  const loadPreset=(preset)=>{
-    setGfx(p=>{
-      const sends_rv=p.reverb?.sends||{};const sends_dl=p.delay?.sends||{};
+  const handleDragStart=(idx:number)=>setDragIdx(idx);
+  const handleDragOver=(idx:number)=>{if(dragIdx===null||dragIdx===idx)return;setDragOverIdx(idx);};
+  const handleDrop=(targetIdx:number)=>{
+    if(dragIdx===null||dragIdx===targetIdx){setDragIdx(null);setDragOverIdx(null);return;}
+    const n=[...fxChainOrder];const[moved]=n.splice(dragIdx,1);n.splice(targetIdx,0,moved);
+    setFxChainOrder(n);onChainOrderChange(n);setDragIdx(null);setDragOverIdx(null);
+  };
+  const handleMoveLeft=(idx:number)=>{if(idx===0)return;const n=[...fxChainOrder];[n[idx-1],n[idx]]=[n[idx],n[idx-1]];setFxChainOrder(n);onChainOrderChange(n);};
+  const handleMoveRight=(idx:number)=>{if(idx===fxChainOrder.length-1)return;const n=[...fxChainOrder];[n[idx],n[idx+1]]=[n[idx+1],n[idx]];setFxChainOrder(n);onChainOrderChange(n);};
+  const loadPreset=(preset:any)=>{
+    setGfx(()=>{
       const ng=JSON.parse(JSON.stringify(preset.gfx));
-      ng.reverb={...ng.reverb,sends:sends_rv};
-      ng.delay={...ng.delay,sends:sends_dl};
-      if(engine.ctx)setTimeout(()=>engine.uGfx(ng),20);
+      if(engine.ctx)setTimeout(()=>{engine.uGfx(ng);engine.updateReverb(ng.reverb.decay,ng.reverb.size,ng.reverb.type);},20);
       return ng;
     });
     setShowPresets(false);
@@ -553,226 +833,361 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
       {midiId&&<MidiTag id={midiId}/>}
     </div>
   );
-  // ── SendRing — circular send bus selector ──────────────────────────────────
-  // Destinations: MASTER + all active tracks. Drag ring or use ◀ ▶ arrows to move
-  // cursor; click dot or toggle button to activate/deactivate that destination.
-  const SendRing=({sec,color})=>{
-    const [cursor,setCursor]=useState(0);
-    const dests=[{id:"_master",label:"MST"},...tracks.map(t=>({id:t.id,label:(t.label||t.id).slice(0,3).toUpperCase()}))];
-    const n=dests.length;
-    const R=20,SZ=52,cx=SZ/2,cy=SZ/2;
-    const isOn=id=>!!gfx[sec].sends[id];
-    const tog=id=>upSend(sec,id,!gfx[sec].sends[id]);
-    const prev=()=>setCursor(c=>(c-1+n)%n);
-    const next=()=>setCursor(c=>(c+1)%n);
-    const curDest=dests[cursor];
-    const arw={padding:"1px 5px",borderRadius:4,border:"1px solid rgba(255,255,255,0.12)",
-      background:"transparent",color:"rgba(255,255,255,0.4)",fontSize:8,cursor:"pointer",
-      fontFamily:"inherit",lineHeight:1.2,flexShrink:0};
-    const onMouseDown=e=>{
-      e.preventDefault();
-      const rect=e.currentTarget.getBoundingClientRect();
-      const mv=ev=>{
-        const dx=ev.clientX-(rect.left+cx),dy=ev.clientY-(rect.top+cy);
-        const ang=((Math.atan2(dy,dx)+Math.PI/2)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-        setCursor(Math.round(ang/(2*Math.PI)*n)%n);
-      };
-      const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};
-      window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
-    };
+  const SendRow=({sec,color}:{sec:string,color:string})=>(
+    <div style={{marginTop:6,paddingTop:5,borderTop:'1px solid rgba(255,255,255,0.05)',display:'flex',flexWrap:'wrap',gap:3}}>
+      <span style={{fontSize:5,color:'rgba(255,255,255,0.25)',letterSpacing:'0.08em',fontWeight:700,alignSelf:'center'}}>SEND:</span>
+      {tracks.map(t=>{
+        const on=!!(gfx[sec]?.sends?.[t.id]);
+        return(
+          <button key={t.id} onClick={()=>upSend(sec,t.id,!on)}
+            style={{padding:'1px 4px',borderRadius:3,border:`1px solid ${on?color:color+'30'}`,
+              background:on?color+'22':'transparent',color:on?color:th.faint,
+              fontSize:6,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+            {(t.label||t.id).slice(0,3).toUpperCase()}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const ChainSlot=({id,index,total}:{id:string,index:number,total:number})=>{
+    const meta=CHAIN_META[id];if(!meta)return null;
     return(
-      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,marginTop:8,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-        <span style={{fontSize:5.5,color:"rgba(255,255,255,0.22)",letterSpacing:"0.1em",fontWeight:700}}>SEND BUS</span>
-        <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <button onClick={prev} style={arw}>◀</button>
-          <svg width={SZ} height={SZ} onMouseDown={onMouseDown} style={{cursor:"grab",display:"block",touchAction:"none"}}>
-            {/* Background ring */}
-            <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={6}/>
-            {/* Active blobs on ring */}
-            {dests.map((d,i)=>{
-              if(!isOn(d.id))return null;
-              const a=(i/n)*2*Math.PI-Math.PI/2;
-              return<circle key={i} cx={cx+R*Math.cos(a)} cy={cy+R*Math.sin(a)} r={4.5} fill={color} opacity={0.85}/>;
-            })}
-            {/* Cursor spoke */}
-            {(()=>{const a=(cursor/n)*2*Math.PI-Math.PI/2;return<line x1={cx} y1={cy} x2={cx+(R-2)*Math.cos(a)} y2={cy+(R-2)*Math.sin(a)} stroke={color+"70"} strokeWidth={1.5} strokeDasharray="2,2"/>;})()}
-            {/* Destination dots */}
-            {dests.map((d,i)=>{
-              const a=(i/n)*2*Math.PI-Math.PI/2;
-              const dx=cx+R*Math.cos(a),dy=cy+R*Math.sin(a);
-              const focused=i===cursor,active=isOn(d.id);
-              return(
-                <g key={i} onClick={()=>tog(d.id)} style={{cursor:"pointer"}}>
-                  <circle cx={dx} cy={dy} r={focused?5.5:3.2}
-                    fill={active?color:"rgba(255,255,255,0.09)"}
-                    stroke={focused?color:"none"} strokeWidth={1.5} opacity={focused?1:active?0.9:0.5}/>
-                </g>
-              );
-            })}
-            {/* Center */}
-            <circle cx={cx} cy={cy} r={10} fill={isOn(curDest.id)?color+"18":"rgba(255,255,255,0.03)"} stroke={isOn(curDest.id)?color+"50":"rgba(255,255,255,0.07)"} strokeWidth={1}/>
-            <text x={cx} y={cy+2.5} textAnchor="middle" fontSize={5.5} fontFamily="monospace" fill={isOn(curDest.id)?color:"rgba(255,255,255,0.35)"} fontWeight="bold">{curDest.label}</text>
-          </svg>
-          <button onClick={next} style={arw}>▶</button>
-        </div>
-        <button onClick={()=>tog(curDest.id)} style={{
-          padding:"2px 10px",borderRadius:4,fontFamily:"inherit",fontSize:6.5,fontWeight:800,cursor:"pointer",letterSpacing:"0.08em",
-          border:`1px solid ${isOn(curDest.id)?color+"80":"rgba(255,255,255,0.1)"}`,
-          background:isOn(curDest.id)?color+"1a":"transparent",
-          color:isOn(curDest.id)?color:"rgba(255,255,255,0.3)",
-        }}>{isOn(curDest.id)?"● SEND ON":"○ ADD SEND"}</button>
+      <div data-chainidx={index} draggable={!useArrows}
+        onDragStart={!useArrows?()=>handleDragStart(index):undefined}
+        onDragOver={!useArrows?e=>{e.preventDefault();handleDragOver(index);}:undefined}
+        onDrop={!useArrows?e=>{e.preventDefault();handleDrop(index);}:undefined}
+        onDragEnd={!useArrows?()=>{setDragIdx(null);setDragOverIdx(null);}:undefined}
+        style={{display:'flex',alignItems:'center',gap:4,padding:'4px 8px',borderRadius:6,
+          border:`1px solid ${dragOverIdx===index?meta.color:meta.color+'44'}`,
+          background:dragOverIdx===index?meta.color+'22':meta.color+'0a',
+          cursor:useArrows?'default':'grab',userSelect:'none',touchAction:'none',
+          transition:'all 0.15s',transform:dragOverIdx===index?'scale(1.04)':'scale(1)'}}>
+        <span style={{fontSize:7,fontWeight:800,color:meta.color,opacity:0.5,minWidth:10}}>{index+1}</span>
+        <span style={{fontSize:8,fontWeight:800,color:meta.color,letterSpacing:'0.06em'}}>{meta.short}</span>
+        {useArrows&&(
+          <div style={{display:'flex',gap:2,marginLeft:2}}>
+            <button onClick={()=>handleMoveLeft(index)} disabled={index===0}
+              style={{width:14,height:14,border:'none',borderRadius:3,cursor:index===0?'default':'pointer',
+                background:'transparent',color:index===0?th.faint:meta.color,fontSize:9,padding:0,lineHeight:1,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>←</button>
+            <button onClick={()=>handleMoveRight(index)} disabled={index===total-1}
+              style={{width:14,height:14,border:'none',borderRadius:3,cursor:index===total-1?'default':'pointer',
+                background:'transparent',color:index===total-1?th.faint:meta.color,fontSize:9,padding:0,lineHeight:1,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>→</button>
+          </div>
+        )}
+        {!useArrows&&<span style={{fontSize:9,color:meta.color,opacity:0.4,marginLeft:2,letterSpacing:'-2px'}}>⠿</span>}
       </div>
     );
   };
 
-  const activeCount=["reverb","delay","filter","comp","drive"].filter(s=>gfx[s].on).length;
+  const chain=fxChainOrder.length?fxChainOrder:['drive','comp','filter'];
+  const activeCount=['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'].filter(s=>gfx[s]?.on).length;
   return(
-    <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${open?"rgba(191,90,242,0.3)":th.sBorder}`,overflow:"hidden"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 14px",userSelect:"none"}}>
-        <div onClick={()=>setOpen(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
-          <span style={{fontSize:8,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.14em"}}>FX RACK</span>
-          <span style={{fontSize:9,color:th.dim}}>{open?"▲":"▼"}</span>
-          {activeCount>0&&<span style={{fontSize:7,padding:"1px 6px",borderRadius:3,background:"rgba(191,90,242,0.12)",color:"#BF5AF2",fontWeight:700}}>{activeCount} active</span>}
-          {["reverb","delay","filter","comp","drive"].filter(s=>gfx[s].on).map(s=>(
-            <span key={s} style={{fontSize:7,padding:"1px 5px",borderRadius:3,background:`rgba(${s==="reverb"?"100,210,255":s==="delay"?"48,209,88":s==="filter"?"255,149,0":s==="comp"?"94,92,230":"255,149,0"},0.12)`,color:s==="reverb"?"#64D2FF":s==="delay"?"#30D158":s==="filter"?"#FF9500":s==="comp"?"#5E5CE6":"#FF9500",fontWeight:700,letterSpacing:"0.08em"}}>{s.slice(0,3).toUpperCase()}</span>
+    <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${open?'rgba(191,90,242,0.3)':th.sBorder}`,overflow:'hidden'}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 14px',userSelect:'none'}}>
+        <div onClick={()=>setOpen(p=>!p)} style={{display:'flex',alignItems:'center',gap:6,flex:1,cursor:'pointer'}}>
+          <span style={{fontSize:8,fontWeight:800,color:'#BF5AF2',letterSpacing:'0.14em'}}>FX RACK</span>
+          <span style={{fontSize:9,color:th.dim}}>{open?'▲':'▼'}</span>
+          {activeCount>0&&<span style={{fontSize:7,padding:'1px 6px',borderRadius:3,background:'rgba(191,90,242,0.12)',color:'#BF5AF2',fontWeight:700}}>{activeCount} active</span>}
+          {(['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'] as const).filter(s=>gfx[s]?.on).map(s=>{
+            const cols:Record<string,string>={reverb:'#64D2FF',delay:'#30D158',filter:'#FF9500',comp:'#5E5CE6',drive:'#FF6B35',chorus:'#5E5CE6',flanger:'#FF375F',pingpong:'#FFD60A'};
+            const c=cols[s]||'#fff';
+            return<span key={s} style={{fontSize:7,padding:'1px 5px',borderRadius:3,background:c+'1a',color:c,fontWeight:700,letterSpacing:'0.08em'}}>{s==='pingpong'?'P-P':s.slice(0,3).toUpperCase()}</span>;
+          })}
+        </div>
+        {/* Spectrum analyser mini */}
+        {open&&<svg ref={specRef} width={80} height={20} style={{flexShrink:0,borderRadius:3,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}/>}
+        <button onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
+          style={{padding:'2px 8px',borderRadius:5,border:`1px solid ${showPresets?'#BF5AF255':th.sBorder}`,background:showPresets?'rgba(191,90,242,0.12)':'transparent',color:showPresets?'#BF5AF2':th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0}}>
+          PRESETS
+        </button>
+      </div>
+
+      {/* Presets panel */}
+      {showPresets&&(
+        <div style={{padding:'6px 14px 10px',borderTop:`1px solid ${th.sBorder}`,display:'flex',gap:4,flexWrap:'wrap'}}>
+          {FX_PRESETS.map(p=>(
+            <button key={p.name} onClick={()=>loadPreset(p)}
+              style={{padding:'3px 9px',borderRadius:5,border:`1px solid ${p.color}44`,background:p.color+'14',color:p.color,fontSize:8,fontWeight:700,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>
+              {p.name}
+            </button>
           ))}
         </div>
-        <button
-          onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);if(!open)setOpen(false);}}
-          style={{padding:"2px 8px",borderRadius:5,border:`1px solid ${showPresets?"#BF5AF255":th.sBorder}`,background:showPresets?"rgba(191,90,242,0.12)":"transparent",color:showPresets?"#BF5AF2":th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}
-        >PRESETS</button>
-      </div>
-      {showPresets&&(
-        <div style={{padding:"0 14px 10px",borderTop:`1px solid ${th.sBorder}`}}>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,paddingTop:8}}>
-            {FX_PRESETS.map(preset=>(
-              <button key={preset.id} onClick={()=>loadPreset(preset)}
-                style={{padding:"3px 9px",borderRadius:5,border:`1px solid ${preset.color}44`,background:`${preset.color}12`,color:preset.color,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",transition:"all 0.1s"}}
-                onMouseEnter={e=>{e.currentTarget.style.background=`${preset.color}28`;e.currentTarget.style.borderColor=`${preset.color}88`;}}
-                onMouseLeave={e=>{e.currentTarget.style.background=`${preset.color}12`;e.currentTarget.style.borderColor=`${preset.color}44`;}}
-              >{preset.name}</button>
+      )}
+
+      {open&&(<>
+        {/* Chain order + Send PRE/POST */}
+        <div style={{padding:'6px 14px 8px',borderBottom:`1px solid ${th.sBorder}`,display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
+            <span style={{fontSize:6,fontWeight:800,color:th.faint,letterSpacing:'0.1em',minWidth:36}}>CHAIN</span>
+            <span style={{fontSize:6,color:th.faint,padding:'2px 5px',borderRadius:3,border:`1px solid ${th.sBorder}`}}>IN</span>
+            <span style={{fontSize:8,color:th.faint}}>→</span>
+            {chain.map((id,index)=>(
+              <React.Fragment key={id}>
+                <ChainSlot id={id} index={index} total={chain.length}/>
+                {index<chain.length-1&&<span style={{fontSize:8,color:th.faint,flexShrink:0}}>→</span>}
+              </React.Fragment>
+            ))}
+            <span style={{fontSize:8,color:th.faint}}>→</span>
+            <span style={{fontSize:6,color:th.faint,padding:'2px 5px',borderRadius:3,border:`1px solid ${th.sBorder}`}}>OUT</span>
+            <button onClick={()=>{setFxChainOrder(['drive','comp','filter']);onChainOrderChange(['drive','comp','filter']);}}
+              style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,border:`1px solid ${th.sBorder}`,background:'transparent',color:th.faint,fontSize:5,cursor:'pointer',fontFamily:'inherit'}}>RESET</button>
+          </div>
+          {/* PRE/POST sends */}
+          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+            <span style={{fontSize:6,fontWeight:800,color:th.faint,letterSpacing:'0.1em',minWidth:36}}>SENDS</span>
+            {([{id:'reverb',label:'RV',color:'#64D2FF'},{id:'delay',label:'DL',color:'#30D158'},{id:'chorus',label:'CH',color:'#5E5CE6'},{id:'flanger',label:'FL',color:'#FF375F'},{id:'pingpong',label:'PP',color:'#FFD60A'}] as const).map(({id,label,color})=>(
+              <div key={id} style={{display:'flex',alignItems:'center',gap:2}}>
+                <span style={{fontSize:6,fontWeight:700,color}}>{label}</span>
+                <button onClick={()=>setFxSendPos((p:any)=>({...p,[id]:p[id]==='pre'?'post':'pre'}))}
+                  style={{padding:'1px 4px',borderRadius:3,fontSize:5,fontWeight:800,cursor:'pointer',fontFamily:'inherit',
+                    border:`1px solid ${fxSendPos[id]==='pre'?color:color+'44'}`,
+                    background:fxSendPos[id]==='pre'?color+'22':'transparent',
+                    color:fxSendPos[id]==='pre'?color:th.faint}}>
+                  {fxSendPos[id]==='pre'?'PRE':'POST'}
+                </button>
+              </div>
             ))}
           </div>
-          <p style={{margin:"6px 0 0",fontSize:7,color:th.dim,letterSpacing:"0.04em"}}>Les sends par piste sont préservés au changement de preset</p>
         </div>
-      )}
-      {open&&(
-        <div style={{padding:"6px 10px 12px",overflowX:"auto"}}>
-          {/* ── Drag-reorder FX chain ── */}
-          <div style={{display:"flex",alignItems:"stretch",gap:0,minWidth:"max-content"}}>
-            {(fxChainOrder.length?fxChainOrder:["filter","comp","drive","delay","reverb"]).map((sec,i)=>{
-              const def=FX_CHAIN_DEF.find(f=>f.sec===sec);
-              if(!def)return null;
-              const {color,label,type}=def;
-              const isOver=dragOverSec===sec&&dragSec!==sec;
-              const isDragging=dragSec===sec;
-              const active=(gfx as any)[sec]?.on;
-              return(
-                <div key={sec} style={{display:"flex",alignItems:"center",gap:0}}>
-                  {i>0&&(
-                    <div style={{display:"flex",alignItems:"center",padding:"0 4px",color:isOver?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.15)",fontSize:12,userSelect:"none",flexShrink:0,transition:"color 0.1s"}}>→</div>
-                  )}
-                  <div
-                    draggable
-                    onDragStart={e=>{e.dataTransfer.effectAllowed="move";setDragSec(sec);}}
-                    onDragEnd={()=>{setDragSec(null);setDragOverSec(null);}}
-                    onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";setDragOverSec(sec);}}
-                    onDragLeave={()=>setDragOverSec(null)}
-                    onDrop={e=>{
-                      e.preventDefault();
-                      if(!dragSec||dragSec===sec)return;
-                      const o=[...(fxChainOrder.length?fxChainOrder:["filter","comp","drive","delay","reverb"])];
-                      const from=o.indexOf(dragSec),to=o.indexOf(sec);
-                      if(from<0||to<0)return;
-                      o.splice(from,1);o.splice(to,0,dragSec);
-                      setFxChainOrder(o);onChainOrderChange(o);
-                      setDragSec(null);setDragOverSec(null);
-                    }}
-                    style={{
-                      borderRadius:8,
-                      border:`1px solid ${isOver?color:isDragging?color+"55":active?color+"44":color+"22"}`,
-                      background:isOver?`${color}12`:isDragging?`${color}06`:`${color}06`,
-                      padding:"6px 10px 8px",
-                      minWidth:type==="send"?120:90,
-                      flexShrink:0,
-                      cursor:"grab",
-                      opacity:isDragging?0.45:1,
-                      transition:"border-color 0.12s,opacity 0.12s,background 0.12s",
-                      position:"relative",
-                      userSelect:"none",
-                    }}
-                  >
-                    {/* Drag handle + type badge */}
-                    <div style={{position:"absolute",top:3,right:5,display:"flex",gap:3,alignItems:"center"}}>
-                      {type==="send"&&<span style={{fontSize:5,fontWeight:800,color:color+"88",letterSpacing:"0.08em",background:`${color}15`,borderRadius:2,padding:"0 3px",lineHeight:"10px"}}>SEND</span>}
-                      <span style={{fontSize:8,color:"rgba(255,255,255,0.15)",pointerEvents:"none"}}>⠿</span>
-                    </div>
-                    {/* ON/OFF toggle header */}
-                    <SecLabel label={label} color={color} active={active} onToggle={()=>upSec(sec,"on",!active)} midiId={`__${sec.slice(0,3)}_on__`}/>
-                    {/* FX-specific controls */}
-                    {sec==="reverb"&&(
-                      <div style={{display:"flex",gap:6,opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
-                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color={color} unit="s" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/><MidiTag id="__rev_decay__"/></div>
-                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color={color} fmt={(v:number)=>(v*100).toFixed(0)} unit="%" onChange={(v:number)=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/><MidiTag id="__rev_size__"/></div>
-                      </div>
-                    )}
-                    {sec==="delay"&&(
-                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
-                        <div style={{display:"flex",alignItems:"center",marginBottom:4}}>
-                          <button onClick={()=>{const ns=!gfx.delay.sync;const t=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx((p:any)=>({...p,delay:{...p.delay,sync:ns,time:t}}));}} style={{marginLeft:"auto",padding:"1px 5px",borderRadius:3,border:`1px solid ${gfx.delay.sync?color:"rgba(48,209,88,0.25)"}`,background:gfx.delay.sync?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.sync?color:"rgba(48,209,88,0.4)",fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>SYNC</button>
-                        </div>
-                        <div style={{display:"flex",gap:6}}>
-                          {gfx.delay.sync?(
-                            <div>
-                              <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:3,maxWidth:100}}>
-                                {["1/4","1/8","1/16","1/4.","1/8.","1/4t"].map(d=>(
-                                  <button key={d} onClick={()=>setGfx((p:any)=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))} style={{padding:"1px 3px",borderRadius:2,border:`1px solid ${gfx.delay.syncDiv===d?color:"rgba(48,209,88,0.15)"}`,background:gfx.delay.syncDiv===d?"rgba(48,209,88,0.12)":"transparent",color:gfx.delay.syncDiv===d?color:th.faint,fontSize:5.5,cursor:"pointer",fontFamily:"inherit"}}>{d}</button>
-                                ))}
-                              </div>
-                              <div style={{fontSize:6,color,fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
-                            </div>
-                          ):(
-                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color={color} unit="s" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec("delay","time",v)}/><MidiTag id="__dly_time__"/></div>
-                          )}
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color={color} fmt={(v:number)=>Math.round(v)} unit="%" onChange={(v:number)=>upSec("delay","fdbk",v)}/><MidiTag id="__dly_fdbk__"/></div>
-                        </div>
-                      </div>
-                    )}
-                    {sec==="filter"&&(
-                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
-                        <div style={{display:"flex",gap:2,marginBottom:5}}>
-                          {["lowpass","highpass","bandpass"].map(ft=>(
-                            <button key={ft} onClick={()=>upSec("filter","type",ft)} style={{flex:1,padding:"2px 0",borderRadius:3,border:`1px solid ${gfx.filter.type===ft?color:"transparent"}`,background:gfx.filter.type===ft?`${color}18`:"transparent",color:gfx.filter.type===ft?color:th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{ft==="lowpass"?"LP":ft==="highpass"?"HP":"BP"}</button>
-                          ))}
-                        </div>
-                        <div style={{display:"flex",gap:6}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color={color} fmt={(v:number)=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={(v:number)=>upSec("filter","cut",v)}/><MidiTag id="__flt_cut__"/></div>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RES" value={gfx.filter.res} min={0} max={25} color={color} fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec("filter","res",v)}/><MidiTag id="__flt_res__"/></div>
-                        </div>
-                      </div>
-                    )}
-                    {sec==="comp"&&(
-                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
-                        <div style={{display:"flex",gap:6}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color={color} unit="dB" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec("comp","thr",v)}/><MidiTag id="__cmp_thr__"/></div>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color={color} unit=":1" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec("comp","ratio",v)}/><MidiTag id="__cmp_rat__"/></div>
-                        </div>
-                        <div style={{fontSize:6,color:`${color}66`,marginTop:3,textAlign:"center",letterSpacing:"0.07em"}}>auto makeup</div>
-                      </div>
-                    )}
-                    {sec==="drive"&&(
-                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
-                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color={color} fmt={(v:number)=>Math.round(v)} unit="%" onChange={(v:number)=>upSec("drive","amt",v)}/><MidiTag id="__drv_amt__"/></div>
-                        <div style={{fontSize:6,color:`${color}66`,marginTop:3,textAlign:"center",letterSpacing:"0.07em"}}>tanh sat</div>
-                      </div>
-                    )}
-                  </div>
+
+        {/* FX sections — scrollable */}
+        <div style={{padding:'8px 14px 14px',display:'flex',gap:10,alignItems:'flex-start',overflowX:'auto'}}>
+
+          {/* ═════ SEND FX ═════ */}
+          <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
+            <span style={{fontSize:6,fontWeight:800,color:'rgba(100,210,255,0.5)',letterSpacing:'0.12em',paddingLeft:2}}>SEND FX</span>
+            <div style={{display:'flex',gap:0,alignItems:'flex-start',borderRadius:7,border:'1px solid rgba(100,210,255,0.12)',padding:'6px 6px 8px',background:'rgba(100,210,255,0.03)'}}>
+
+              {/* REVERB */}
+              <div style={{minWidth:120,flexShrink:0,paddingRight:6}}>
+                <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec('reverb','on',!gfx.reverb.on)} midiId="__rev_on__"/>
+                <div style={{display:'flex',gap:3,marginBottom:6}}>
+                  {(['plate','room','hall'] as const).map(tp=>(
+                    <button key={tp} onClick={()=>{upSec('reverb','type',tp);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,gfx.reverb.size,tp);}}
+                      style={{flex:1,padding:'2px 0',borderRadius:3,border:`1px solid ${(gfx.reverb as any).type===tp?'#64D2FF':'transparent'}`,background:(gfx.reverb as any).type===tp?'rgba(100,210,255,0.1)':'transparent',color:(gfx.reverb as any).type===tp?'#64D2FF':th.faint,fontSize:6,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                      {tp==='plate'?'PLT':tp==='room'?'RM':'HLL'}
+                    </button>
+                  ))}
                 </div>
-              );
-            })}
+                <div style={{display:'flex',gap:8,opacity:gfx.reverb.on?1:0.3,pointerEvents:gfx.reverb.on?'auto':'none'}}>
+                  <Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>{upSec('reverb','decay',v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size,(gfx.reverb as any).type||'room');}}/>
+                  <Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={(v:number)=>(v*100).toFixed(0)} unit="%" onChange={(v:number)=>{upSec('reverb','size',v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v,(gfx.reverb as any).type||'room');}}/>
+                </div>
+                <SendRow sec="reverb" color="#64D2FF"/>
+              </div>
+
+              <Sep/>
+
+              {/* DELAY */}
+              <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                  <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec('delay','on',!gfx.delay.on)} midiId="__dly_on__"/>
+                  <button onClick={()=>{const ns=!gfx.delay.sync;const tt=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx((p:any)=>({...p,delay:{...p.delay,sync:ns,time:tt}}));}}
+                    style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${gfx.delay.sync?'#30D158':'rgba(48,209,88,0.3)'}`,background:gfx.delay.sync?'rgba(48,209,88,0.15)':'transparent',color:gfx.delay.sync?'#30D158':'rgba(48,209,88,0.5)'}}>SYNC</button>
+                </div>
+                <div style={{display:'flex',gap:8,opacity:gfx.delay.on?1:0.3,pointerEvents:gfx.delay.on?'auto':'none'}}>
+                  {gfx.delay.sync?(
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:2,marginBottom:4}}>
+                        {['1/1','1/2','1/4','1/8','1/16','1/4.','1/8.','1/4t','1/8t'].map(d=>(
+                          <button key={d} onClick={()=>setGfx((p:any)=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))}
+                            style={{padding:'2px 4px',borderRadius:3,fontSize:6,fontWeight:700,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${gfx.delay.syncDiv===d?'#30D158':'rgba(48,209,88,0.2)'}`,background:gfx.delay.syncDiv===d?'rgba(48,209,88,0.15)':'transparent',color:gfx.delay.syncDiv===d?'#30D158':th.faint}}>{d}</button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:7,color:'#30D158',fontWeight:700,textAlign:'center'}}>{gfx.delay.time.toFixed(3)}s</div>
+                    </div>
+                  ):(
+                    <Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('delay','time',v)}/>
+                  )}
+                  <Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={(v:number)=>Math.round(v)} unit="%" onChange={(v:number)=>upSec('delay','fdbk',v)}/>
+                </div>
+                <SendRow sec="delay" color="#30D158"/>
+              </div>
+
+              <Sep/>
+
+              {/* CHORUS */}
+              <div style={{minWidth:110,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="CHORUS" color="#5E5CE6" active={gfx.chorus?.on??false} onToggle={()=>upSec('chorus','on',!(gfx.chorus?.on??false))}/>
+                <div style={{display:'flex',gap:8,opacity:(gfx.chorus?.on??false)?1:0.3,pointerEvents:(gfx.chorus?.on??false)?'auto':'none'}}>
+                  <Knob label="RATE" value={gfx.chorus?.rate??0.8} min={0.1} max={5} color="#5E5CE6" unit="Hz" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('chorus','rate',v)}/>
+                  <Knob label="DEPTH" value={gfx.chorus?.depth??30} min={0} max={100} color="#5E5CE6" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('chorus','depth',v)}/>
+                </div>
+                <SendRow sec="chorus" color="#5E5CE6"/>
+              </div>
+
+              <Sep/>
+
+              {/* FLANGER */}
+              <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="FLANGER" color="#FF375F" active={gfx.flanger?.on??false} onToggle={()=>upSec('flanger','on',!(gfx.flanger?.on??false))}/>
+                <div style={{display:'flex',gap:8,opacity:(gfx.flanger?.on??false)?1:0.3,pointerEvents:(gfx.flanger?.on??false)?'auto':'none'}}>
+                  <Knob label="RATE" value={gfx.flanger?.rate??0.3} min={0.05} max={3} color="#FF375F" unit="Hz" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('flanger','rate',v)}/>
+                  <Knob label="DEPTH" value={gfx.flanger?.depth??50} min={0} max={100} color="#FF375F" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('flanger','depth',v)}/>
+                  <Knob label="FDBK" value={gfx.flanger?.feedback??60} min={0} max={90} color="#FF375F" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('flanger','feedback',v)}/>
+                </div>
+                <SendRow sec="flanger" color="#FF375F"/>
+              </div>
+
+              <Sep/>
+
+              {/* PING-PONG */}
+              <div style={{minWidth:140,flexShrink:0,paddingLeft:6}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                  <SecLabel label="PING-PONG" color="#FFD60A" active={gfx.pingpong?.on??false} onToggle={()=>upSec('pingpong','on',!(gfx.pingpong?.on??false))}/>
+                  <button onClick={()=>{const ns=!(gfx.pingpong?.sync??false);const tt=ns?syncDivTime(gfx.pingpong?.syncDiv??'1/4',bpm):gfx.pingpong?.time??0.25;setGfx((p:any)=>({...p,pingpong:{...p.pingpong,sync:ns,time:tt}}));}}
+                    style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${gfx.pingpong?.sync?'#FFD60A':'rgba(255,214,10,0.3)'}`,background:gfx.pingpong?.sync?'rgba(255,214,10,0.15)':'transparent',color:gfx.pingpong?.sync?'#FFD60A':'rgba(255,214,10,0.5)'}}>SYNC</button>
+                </div>
+                <div style={{display:'flex',gap:8,opacity:(gfx.pingpong?.on??false)?1:0.3,pointerEvents:(gfx.pingpong?.on??false)?'auto':'none'}}>
+                  {gfx.pingpong?.sync?(
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:2,marginBottom:4}}>
+                        {['1/1','1/2','1/4','1/8','1/16'].map(d=>(
+                          <button key={d} onClick={()=>setGfx((p:any)=>({...p,pingpong:{...p.pingpong,syncDiv:d,time:syncDivTime(d,bpm)}}))}
+                            style={{padding:'2px 4px',borderRadius:3,fontSize:6,fontWeight:700,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${gfx.pingpong?.syncDiv===d?'#FFD60A':'rgba(255,214,10,0.2)'}`,background:gfx.pingpong?.syncDiv===d?'rgba(255,214,10,0.15)':'transparent',color:gfx.pingpong?.syncDiv===d?'#FFD60A':th.faint}}>{d}</button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:7,color:'#FFD60A',fontWeight:700,textAlign:'center'}}>{(gfx.pingpong?.time??0.25).toFixed(3)}s L⟷R</div>
+                    </div>
+                  ):(
+                    <Knob label="TIME" value={gfx.pingpong?.time??0.25} min={0.05} max={1.9} color="#FFD60A" unit="s" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('pingpong','time',v)}/>
+                  )}
+                  <Knob label="FDBK" value={gfx.pingpong?.fdbk??50} min={0} max={85} color="#FFD60A" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('pingpong','fdbk',v)}/>
+                </div>
+                <SendRow sec="pingpong" color="#FFD60A"/>
+              </div>
+
+            </div>
           </div>
+
+          {/* Separator */}
+          <div style={{width:1,alignSelf:'stretch',background:'linear-gradient(to bottom,transparent,rgba(255,255,255,0.08),transparent)',flexShrink:0,margin:'4px 0'}}/>
+
+          {/* ═════ MASTER BUS ═════ */}
+          <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
+            <span style={{fontSize:6,fontWeight:800,color:'rgba(255,149,0,0.5)',letterSpacing:'0.12em',paddingLeft:2}}>MASTER BUS</span>
+            <div style={{display:'flex',gap:0,alignItems:'flex-start',borderRadius:7,border:'1px solid rgba(255,149,0,0.12)',padding:'6px 6px 8px',background:'rgba(255,149,0,0.03)'}}>
+
+              {/* FILTER + LFO */}
+              <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
+                <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec('filter','on',!gfx.filter.on)} midiId="__flt_on__"/>
+                <div style={{display:'flex',gap:3,marginBottom:6}}>
+                  {(['lowpass','highpass','bandpass'] as const).map(ft=>(
+                    <button key={ft} onClick={()=>upSec('filter','type',ft)}
+                      style={{flex:1,padding:'2px 0',borderRadius:3,border:`1px solid ${gfx.filter.type===ft?'#FF9500':'transparent'}`,background:gfx.filter.type===ft?'rgba(255,149,0,0.1)':'transparent',color:gfx.filter.type===ft?'#FF9500':th.faint,fontSize:6,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                      {ft==='lowpass'?'LP':ft==='highpass'?'HP':'BP'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:'flex',gap:8,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?'auto':'none'}}>
+                  <Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={(v:number)=>v>=1000?(v/1000).toFixed(1)+'k':Math.round(v)+'Hz'} onChange={(v:number)=>upSec('filter','cut',v)}/>
+                  <Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('filter','res',v)}/>
+                </div>
+                {/* LFO */}
+                <div style={{marginTop:6,display:'flex',alignItems:'center',gap:4}}>
+                  <button onClick={()=>upSec('filter','lfo',!(gfx.filter as any).lfo)}
+                    style={{padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${(gfx.filter as any).lfo?'#FF9500':'rgba(255,149,0,0.3)'}`,background:(gfx.filter as any).lfo?'rgba(255,149,0,0.15)':'transparent',color:(gfx.filter as any).lfo?'#FF9500':'rgba(255,149,0,0.5)'}}>
+                    LFO {(gfx.filter as any).lfo?'ON':'OFF'}
+                  </button>
+                  {(gfx.filter as any).lfo&&(['sine','triangle','square'] as const).map(sh=>(
+                    <button key={sh} onClick={()=>upSec('filter','lfoShape',sh)}
+                      style={{padding:'1px 4px',borderRadius:3,fontSize:7,fontWeight:700,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${(gfx.filter as any).lfoShape===sh?'#FF9500':'transparent'}`,background:(gfx.filter as any).lfoShape===sh?'rgba(255,149,0,0.1)':'transparent',color:(gfx.filter as any).lfoShape===sh?'#FF9500':th.faint}}>
+                      {sh==='sine'?'∿':sh==='triangle'?'△':'□'}
+                    </button>
+                  ))}
+                </div>
+                {(gfx.filter as any).lfo&&(
+                  <div style={{display:'flex',gap:8,marginTop:4,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?'auto':'none'}}>
+                    <Knob label="L.RATE" value={(gfx.filter as any).lfoRate??1.0} min={0.05} max={8} color="#FF9500" unit="Hz" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('filter','lfoRate',v)}/>
+                    <Knob label="L.DEPTH" value={(gfx.filter as any).lfoDepth??0} min={0} max={100} color="#FF9500" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('filter','lfoDepth',v)}/>
+                  </div>
+                )}
+              </div>
+
+              <Sep/>
+
+              {/* COMP */}
+              <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec('comp','on',!gfx.comp.on)} midiId="__cmp_on__"/>
+                <div style={{display:'flex',gap:8,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?'auto':'none'}}>
+                  <Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('comp','thr',v)}/>
+                  <Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('comp','ratio',v)}/>
+                </div>
+                <div style={{display:'flex',gap:8,marginTop:4,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?'auto':'none'}}>
+                  <Knob label="ATT" value={(gfx.comp as any).attack??5} min={1} max={100} color="#5E5CE6" unit="ms" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('comp','attack',v)}/>
+                  <Knob label="REL" value={(gfx.comp as any).release??80} min={20} max={500} color="#5E5CE6" unit="ms" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('comp','release',v)}/>
+                </div>
+                {/* GR meter */}
+                <div style={{marginTop:4,display:'flex',alignItems:'center',gap:4}}>
+                  <div style={{flex:1,height:3,borderRadius:2,background:th.sBorder,overflow:'hidden'}}>
+                    <div style={{height:'100%',width:`${Math.min(100,(grDb/20)*100)}%`,background:grDb>6?'#FF2D55':grDb>3?'#FF9500':'#5E5CE6',transition:'width 0.08s',borderRadius:2}}/>
+                  </div>
+                  <span style={{fontSize:6,color:'#5E5CE6',fontFamily:'monospace',minWidth:24,textAlign:'right'}}>{grDb>0.1?`-${grDb.toFixed(1)}`:' 0.0'}dB</span>
+                </div>
+              </div>
+
+              <Sep/>
+
+              {/* DRIVE multi-mode */}
+              <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec('drive','on',!gfx.drive.on)} midiId="__drv_on__"/>
+                <div style={{display:'flex',gap:2,marginBottom:4}}>
+                  {([{k:'tanh',l:'TUBE'},{k:'tape',l:'TAPE'},{k:'tube',l:'TRI'},{k:'bit',l:'BIT'}] as const).map(({k,l})=>(
+                    <button key={k} onClick={()=>upSec('drive','mode',k)}
+                      style={{flex:1,padding:'2px 0',borderRadius:3,border:`1px solid ${(gfx.drive as any).mode===k?'#FF6B35':'transparent'}`,background:(gfx.drive as any).mode===k?'rgba(255,107,53,0.1)':'transparent',color:(gfx.drive as any).mode===k?'#FF6B35':th.faint,fontSize:5,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>{l}</button>
+                  ))}
+                </div>
+                <div style={{opacity:gfx.drive.on?1:0.3,pointerEvents:gfx.drive.on?'auto':'none'}}>
+                  <Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={(v:number)=>Math.round(v)} unit="%" onChange={(v:number)=>upSec('drive','amt',v)}/>
+                </div>
+                <div style={{fontSize:6,color:'rgba(255,107,53,0.5)',marginTop:4,textAlign:'center',letterSpacing:'0.08em'}}>{(gfx.drive as any).mode||'tanh'} sat</div>
+              </div>
+
+              <Sep/>
+
+              {/* TRANSIENT shaper per track */}
+              <div style={{minWidth:120,flexShrink:0,paddingLeft:6}}>
+                <div style={{fontSize:8,fontWeight:800,color:'#30D158',marginBottom:8,paddingBottom:4,borderBottom:'1px solid rgba(48,209,88,0.2)'}}>TRANSIENT</div>
+                <div style={{fontSize:6,color:th.faint,marginBottom:4,letterSpacing:'0.06em'}}>ATK/SUS PER TRACK</div>
+                {tracks.slice(0,6).map(tr=>{
+                  const tFx=trackFx?.[tr.id]||{};
+                  return(
+                    <div key={tr.id} style={{display:'flex',alignItems:'center',gap:4,marginBottom:3}}>
+                      <span style={{fontSize:6,color:tr.color,minWidth:24,fontWeight:700}}>{(tr.label||tr.id).slice(0,3).toUpperCase()}</span>
+                      <button onClick={()=>onTrackFxChange(tr.id,'onTransient',!tFx.onTransient)}
+                        style={{padding:'0 4px',borderRadius:3,border:`1px solid ${tFx.onTransient?'#30D158':'rgba(48,209,88,0.3)'}`,background:tFx.onTransient?'rgba(48,209,88,0.15)':'transparent',color:tFx.onTransient?'#30D158':th.faint,fontSize:5,fontWeight:800,cursor:'pointer',fontFamily:'inherit'}}>
+                        {tFx.onTransient?'ON':'OFF'}
+                      </button>
+                      {tFx.onTransient&&(
+                        <>
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0}}>
+                            <span style={{fontSize:5,color:th.faint}}>A</span>
+                            <input type="range" min={-12} max={12} step={1} value={tFx.tsAttack||0}
+                              onChange={e=>onTrackFxChange(tr.id,'tsAttack',+e.target.value)}
+                              style={{width:40,accentColor:'#30D158'}}/>
+                          </div>
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0}}>
+                            <span style={{fontSize:5,color:th.faint}}>S</span>
+                            <input type="range" min={-12} max={12} step={1} value={tFx.tsSustain||0}
+                              onChange={e=>onTrackFxChange(tr.id,'tsSustain',+e.target.value)}
+                              style={{width:40,accentColor:'#30D158'}}/>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          </div>
+
         </div>
-      )}
+      </>)}
     </div>
   );
 }
@@ -830,15 +1245,30 @@ export default function KickAndSnare(){
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [kitIdx,setKitIdx]=useState(0);
-  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0,sends:{}},comp:{on:false,thr:-12,ratio:4,sends:{}},drive:{on:false,amt:0,sends:{}}});
+  const [gfx,setGfx]=useState({
+    reverb:{on:false,decay:1.5,size:0.5,type:'room',sends:{}},
+    delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
+    filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,sends:{}},
+    comp:{on:false,thr:-12,ratio:4,attack:5,release:80,sends:{}},
+    drive:{on:false,amt:0,mode:'tanh',sends:{}},
+    chorus:{on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
+    pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
+  });
+  const [fxChainOrder,setFxChainOrder]=useState<string[]>(['drive','comp','filter']);
+  const [fxSendPos,setFxSendPos]=useState<Record<string,string>>({reverb:'post',delay:'post',chorus:'post',flanger:'post',pingpong:'post'});
+  const [trackFx,setTrackFx]=useState<Record<string,any>>({});
+  const onTrackFxChange=(id:string,k:string,v:any)=>setTrackFx(p=>({...p,[id]:{...p[id],[k]:v}}));
   // Per-track send cursor: index into FX_SECS (0=reverb … 4=drive)
   const [trackSendCursor,setTrackSendCursor]=useState<{[tid:string]:number}>({});
   const upSend=(sec:string,tid:string,v:number)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
-  const [fxChainOrder,setFxChainOrder]=useState<string[]>(["filter","comp","drive","delay","reverb"]);
   useEffect(()=>{
     engine.onReady=()=>setIsAudioReady(true);
     engine.isMobile=isMobileRef.current;
   },[]);
+  useEffect(()=>{
+    if(engine.ctx&&engine.rebuildChain)engine.rebuildChain(fxChainOrder,fxSendPos);
+  },[fxChainOrder,fxSendPos]);
   // ── H.2a: Portrait orientation listener ──
   useEffect(()=>{
     const h=()=>setIsPortrait(window.innerHeight>window.innerWidth);
@@ -2010,8 +2440,13 @@ export default function KickAndSnare(){
             const aHH=act.includes("hihat");const aS=act.includes("snare");const aK=act.includes("kick");
             const aT=act.includes("tom");const aRide=act.includes("ride");const aCrash=act.includes("crash");
             const aClap=act.includes("clap");const aPerc=act.includes("perc");
+            const bpmMs=60000/Math.max(30,bpm||120);
+            const bobDur=`${(bpmMs/1000).toFixed(3)}s`;
             return(
-              <svg viewBox="0 0 130 52" width="130" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents",filter:playing?(anyHit?"drop-shadow(0 0 8px rgba(255,45,85,0.7))":"drop-shadow(0 0 4px rgba(255,149,0,0.45))"):"none",transition:"filter 0.08s"}}>
+              <svg viewBox="0 0 130 52" width="130" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents",filter:playing?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
+                {/* Halo ring behind mascot — synced with BPM */}
+                {playing&&<ellipse cx="44" cy="24" rx="28" ry="26" fill="none" stroke={anyHit?"#FF2D55":"#FF9500"} strokeWidth={0.8} opacity={0} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite`,transformOrigin:"44px 24px"}}/>}
+                {playing&&<ellipse cx="44" cy="24" rx="22" ry="20" fill="none" stroke={anyHit?"rgba(255,45,85,0.3)":"rgba(255,149,0,0.2)"} strokeWidth={anyHit?2:1} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite alternate`}}/>}
                 {/* Hi-hat */}
                 {aHH&&<g>
                   <line x1="14" y1="16" x2="14" y2="50" stroke="#ccc" strokeWidth="0.7"/>
@@ -2077,7 +2512,7 @@ export default function KickAndSnare(){
                   <line x1="8" y1="33" x2="8" y2="45" stroke={hC?"#5E5CE6":"#bbb"} strokeWidth={hC?1.2:0.7}/>
                   {hC&&<><line x1="4" y1="25" x2="2" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/><line x1="12" y1="25" x2="14" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>}
-                <g style={{animation:playing?"mbob 0.45s ease-in-out infinite":anyHit?"none":"none",transformBox:"fill-box"}}>
+                <g style={{animation:playing?`mbob ${bobDur} ease-in-out infinite`:anyHit?"none":"none",transformBox:"fill-box"}}>
                   <ellipse cx="44" cy="38" rx="6" ry="2" fill="none" stroke="#bbb" strokeWidth="0.8"/>
                   <line x1="38" y1="38" x2="36" y2="50" stroke="#bbb" strokeWidth="0.7"/><line x1="50" y1="38" x2="52" y2="50" stroke="#bbb" strokeWidth="0.7"/>
                   <path d="M41,37 Q37,43 33,49" fill="none" stroke={ac} strokeWidth="2" strokeLinecap="round"/>
@@ -2233,7 +2668,14 @@ export default function KickAndSnare(){
         </div>)}
 
         {/* ── Global FX Rack ── */}
-        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag} isPortrait={isPortrait} fxChainOrder={fxChainOrder} setFxChainOrder={setFxChainOrder} onChainOrderChange={(o:string[])=>{engine.setSerialOrder(o);}} />
+        <FXRack
+          gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm}
+          midiLM={midiLM} MidiTag={MidiTag} isPortrait={isPortrait}
+          fxChainOrder={fxChainOrder} setFxChainOrder={setFxChainOrder}
+          onChainOrderChange={(o:string[])=>{if(engine.rebuildChain)engine.rebuildChain(o,fxSendPos);else if(engine.setSerialOrder)engine.setSerialOrder(o);}}
+          fxSendPos={fxSendPos} setFxSendPos={setFxSendPos}
+          trackFx={trackFx} onTrackFxChange={onTrackFxChange}
+        />
 
         {/* ── Pattern Bank + Song Arranger ── */}
         {view!=="pads"&&<PatternBank

@@ -101,8 +101,8 @@
 
 /* ── Mascot halo ring ── */
 @keyframes mascotHalo {
-  0%, 100% { opacity: 0.18; r: 30; }
-  50%       { opacity: 0.45; r: 32; }
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(1.08); }
 }
 
 /* ── Track row hit flash ── */
