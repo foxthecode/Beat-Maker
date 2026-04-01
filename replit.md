@@ -93,24 +93,31 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 
 ### `artifacts/kick-and-snare` (`@workspace/kick-and-snare`)
 
-Browser-based TR-808 drum sequencer (React + Vite, port 24007).
+Browser-based TR-808 drum sequencer v9.0 "DRUM EXPERIENCE" (React + Vite, port 24007).
 
-**Key features (v8):**
-- **808 synthesis**: All default sounds pre-rendered via `OfflineAudioContext` at startup. Custom cowbell tracks. `_syn(id,t,v,d,octx,sh)` signature with optional SHAPE params.
-- **SHAPE system**: 6 SHAPE params (`sDec·sTune·sPunch·sSnap·sBody·sTone`) in `defFx()`. FX panel "Shape" section with per-instrument params. On change → 280ms debounce → `engine.renderShape(id, fxObj)` re-renders + auto-plays preview.
-- **Vol/Pan**: Permanent round drag buttons in track header (ring-fill conic-gradient visual, drag ↕, dbl-click reset). Removed from FX dropdown.
-- **LIVE PADS** (tab, renamed from "Pads"):
-  - Always-on ring buffer (`ringBufRef`) recording last 4 bars of pad hits
-  - **⊙ CAPTURE**: retrospective capture — takes last N bars, maps to steps, review or auto-commit
-  - **OVERDUB**: real-time step-write while sequencer plays
-  - **AUTO-Q toggle**: quantize on capture vs review mode
-  - **Review strip**: per-track pastille strips + GARDER / QUANTIZE / DISCARD toolbar
-  - Velocity: touch/tablet → 110/127 fixed, MIDI → variable from MIDI message
-- **Multi-view**: Sequencer, LIVE PADS, Euclid (with independent per-track polyrhythm clocks)
+**Key features (v9.0):**
+- **808 synthesis**: All default sounds pre-rendered via `OfflineAudioContext` at startup. `_syn(id,t,v,d,octx,sh)` signature with optional 6-SHAPE params.
+- **SHAPE system**: 6 SHAPE params (`sDec·sTune·sPunch·sSnap·sBody·sTone`) in `defFx()`. FX panel "Shape" section per instrument. On change → 280ms debounce → `engine.renderShape(id, fxObj)` re-renders + auto-plays preview.
+- **Drum Kit system (v9)**: 8 named kits with real samples + synthesis fallback.
+  - `DRUM_KITS` array: 808 Classic🔴, Trap⬡, Jazz Kit🎷, Lo-Fi📼, Electronic⚡, Acoustic🥁, Afrobeat🌍, Latin🔥
+  - Real MP3 samples downloaded to `public/samples/{cr78,kit3,kit8}/{kick,snare,hihat}.mp3`
+  - `engine.loadUrl(id, url)` fetches + decodes audio buffer from local URL
+  - Jazz→Kit3, Lo-Fi→CR78, Acoustic→Kit8 samples; synthesis-only kits use dramatic shape multipliers
+  - `applyKit()` loads samples async (with renderShape fallback on failure) + updates smpN labels
+  - Kit selector UI: ◀ icon+name ▶ left of mascot
+- **Sequencer Templates**: 15 multi-genre patterns (16/32 steps, humanized velocities)
+- **Euclidean Sequencer**: 12 polyrhythm presets, blank-slate reset on template load
+- **FX Rack**: 5 effects (filter, compressor, drive, delay, reverb) + 10 presets + drag-reorder
+- **Looper**: hit drag for repositioning, quantize, auto-Q, retrospective capture
+- **LIVE PADS**: ring buffer 4-bar capture, overdub, velocity sensitivity
+- **Multi-view**: Sequencer, LIVE PADS, Euclid tabs
 - **Ableton Link sync** via local WebSocket bridge (`link-bridge/bridge.js:9898`)
 - **Web MIDI** input + MIDI learn
 - **Song Arranger**, **Pattern Banks** (8 patterns)
-- **Inline styles only** via `THEMES["dark"|"daylight"]`
+- **WAV export** (OfflineAudioContext stereo, 1B/2B/4B selector)
+- **URL share** (base64 + hex nibble steps)
+- **PWA/TWA** manifest + service worker
+- **Onboarding overlay** on first launch
 
 ### `scripts` (`@workspace/scripts`)
 

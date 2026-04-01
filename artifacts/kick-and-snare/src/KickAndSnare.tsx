@@ -83,18 +83,35 @@ const DEFAULT_FX = Object.freeze({
   sTone:1.0, // brightness/high-freq ×
 });
 
-// ── Drum Kits — synthesis shape presets ──────────────────────────────────────
-// Each kit morphs timbre via _syn shape params (multipliers around 1.0)
+// ── Drum Kits — real samples + synthesis fallback ─────────────────────────────
+// samples: partial map of track-id → local URL (kick/snare/hihat from pre-loaded packs)
+// shape:   _syn multipliers applied when no real sample is available, OR pre-rendered if ctx ready
 const DRUM_KITS=[
-  {id:"808",      name:"808 Classic",  icon:"🔴",shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
-  {id:"trap",     name:"Trap",         icon:"⬡", shape:{sDec:1.4, sTune:0.82, sPunch:1.5, sSnap:0.8, sBody:1.2, sTone:1.1 }},
-  {id:"jazz",     name:"Jazz Kit",     icon:"🎷",shape:{sDec:1.5, sTune:1.1,  sPunch:0.7, sSnap:1.4, sBody:0.8, sTone:0.9 }},
-  {id:"lofi",     name:"Lo-Fi",        icon:"📼",shape:{sDec:0.9, sTune:0.95, sPunch:0.8, sSnap:0.7, sBody:1.1, sTone:0.8 }},
-  {id:"electro",  name:"Electronic",   icon:"⚡",shape:{sDec:0.6, sTune:1.2,  sPunch:1.6, sSnap:1.6, sBody:0.9, sTone:1.3 }},
-  {id:"acoustic", name:"Acoustic",     icon:"🥁",shape:{sDec:1.2, sTune:1.05, sPunch:0.9, sSnap:1.2, sBody:1.3, sTone:1   }},
-  {id:"afrobeat", name:"Afrobeat",     icon:"🌍",shape:{sDec:0.8, sTune:1,    sPunch:1.1, sSnap:1.4, sBody:1,   sTone:1.1 }},
-  {id:"latin",    name:"Latin",        icon:"🔥",shape:{sDec:0.7, sTune:1.1,  sPunch:1.2, sSnap:1.5, sBody:0.9, sTone:1.2 }},
-] as const;
+  {id:"808",      name:"808 Classic",  icon:"🔴",
+   samples:{} as Record<string,string>,
+   shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
+  {id:"trap",     name:"Trap",         icon:"⬡",
+   samples:{} as Record<string,string>,
+   shape:{sDec:2.8, sTune:0.52, sPunch:2.2, sSnap:0.3, sBody:2,   sTone:0.75}},
+  {id:"jazz",     name:"Jazz Kit",     icon:"🎷",
+   samples:{kick:`${import.meta.env.BASE_URL}samples/kit3/kick.mp3`,snare:`${import.meta.env.BASE_URL}samples/kit3/snare.mp3`,hihat:`${import.meta.env.BASE_URL}samples/kit3/hihat.mp3`},
+   shape:{sDec:2.2, sTune:1.1,  sPunch:0.5, sSnap:2.5, sBody:0.65,sTone:0.85}},
+  {id:"lofi",     name:"Lo-Fi",        icon:"📼",
+   samples:{kick:`${import.meta.env.BASE_URL}samples/cr78/kick.mp3`,snare:`${import.meta.env.BASE_URL}samples/cr78/snare.mp3`,hihat:`${import.meta.env.BASE_URL}samples/cr78/hihat.mp3`},
+   shape:{sDec:0.8, sTune:0.9,  sPunch:0.7, sSnap:0.5, sBody:1.15,sTone:0.65}},
+  {id:"electro",  name:"Electronic",   icon:"⚡",
+   samples:{} as Record<string,string>,
+   shape:{sDec:0.3, sTune:1.5,  sPunch:2.8, sSnap:2.8, sBody:0.7, sTone:1.7 }},
+  {id:"acoustic", name:"Acoustic",     icon:"🥁",
+   samples:{kick:`${import.meta.env.BASE_URL}samples/kit8/kick.mp3`,snare:`${import.meta.env.BASE_URL}samples/kit8/snare.mp3`,hihat:`${import.meta.env.BASE_URL}samples/kit8/hihat.mp3`},
+   shape:{sDec:1.5, sTune:1.08, sPunch:0.85,sSnap:1.6, sBody:1.5, sTone:1   }},
+  {id:"afrobeat", name:"Afrobeat",     icon:"🌍",
+   samples:{} as Record<string,string>,
+   shape:{sDec:0.6, sTune:1.05, sPunch:1.4, sSnap:2.0, sBody:1.1, sTone:1.3 }},
+  {id:"latin",    name:"Latin",        icon:"🔥",
+   samples:{} as Record<string,string>,
+   shape:{sDec:0.45,sTune:1.25, sPunch:1.6, sSnap:2.3, sBody:0.75,sTone:1.5 }},
+];
 type DrumKit=typeof DRUM_KITS[number];
 
 // Template → kit mapping (no need to modify template files)
@@ -355,6 +372,15 @@ class Eng{
     if(c.pan.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,t,0.02);
   }
   async load(id,file){this.init();if(!this.ch[id])this._build(id);try{const a=await file.arrayBuffer();this.buf[id]=await this.ctx.decodeAudioData(a);return true;}catch(e){return false;}}
+  async loadUrl(id,url){
+    this.init();if(!this.ch[id])this._build(id);
+    try{
+      const resp=await fetch(url);if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+      const ab=await resp.arrayBuffer();
+      this.buf[id]=await this.ctx.decodeAudioData(ab);
+      return true;
+    }catch(e){console.warn('[Kit] loadUrl failed',id,url,e);return false;}
+  }
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
     if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));}
@@ -1635,20 +1661,24 @@ export default function KickAndSnare(){
   R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
 
   // ── Kit applier ─────────────────────────────────────────────────────────────
-  const applyKit=(kit:DrumKit)=>{
+  const applyKit=(kit:typeof DRUM_KITS[number])=>{
     const idx=DRUM_KITS.findIndex(k=>k.id===kit.id);
     setKitIdx(Math.max(0,idx));
-    // Apply shape params to all tracks AND re-render buffers with new timbre
+    const kitSamples=kit.samples as Record<string,string>;
+    // Build updated fx map locally (needed before React state batch)
     setFx(prev=>{
       const next={...prev};
       Object.keys(next).forEach(tid=>{
         const newFx={...next[tid],...kit.shape};
         next[tid]=newFx;
-        if(engine.ctx){
-          // Context ready: bake new timbre into buffer immediately
+        if(kitSamples[tid]){
+          // Load real sample from local URL, fall back to synthesis if it fails
+          engine.loadUrl(tid,kitSamples[tid]).then(ok=>{
+            if(!ok&&engine.ctx)engine.renderShape(tid,newFx).catch(()=>{});
+          });
+        } else if(engine.ctx){
           engine.renderShape(tid,newFx).catch(()=>{});
         } else {
-          // Context not yet initialized: clear buffer so next play() uses _syn with new shape
           delete (engine.buf as any)[tid];
         }
       });
@@ -1657,7 +1687,11 @@ export default function KickAndSnare(){
     // Update display labels
     setSmpN(prev=>{
       const next={...prev};
-      ALL_TRACKS.forEach(tr=>{next[tr.id]=`${tr.label} · ${kit.name}`;});
+      ALL_TRACKS.forEach(tr=>{
+        next[tr.id]=kitSamples[tr.id]
+          ?`${tr.label} · ${kit.name} [sample]`
+          :`${tr.label} · ${kit.name}`;
+      });
       return next;
     });
   };
