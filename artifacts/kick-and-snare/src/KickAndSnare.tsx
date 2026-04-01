@@ -1427,10 +1427,10 @@ export default function KickAndSnare(){
             <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
             <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
-            <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s"}}>
+            <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
+
               <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("sequencer");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
               <button onClick={()=>{if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});setView("euclid");}} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
-              <button onClick={()=>setView("hybrid")} style={{padding:"5px 11px",border:"none",borderRadius:0,background:view==="hybrid"?"#30D15818":"transparent",color:view==="hybrid"?"#30D158":th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⊞ HYBRID</button>
             </div>
           </div>
         </div>
@@ -1997,67 +1997,6 @@ export default function KickAndSnare(){
                 style={{width:"100%",padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ ANNULER</button>
             </div>
           </>
-        );
-      })()}
-      {/* ── HYBRID VIEW: mini Euclid (40%) + Sequencer grid (60%) ── */}
-      {view==="hybrid"&&(()=>{
-        const SZ=isPortrait?180:160;
-        const CX=SZ/2,CY=SZ/2;
-        const R_OUT=SZ/2-8,R_IN=atO.length>1?14:R_OUT;
-        const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
-        const getP=(tid:string)=>{const ep=euclidParams[tid]||{};const N=trackSteps[tid]||STEPS;return{N,hits:Math.min(ep.hits||0,N),rot:(ep.rot||0)%Math.max(N,1)};};
-        const miniSvg=(
-          <svg width={SZ} height={SZ} style={{display:"block",flexShrink:0}}>
-            {atO.map((tr,ri)=>{
-              const rv=R_IN+ri*ringGap;
-              const {N,hits,rot}=getP(tr.id);
-              const raw=euclidRhythm(hits,N);
-              const rotated=[...raw.slice(rot),...raw.slice(0,rot)];
-              const isActive=cStep>=0;
-              return rotated.map((on,si)=>{
-                const ang=2*Math.PI*si/N-Math.PI/2;
-                const px=CX+rv*Math.cos(ang),py=CY+rv*Math.sin(ang);
-                const isCur=isActive&&(si===cStep%N);
-                return(<circle key={si} cx={px} cy={py} r={on?5:3} fill={on?(isCur?"#fff":tr.color||"#FF2D55"):"rgba(255,255,255,0.12)"} opacity={on||isCur?1:0.5}/>);
-              });
-            })}
-          </svg>
-        );
-        const seqGrid=(
-          <div style={{display:"flex",flexDirection:"column",gap:0,flex:1,overflow:"hidden",position:"relative"}}
-            onTouchStart={e=>{touchSwipeRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY,target:e.target};}}
-            onTouchEnd={e=>{
-              const dx=e.changedTouches[0].clientX-touchSwipeRef.current.x;
-              const dy=Math.abs(e.changedTouches[0].clientY-touchSwipeRef.current.y);
-              if(Math.abs(dx)>60&&dy<30&&!(touchSwipeRef.current.target as HTMLElement)?.dataset?.step){
-                if(dx<0)undo(); else redo();
-              }
-            }}>
-            {atO.map(track=>{
-              const isM=!!muted[track.id];const isS=soloed===track.id;const aud=soloed?isS:!isM;
-              const tsOpts=[STEPS,STEPS*2];const tSteps=tsOpts.includes(trackSteps[track.id])?trackSteps[track.id]:STEPS;
-              return(<TrackRow key={track.id} track={track} tSteps={tSteps} STEPS={STEPS} pat={pat[track.id]} cStep={cStep} stVel={stVel[track.id]} stNudge={stNudge[track.id]} stProb={stProb[track.id]} stRatch={stRatch[track.id]} dragInfo={dragInfo} fx={fx[track.id]||{...DEFAULT_FX}} flash={flash===track.id} aud={aud} smpN={smpN[track.id]} MidiTag={MidiTag} actLength={act.length} themeName={themeName} gInfo={gInfo} isMuted={isM} isSoloed={isS} isPortrait={isPortrait}
-                onStepDown={(step,e)=>{if(e.shiftKey&&handleShiftClick(track.id,step,e))return;startDrag(track.id,step,e);}}
-                onContextMenu={(step,e)=>e.preventDefault()}
-                onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
-                onSoloToggle={()=>setSoloed(p=>p===track.id?null:track.id)}
-                onLoadSample={()=>ldFile(track.id)}
-                onRemove={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
-                onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
-                onStepCountChange={(nt)=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nt}};cp[track.id]=remap(cp[track.id],tSteps,nt);n[cPat]=cp;return n;});}}
-                onClear={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}}
-              />);
-            })}
-          </div>
-        );
-        return(
-          <div style={{display:"flex",flexDirection:isPortrait?"column":"row",gap:8,marginBottom:8}}>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flexShrink:0}}>
-              <span style={{fontSize:7,fontWeight:700,color:"#FFD60A",letterSpacing:"0.1em"}}>EUCLID</span>
-              {miniSvg}
-            </div>
-            {seqGrid}
-          </div>
         );
       })()}
       {velPicker&&(()=>{
