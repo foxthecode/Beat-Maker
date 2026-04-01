@@ -83,6 +83,37 @@ const DEFAULT_FX = Object.freeze({
   sTone:1.0, // brightness/high-freq ×
 });
 
+// ── Drum Kits — synthesis shape presets ──────────────────────────────────────
+// Each kit morphs timbre via _syn shape params (multipliers around 1.0)
+const DRUM_KITS=[
+  {id:"808",      name:"808 Classic",  icon:"🔴",shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
+  {id:"trap",     name:"Trap",         icon:"⬡", shape:{sDec:1.4, sTune:0.82, sPunch:1.5, sSnap:0.8, sBody:1.2, sTone:1.1 }},
+  {id:"jazz",     name:"Jazz Kit",     icon:"🎷",shape:{sDec:1.5, sTune:1.1,  sPunch:0.7, sSnap:1.4, sBody:0.8, sTone:0.9 }},
+  {id:"lofi",     name:"Lo-Fi",        icon:"📼",shape:{sDec:0.9, sTune:0.95, sPunch:0.8, sSnap:0.7, sBody:1.1, sTone:0.8 }},
+  {id:"electro",  name:"Electronic",   icon:"⚡",shape:{sDec:0.6, sTune:1.2,  sPunch:1.6, sSnap:1.6, sBody:0.9, sTone:1.3 }},
+  {id:"acoustic", name:"Acoustic",     icon:"🥁",shape:{sDec:1.2, sTune:1.05, sPunch:0.9, sSnap:1.2, sBody:1.3, sTone:1   }},
+  {id:"afrobeat", name:"Afrobeat",     icon:"🌍",shape:{sDec:0.8, sTune:1,    sPunch:1.1, sSnap:1.4, sBody:1,   sTone:1.1 }},
+  {id:"latin",    name:"Latin",        icon:"🔥",shape:{sDec:0.7, sTune:1.1,  sPunch:1.2, sSnap:1.5, sBody:0.9, sTone:1.2 }},
+] as const;
+type DrumKit=typeof DRUM_KITS[number];
+
+// Template → kit mapping (no need to modify template files)
+const TEMPLATE_KITS:Record<string,string>={
+  classic_808:"808",boom_bap:"808",reggae:"808",
+  trap:"trap",
+  jazz_swing:"jazz",
+  lofi:"lofi",
+  house:"electro",techno_909:"electro",dnb:"electro",uk_garage:"electro",
+  funk:"acoustic",gospel:"acoustic",
+  bossa_nova:"latin",samba:"latin",
+  afrobeat:"afrobeat",
+  // Euclid
+  tresillo:"latin",cinquillo:"latin",son_clave:"latin",bossa_bell:"latin",
+  west_african_bell:"afrobeat",kpanlogo:"afrobeat",venda:"afrobeat",
+  ruchenitza:"acoustic",aksak:"acoustic",nawakhat:"acoustic",hemiola_4_3:"jazz",
+  reich_phase:"electro",
+};
+
 const DELAY_DIVS=["1/4","1/8","1/16","1/4d","1/8d","1/4t","1/8t"];
 const divToSec=(div,bpm)=>{const b=60/bpm;const m={"1/4":b,"1/8":b/2,"1/16":b/4,"1/4d":b*1.5,"1/8d":b*0.75,"1/4t":b*2/3,"1/8t":b/3};return m[div]||b;};
 
@@ -768,6 +799,7 @@ export default function KickAndSnare(){
   const [euclidParams,setEuclidParams]=useState({});
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
+  const [kitIdx,setKitIdx]=useState(0);
   const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0,sends:{}},comp:{on:false,thr:-12,ratio:4,sends:{}},drive:{on:false,amt:0,sends:{}}});
   // Per-track send cursor: index into FX_SECS (0=reverb … 4=drive)
   const [trackSendCursor,setTrackSendCursor]=useState<{[tid:string]:number}>({});
@@ -1598,6 +1630,26 @@ export default function KickAndSnare(){
   const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
   R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
 
+  // ── Kit applier ─────────────────────────────────────────────────────────────
+  const applyKit=(kit:DrumKit)=>{
+    const idx=DRUM_KITS.findIndex(k=>k.id===kit.id);
+    setKitIdx(Math.max(0,idx));
+    // Apply shape params to all existing tracks
+    setFx(prev=>{
+      const next={...prev};
+      Object.keys(next).forEach(tid=>{next[tid]={...next[tid],...kit.shape};});
+      return next;
+    });
+    // Clear synth buffers so next play() re-renders with new shape
+    if(engine.buf){Object.keys(engine.buf).forEach(tid=>{delete (engine.buf as any)[tid];});}
+    // Update display labels
+    setSmpN(prev=>{
+      const next={...prev};
+      ALL_TRACKS.forEach(tr=>{next[tr.id]=`${tr.label} · ${kit.name}`;});
+      return next;
+    });
+  };
+
   const loadTemplate=(tpl:typeof SEQUENCER_TEMPLATES[0],variant:"16"|"32"="16")=>{
     pushHistory();
     const use32=variant==="32"&&!!tpl.steps32;
@@ -1628,6 +1680,9 @@ export default function KickAndSnare(){
     // Activate all tracks used in this template
     setAct(prev=>{const next=[...prev];tplIds.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     if(tpl.bpm)setBpm(tpl.bpm);
+    // Apply default kit for this template
+    const kitId=TEMPLATE_KITS[tpl.id];
+    if(kitId){const kit=DRUM_KITS.find(k=>k.id===kitId);if(kit)applyKit(kit);}
     setSwipeToast(`${(tpl as any).icon||"✓"} ${tpl.name} · ${ns} steps`);
     setTimeout(()=>setSwipeToast(null),1200);
   };
@@ -1666,6 +1721,9 @@ export default function KickAndSnare(){
     // ── 3. Activate ONLY the tracks in this preset ──
     setAct(newTids);
     if(tpl.bpm)setBpm(tpl.bpm);
+    // Apply default kit for this euclid preset
+    const kitId=TEMPLATE_KITS[tpl.id];
+    if(kitId){const kit=DRUM_KITS.find(k=>k.id===kitId);if(kit)applyKit(kit);}
     setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidean`);
     setTimeout(()=>setSwipeToast(null),1400);
   };
@@ -1844,8 +1902,43 @@ export default function KickAndSnare(){
               <div className="subtitleAnim" style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM EXPERIENCE</div>
             </div>
           </div>
-          {/* Animated drummer mascot + UNDO/REDO */}
+          {/* Animated drummer mascot + kit selector + UNDO/REDO */}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {/* ── Kit selector ↑/name/↓ ── */}
+          {(()=>{
+            const curKit=DRUM_KITS[kitIdx]||DRUM_KITS[0];
+            const btnSt=(dir)=>({
+              width:20,height:16,border:`1px solid ${th.sBorder}`,borderRadius:3,
+              background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontFamily:"inherit",padding:0,lineHeight:1,
+              transition:"all 0.12s",
+            });
+            return(
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0}}>
+                <button
+                  style={btnSt("up")}
+                  onClick={()=>{const ni=(kitIdx-1+DRUM_KITS.length)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);}}
+                  title="Previous kit"
+                >▲</button>
+                <div style={{
+                  minWidth:58,maxWidth:70,padding:"2px 4px",borderRadius:4,
+                  border:`1px solid ${th.sBorder}`,background:th.surface,
+                  textAlign:"center",fontSize:7,fontWeight:700,
+                  color:"#FF9500",letterSpacing:"0.04em",lineHeight:1.3,
+                  cursor:"default",userSelect:"none",
+                }}>
+                  <div style={{fontSize:10}}>{curKit.icon}</div>
+                  <div style={{fontSize:6.5,color:th.dim,letterSpacing:"0.06em",textTransform:"uppercase"}}>{curKit.name}</div>
+                </div>
+                <button
+                  style={btnSt("down")}
+                  onClick={()=>{const ni=(kitIdx+1)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);}}
+                  title="Next kit"
+                >▼</button>
+              </div>
+            );
+          })()}
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
             const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
@@ -1962,30 +2055,6 @@ export default function KickAndSnare(){
                   </g>
                 </g>
               </svg>
-            );
-          })()}
-          {/* ── Beat indicator dots ── */}
-          {(()=>{
-            const nBeats=sig.groups.length;
-            const curBeat=playing&&cStep>=0?gInfo(cStep).gi:-1;
-            const beatColors=["#FF2D55","#FF9500","#FFD60A","#30D158","#5E5CE6","#64D2FF","#BF5AF2","#FF6B35"];
-            return(
-              <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center",justifyContent:"center",padding:"0 2px"}}>
-                {Array.from({length:nBeats},(_, i)=>{
-                  const col=beatColors[i%beatColors.length];
-                  const active=i===curBeat;
-                  return(
-                    <div key={i} style={{
-                      width:5,height:5,borderRadius:"50%",
-                      background:active?col:`${col}33`,
-                      boxShadow:active?`0 0 6px ${col}`:"none",
-                      animation:active?"beatDot 0.25s ease-out 1":"none",
-                      transition:"background 0.04s,box-shadow 0.04s",
-                    }}/>
-                  );
-                })}
-                {!playing&&<div style={{width:4,height:4,borderRadius:"50%",background:th.sBorder,opacity:0.3}}/>}
-              </div>
             );
           })()}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
