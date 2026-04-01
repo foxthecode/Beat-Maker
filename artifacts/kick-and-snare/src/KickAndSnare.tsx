@@ -2057,10 +2057,13 @@ export default function KickAndSnare(){
     clearTimeout(loopRef.current.schTimer);
     cancelAnimationFrame(loopPhRef.current);
     loopRef.current.audioStart=null;
+    R.loopRec=false; // immediate ref — stop capturing before next render
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
   const _armLoopRec=async(forcedStart?:number)=>{
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
+    // Set ref immediately so trigPad captures hits without waiting for React re-render
+    R.loopRec=true;
     setLoopRec(true);await startLooper(true,forcedStart);
   };
   const toggleLoopRec=()=>{
@@ -2086,9 +2089,10 @@ export default function KickAndSnare(){
       }
     }else if(!loopRec){
       // Playing but not recording → overdub: add new pass over existing loop
-      loopRef.current.passId++;setLoopRec(true);
+      loopRef.current.passId++;R.loopRec=true;setLoopRec(true);
     }else{
       // Stop recording, keep playing
+      R.loopRec=false; // immediate ref — stop capturing before next render
       setLoopRec(false);
     }
   };
