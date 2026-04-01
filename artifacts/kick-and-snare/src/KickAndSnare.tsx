@@ -2826,7 +2826,7 @@ export default function KickAndSnare(){
               <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.08em"}}>LOOPER</span>
               {loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#FF2D55",animation:"rb 0.8s infinite"}}>● REC</span>}
               {loopPlaying&&!loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#30D158"}}>▶ PLAY</span>}
-              {recCountdown&&<span style={{fontSize:7,fontWeight:800,color:"#FF9500",animation:"rb 0.5s infinite"}}>DÉCOMPTE…</span>}
+              {recCountdown&&<span style={{fontSize:7,fontWeight:800,color:"#FF9500",animation:"rb 0.5s infinite"}}>COUNTDOWN…</span>}
               <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showLooper?"▲":"▼"}</span>
             </button>
             {showLooper&&(
@@ -2834,7 +2834,7 @@ export default function KickAndSnare(){
                 {recCountdown&&(
                   <div style={{position:"relative",marginBottom:8,padding:"7px 10px",borderRadius:7,background:"rgba(255,149,0,0.06)",border:"1px solid rgba(255,149,0,0.35)",overflow:"hidden"}}>
                     <div style={{position:"absolute",top:0,left:0,height:"100%",background:"rgba(255,149,0,0.12)",animation:`recCountBar ${((60000/Math.max(30,bpm))*sig.beats/1000).toFixed(2)}s linear forwards`}}/>
-                    <span style={{position:"relative",fontSize:8,fontWeight:800,color:"#FF9500",letterSpacing:"0.08em"}}>🎵 DÉCOMPTE — REC dans 1 barre…</span>
+                    <span style={{position:"relative",fontSize:8,fontWeight:800,color:"#FF9500",letterSpacing:"0.08em"}}>🎵 COUNTDOWN — REC in 1 bar…</span>
                   </div>
                 )}
                 <LooperPanel

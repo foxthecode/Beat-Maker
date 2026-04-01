@@ -52,11 +52,7 @@ export default function LooperPanel({
   const QUANT_LABELS = { 4: "1/4", 8: "1/8", 12: "1/8T", 16: "1/16", 24: "1/16T", 32: "1/32" };
   const QUANT_TRIPLET = new Set([12, 24]);
 
-  const recLabel = loopRec
-    ? "■ STOP REC"
-    : loopMetro && !loopPlaying
-      ? "⏺ REC + DÉCOMPTE"
-      : "⏺ REC";
+  const recLabel = loopRec ? "■ STOP REC" : "⏺ REC";
 
   const loopDurMs = loopBars * 4 * (60000 / Math.max(30, bpm || 120));
   const totalSteps = loopBars * 16;
@@ -93,14 +89,6 @@ export default function LooperPanel({
             {b}
           </button>
         ))}
-        {!loopPlaying && (
-          <button onClick={() => setLoopMetro(p => !p)} style={{
-            ...pill(loopMetro, "#FF9500"),
-            padding: "3px 9px", minHeight: "auto", marginLeft: "auto",
-          }}>
-            {loopMetro ? "🎵 ON" : "🎵 DÉCOMPTE"}
-          </button>
-        )}
       </div>
 
       {/* ── QUANTIZE toolbar (shown when there are events or always) ── */}
@@ -368,6 +356,18 @@ export default function LooperPanel({
         {!loopRec && (
           <button onClick={loopPlaying ? onFreshRec : onToggleRec} style={pill(false, "#FF2D55")}>
             {recLabel}
+          </button>
+        )}
+        {!loopPlaying && !loopRec && setLoopMetro && (
+          <button
+            onClick={() => setLoopMetro(p => !p)}
+            title={loopMetro ? "Désactiver le countdown" : "Activer le countdown avant l'enregistrement"}
+            style={{
+              ...pill(loopMetro, "#FF9500"),
+              padding: "3px 9px", minHeight: "auto",
+            }}
+          >
+            {loopMetro ? "COUNTDOWN ON" : "COUNTDOWN"}
           </button>
         )}
         {loopRec && (
