@@ -328,7 +328,7 @@ const syncDivTime=(div,bpmV)=>{const d=SYNC_DIVS.find(x=>x.l===div)||SYNC_DIVS[2
 
 function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null}){
   const th=THEMES[themeName]||THEMES.dark;
-  const [open,setOpen]=useState(true);
+  const [open,setOpen]=useState(false);
   const upSec=(sec,k,v)=>setGfx(p=>({...p,[sec]:{...p[sec],[k]:v}}));
   const upSend=(sec,tid,v)=>setGfx(p=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
 
@@ -1713,7 +1713,7 @@ export default function KickAndSnare(){
                             </div>
                           );
                         })()}
-                        {/* ── Body (unfolded): N / HITS / ROT spinners ── */}
+                        {/* ── Body (unfolded): N / HITS spinners row ── */}
                         {!p.fold&&(
                           <div style={{display:"flex",flexDirection:"column",gap:5}}>
                             <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
@@ -1726,11 +1726,13 @@ export default function KickAndSnare(){
                               <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
                               <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
                               <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
-                              <span style={sep0}>·</span>
+                            </div>
+                            {/* ── ROT on its own row so it never overflows ── */}
+                            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
                               <span style={lbl0}>ROT</span>
-                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.max(0,p.rot-1));}} style={arw}>‹</button>
+                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,((p.rot-1+p.N)%Math.max(p.N,1)));}} style={arw}>‹</button>
                               <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
-                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,Math.min(Math.max(p.N-1,0),p.rot+1));}} style={arw}>›</button>
+                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,(p.rot+1)%Math.max(p.N,1));}} style={arw}>›</button>
                             </div>
                           </div>
                         )}

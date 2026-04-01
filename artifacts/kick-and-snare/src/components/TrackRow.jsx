@@ -62,7 +62,7 @@ function TrackRow({
     <div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 6, opacity: aud ? 1 : 0.3, padding: "4px 0" }}>
         {/* Track Label + VOL/PAN */}
-        <div style={{ flexShrink: 0, width: 190, display: "flex", flexDirection: "column", gap: 2, justifyContent: "flex-start" }}>
+        <div style={{ flexShrink: 0, width: 210, display: "flex", flexDirection: "column", gap: 2, justifyContent: "flex-start" }}>
           {/* Row 1: icon+label · MidiTag · M · S · CLR · ♪ · × */}
           <div style={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "nowrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 3, width: 80, flexShrink: 0, overflow: "hidden" }}>
