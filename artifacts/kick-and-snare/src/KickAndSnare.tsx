@@ -2481,7 +2481,8 @@ export default function KickAndSnare(){
             const lHit=hS||hH||hC||hPerc||hCrash;const rHit=hRide||hT;
             const lA=hS?-55:hH?-30:hCrash?-18:(hC||hPerc)?-45:5;const rA=hRide?-60:hT?-30:5;
             const anyHit=hK||hS||hH||hRide||hCrash||hT||hC||hPerc;
-            const ac=(playing||anyHit)?"#FF9500":"#bbb";const hi="#FF2D55";
+            const mc=th.mascot||"#bbb";
+            const ac=(playing||anyHit)?"#FF9500":mc;const hi="#FF2D55";
             const aHH=act.includes("hihat");const aS=act.includes("snare");const aK=act.includes("kick");
             const aT=act.includes("tom");const aRide=act.includes("ride");const aCrash=act.includes("crash");
             const aClap=act.includes("clap");const aPerc=act.includes("perc");
@@ -2494,53 +2495,53 @@ export default function KickAndSnare(){
                 {(playing||loopPlaying)&&<ellipse cx="44" cy="24" rx="22" ry="20" fill="none" stroke={anyHit?"rgba(255,45,85,0.3)":"rgba(255,149,0,0.2)"} strokeWidth={anyHit?2:1} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite alternate`}}/>}
                 {/* Hi-hat */}
                 {aHH&&<g>
-                  <line x1="14" y1="16" x2="14" y2="50" stroke="#ccc" strokeWidth="0.7"/>
-                  <ellipse cx="14" cy="16" rx="7" ry="1.8" fill={hH?"#fff5e0":"none"} stroke={hH?hi:"#ccc"} strokeWidth={hH?1.5:0.7}/>
-                  <ellipse cx="14" cy={hH?"14.5":"15"} rx="7" ry="1.8" fill="none" stroke={hH?hi:"#ccc"} strokeWidth={hH?1.5:0.7}/>
+                  <line x1="14" y1="16" x2="14" y2="50" stroke={mc} strokeWidth="0.7"/>
+                  <ellipse cx="14" cy="16" rx="7" ry="1.8" fill={hH?"#fff5e0":"none"} stroke={hH?hi:mc} strokeWidth={hH?1.5:0.7}/>
+                  <ellipse cx="14" cy={hH?"14.5":"15"} rx="7" ry="1.8" fill="none" stroke={hH?hi:mc} strokeWidth={hH?1.5:0.7}/>
                   {hH&&<><line x1="10" y1="12" x2="8" y2="8" stroke={hi} strokeWidth="0.8" opacity="0.5"/><line x1="18" y1="12" x2="20" y2="8" stroke={hi} strokeWidth="0.8" opacity="0.5"/></>}
                 </g>}
                 {/* Snare */}
                 {aS&&<g>
-                  <rect x="22" y="30" width="16" height="7" rx="3" fill={hS?"#fff0e8":"none"} stroke={hS?hi:"#ccc"} strokeWidth={hS?1.5:0.7}/>
-                  <line x1="24" y1="31" x2="24" y2="36" stroke="#ddd" strokeWidth="0.4"/><line x1="28" y1="31" x2="28" y2="36" stroke="#ddd" strokeWidth="0.4"/>
-                  <line x1="32" y1="31" x2="32" y2="36" stroke="#ddd" strokeWidth="0.4"/><line x1="36" y1="31" x2="36" y2="36" stroke="#ddd" strokeWidth="0.4"/>
+                  <rect x="22" y="30" width="16" height="7" rx="3" fill={hS?"#fff0e8":"none"} stroke={hS?hi:mc} strokeWidth={hS?1.5:0.7}/>
+                  <line x1="24" y1="31" x2="24" y2="36" stroke={mc} strokeWidth="0.4"/><line x1="28" y1="31" x2="28" y2="36" stroke={mc} strokeWidth="0.4"/>
+                  <line x1="32" y1="31" x2="32" y2="36" stroke={mc} strokeWidth="0.4"/><line x1="36" y1="31" x2="36" y2="36" stroke={mc} strokeWidth="0.4"/>
                   {hS&&<><line x1="22" y1="28" x2="19" y2="25" stroke={hi} strokeWidth="1" opacity="0.6"/><line x1="38" y1="28" x2="41" y2="25" stroke={hi} strokeWidth="1" opacity="0.6"/></>}
                 </g>}
                 {/* Kick drum */}
                 {aK&&<g>
-                  <ellipse cx="55" cy="42" rx="12" ry="8" fill={hK?"#ffe8e8":"none"} stroke={hK?hi:"#ccc"} strokeWidth={hK?1.8:0.7}/>
-                  <ellipse cx="55" cy="42" rx="6" ry="4" fill="none" stroke={hK?hi:"#ddd"} strokeWidth="0.5"/>
+                  <ellipse cx="55" cy="42" rx="12" ry="8" fill={hK?"#ffe8e8":"none"} stroke={hK?hi:mc} strokeWidth={hK?1.8:0.7}/>
+                  <ellipse cx="55" cy="42" rx="6" ry="4" fill="none" stroke={hK?hi:mc} strokeWidth="0.5"/>
                   {hK&&<><line x1="55" y1="32" x2="55" y2="28" stroke={hi} strokeWidth="1" opacity="0.5"/><line x1="48" y1="35" x2="45" y2="33" stroke={hi} strokeWidth="0.8" opacity="0.4"/><line x1="62" y1="35" x2="65" y2="33" stroke={hi} strokeWidth="0.8" opacity="0.4"/></>}
                 </g>}
                 {/* Tom */}
                 {aT&&<g>
-                  <ellipse cx="52" cy="25" rx="7" ry="3" fill={hT?"#fff0e8":"none"} stroke={hT?hi:"#ccc"} strokeWidth={hT?1.2:0.6}/>
+                  <ellipse cx="52" cy="25" rx="7" ry="3" fill={hT?"#fff0e8":"none"} stroke={hT?hi:mc} strokeWidth={hT?1.2:0.6}/>
                 </g>}
                 {/* Ride cymbal — flat, right side, bras droit */}
                 {aRide&&<g>
-                  <line x1="68" y1="13" x2="68" y2="50" stroke="#ccc" strokeWidth="0.7"/>
-                  <ellipse cx="68" cy="13" rx="9" ry="2" fill={hRide?"#fffbe8":"none"} stroke={hRide?"#FFD60A":"#ccc"} strokeWidth={hRide?1.5:0.7}/>
+                  <line x1="68" y1="13" x2="68" y2="50" stroke={mc} strokeWidth="0.7"/>
+                  <ellipse cx="68" cy="13" rx="9" ry="2" fill={hRide?"#fffbe8":"none"} stroke={hRide?"#FFD60A":mc} strokeWidth={hRide?1.5:0.7}/>
                   {hRide&&<><line x1="64" y1="10" x2="62" y2="6" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="72" y1="10" x2="74" y2="6" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/><line x1="68" y1="10" x2="68" y2="5" stroke="#FFD60A" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>}
                 {/* Crash cymbal — large tilted, upper right, bras gauche */}
                 {aCrash&&<g>
-                  <line x1="103" y1="8" x2="100" y2="50" stroke="#ccc" strokeWidth="0.7"/>
-                  <ellipse cx="103" cy="8" rx="11" ry="2.8" fill={hCrash?"#fff5cc":"none"} stroke={hCrash?"#FFD60A":"#ccc"} strokeWidth={hCrash?1.8:0.7} transform="rotate(-8,103,8)"/>
+                  <line x1="103" y1="8" x2="100" y2="50" stroke={mc} strokeWidth="0.7"/>
+                  <ellipse cx="103" cy="8" rx="11" ry="2.8" fill={hCrash?"#fff5cc":"none"} stroke={hCrash?"#FFD60A":mc} strokeWidth={hCrash?1.8:0.7} transform="rotate(-8,103,8)"/>
                   {hCrash&&<><line x1="97" y1="4" x2="94" y2="0" stroke="#FFD60A" strokeWidth="1" opacity="0.7"/><line x1="109" y1="4" x2="112" y2="0" stroke="#FFD60A" strokeWidth="1" opacity="0.7"/><line x1="103" y1="3" x2="103" y2="-2" stroke="#FFD60A" strokeWidth="1" opacity="0.7"/></>}
                 </g>}
                 {/* Perc — bongo pair, close to set */}
                 {aPerc&&<g>
-                  <ellipse cx="81" cy="41" rx="5.5" ry="7.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
-                  <ellipse cx="81" cy="33.5" rx="5.5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
-                  <ellipse cx="89" cy="43" rx="4.5" ry="6.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.4:0.7}/>
-                  <ellipse cx="89" cy="36.5" rx="4.5" ry="1.8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":"#bbb"} strokeWidth={hPerc?1.1:0.6}/>
+                  <ellipse cx="81" cy="41" rx="5.5" ry="7.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":mc} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="81" cy="33.5" rx="5.5" ry="2" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":mc} strokeWidth={hPerc?1.1:0.6}/>
+                  <ellipse cx="89" cy="43" rx="4.5" ry="6.5" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":mc} strokeWidth={hPerc?1.4:0.7}/>
+                  <ellipse cx="89" cy="36.5" rx="4.5" ry="1.8" fill={hPerc?"#BF5AF222":"none"} stroke={hPerc?"#BF5AF2":mc} strokeWidth={hPerc?1.1:0.6}/>
                   {hPerc&&<><line x1="78" y1="31" x2="76" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/><line x1="84" y1="31" x2="86" y2="27" stroke="#BF5AF2" strokeWidth="0.8" opacity="0.7"/></>}
                 </g>}
                 {/* Electronic pads — 1 per custom track, rack-mounted right side */}
                 {customTracks.length>0&&(()=>{
                   const total=customTracks.length;const padW=7;const gap=2;const startX=130-(total*(padW+gap)-gap);
                   return(<g>
-                    <line x1={startX-1} y1="18" x2={130-(gap)} y2="18" stroke="#888" strokeWidth="0.6" opacity="0.5"/>
+                    <line x1={startX-1} y1="18" x2={130-(gap)} y2="18" stroke={mc} strokeWidth="0.6" opacity="0.5"/>
                     {customTracks.map((ct,i)=>{
                       const px=startX+i*(padW+gap);
                       const hit=eHit(ct.id)&&playing&&act.includes(ct.id);
@@ -2553,13 +2554,13 @@ export default function KickAndSnare(){
                 })()}
                 {/* Clap — maracas shaker near musician */}
                 {aClap&&<g>
-                  <ellipse cx="8" cy="28" rx="4" ry="5.5" fill={hC?"#5E5CE622":"none"} stroke={hC?"#5E5CE6":"#bbb"} strokeWidth={hC?1.3:0.7}/>
-                  <line x1="8" y1="33" x2="8" y2="45" stroke={hC?"#5E5CE6":"#bbb"} strokeWidth={hC?1.2:0.7}/>
+                  <ellipse cx="8" cy="28" rx="4" ry="5.5" fill={hC?"#5E5CE622":"none"} stroke={hC?"#5E5CE6":mc} strokeWidth={hC?1.3:0.7}/>
+                  <line x1="8" y1="33" x2="8" y2="45" stroke={hC?"#5E5CE6":mc} strokeWidth={hC?1.2:0.7}/>
                   {hC&&<><line x1="4" y1="25" x2="2" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/><line x1="12" y1="25" x2="14" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>}
                 <g style={{animation:playing?`mbob ${bobDur} ease-in-out infinite`:anyHit?"none":"none",transformBox:"fill-box"}}>
-                  <ellipse cx="44" cy="38" rx="6" ry="2" fill="none" stroke="#bbb" strokeWidth="0.8"/>
-                  <line x1="38" y1="38" x2="36" y2="50" stroke="#bbb" strokeWidth="0.7"/><line x1="50" y1="38" x2="52" y2="50" stroke="#bbb" strokeWidth="0.7"/>
+                  <ellipse cx="44" cy="38" rx="6" ry="2" fill="none" stroke={mc} strokeWidth="0.8"/>
+                  <line x1="38" y1="38" x2="36" y2="50" stroke={mc} strokeWidth="0.7"/><line x1="50" y1="38" x2="52" y2="50" stroke={mc} strokeWidth="0.7"/>
                   <path d="M41,37 Q37,43 33,49" fill="none" stroke={ac} strokeWidth="2" strokeLinecap="round"/>
                   <g style={{transform:`rotate(${hK?-10:0}deg)`,transformOrigin:"47px 37px",transition:"transform 0.04s"}}>
                     <path d="M47,37 Q51,43 55,49" fill="none" stroke={hK?hi:ac} strokeWidth={hK?2.5:2} strokeLinecap="round"/>
@@ -2579,8 +2580,8 @@ export default function KickAndSnare(){
                   <g style={{animation:playing?"mhead 0.9s ease-in-out infinite":"none",transformOrigin:"44px 10px",transformBox:"fill-box"}}>
                     <circle cx="44" cy="10" r="6" fill="none" stroke={ac} strokeWidth="2"/>
                     <line x1="39" y1="9" x2="49" y2="9" stroke={ac} strokeWidth="1.2"/>
-                    <rect x="39" y="8" width="4" height="3" rx="1" fill={playing?"#333":"#aaa"}/>
-                    <rect x="45" y="8" width="4" height="3" rx="1" fill={playing?"#333":"#aaa"}/>
+                    <rect x="39" y="8" width="4" height="3" rx="1" fill={playing?"#333":mc}/>
+                    <rect x="45" y="8" width="4" height="3" rx="1" fill={playing?"#333":mc}/>
                     {playing&&<path d="M41,13 Q44,15 47,13" fill="none" stroke={ac} strokeWidth="0.8"/>}
                     <path d="M38,6 Q44,0 50,6" fill="none" stroke={ac} strokeWidth="1.5" strokeLinecap="round"/>
                     <rect x="36" y="5" width="3" height="5" rx="1.5" fill={ac} opacity="0.5"/>
