@@ -102,7 +102,7 @@ export default function PatternBank({
                       ))}
                     </div>
                     {isActive && <span style={{ fontSize: 9, color: "#BF5AF2" }}>▶</span>}
-                    <button onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })} title="Duplicate below" style={{ width: 18, height: 18, border: `1px solid ${th.sBorder}`, borderRadius: 3, background: "transparent", color: th.dim, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                    <button onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })} title="Dupliquer cette ligne en dessous" style={{ padding: "0 6px", height: 18, border: `1px solid rgba(48,209,88,0.35)`, borderRadius: 3, background: "transparent", color: "#30D158", fontSize: 8, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, letterSpacing: "0.04em", fontFamily: "inherit" }}>⊕ DUP</button>
                     {songChain.length > 1 && <button onClick={() => setSongChain(p => p.filter((_, j) => j !== chainIdx))} style={{ width: 18, height: 18, border: "1px solid rgba(255,55,95,0.25)", borderRadius: 3, background: "transparent", color: "#FF375F", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>}
                   </div>
                 );
