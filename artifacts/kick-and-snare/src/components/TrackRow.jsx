@@ -10,9 +10,11 @@ function TrackRow({
   actLength, themeName, gInfo,
   isMuted, isSoloed,
   isPortrait,
+  sendCursor, fxSecs, gfxSends,
   onStepDown, onContextMenu,
   onMuteToggle, onSoloToggle, onLoadSample, onRemove, onFxChange,
   onStepCountChange, onClear,
+  onSendCursorChange, onSendAmtChange,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const f = fx || { vol: 80, pan: 0 };
@@ -24,7 +26,7 @@ function TrackRow({
   const tsIdx = tsOpts.indexOf(tSteps);
   const nextTs = tsOpts[(tsIdx + 1) % tsOpts.length];
 
-  const leftW = isPortrait ? 140 : (typeof window !== "undefined" && window.innerWidth < 600 ? 140 : 190);
+  const leftW = isPortrait ? 160 : (typeof window !== "undefined" && window.innerWidth < 600 ? 160 : 220);
 
   const btnSt = {
     height: 28, minWidth: 0, border: "none", borderRadius: 4,
@@ -66,6 +68,37 @@ function TrackRow({
     return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan > 0 ? 1 : 0} ${x2.toFixed(2)},${y2.toFixed(2)}`;
   })();
 
+  // ── Send knob ──
+  const sIdx = sendCursor ?? 0;
+  const fxSec = fxSecs?.[sIdx];
+  const fxColor = fxSec?.color ?? "#888";
+  const fxLabel = fxSec?.label ?? "---";
+  const sendAmt = gfxSends?.[sIdx] ?? 0;
+
+  const sendOnPD = e => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    let sY = e.clientY, sV = sendAmt;
+    const mv = pe => {
+      const dy = sY - pe.clientY;
+      const nv = Math.max(0, Math.min(100, Math.round(sV - dy * 1.5)));
+      onSendAmtChange?.(nv);
+    };
+    const up = () => { el.removeEventListener("pointermove", mv); };
+    el.addEventListener("pointermove", mv);
+    el.addEventListener("pointerup", up, { once: true });
+    el.addEventListener("pointercancel", up, { once: true });
+  };
+
+  const arrowBtnSt = {
+    background: "transparent", border: "none", cursor: "pointer",
+    color: "rgba(255,255,255,0.35)", fontSize: 7, fontWeight: 900,
+    padding: "0 1px", lineHeight: 1, fontFamily: "inherit",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: 2, minWidth: 10,
+  };
+
   return (
     <div>
       <div style={{ display: "flex", flexDirection: isPortrait ? "column" : "row", alignItems: isPortrait ? "stretch" : "flex-start", gap: 6, opacity: aud ? 1 : 0.3, padding: "4px 0" }}>
@@ -73,15 +106,15 @@ function TrackRow({
         {/* ── Left: two sub-columns side by side ── */}
         <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "row", gap: 3, alignItems: "flex-start" }}>
 
-          {/* Sub-col A (68px): icon+label above, VOL+PAN below */}
-          <div style={{ width: 68, flexShrink: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+          {/* Sub-col A: icon+label above, VOL+PAN+SEND below */}
+          <div style={{ width: 92, flexShrink: 0, display: "flex", flexDirection: "column", gap: 3 }}>
             {/* icon + label */}
             <div style={{ display: "flex", alignItems: "center", gap: 3, overflow: "hidden" }}>
               <DrumSVG id={track.id} color={track.color} hit={flash} />
               <span style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{track.label}</span>
             </div>
-            {/* VOL + PAN knobs */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {/* VOL + PAN + SEND knobs */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
               {/* VOL knob */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
@@ -110,6 +143,51 @@ function TrackRow({
                   <span style={{ fontSize: 6, color: track.color, fontWeight: 700, fontFamily: "monospace", lineHeight: 1 }}>{pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`}</span>
                 </div>
                 <MidiTag id={`pan_${track.id}`} />
+              </div>
+              {/* SEND selector + knob */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                {/* Selector row: ◀ REV ▶ */}
+                <div style={{ display: "flex", alignItems: "center", gap: 0, height: 11 }}>
+                  <button
+                    onPointerDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); onSendCursorChange?.(-1); }}
+                    style={arrowBtnSt}
+                  >◀</button>
+                  <span style={{
+                    fontSize: 5.5, fontWeight: 900, letterSpacing: "0.06em", width: 22,
+                    textAlign: "center", lineHeight: 1,
+                    color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.25)",
+                    textShadow: sendAmt > 0 ? `0 0 6px ${fxColor}` : "none",
+                    transition: "color 0.15s, text-shadow 0.15s",
+                  }}>{fxLabel}</span>
+                  <button
+                    onPointerDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); onSendCursorChange?.(1); }}
+                    style={arrowBtnSt}
+                  >▶</button>
+                </div>
+                {/* Send amount knob */}
+                <div
+                  onPointerDown={sendOnPD}
+                  onDoubleClick={() => onSendAmtChange?.(0)}
+                  title={`SEND→${fxLabel}: ${sendAmt}% — drag ↕ · dbl-click=0`}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}
+                >
+                  <div style={{ position: "relative", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="22" height="22" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
+                      <circle cx="11" cy="11" r={r} fill="none" stroke={(sendAmt > 0 ? fxColor : "#ffffff") + "18"} strokeWidth="2.5" />
+                      {sendAmt > 0 && (
+                        <circle cx="11" cy="11" r={r} fill="none" stroke={fxColor} strokeWidth="2.5" strokeLinecap="round"
+                          strokeDasharray={`${circ * sendAmt / 100} ${circ}`}
+                          style={{ filter: `drop-shadow(0 0 3px ${fxColor})` }}
+                        />
+                      )}
+                    </svg>
+                    <span style={{ fontSize: 5.5, fontWeight: 900, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.25)", zIndex: 1, pointerEvents: "none", letterSpacing: "0.04em" }}>SND</span>
+                  </div>
+                  <span style={{ fontSize: 6, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.25)", fontWeight: 700, fontFamily: "monospace", lineHeight: 1 }}>{sendAmt}</span>
+                </div>
+                <MidiTag id={`snd_${track.id}`} />
               </div>
             </div>
           </div>

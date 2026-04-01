@@ -138,6 +138,15 @@ const EUCLID_RHYTHMS=[
   {name:"Aksak",      region:"Balkan",     N:9,  hits:[0,2,4,6,8],       desc:"E(5,9) — Turquie 9/8"},
   {name:"Nawakhat",   region:"Arabic",     N:7,  hits:[0,2,3,5,6],       desc:"E(5,7) — Maqam arabe"},
 ];
+// ── FX send bus list (used in per-track send selectors) ──
+const FX_SECS=[
+  {sec:"reverb",label:"REV",color:"#64D2FF"},
+  {sec:"delay", label:"DLY",color:"#30D158"},
+  {sec:"filter",label:"FLT",color:"#FF9500"},
+  {sec:"comp",  label:"CMP",color:"#5E5CE6"},
+  {sec:"drive", label:"DRV",color:"#FF6B35"},
+];
+
 const EUCLID_REGIONS=["Africa","Afro-Cuban","Brazil","Balkan","Arabic"];
 const EUCLID_RCOL={"Africa":"#FFD60A","Afro-Cuban":"#FF9500","Brazil":"#30D158","Balkan":"#BF5AF2","Arabic":"#64D2FF"};
 
@@ -263,10 +272,10 @@ class Eng{
     if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay.on?4500:20000,t,0.05);
     Object.keys(this.ch).forEach(id=>{
       const c=this.ch[id];if(!c)return;
-      const rvOn=gfx.reverb.on&&!!gfx.reverb.sends[id];
-      const dlOn=gfx.delay.on&&!!gfx.delay.sends[id];
-      if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?0.85:0,t,0.02);
-      if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?0.85:0,t,0.02);
+      const rvAmt=(gfx.reverb.sends[id]||0);const rvOn=gfx.reverb.on&&rvAmt>0;
+      const dlAmt=(gfx.delay.sends[id]||0);const dlOn=gfx.delay.on&&dlAmt>0;
+      if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?rvAmt/100*0.9:0,t,0.02);
+      if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?dlAmt/100*0.9:0,t,0.02);
       // Slow dry restore (0.6s TC) so reverb/delay tails ring out naturally before dry gain compensates
       if(c.dry)c.dry.gain.setTargetAtTime(rvOn&&dlOn?0.3:rvOn||dlOn?0.6:1,t,0.6);
     });
@@ -566,7 +575,6 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/><MidiTag id="__rev_decay__"/></div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/><MidiTag id="__rev_size__"/></div>
                 </div>
-                <SendRing sec="reverb" color="#64D2FF"/>
               </div>
               <Sep/>
               {/* DELAY */}
@@ -590,7 +598,6 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   )}
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/><MidiTag id="__dly_fdbk__"/></div>
                 </div>
-                <SendRing sec="delay" color="#30D158"/>
               </div>
               <Sep/>
               {/* FILTER */}
@@ -605,7 +612,6 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/><MidiTag id="__flt_cut__"/></div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/><MidiTag id="__flt_res__"/></div>
                 </div>
-                <SendRing sec="filter" color="#FF9500"/>
               </div>
               <Sep/>
               {/* COMP */}
@@ -616,7 +622,6 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/><MidiTag id="__cmp_rat__"/></div>
                 </div>
                 <div style={{fontSize:6,color:"rgba(94,92,230,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>auto makeup</div>
-                <SendRing sec="comp" color="#5E5CE6"/>
               </div>
               <Sep/>
               {/* DRIVE */}
@@ -626,7 +631,6 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/><MidiTag id="__drv_amt__"/></div>
                 </div>
                 <div style={{fontSize:6,color:"rgba(255,107,53,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>tanh sat</div>
-                <SendRing sec="drive" color="#FF6B35"/>
               </div>
             </div>
           </div>
@@ -690,6 +694,9 @@ export default function KickAndSnare(){
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0,sends:{}},comp:{on:false,thr:-12,ratio:4,sends:{}},drive:{on:false,amt:0,sends:{}}});
+  // Per-track send cursor: index into FX_SECS (0=reverb … 4=drive)
+  const [trackSendCursor,setTrackSendCursor]=useState<{[tid:string]:number}>({});
+  const upSend=(sec:string,tid:string,v:number)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
   useEffect(()=>{
     engine.onReady=()=>setIsAudioReady(true);
     engine.isMobile=isMobileRef.current;
@@ -2082,6 +2089,9 @@ export default function KickAndSnare(){
                   isMuted={isM}
                   isSoloed={isS}
                   isPortrait={isPortrait}
+                  sendCursor={trackSendCursor[track.id]??0}
+                  fxSecs={FX_SECS}
+                  gfxSends={FX_SECS.map(f=>(gfx[f.sec]?.sends[track.id]||0))}
                   onStepDown={(step,e)=>{if(e.shiftKey&&handleShiftClick(track.id,step,e))return;startDrag(track.id,step,e);}}
                   onContextMenu={(step,e)=>e.preventDefault()}
                   onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
@@ -2089,6 +2099,8 @@ export default function KickAndSnare(){
                   onLoadSample={()=>ldFile(track.id)}
                   onRemove={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
                   onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
+                  onSendCursorChange={(dir)=>setTrackSendCursor(p=>({...p,[track.id]:((p[track.id]??0)+dir+FX_SECS.length)%FX_SECS.length}))}
+                  onSendAmtChange={(amt)=>{const idx=trackSendCursor[track.id]??0;const sec=FX_SECS[idx].sec;upSend(sec,track.id,amt);}}
                   onStepCountChange={(nt)=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nt}};cp[track.id]=remap(cp[track.id],tSteps,nt);n[cPat]=cp;return n;});}}
                   onClear={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}}
                 />
