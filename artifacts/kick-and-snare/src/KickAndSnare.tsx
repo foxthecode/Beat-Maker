@@ -725,6 +725,9 @@ export default function KickAndSnare(){
   const [loopPlayhead,setLoopPlayhead]=useState(0); // 0..1
   const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0});
   const loopPhRef=useRef(null);
+  const [autoQ,setAutoQ]=useState(false);
+  const autoQRef=useRef(false);
+  useEffect(()=>{autoQRef.current=autoQ;},[autoQ]);
 
   const allT=[...ALL_TRACKS,...customTracks];
   const atO=act.map(id=>allT.find(t=>t.id===id)).filter(Boolean);
@@ -771,6 +774,7 @@ export default function KickAndSnare(){
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
   R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
   R.loopRec=loopRec;       // looper recording active — trigPad appends timed events
+  R.loopBars=loopBars;     // number of bars in loop — used for auto-Q snap calculation
   R.mnMap=midiNoteMap;     // MIDI note→trackId map — MIDI handler lookup table
   R.mLearn=midiLearnTrack; // MIDI learn target id — incoming note assigns to this
   R.mNotes=midiNotes;      // MIDI notes mode active — enables note-on triggering
@@ -913,7 +917,12 @@ export default function KickAndSnare(){
     const now=performance.now();
     if(R.loopRec&&loopRef.current.perfStart!==null){
       const L=loopRef.current;
-      const tOff=(now-L.perfStart)%L.lengthMs;
+      let tOff=(now-L.perfStart)%L.lengthMs;
+      // AUTO-Q: snap to nearest 1/16th of loop length on capture
+      if(autoQRef.current&&L.lengthMs>0){
+        const snapMs=L.lengthMs/(R.loopBars*16);
+        tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));
+      }
       const evId=`${Date.now()}-${Math.random()}`;
       const ev={id:evId,tid,tOff,vel,pass:L.passId};
       L.events.push(ev);
@@ -1985,6 +1994,18 @@ export default function KickAndSnare(){
                     L.events[idx]={...L.events[idx],tOff:Math.max(0,newTOff)};
                     setLoopDisp([...L.events]);
                   }}
+                  onQuantize={(div)=>{
+                    const L=loopRef.current;
+                    if(!L.events||!L.events.length)return;
+                    const loopDurMs=loopBars*4*(60000/Math.max(30,bpm));
+                    const snapMs=loopDurMs/(loopBars*div);
+                    L.events=L.events.map(ev=>({
+                      ...ev,
+                      tOff:Math.max(0,Math.min(loopDurMs-snapMs,Math.round(ev.tOff/snapMs)*snapMs)),
+                    }));
+                    setLoopDisp([...L.events]);
+                  }}
+                  autoQ={autoQ} setAutoQ={setAutoQ}
                 />
               </div>
             )}
