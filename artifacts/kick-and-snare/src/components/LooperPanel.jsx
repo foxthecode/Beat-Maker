@@ -9,6 +9,7 @@ export default function LooperPanel({
   themeName, isPortrait,
   bpm, tracks,
   onMoveHit,
+  onExportLoop, loopExportState, loopExportReps, setLoopExportReps,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
 
@@ -260,6 +261,33 @@ export default function LooperPanel({
           <button onClick={onClear} style={pill(false, "#636366")}>
             ✕ CLEAR
           </button>
+        )}
+        {/* WAV Export — only when there are events */}
+        {onExportLoop && loopDisp && loopDisp.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: "auto" }}>
+            {[1, 2, 4].map(n => (
+              <button key={n} onClick={() => setLoopExportReps(n)}
+                disabled={loopExportState === "rendering"}
+                style={{
+                  ...pill(loopExportReps === n, "#64D2FF"),
+                  padding: "4px 7px",
+                  minHeight: "auto",
+                  minWidth: 0,
+                }}
+              >{n}×</button>
+            ))}
+            <button onClick={onExportLoop}
+              disabled={loopExportState === "rendering"}
+              style={{
+                ...pill(false, "#64D2FF"),
+                color: "#64D2FF",
+                border: "1px solid #64D2FF55",
+                minHeight: "auto",
+                opacity: loopExportState === "rendering" ? 0.45 : 1,
+              }}
+              title="Export looper as WAV"
+            >{loopExportState === "rendering" ? "⏳" : "⬇ WAV"}</button>
+          </div>
         )}
       </div>
     </div>

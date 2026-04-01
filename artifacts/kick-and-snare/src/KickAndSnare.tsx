@@ -605,6 +605,9 @@ export default function KickAndSnare(){
   // ── CP-B: Export WAV ──
   const [exportState,setExportState]=useState<"idle"|"rendering">("idle");
   const [exportBars,setExportBars]=useState<1|2|4>(1);
+  // ── CP-B: Looper export ──
+  const [loopExportState,setLoopExportState]=useState<"idle"|"rendering">("idle");
+  const [loopExportReps,setLoopExportReps]=useState<1|2|4>(1);
   // ── H.1a: Mobile detection ──
   const isMobile=useMemo(()=>/Android|iPhone|iPad/i.test(navigator.userAgent)||window.innerWidth<768,[]);
   const isMobileRef=useRef(isMobile);
@@ -1202,6 +1205,46 @@ export default function KickAndSnare(){
       a.click();URL.revokeObjectURL(url);
     }catch(e){console.error("Export WAV error",e);}
     setExportState("idle");
+  };
+
+  // ── CP-B: Export Looper WAV ───────────────────────────────────────────────────
+  const exportLooperWAV=async()=>{
+    const L=loopRef.current;
+    if(!L.events.length)return;
+    await engine.ensureRunning();
+    setLoopExportState("rendering");
+    try{
+      const loopDur=L.lengthMs/1000;
+      const totalDur=loopDur*loopExportReps;
+      const sr=engine.ctx.sampleRate;
+      const offCtx=new OfflineAudioContext(2,Math.ceil(sr*totalDur),sr);
+      for(let rep=0;rep<loopExportReps;rep++){
+        L.events.forEach(ev=>{
+          const t=Math.max(0.001,ev.tOff/1000+rep*loopDur);
+          const fo=(fx as any)[ev.tid]||{...DEFAULT_FX};
+          const dst=offCtx.createGain();dst.gain.value=ev.vel;dst.connect(offCtx.destination);
+          if(engine.buf[ev.tid]){
+            const src=offCtx.createBufferSource();src.buffer=engine.buf[ev.tid];
+            const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+            src.playbackRate.value=r;src.connect(dst);src.start(t);
+          }else{
+            engine._syn(ev.tid,t,ev.vel,dst,offCtx,
+              {sDec:fo.sDec??1,sTune:fo.sTune??1,
+               sPunch:fo.sPunch??1,sSnap:fo.sSnap??1,
+               sBody:fo.sBody??1,sTone:fo.sTone??1});
+          }
+        });
+      }
+      const rd=await offCtx.startRendering();
+      const wav=encodeWAV(rd);
+      const blob=new Blob([wav],{type:"audio/wav"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      a.download=`ks-looper-${bpm}bpm-${loopBars}bar${loopExportReps>1?`x${loopExportReps}`:""}.wav`;
+      a.click();URL.revokeObjectURL(url);
+    }catch(e){console.error("Looper export error",e);}
+    setLoopExportState("idle");
   };
 
   const onRecClick=()=>{
@@ -1920,6 +1963,8 @@ export default function KickAndSnare(){
                   onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
                   themeName={themeName} isPortrait={isPortrait}
                   bpm={bpm} tracks={atO}
+                  onExportLoop={exportLooperWAV} loopExportState={loopExportState}
+                  loopExportReps={loopExportReps} setLoopExportReps={setLoopExportReps}
                   onMoveHit={(idx,newTOff)=>{
                     const L=loopRef.current;
                     if(!L.events[idx])return;
