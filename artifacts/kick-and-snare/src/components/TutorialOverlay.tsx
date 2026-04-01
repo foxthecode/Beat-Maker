@@ -155,8 +155,8 @@ function IlluTransport() {
   return (
     <IlluImg
       src={`${BASE}tutorial/seq-view.jpg`}
-      clipTop={84} clipBottom={200}
-      displayHeight={160}
+      clipTop={84} clipBottom={230}
+      displayHeight={185}
       label="Barre de transport" labelColor="#30D158"
     />
   );
@@ -293,7 +293,8 @@ const STEPS = [
     color: COLORS.transport,
     desc:"La barre de transport contrôle tout : tempo, lecture, enregistrement et les outils globaux.",
     tips:[
-      {icon:"▶", text:"Espace = Play / Stop  ·  Alt = activer l'enregistrement"},
+      {icon:"▶", text:"Espace = Play / Stop  ·  le tempo s'affiche en BPM au centre"},
+      {icon:"◉", text:"REC (●) = mode enregistrement live — joue un pad pendant la lecture pour inscrire ce son dans la grille au pas courant  ·  Alt = raccourci"},
       {icon:"♩", text:"TAP : frappe 4× en rythme pour détecter le BPM automatiquement"},
       {icon:"↕", text:"VOL MASTER : drag ↕ sur le bouton  ·  double-tap = 80%"},
       {icon:"⌨", text:"KEYB : assigne une touche clavier à chaque piste de la grille"},
