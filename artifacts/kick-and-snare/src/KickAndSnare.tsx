@@ -110,8 +110,36 @@ function encodeWAV(buffer:AudioBuffer):ArrayBuffer{
   return ab;
 }
 
-const EUCLID_REGIONS=["Africa","Afro-Cuban","Brazil"];
-const EUCLID_RCOL={"Africa":"#FFD60A","Afro-Cuban":"#FF9500","Brazil":"#30D158"};
+// ── Per-track Euclidean rhythm presets (single-track, used in the track dropdown) ──
+// Format: { name, region, N, hits: step-indices[], desc }
+const EUCLID_RHYTHMS=[
+  // Africa
+  {name:"Tresillo",   region:"Africa",     N:8,  hits:[0,3,6],           desc:"E(3,8) — racine universelle"},
+  {name:"Fume Fume",  region:"Africa",     N:12, hits:[0,2,4,7,9],       desc:"E(5,12) — Ghana (Ewe)"},
+  {name:"Bembé",      region:"Africa",     N:12, hits:[0,2,3,5,7,8,10],  desc:"E(7,12) — cœur de l'Afro-jazz"},
+  {name:"Shiko",      region:"Africa",     N:16, hits:[0,4,6,10,12],     desc:"E(5,16) — Nigeria (Ewe)"},
+  {name:"Soukous",    region:"Africa",     N:12, hits:[0,2,4,6,9,11],    desc:"Clave Congolaise"},
+  // Afro-Cuban
+  {name:"Habanera",   region:"Afro-Cuban", N:8,  hits:[0,3,5,7],         desc:"Base du danzón et tango"},
+  {name:"Cinquillo",  region:"Afro-Cuban", N:8,  hits:[0,2,3,5,6],       desc:"E(5,8) — son & guaracha"},
+  {name:"Clave 3-2",  region:"Afro-Cuban", N:16, hits:[0,3,6,10,12],     desc:"Épine dorsale de la musique cubaine"},
+  {name:"Clave 2-3",  region:"Afro-Cuban", N:16, hits:[2,4,8,11,14],     desc:"Clave inversée"},
+  {name:"Rumba Clave",region:"Afro-Cuban", N:16, hits:[0,3,7,10,12],     desc:"Rumba — 3e beat décalé"},
+  {name:"Guaguancó",  region:"Afro-Cuban", N:12, hits:[0,3,4,6,10],      desc:"Rumba urbaine de La Havane"},
+  // Brazil
+  {name:"Baião",      region:"Brazil",     N:16, hits:[0,3,8,11],        desc:"Zabumba du sertão"},
+  {name:"Maracatu",   region:"Brazil",     N:16, hits:[0,6,10,12],       desc:"Rythme royal africain"},
+  {name:"Bossa Nova", region:"Brazil",     N:16, hits:[0,3,6,8,11,14],   desc:"Guitare de João Gilberto"},
+  {name:"Surdo",      region:"Brazil",     N:16, hits:[0,8],             desc:"Puls profond de la batucada"},
+  {name:"Caixa",      region:"Brazil",     N:16, hits:[0,2,4,6,8,10,12,14],desc:"Caisse samba en croches"},
+  {name:"Xote",       region:"Brazil",     N:8,  hits:[0,2,5,7],         desc:"Forró — quadrilha"},
+  // Balkan / World
+  {name:"Ruchenitza", region:"Balkan",     N:7,  hits:[0,2,4,6],         desc:"E(4,7) — Bulgarie 7/8"},
+  {name:"Aksak",      region:"Balkan",     N:9,  hits:[0,2,4,6,8],       desc:"E(5,9) — Turquie 9/8"},
+  {name:"Nawakhat",   region:"Arabic",     N:7,  hits:[0,2,3,5,6],       desc:"E(5,7) — Maqam arabe"},
+];
+const EUCLID_REGIONS=["Africa","Afro-Cuban","Brazil","Balkan","Arabic"];
+const EUCLID_RCOL={"Africa":"#FFD60A","Afro-Cuban":"#FF9500","Brazil":"#30D158","Balkan":"#BF5AF2","Arabic":"#64D2FF"};
 
 // Euclidean rhythm generator (Bjorklund)
 function euclidRhythm(hits,steps){
@@ -564,18 +592,9 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                 </div>
                 <SendRing sec="delay" color="#30D158"/>
               </div>
-            </div>
-          </div>
-
-          {/* ── section gap ── */}
-          <div style={{width:1,alignSelf:"stretch",background:"linear-gradient(to bottom,transparent,rgba(255,255,255,0.08),transparent)",flexShrink:0,margin:"4px 0"}}/>
-
-          {/* ── MASTER BUS column ── */}
-          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
-            <span style={{fontSize:6,fontWeight:800,color:"rgba(255,149,0,0.5)",letterSpacing:"0.12em",paddingLeft:2,textTransform:"uppercase"}}>Master Bus</span>
-            <div style={{display:"flex",gap:0,alignItems:"flex-start",borderRadius:7,border:"1px solid rgba(255,149,0,0.12)",padding:"6px 6px 8px",background:"rgba(255,149,0,0.03)"}}>
+              <Sep/>
               {/* FILTER */}
-              <div style={{minWidth:100,flexShrink:0,paddingRight:6}}>
+              <div style={{minWidth:100,flexShrink:0,paddingLeft:6,paddingRight:6}}>
                 <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec("filter","on",!gfx.filter.on)} midiId="__flt_on__"/>
                 <div style={{display:"flex",gap:3,marginBottom:6}}>
                   {["lowpass","highpass","bandpass"].map(ft=>(
@@ -586,6 +605,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/><MidiTag id="__flt_cut__"/></div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/><MidiTag id="__flt_res__"/></div>
                 </div>
+                <SendRing sec="filter" color="#FF9500"/>
               </div>
               <Sep/>
               {/* COMP */}
@@ -596,6 +616,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/><MidiTag id="__cmp_rat__"/></div>
                 </div>
                 <div style={{fontSize:6,color:"rgba(94,92,230,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>auto makeup</div>
+                <SendRing sec="comp" color="#5E5CE6"/>
               </div>
               <Sep/>
               {/* DRIVE */}
@@ -605,6 +626,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/><MidiTag id="__drv_amt__"/></div>
                 </div>
                 <div style={{fontSize:6,color:"rgba(255,107,53,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>tanh sat</div>
+                <SendRing sec="drive" color="#FF6B35"/>
               </div>
             </div>
           </div>
@@ -667,7 +689,7 @@ export default function KickAndSnare(){
   const [euclidParams,setEuclidParams]=useState({});
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
-  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}});
+  const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0,sends:{}},comp:{on:false,thr:-12,ratio:4,sends:{}},drive:{on:false,amt:0,sends:{}}});
   useEffect(()=>{
     engine.onReady=()=>setIsAudioReady(true);
     engine.isMobile=isMobileRef.current;
@@ -1714,10 +1736,10 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
+            <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
             <div>
               <div className="gradientShift" style={{fontSize:24,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
-              <div style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM EXPERIENCE</div>
+              <div className="subtitleAnim" style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM EXPERIENCE</div>
             </div>
           </div>
           {/* Animated drummer mascot + UNDO/REDO */}
@@ -1741,7 +1763,7 @@ export default function KickAndSnare(){
             const aT=act.includes("tom");const aRide=act.includes("ride");const aCrash=act.includes("crash");
             const aClap=act.includes("clap");const aPerc=act.includes("perc");
             return(
-              <svg viewBox="0 0 130 52" width="130" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents"}}>
+              <svg viewBox="0 0 130 52" width="130" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents",filter:playing?(anyHit?"drop-shadow(0 0 8px rgba(255,45,85,0.7))":"drop-shadow(0 0 4px rgba(255,149,0,0.45))"):"none",transition:"filter 0.08s"}}>
                 {/* Hi-hat */}
                 {aHH&&<g>
                   <line x1="14" y1="16" x2="14" y2="50" stroke="#ccc" strokeWidth="0.7"/>
@@ -1838,6 +1860,30 @@ export default function KickAndSnare(){
                   </g>
                 </g>
               </svg>
+            );
+          })()}
+          {/* ── Beat indicator dots ── */}
+          {(()=>{
+            const nBeats=sig.groups.length;
+            const curBeat=playing&&cStep>=0?gInfo(cStep).gi:-1;
+            const beatColors=["#FF2D55","#FF9500","#FFD60A","#30D158","#5E5CE6","#64D2FF","#BF5AF2","#FF6B35"];
+            return(
+              <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center",justifyContent:"center",padding:"0 2px"}}>
+                {Array.from({length:nBeats},(_, i)=>{
+                  const col=beatColors[i%beatColors.length];
+                  const active=i===curBeat;
+                  return(
+                    <div key={i} style={{
+                      width:5,height:5,borderRadius:"50%",
+                      background:active?col:`${col}33`,
+                      boxShadow:active?`0 0 6px ${col}`:"none",
+                      animation:active?"beatDot 0.25s ease-out 1":"none",
+                      transition:"background 0.04s,box-shadow 0.04s",
+                    }}/>
+                  );
+                })}
+                {!playing&&<div style={{width:4,height:4,borderRadius:"50%",background:th.sBorder,opacity:0.3}}/>}
+              </div>
             );
           })()}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
@@ -2314,11 +2360,11 @@ export default function KickAndSnare(){
                                   </div>
                                   <MidiTag id={`pan_${tr.id}`}/>
                                 </div>
-                                <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,flex:1,fontSize:8}}>
+                                <select value={p.tpl||""} onChange={e=>{const t=EUCLID_RHYTHMS.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,flex:1,fontSize:8}}>
                                   <option value="">— Template —</option>
                                   {EUCLID_REGIONS.map(reg=>(
                                     <optgroup key={reg} label={reg}>
-                                      {EUCLID_TEMPLATES.filter(t=>t.region===reg).map(t=>(
+                                      {EUCLID_RHYTHMS.filter(t=>t.region===reg).map(t=>(
                                         <option key={t.name} value={t.name}>{t.name} · {t.N}st</option>
                                       ))}
                                     </optgroup>

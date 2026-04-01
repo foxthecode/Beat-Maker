@@ -84,3 +84,46 @@
   from { width: 100%; }
   to   { width: 0%; }
 }
+
+/* ── Logo icon beat thump ── */
+@keyframes logoThump {
+  0%   { transform: scale(1);    box-shadow: 0 0 20px rgba(255,45,85,0.3); }
+  30%  { transform: scale(1.09); box-shadow: 0 0 32px rgba(255,45,85,0.7), 0 0 60px rgba(255,149,0,0.35); }
+  100% { transform: scale(1);    box-shadow: 0 0 20px rgba(255,45,85,0.3); }
+}
+
+/* ── Beat dot flash ── */
+@keyframes beatDot {
+  0%   { transform: scale(1);    opacity: 1;   }
+  40%  { transform: scale(1.45); opacity: 1;   }
+  100% { transform: scale(1);    opacity: 0.28; }
+}
+
+/* ── Mascot halo ring ── */
+@keyframes mascotHalo {
+  0%, 100% { opacity: 0.18; r: 30; }
+  50%       { opacity: 0.45; r: 32; }
+}
+
+/* ── Track row hit flash ── */
+@keyframes rowGlow {
+  0%   { box-shadow: none; }
+  20%  { box-shadow: 0 0 8px var(--row-color, #FF2D55); }
+  100% { box-shadow: none; }
+}
+
+/* ── Subtitle shimmer ── */
+@keyframes subtitleShimmer {
+  0%, 100% { opacity: 0.45; letter-spacing: 0.4em; }
+  50%       { opacity: 0.85; letter-spacing: 0.42em; }
+}
+
+.subtitleAnim {
+  animation: subtitleShimmer 2s ease-in-out infinite;
+}
+
+/* ── Kick icon glow ── */
+@keyframes kickGlow {
+  0%, 100% { filter: drop-shadow(0 0 0px transparent); }
+  50%       { filter: drop-shadow(0 0 6px #FF2D55cc); }
+}
