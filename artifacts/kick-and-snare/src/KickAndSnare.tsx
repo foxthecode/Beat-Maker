@@ -1057,16 +1057,19 @@ export default function KickAndSnare(){
     e.preventDefault();
     const ac=!!pat[tid]?.[step];
     const rect=e.currentTarget.getBoundingClientRect();
-    const startX=e.touches?e.touches[0].clientX:e.clientX;
-    const startY=e.touches?e.touches[0].clientY:e.clientY;
+    const isTouch=!!e.touches;
+    const startX=isTouch?e.touches[0].clientX:e.clientX;
+    const startY=isTouch?e.touches[0].clientY:e.clientY;
     const startNudge=stNudge[tid]?.[step]||0;const startVel=stVel[tid]?.[step]??100;
+    // Touch dead-zone is wider (10px) to absorb natural finger jitter on tablet/phone
+    const moveThr=isTouch?10:5;
     let axis=null;let moved=false;let longPressed=false;didDragRef.current=false;
     if(ac)setDragInfo({tid,step,axis:null});
     const mv=ev=>{
       if(!ac||longPressed)return;ev.preventDefault();
       const cx=ev.touches?ev.touches[0].clientX:ev.clientX;const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
       const dx=cx-startX,dy=cy-startY;
-      if(!axis&&(Math.abs(dx)>5||Math.abs(dy)>5)){clearTimeout(longTimer);axis=Math.abs(dx)>Math.abs(dy)?"h":"v";moved=true;didDragRef.current=true;setDragInfo({tid,step,axis});}
+      if(!axis&&(Math.abs(dx)>moveThr||Math.abs(dy)>moveThr)){clearTimeout(longTimer);axis=Math.abs(dx)>Math.abs(dy)?"h":"v";moved=true;didDragRef.current=true;setDragInfo({tid,step,axis});}
       if(axis==="h"){const nv=Math.round((startNudge+dx*0.5)/5)*5;setStNudge(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(0);a[step]=Math.max(-NR,Math.min(NR,nv));n[tid]=a;return n;});}
       else if(axis==="v"){const nv=Math.round(startVel-dy*0.8);setStVel(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=Math.max(5,Math.min(100,nv));n[tid]=a;return n;});}
     };
@@ -1076,14 +1079,14 @@ export default function KickAndSnare(){
       window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);
       window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);
     };
-    // Long-press (600ms, step must be active) → probability popover
+    // Long-press (650ms on touch / 600ms mouse, active step only) → probability popover
     const longTimer=ac?setTimeout(()=>{
       longPressed=true;moved=true;setDragInfo(null);
       window.removeEventListener("mousemove",mv);window.removeEventListener("touchmove",mv);
       const px=Math.min(Math.max(rect.left+rect.width/2-70,8),window.innerWidth-160);
       const py=Math.min(Math.max(rect.top-120,8),window.innerHeight-170);
       setProbPopover({tid,step,x:px,y:py});
-    },600):null;
+    },isTouch?650:600):null;
     window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
     window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);
   };
