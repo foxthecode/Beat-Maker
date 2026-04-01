@@ -2063,7 +2063,13 @@ export default function KickAndSnare(){
   };
   const _armLoopRec=async(forcedStart?:number)=>{
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
-    // Set ref immediately so trigPad captures hits without waiting for React re-render
+    // Pre-compute lengthMs and audioStart SYNCHRONOUSLY before any await.
+    // Without this, there is a race window where R.loopRec=true but L.audioStart===null
+    // (startLooper awaits ensureRunning first), so the very first pad hit is silently dropped.
+    L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
+    if(forcedStart!==undefined){L.audioStart=forcedStart;}
+    else if(engine.ctx){L.audioStart=engine.ctx.currentTime;}
+    // Now it's safe to open the capture gate — trigPad will pass all three guards
     R.loopRec=true;
     setLoopRec(true);await startLooper(true,forcedStart);
   };
