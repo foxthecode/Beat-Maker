@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { THEMES } from "../theme.js";
-import { DrumSVG } from "../drumSVG.jsx";
+import { DrumSVG } from "../drumSVG.tsx";
 
 function TrackRow({
   track, tSteps, STEPS, pat, cStep,
@@ -66,7 +66,7 @@ function TrackRow({
           {/* Row 1: icon+label · MidiTag · M · S · CLR · ♪ · × */}
           <div style={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "nowrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 3, width: 80, flexShrink: 0, overflow: "hidden" }}>
-              {DrumSVG(track.id, track.color, flash)}
+              <DrumSVG id={track.id} color={track.color} hit={flash} />
               <span style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{track.label}</span>
             </div>
             <MidiTag id={track.id} />

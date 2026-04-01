@@ -1,5 +1,10 @@
-import KickAndSnare from "./KickAndSnare";
+import KickAndSnare from "./KickAndSnare.tsx";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 export default function App() {
-  return <KickAndSnare />;
+  return (
+    <ErrorBoundary>
+      <KickAndSnare />
+    </ErrorBoundary>
+  );
 }
