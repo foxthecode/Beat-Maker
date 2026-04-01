@@ -210,7 +210,8 @@ class Eng{
       const dlOn=gfx.delay.on&&!!gfx.delay.sends[id];
       if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?0.85:0,t,0.02);
       if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?0.85:0,t,0.02);
-      if(c.dry)c.dry.gain.setTargetAtTime(rvOn&&dlOn?0.3:rvOn||dlOn?0.6:1,t,0.02);
+      // Slow dry restore (0.6s TC) so reverb/delay tails ring out naturally before dry gain compensates
+      if(c.dry)c.dry.gain.setTargetAtTime(rvOn&&dlOn?0.3:rvOn||dlOn?0.6:1,t,0.6);
     });
   }
   _cv(d){
