@@ -1607,11 +1607,14 @@ export default function KickAndSnare(){
     // vs audioStart (set one line earlier) that makes hits sound slightly early.
     if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
       const L=loopRef.current;
-      // Subtract output + base latency so the hit aligns with the heard beat,
-      // not with the moment the user's finger touched the screen.
-      const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0.02);
+      // Subtract only real measured latency; avoid aggressive fallbacks that push
+      // hits exactly on the downbeat to negative rawSec → wrap to end of loop.
+      const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
       const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
       let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
+      // Near-boundary wrap: if the hit lands within 60ms of loop end it's almost
+      // certainly beat 0 of the next pass (user tapped right on the downbeat).
+      if(tOff>L.lengthMs-60)tOff=0;
       // AUTO-Q: snap to nearest subdivision on capture
       if(autoQRef.current&&L.lengthMs>0){
         const snapMs=L.lengthMs/(R.loopBars*16);
@@ -2071,6 +2074,8 @@ export default function KickAndSnare(){
           for(let i=0;i<sig.beats;i++)playClk(t0+i*beatSec,i===0?"accent":"beat");
           // recStart = exact audio time of beat 0 of the recording (= t0 + 1 bar)
           const recStart=t0+sig.beats*beatSec;
+          // Also pre-schedule the downbeat of RECORDING — the user must hear beat 1 of the loop
+          playClk(recStart,"accent");
           setRecCountdown(true);
           // JS timer fires slightly after recStart; we pass the pre-calculated audio anchor
           setTimeout(()=>{setRecCountdown(false);_armLoopRec(recStart);},
