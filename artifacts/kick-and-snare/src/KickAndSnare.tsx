@@ -57,7 +57,7 @@ const ALL_TRACKS=[
   {id:"perc",label:"PERC",color:"#BF5AF2",icon:"▲"},
 ];
 const TRACKS=ALL_TRACKS;
-const DEFAULT_ACTIVE=["kick","snare","hihat","clap","tom","ride","crash","perc"];
+const DEFAULT_ACTIVE=["kick","snare"];
 const DEFAULT_KEY_MAP={kick:"q",snare:"s",hihat:"d",clap:"f",tom:"g",ride:"h",crash:"j",perc:"k"};
 const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247,__tap__:null,__bpm__:null,__swing__:null}; // CC = value+128 (__play__=CC118 __rec__=CC119)
 const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -1325,6 +1325,9 @@ export default function KickAndSnare(){
       setCPat(euclidSnap.current.cPat);
       // Euclid has no song arranger
       setSongMode(false);setSongChain([0]);songPosRef.current=0;
+      // Ensure at least 4 tracks active for Euclidian view
+      const euclidDefault=["kick","snare","hihat","clap"];
+      setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     } else if(nextView==="sequencer"){
       // Save euclid state
       euclidSnap.current={pBank,cPat};
@@ -2566,7 +2569,7 @@ export default function KickAndSnare(){
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
             <button data-hint="Thème · Bascule entre l'affichage sombre et le thème diurne" onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
