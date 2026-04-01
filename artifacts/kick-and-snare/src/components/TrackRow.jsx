@@ -152,8 +152,7 @@ function TrackRow({
             const dragAxis = isDrag ? dragInfo.axis : null;
             return (
               <div key={step}
-                onMouseDown={e => onStepDown(step, e)}
-                onTouchStart={e => onStepDown(step, e)}
+                onPointerDown={e => onStepDown(step, e)}
                 onContextMenu={e => onContextMenu(step, e)}
                 style={{
                   flex: 1, aspectRatio: "1", borderRadius: 3, cursor: ac ? "grab" : "pointer",

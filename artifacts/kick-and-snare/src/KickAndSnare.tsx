@@ -1056,43 +1056,42 @@ export default function KickAndSnare(){
   const startDrag=(tid,step,e)=>{
     e.preventDefault();
     const ac=!!pat[tid]?.[step];
-    const rect=e.currentTarget.getBoundingClientRect();
-    const isTouch=!!e.touches;
-    const startX=isTouch?e.touches[0].clientX:e.clientX;
-    const startY=isTouch?e.touches[0].clientY:e.clientY;
+    // Pointer Events API: single entry point for mouse, touch and pen — no double-fire
+    const isTouch=e.pointerType==="touch"||e.pointerType==="pen";
+    const el=e.currentTarget as HTMLElement;
+    const pointerId=e.pointerId;
+    const rect=el.getBoundingClientRect();
+    el.setPointerCapture(pointerId);
+    const startX=e.clientX,startY=e.clientY;
     const startNudge=stNudge[tid]?.[step]||0;const startVel=stVel[tid]?.[step]??100;
-    // Touch dead-zone is wider (10px) to absorb natural finger jitter on tablet/phone
+    // Wider dead-zone on touch to absorb natural finger jitter
     const moveThr=isTouch?10:5;
-    let axis=null;let moved=false;let longPressed=false;let toggledEarly=false;didDragRef.current=false;
-    // On touch: immediately activate an inactive step (instant drum-machine feel).
-    // Active steps keep touchend behaviour so drag-for-velocity can still trigger.
-    if(isTouch&&!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});toggledEarly=true;}
-    if(ac)setDragInfo({tid,step,axis:null});
-    const mv=ev=>{
-      if(!ac||longPressed)return;ev.preventDefault();
-      const cx=ev.touches?ev.touches[0].clientX:ev.clientX;const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
-      const dx=cx-startX,dy=cy-startY;
+    let axis=null;let moved=false;let longPressed=false;let toggledEarly=false;
+    didDragRef.current=false;
+    // Immediate toggle for inactive steps (pointer events guarantee no double-fire)
+    if(!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});toggledEarly=true;}
+    else setDragInfo({tid,step,axis:null});
+    const mv=(ev:PointerEvent)=>{
+      if(!ac||longPressed)return;
+      const dx=ev.clientX-startX,dy=ev.clientY-startY;
       if(!axis&&(Math.abs(dx)>moveThr||Math.abs(dy)>moveThr)){clearTimeout(longTimer);axis=Math.abs(dx)>Math.abs(dy)?"h":"v";moved=true;didDragRef.current=true;setDragInfo({tid,step,axis});}
       if(axis==="h"){const nv=Math.round((startNudge+dx*0.5)/5)*5;setStNudge(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(0);a[step]=Math.max(-NR,Math.min(NR,nv));n[tid]=a;return n;});}
       else if(axis==="v"){const nv=Math.round(startVel-dy*0.8);setStVel(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=Math.max(5,Math.min(100,nv));n[tid]=a;return n;});}
     };
     const up=()=>{
       clearTimeout(longTimer);setDragInfo(null);
-      // toggledEarly: step was already activated at touchstart — skip double-toggle
+      el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up);
+      // toggledEarly: step already activated at pointer-down → skip double-toggle
       if(!longPressed&&!moved&&!toggledEarly){dblTap(tid,step);setTimeout(()=>{if(!didDragRef.current)handleClick(tid,step);},10);}
-      window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);
-      window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);
     };
-    // Long-press (650ms on touch / 600ms mouse, active step only) → probability popover
+    // Long-press (600ms mouse / 650ms touch on active steps only) → probability popover
     const longTimer=ac?setTimeout(()=>{
-      longPressed=true;moved=true;setDragInfo(null);
-      window.removeEventListener("mousemove",mv);window.removeEventListener("touchmove",mv);
+      longPressed=true;moved=true;setDragInfo(null);el.removeEventListener("pointermove",mv);
       const px=Math.min(Math.max(rect.left+rect.width/2-70,8),window.innerWidth-160);
       const py=Math.min(Math.max(rect.top-120,8),window.innerHeight-170);
       setProbPopover({tid,step,x:px,y:py});
     },isTouch?650:600):null;
-    window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
-    window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);
+    el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});
   };
   const lastTap=useRef({});
   const dblTap=(tid,step)=>{
