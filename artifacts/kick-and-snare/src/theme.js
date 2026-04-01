@@ -1,7 +1,7 @@
 export const THEMES={
   daylight:{
-    bg:"linear-gradient(170deg,#5C5860 0%,#4A4850 100%)",
-    surface:"rgba(238,228,210,0.97)",
+    bg:"linear-gradient(170deg,#1C1A24 0%,#131118 50%,#1A1420 100%)",
+    surface:"rgba(208,196,172,0.96)",
     sBorder:"rgba(0,0,0,0.22)",
     text:"#0E0E18",
     dim:"#2E2E3A",
