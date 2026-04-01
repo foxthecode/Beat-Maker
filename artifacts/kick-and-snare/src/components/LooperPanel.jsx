@@ -5,7 +5,7 @@ export default function LooperPanel({
   loopRec, loopPlaying, loopPlayhead,
   loopDisp,
   loopMetro, setLoopMetro,
-  onToggleRec, onTogglePlay, onUndo, onClear,
+  onToggleRec, onFreshRec, onTogglePlay, onUndo, onClear,
   themeName, isPortrait,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
@@ -34,11 +34,9 @@ export default function LooperPanel({
 
   const recLabel = loopRec
     ? "■ STOP REC"
-    : loopPlaying
-      ? "⊕ OVERDUB"
-      : loopMetro
-        ? "⏺ REC + DÉCOMPTE"
-        : "⏺ REC";
+    : loopMetro && !loopPlaying
+      ? "⏺ REC + DÉCOMPTE"
+      : "⏺ REC";
 
   return (
     <div style={{
@@ -116,14 +114,34 @@ export default function LooperPanel({
         flexWrap: "wrap",
         flexDirection: isPortrait ? "column" : "row",
       }}>
-        <button onClick={onToggleRec} style={pill(loopRec, "#FF2D55")}>
-          {recLabel}
-        </button>
+        {/* REC — fresh record (always visible when not currently recording) */}
+        {!loopRec && (
+          <button
+            onClick={loopPlaying ? onFreshRec : onToggleRec}
+            style={pill(false, "#FF2D55")}
+          >
+            {recLabel}
+          </button>
+        )}
+        {/* STOP REC — when recording is active */}
+        {loopRec && (
+          <button onClick={onToggleRec} style={pill(true, "#FF2D55")}>
+            ■ STOP REC
+          </button>
+        )}
+        {/* OVERDUB — only when playing and not already recording */}
+        {loopPlaying && !loopRec && (
+          <button onClick={onToggleRec} style={pill(false, "#BF5AF2")}>
+            ⊕ OVERDUB
+          </button>
+        )}
+        {/* STOP playback */}
         {loopPlaying && (
           <button onClick={onTogglePlay} style={pill(false, "#FF9500")}>
             ■ STOP
           </button>
         )}
+        {/* PLAY — only when stopped but has events */}
         {!loopPlaying && loopDisp && loopDisp.length > 0 && (
           <button onClick={onTogglePlay} style={pill(false, "#30D158")}>
             ▶ PLAY
@@ -135,7 +153,7 @@ export default function LooperPanel({
           </button>
         )}
         {(loopPlaying || (loopDisp && loopDisp.length > 0)) && (
-          <button onClick={onClear} style={pill(false, "#FF2D55")}>
+          <button onClick={onClear} style={pill(false, "#636366")}>
             ✕ CLEAR
           </button>
         )}

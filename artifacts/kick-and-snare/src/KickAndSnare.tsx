@@ -1157,6 +1157,12 @@ export default function KickAndSnare(){
     loopRef.current.events=[];loopRef.current.passId=0;
     setLoopDisp([]);
   };
+  const freshRecLooper=async()=>{
+    // Stop playback + wipe events, then immediately arm a fresh recording
+    clearLooper();
+    await new Promise(r=>setTimeout(r,0)); // flush React state
+    await _armLoopRec();
+  };
 
 
   // Step interactions
@@ -1694,7 +1700,7 @@ export default function KickAndSnare(){
                   loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
                   loopDisp={loopDisp}
                   loopMetro={loopMetro} setLoopMetro={setLoopMetro}
-                  onToggleRec={toggleLoopRec} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
+                  onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
                   themeName={themeName} isPortrait={isPortrait}
                 />
               </div>
