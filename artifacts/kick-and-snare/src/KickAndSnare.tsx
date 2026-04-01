@@ -558,8 +558,6 @@ export default function KickAndSnare(){
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
   },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
-  // Activating looper countdown → automatically enable transport metro
-  useEffect(()=>{if(loopMetro)setMetro(true);},[loopMetro]);
   // BPM sync for delay
   useEffect(()=>{
     if(gfx.delay.sync){const t=syncDivTime(gfx.delay.syncDiv,bpm);setGfx(p=>({...p,delay:{...p.delay,time:t}}));}
@@ -604,6 +602,8 @@ export default function KickAndSnare(){
   const [metroVol,setMetroVol]=useState(10);
   const [dragInfo,setDragInfo]=useState(null);
   const [metroSub,setMetroSub]=useState("off");
+  // Activating looper countdown → automatically enable transport metro
+  useEffect(()=>{if(loopMetro)setMetro(true);},[loopMetro]);
   // Android WebView / PWA compat
   const [ctxSuspended,setCtxSuspended]=useState(false);
   const hasMidiApi=typeof navigator!=='undefined'&&typeof navigator.requestMIDIAccess==='function';
