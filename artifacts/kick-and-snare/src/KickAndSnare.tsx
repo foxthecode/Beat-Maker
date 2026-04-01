@@ -84,34 +84,6 @@ const DEFAULT_FX = Object.freeze({
 const DELAY_DIVS=["1/4","1/8","1/16","1/4d","1/8d","1/4t","1/8t"];
 const divToSec=(div,bpm)=>{const b=60/bpm;const m={"1/4":b,"1/8":b/2,"1/16":b/4,"1/4d":b*1.5,"1/8d":b*0.75,"1/4t":b*2/3,"1/8t":b/3};return m[div]||b;};
 
-// ── CP-C: URL share encode/decode (pure) ─────────────────────────────────────
-function encodeStateURL(d:{bpm:number,sig:string,act:string[],muted:Record<string,boolean>,pat:Record<string,number[]>,fx:Record<string,any>}):string{
-  // Encode steps as hex nibbles (4 steps → 1 hex char)
-  const patHex:Record<string,string>={};
-  Object.entries(d.pat).forEach(([tid,steps])=>{
-    let h="";for(let i=0;i<steps.length;i+=4){let n=0;for(let j=0;j<4;j++)if(steps[i+j])n|=(1<<j);h+=n.toString(16);}
-    patHex[tid]=h;
-  });
-  const payload={v:1,bpm:d.bpm,sig:d.sig,act:d.act,
-    muted:Object.keys(d.muted).filter(k=>d.muted[k]),
-    pat:patHex,fx:d.fx};
-  return btoa(JSON.stringify(payload)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
-}
-function decodeStateURL(hash:string):{bpm:number,sig:string,act:string[],muted:string[],pat:Record<string,number[]>,fx:Record<string,any>}|null{
-  try{
-    const json=atob(hash.replace(/-/g,"+").replace(/_/g,"/"));
-    const d=JSON.parse(json);
-    if(d.v!==1)return null;
-    const pat:Record<string,number[]>={};
-    Object.entries(d.pat as Record<string,string>).forEach(([tid,h])=>{
-      const steps:number[]=[];
-      for(let i=0;i<h.length;i++){const n=parseInt(h[i],16);for(let j=0;j<4;j++)steps.push((n>>j)&1);}
-      pat[tid]=steps;
-    });
-    return{bpm:d.bpm,sig:d.sig,act:d.act,muted:d.muted||[],pat,fx:d.fx||{}};
-  }catch{return null;}
-}
-
 // ── CP-B: WAV encoder (pure) ──────────────────────────────────────────────────
 function encodeWAV(buffer:AudioBuffer):ArrayBuffer{
   const numCh=buffer.numberOfChannels,sr=buffer.sampleRate;
@@ -633,8 +605,6 @@ export default function KickAndSnare(){
   // ── CP-B: Export WAV ──
   const [exportState,setExportState]=useState<"idle"|"rendering">("idle");
   const [exportBars,setExportBars]=useState<1|2|4>(1);
-  // ── CP-C: URL share ──
-  const [shareCopied,setShareCopied]=useState(false);
   // ── H.1a: Mobile detection ──
   const isMobile=useMemo(()=>/Android|iPhone|iPad/i.test(navigator.userAgent)||window.innerWidth<768,[]);
   const isMobileRef=useRef(isMobile);
@@ -1161,40 +1131,6 @@ export default function KickAndSnare(){
     return()=>clearInterval(iv);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
-
-  // ── CP-C: Decode URL hash on mount ───────────────────────────────────────────
-  useEffect(()=>{
-    const hash=window.location.hash.slice(1);
-    if(!hash)return;
-    const decoded=decodeStateURL(hash);
-    if(!decoded)return;
-    setBpm(Math.max(30,Math.min(300,decoded.bpm)));
-    const matchSig=TIME_SIGS.find(s=>s.label===decoded.sig);
-    if(matchSig){setTSig(matchSig);setGrpIdx(0);resize(matchSig.steps);}
-    setAct(decoded.act.filter(id=>allT.find(t=>t.id===id)));
-    const mutedObj:Record<string,boolean>={};
-    decoded.muted.forEach((id:string)=>{mutedObj[id]=true;});
-    setMuted(mutedObj);
-    setPat(p=>({...p,...decoded.pat}));
-    if(Object.keys(decoded.fx).length)setFx(p=>({...p,...decoded.fx}));
-    // Clear hash after loading so refresh doesn't re-apply
-    history.replaceState(null,"",window.location.pathname+window.location.search);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[]);
-
-  const shareURL=()=>{
-    const hash=encodeStateURL({bpm,sig:tSig.label,act,muted,pat,fx});
-    const url=`${window.location.origin}${window.location.pathname}#${hash}`;
-    navigator.clipboard.writeText(url).then(()=>{
-      setShareCopied(true);setTimeout(()=>setShareCopied(false),2000);
-    }).catch(()=>{
-      // Fallback: select text from a temp input
-      const inp=document.createElement("input");
-      inp.value=url;document.body.appendChild(inp);inp.select();
-      document.execCommand("copy");document.body.removeChild(inp);
-      setShareCopied(true);setTimeout(()=>setShareCopied(false),2000);
-    });
-  };
 
   // F.1a: REC without playback — countdown 1 bar then auto-start
   // ── CP-B: Export WAV ─────────────────────────────────────────────────────────
@@ -1745,7 +1681,6 @@ export default function KickAndSnare(){
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
           exportState={exportState} exportBars={exportBars} setExportBars={setExportBars} onExport={exportWAV}
-          onShare={shareURL} shareCopied={shareCopied}
         />
 
         {/* ── Time Signature ── */}

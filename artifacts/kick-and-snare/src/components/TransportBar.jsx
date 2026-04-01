@@ -16,7 +16,6 @@ export default function TransportBar({
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
   exportState, exportBars, setExportBars, onExport,
-  onShare, shareCopied,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
@@ -194,13 +193,6 @@ export default function TransportBar({
     </div>
   );
 
-  const ShareBtn = onShare && (
-    <button onClick={onShare}
-      style={{ ...pill(shareCopied, "#30D158"), color: shareCopied ? "#30D158" : "inherit", minWidth: 0 }}
-      title="Copy share URL"
-    >{shareCopied ? "✓ COPIED" : "⬆ SHARE"}</button>
-  );
-
   const KeybBtn = (
     <button onClick={() => setShowK(!showK)} style={{ ...pill(showK, "#FFD60A"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11, lineHeight: 1 }}>⌨</span>
@@ -249,7 +241,6 @@ export default function TransportBar({
           {KeybBtn}
           {MidiBtn}
           {LinkBtn}
-          {ShareBtn}
           {ExportBtn}
         </div>
       </div>
@@ -271,7 +262,6 @@ export default function TransportBar({
       {KeybBtn}
       {MidiBtn}
       {LinkBtn}
-      {ShareBtn}
       {ExportBtn}
     </div>
   );
