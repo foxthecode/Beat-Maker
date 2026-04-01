@@ -108,7 +108,7 @@ const DRUM_KITS=[
    samples:{} as Record<string,string>,
    shape:{sDec:0.3, sTune:1.5,  sPunch:2.8, sSnap:2.8, sBody:0.7, sTone:1.7 }},
   {id:"acoustic", name:"Acoustic",     icon:"🥁",
-   samples:{kick:`${import.meta.env.BASE_URL}samples/kit8/kick.mp3`,snare:`${import.meta.env.BASE_URL}samples/kit8/snare.mp3`,hihat:`${import.meta.env.BASE_URL}samples/kit8/hihat.mp3`},
+   samples:{kick:`${import.meta.env.BASE_URL}samples/acoustic/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/acoustic/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/acoustic/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/acoustic/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/acoustic/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/acoustic/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/acoustic/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/acoustic/perc.wav`},
    shape:{sDec:1.5, sTune:1.08, sPunch:0.85,sSnap:1.6, sBody:1.5, sTone:1   }},
   {id:"afrobeat", name:"Afrobeat",     icon:"🌍",
    samples:{} as Record<string,string>,
