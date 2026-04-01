@@ -6,6 +6,7 @@ import TransportBar from "./components/TransportBar.jsx";
 import PatternBank from "./components/PatternBank.jsx";
 import TrackRow from "./components/TrackRow.jsx";
 import LooperPanel from "./components/LooperPanel.jsx";
+import TutorialOverlay from "./components/TutorialOverlay.tsx";
 import { useAppState } from "./hooks/useAppState.js";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
@@ -1199,6 +1200,7 @@ export default function KickAndSnare(){
   const [overlayVisible,setOverlayVisible]=useState(!appSt.launched);
   const [showCheatSheet,setShowCheatSheet]=useState(false);
   const [showInfo,setShowInfo]=useState(false);
+  const [showTour,setShowTour]=useState(false);
   const [hoverMsg,setHoverMsg]=useState<string|null>(null);
   useEffect(()=>{
     const onOver=(e:MouseEvent)=>{
@@ -2558,6 +2560,7 @@ export default function KickAndSnare(){
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
             <button data-hint="Annuler (Ctrl+Z) · Revient à l'étape précédente — jusqu'à 50 étapes d'historique" onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
             <button data-hint="Refaire (Ctrl+Y) · Rétablit l'action annulée" onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
+            <button data-hint="Tutoriel interactif · Tour guidé illustré des 8 sections de l'app — rappelable à tout moment" onClick={()=>{setShowTour(p=>!p);setShowInfo(false);}} title="Tutoriel interactif" style={{width:28,height:28,border:`1px solid ${showTour?"#FF950055":"rgba(255,149,0,0.2)"}`,borderRadius:6,background:showTour?"rgba(255,149,0,0.15)":"transparent",color:showTour?"#FF9500":"rgba(255,149,0,0.55)",fontSize:14,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>🎓</button>
             <button data-hint="Guide d'utilisation · Décrit chaque commande et interaction de l'application" onClick={()=>setShowInfo(p=>!p)} title="Guide & aide" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
           </div>
           </div>
@@ -3283,6 +3286,8 @@ export default function KickAndSnare(){
       </div>
     )}
 
+    {/* ── Tutorial overlay ── */}
+    {showTour&&<TutorialOverlay onClose={()=>setShowTour(false)} themeName={themeName}/>}
     {/* ── Info overlay ── */}
     {showInfo&&(
       <div style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.82)",backdropFilter:"blur(6px)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"20px 12px",overflowY:"auto"}} onClick={()=>setShowInfo(false)}>
