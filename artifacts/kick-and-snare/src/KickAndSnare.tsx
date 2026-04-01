@@ -1552,14 +1552,29 @@ export default function KickAndSnare(){
   // ── Euclid template loader ─────────────────────────────────────────────────
   const loadEuclidTemplate=(tpl:EuclidTemplate)=>{
     pushHistory();
-    const paramEntries=Object.entries(tpl.params);
-    // Set euclidParams for each track defined in the template
+    const paramEntries=Object.entries(tpl.params) as [string,{N:number,hits:number,rot?:number}][];
+    // Update euclidParams for each track in the preset
     setEuclidParams(prev=>{
       const next={...prev};
       paramEntries.forEach(([tid,p])=>{
         next[tid]={N:p.N,hits:p.hits,rot:p.rot??0,tpl:tpl.name,fold:false};
       });
       return next;
+    });
+    // Write the actual Euclidean step patterns into pBank so the dots update
+    setPBank(pb=>{
+      const n=[...pb];
+      const cp={...n[cPat],_steps:{...(n[cPat]._steps||{})}};
+      paramEntries.forEach(([tid,p])=>{
+        const N=p.N;const hits=p.hits;const rot=p.rot??0;
+        const raw=euclidRhythm(hits,N);
+        const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
+        const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+        cp._steps[tid]=N;
+        cp[tid]=[...rotated];
+      });
+      n[cPat]=cp;
+      return n;
     });
     // Activate those tracks
     setAct(prev=>{const next=[...prev];paramEntries.forEach(([tid])=>{if(!next.includes(tid))next.push(tid);});return next;});
@@ -2226,8 +2241,9 @@ export default function KickAndSnare(){
           const chH=(tid,h)=>{const p=getP(tid);writeP(tid,{hits:h,tpl:""});applyE(tid,p.N,h,p.rot);};
           const chR=(tid,r)=>{
             const p=getP(tid);writeP(tid,{rot:r});
+            // Only use a fixed base for per-track EUCLID_RHYTHMS templates (non-euclidean hit positions)
             let base=null;
-            if(p.tpl){const t=EUCLID_TEMPLATES.find(x=>x.name===p.tpl);if(t&&t.N===p.N){base=Array(t.N).fill(0);t.hits.forEach(h=>{base[h]=1;});}}
+            if(p.tpl){const t=EUCLID_RHYTHMS.find(x=>x.name===p.tpl);if(t&&t.N===p.N){base=Array(t.N).fill(0);t.hits.forEach(h=>{base[h]=1;});}}
             applyE(tid,p.N,p.hits,r,base);
           };
           const applyTplTo=(tid,t)=>{
