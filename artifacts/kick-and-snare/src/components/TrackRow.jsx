@@ -70,69 +70,72 @@ function TrackRow({
     <div>
       <div style={{ display: "flex", flexDirection: isPortrait ? "column" : "row", alignItems: isPortrait ? "stretch" : "flex-start", gap: 6, opacity: aud ? 1 : 0.3, padding: "4px 0" }}>
 
-        {/* ── Left: Track Label + controls (fixed width, never shrinks) ── */}
-        <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        {/* ── Left: two sub-columns side by side ── */}
+        <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "row", gap: 3, alignItems: "flex-start" }}>
 
-          {/* Row 1: icon+label · M · S · CLR · ♪ · × */}
-          <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "nowrap", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 3, width: 68, flexShrink: 0, overflow: "hidden" }}>
+          {/* Sub-col A (68px): icon+label above, VOL+PAN below */}
+          <div style={{ width: 68, flexShrink: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* icon + label */}
+            <div style={{ display: "flex", alignItems: "center", gap: 3, overflow: "hidden" }}>
               <DrumSVG id={track.id} color={track.color} hit={flash} />
               <span style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{track.label}</span>
             </div>
-            <MidiTag id={track.id} />
-            <button onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
-            <button onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
-            <button onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
-            <button onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
-            {actLength > 1 && <button onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
-          </div>
-
-          {/* Row 2: [spacer aligns with icon] · 16st · VOL knob · PAN knob */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            {/* Invisible spacer matching icon+label width so 16st aligns under M */}
-            <div style={{ width: 68, flexShrink: 0 }} />
-
-            {/* Step count — aligned with M button */}
-            <button
-              title={`${tSteps}st → ${nextTs}st`}
-              onClick={() => onStepCountChange(nextTs)}
-              style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}
-            >{tSteps}st</button>
-
-            {/* VOL knob */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-              <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                <div style={{ position: "relative", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="22" height="22" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * vol / 100} ${circ}`} />
-                  </svg>
-                  <span style={{ fontSize: 6, fontWeight: 900, color: track.color, zIndex: 1, pointerEvents: "none" }}>VOL</span>
+            {/* VOL + PAN knobs */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {/* VOL knob */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                  <div style={{ position: "relative", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="22" height="22" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
+                      <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
+                      <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * vol / 100} ${circ}`} />
+                    </svg>
+                    <span style={{ fontSize: 6, fontWeight: 900, color: track.color, zIndex: 1, pointerEvents: "none" }}>VOL</span>
+                  </div>
+                  <span style={{ fontSize: 6, color: track.color, fontWeight: 700, fontFamily: "monospace", lineHeight: 1 }}>{vol}</span>
                 </div>
-                <span style={{ fontSize: 6, color: track.color, fontWeight: 700, fontFamily: "monospace", lineHeight: 1 }}>{vol}</span>
+                <MidiTag id={`vol_${track.id}`} />
               </div>
-              <MidiTag id={`vol_${track.id}`} />
-            </div>
-
-            {/* PAN knob */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-              <div onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                <div style={{ position: "relative", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="22" height="22" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
-                    {panArc && <path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" />}
-                    <circle cx="11" cy="11" r="1.5" fill={track.color} />
-                  </svg>
-                  <span style={{ fontSize: 6, fontWeight: 900, color: track.color, zIndex: 1, pointerEvents: "none" }}>PAN</span>
+              {/* PAN knob */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <div onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                  <div style={{ position: "relative", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="22" height="22" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
+                      <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
+                      {panArc && <path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" />}
+                      <circle cx="11" cy="11" r="1.5" fill={track.color} />
+                    </svg>
+                    <span style={{ fontSize: 6, fontWeight: 900, color: track.color, zIndex: 1, pointerEvents: "none" }}>PAN</span>
+                  </div>
+                  <span style={{ fontSize: 6, color: track.color, fontWeight: 700, fontFamily: "monospace", lineHeight: 1 }}>{pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`}</span>
                 </div>
-                <span style={{ fontSize: 6, color: track.color, fontWeight: 700, fontFamily: "monospace", lineHeight: 1 }}>{pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`}</span>
+                <MidiTag id={`pan_${track.id}`} />
               </div>
-              <MidiTag id={`pan_${track.id}`} />
             </div>
           </div>
 
-          {/* Row 3: sample name */}
-          {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{smpN.substring(0, 30)}</span>}
+          {/* Sub-col B: buttons above, 16st + sample name below */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Row 1: MidiTag · M · S · CLR · ♪ · × */}
+            <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "nowrap" }}>
+              <MidiTag id={track.id} />
+              <button onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
+              <button onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
+              <button onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
+              <button onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
+              {actLength > 1 && <button onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
+            </div>
+            {/* Row 2: step count */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                title={`${tSteps}st → ${nextTs}st`}
+                onClick={() => onStepCountChange(nextTs)}
+                style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}
+              >{tSteps}st</button>
+              {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{smpN.substring(0, 20)}</span>}
+            </div>
+          </div>
+
         </div>
 
         {/* ── Steps grid (grows to fill, never pushes siblings) ── */}
