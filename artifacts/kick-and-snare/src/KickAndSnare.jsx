@@ -551,6 +551,7 @@ export default function KickAndSnare(){
   const linkBpmRef=useRef(null);
   // ── Undo / Redo ──
   const histRef=useRef({past:[],future:[]});
+  const [histLen,setHistLen]=useState({past:0,future:0});
   const _pbRef=useRef(null);const _epRef=useRef(null);const _svRef=useRef(null);const _snRef=useRef(null);const _spRef=useRef(null);const _srRef=useRef(null);
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // Euclid polyrhythm — independent per-track clocks
@@ -959,9 +960,10 @@ export default function KickAndSnare(){
   // Keep snapshot refs always current (assigned during render)
   _pbRef.current=pBank;_epRef.current=euclidParams;_svRef.current=stVel;_snRef.current=stNudge;_spRef.current=stProb;_srRef.current=stRatch;
   const _snap=()=>({pBank:JSON.parse(JSON.stringify(_pbRef.current)),euclidParams:JSON.parse(JSON.stringify(_epRef.current)),stVel:JSON.parse(JSON.stringify(_svRef.current)),stNudge:JSON.parse(JSON.stringify(_snRef.current)),stProb:JSON.parse(JSON.stringify(_spRef.current)),stRatch:JSON.parse(JSON.stringify(_srRef.current))});
-  const pushHistory=()=>{histRef.current.past.push(_snap());if(histRef.current.past.length>60)histRef.current.past.shift();histRef.current.future=[];};
-  const undo=()=>{const h=histRef.current;if(!h.past.length)return;h.future.push(_snap());const s=h.past.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);};
-  const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);};
+  const _updHL=()=>setHistLen({past:histRef.current.past.length,future:histRef.current.future.length});
+  const pushHistory=()=>{histRef.current.past.push(_snap());if(histRef.current.past.length>60)histRef.current.past.shift();histRef.current.future=[];_updHL();};
+  const undo=()=>{const h=histRef.current;if(!h.past.length)return;h.future.push(_snap());const s=h.past.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
+  const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
   R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
 
   const handleClick=(tid,step)=>{pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});};
@@ -1235,9 +1237,9 @@ export default function KickAndSnare(){
               </svg>
             );
           })()}
-          <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
-            <button onClick={undo} title="Undo (Ctrl+Z)" disabled={histRef.current.past.length===0} style={{padding:"3px 7px",border:`1px solid ${histRef.current.past.length?th.sBorder+"99":th.sBorder+"33"}`,borderRadius:5,background:histRef.current.past.length?"rgba(100,210,255,0.08)":"transparent",color:histRef.current.past.length?"#64D2FF":th.dim,fontSize:9,fontWeight:700,cursor:histRef.current.past.length?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.04em",opacity:histRef.current.past.length?1:0.35,lineHeight:1,minWidth:36}}>↩ UNDO</button>
-            <button onClick={redo} title="Redo (Ctrl+Y)" disabled={histRef.current.future.length===0} style={{padding:"3px 7px",border:`1px solid ${histRef.current.future.length?th.sBorder+"99":th.sBorder+"33"}`,borderRadius:5,background:histRef.current.future.length?"rgba(100,210,255,0.08)":"transparent",color:histRef.current.future.length?"#64D2FF":th.dim,fontSize:9,fontWeight:700,cursor:histRef.current.future.length?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.04em",opacity:histRef.current.future.length?1:0.35,lineHeight:1,minWidth:36}}>REDO ↪</button>
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <button onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
+            <button onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
