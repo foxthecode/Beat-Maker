@@ -826,8 +826,8 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
   };
 
   const Sep=()=><div style={{width:1,background:th.sBorder,alignSelf:"stretch",margin:"0 6px",flexShrink:0}}/>;
-  const SecLabel=({label,color,active,onToggle,midiId})=>(
-    <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",marginBottom:8,paddingBottom:4,borderBottom:`1px solid ${active?color+"55":th.btn}`}}>
+  const SecLabel=({label,color,active,onToggle,midiId,hint}:{label:string,color:string,active:boolean,onToggle:()=>void,midiId?:string,hint?:string})=>(
+    <div data-hint={hint||(active?`${label} actif · Clic pour désactiver`:`${label} inactif · Clic pour activer`)} onClick={onToggle} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",marginBottom:8,paddingBottom:4,borderBottom:`1px solid ${active?color+"55":th.btn}`}}>
       <div style={{width:7,height:7,borderRadius:"50%",background:active?color:th.faint,flexShrink:0,boxShadow:active?`0 0 6px ${color}`:undefined}}/>
       <span style={{fontSize:8,fontWeight:800,color:active?color:th.faint,letterSpacing:"0.1em"}}>{label}</span>
       {midiId&&<MidiTag id={midiId}/>}
@@ -900,7 +900,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
         </div>
         {/* Spectrum analyser mini */}
         {open&&<svg ref={specRef} width={80} height={20} style={{flexShrink:0,borderRadius:3,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}/>}
-        <button onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
+        <button data-hint={showPresets?"Fermer les presets FX · Sélectionne un preset pour reconfigurer tout le FX Rack en un clic":"PRESETS FX · Charge une configuration complète d'effets en un clic : Club, Lo-Fi, Techno, Space, Dry…"} onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
           style={{padding:'2px 8px',borderRadius:5,border:`1px solid ${showPresets?'#BF5AF255':th.sBorder}`,background:showPresets?'rgba(191,90,242,0.12)':'transparent',color:showPresets?'#BF5AF2':th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0}}>
           PRESETS
         </button>
@@ -910,7 +910,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
       {showPresets&&(
         <div style={{padding:'6px 14px 10px',borderTop:`1px solid ${th.sBorder}`,display:'flex',gap:4,flexWrap:'wrap'}}>
           {FX_PRESETS.map(p=>(
-            <button key={p.name} onClick={()=>loadPreset(p)}
+            <button key={p.name} data-hint={`Preset "${p.name}" · Charge une configuration complète d'effets · Remplace les réglages actuels du FX Rack`} onClick={()=>loadPreset(p)}
               style={{padding:'3px 9px',borderRadius:5,border:`1px solid ${p.color}44`,background:p.color+'14',color:p.color,fontSize:8,fontWeight:700,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>
               {p.name}
             </button>
@@ -933,16 +933,16 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
             ))}
             <span style={{fontSize:8,color:th.faint}}>→</span>
             <span style={{fontSize:6,color:th.faint,padding:'2px 5px',borderRadius:3,border:`1px solid ${th.sBorder}`}}>OUT</span>
-            <button onClick={()=>{setFxChainOrder(['drive','comp','filter']);onChainOrderChange(['drive','comp','filter']);}}
+            <button data-hint="RESET chaîne FX · Remet l'ordre Drive → Comp → Filter par défaut · L'ordre affecte le son final du bus master" onClick={()=>{setFxChainOrder(['drive','comp','filter']);onChainOrderChange(['drive','comp','filter']);}}
               style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,border:`1px solid ${th.sBorder}`,background:'transparent',color:th.faint,fontSize:5,cursor:'pointer',fontFamily:'inherit'}}>RESET</button>
           </div>
           {/* PRE/POST sends */}
           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
             <span style={{fontSize:6,fontWeight:800,color:th.faint,letterSpacing:'0.1em',minWidth:36}}>SENDS</span>
-            {([{id:'reverb',label:'RV',color:'#64D2FF'},{id:'delay',label:'DL',color:'#30D158'},{id:'chorus',label:'CH',color:'#5E5CE6'},{id:'flanger',label:'FL',color:'#FF375F'},{id:'pingpong',label:'PP',color:'#FFD60A'}] as const).map(({id,label,color})=>(
+            {([{id:'reverb',label:'RV',name:'Reverb',color:'#64D2FF'},{id:'delay',label:'DL',name:'Delay',color:'#30D158'},{id:'chorus',label:'CH',name:'Chorus',color:'#5E5CE6'},{id:'flanger',label:'FL',name:'Flanger',color:'#FF375F'},{id:'pingpong',label:'PP',name:'Ping-Pong',color:'#FFD60A'}] as const).map(({id,label,name,color})=>(
               <div key={id} style={{display:'flex',alignItems:'center',gap:2}}>
                 <span style={{fontSize:6,fontWeight:700,color}}>{label}</span>
-                <button onClick={()=>setFxSendPos((p:any)=>({...p,[id]:p[id]==='pre'?'post':'pre'}))}
+                <button data-hint={fxSendPos[id]==='pre'?`${name} PRE · Send avant la chaîne master (Drive/Comp/Filter) · Clic pour basculer en POST`:`${name} POST · Send après la chaîne master · Clic pour basculer en PRE`} onClick={()=>setFxSendPos((p:any)=>({...p,[id]:p[id]==='pre'?'post':'pre'}))}
                   style={{padding:'1px 4px',borderRadius:3,fontSize:5,fontWeight:800,cursor:'pointer',fontFamily:'inherit',
                     border:`1px solid ${fxSendPos[id]==='pre'?color:color+'44'}`,
                     background:fxSendPos[id]==='pre'?color+'22':'transparent',
@@ -964,7 +964,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               {/* REVERB */}
               <div style={{minWidth:120,flexShrink:0,paddingRight:6}}>
-                <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec('reverb','on',!gfx.reverb.on)} midiId="__rev_on__"/>
+                <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec('reverb','on',!gfx.reverb.on)} midiId="__rev_on__" hint={gfx.reverb.on?`REVERB actif · Decay: ${gfx.reverb.decay?.toFixed(1)}s · Size: ${Math.round((gfx.reverb.size??0.5)*100)}% · Clic pour désactiver`:"REVERB · Réverbération convolutive (Plate/Room/Hall) · Régler Decay et Size · Assignable MIDI"}/>
                 <div style={{display:'flex',gap:3,marginBottom:6}}>
                   {(['plate','room','hall'] as const).map(tp=>(
                     <button key={tp} onClick={()=>{upSec('reverb','type',tp);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,gfx.reverb.size,tp);}}
@@ -985,7 +985,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
               {/* DELAY */}
               <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
                 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-                  <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec('delay','on',!gfx.delay.on)} midiId="__dly_on__"/>
+                  <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec('delay','on',!gfx.delay.on)} midiId="__dly_on__" hint={gfx.delay.on?`DELAY actif · ${gfx.delay.sync?`Sync: ${gfx.delay.syncDiv}`:`Temps: ${gfx.delay.time?.toFixed(2)}s`} · Feedback: ${gfx.delay.fdbk??35}% · Clic pour désactiver`:"DELAY · Écho synchronisable au BPM · Régler temps, feedback et mix · Assignable MIDI"}/>
                   <button onClick={()=>{const ns=!gfx.delay.sync;const tt=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx((p:any)=>({...p,delay:{...p.delay,sync:ns,time:tt}}));}}
                     style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${gfx.delay.sync?'#30D158':'rgba(48,209,88,0.3)'}`,background:gfx.delay.sync?'rgba(48,209,88,0.15)':'transparent',color:gfx.delay.sync?'#30D158':'rgba(48,209,88,0.5)'}}>SYNC</button>
                 </div>
@@ -1012,7 +1012,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               {/* CHORUS */}
               <div style={{minWidth:110,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="CHORUS" color="#5E5CE6" active={gfx.chorus?.on??false} onToggle={()=>upSec('chorus','on',!(gfx.chorus?.on??false))}/>
+                <SecLabel label="CHORUS" color="#5E5CE6" active={gfx.chorus?.on??false} onToggle={()=>upSec('chorus','on',!(gfx.chorus?.on??false))} hint={(gfx.chorus?.on??false)?"CHORUS actif · Élargit le son avec une légère modulation de hauteur · Clic pour désactiver":"CHORUS · Donne de l'épaisseur et de la largeur stéréo · Régler Rate et Depth"}/>
                 <div style={{display:'flex',gap:8,opacity:(gfx.chorus?.on??false)?1:0.3,pointerEvents:(gfx.chorus?.on??false)?'auto':'none'}}>
                   <Knob label="RATE" value={gfx.chorus?.rate??0.8} min={0.1} max={5} color="#5E5CE6" unit="Hz" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('chorus','rate',v)}/>
                   <Knob label="DEPTH" value={gfx.chorus?.depth??30} min={0} max={100} color="#5E5CE6" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('chorus','depth',v)}/>
@@ -1024,7 +1024,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               {/* FLANGER */}
               <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="FLANGER" color="#FF375F" active={gfx.flanger?.on??false} onToggle={()=>upSec('flanger','on',!(gfx.flanger?.on??false))}/>
+                <SecLabel label="FLANGER" color="#FF375F" active={gfx.flanger?.on??false} onToggle={()=>upSec('flanger','on',!(gfx.flanger?.on??false))} hint={(gfx.flanger?.on??false)?"FLANGER actif · Effet jet d'avion sur le bus master · Clic pour désactiver":"FLANGER · Déphasage modulé pour un effet métallique ou aérien · Régler Rate et Feedback"}/>
                 <div style={{display:'flex',gap:8,opacity:(gfx.flanger?.on??false)?1:0.3,pointerEvents:(gfx.flanger?.on??false)?'auto':'none'}}>
                   <Knob label="RATE" value={gfx.flanger?.rate??0.3} min={0.05} max={3} color="#FF375F" unit="Hz" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('flanger','rate',v)}/>
                   <Knob label="DEPTH" value={gfx.flanger?.depth??50} min={0} max={100} color="#FF375F" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('flanger','depth',v)}/>
@@ -1038,7 +1038,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
               {/* PING-PONG */}
               <div style={{minWidth:140,flexShrink:0,paddingLeft:6}}>
                 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-                  <SecLabel label="PING-PONG" color="#FFD60A" active={gfx.pingpong?.on??false} onToggle={()=>upSec('pingpong','on',!(gfx.pingpong?.on??false))}/>
+                  <SecLabel label="PING-PONG" color="#FFD60A" active={gfx.pingpong?.on??false} onToggle={()=>upSec('pingpong','on',!(gfx.pingpong?.on??false))} hint={(gfx.pingpong?.on??false)?"PING-PONG DELAY actif · Rebond gauche-droite en stéréo · Clic pour désactiver":"PING-PONG DELAY · Écho stéréo qui rebondit de gauche à droite · Synchronisable au BPM"}/>
                   <button onClick={()=>{const ns=!(gfx.pingpong?.sync??false);const tt=ns?syncDivTime(gfx.pingpong?.syncDiv??'1/4',bpm):gfx.pingpong?.time??0.25;setGfx((p:any)=>({...p,pingpong:{...p.pingpong,sync:ns,time:tt}}));}}
                     style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${gfx.pingpong?.sync?'#FFD60A':'rgba(255,214,10,0.3)'}`,background:gfx.pingpong?.sync?'rgba(255,214,10,0.15)':'transparent',color:gfx.pingpong?.sync?'#FFD60A':'rgba(255,214,10,0.5)'}}>SYNC</button>
                 </div>
@@ -1074,7 +1074,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               {/* FILTER + LFO */}
               <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
-                <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec('filter','on',!gfx.filter.on)} midiId="__flt_on__"/>
+                <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec('filter','on',!gfx.filter.on)} midiId="__flt_on__" hint={gfx.filter.on?`FILTER actif · ${gfx.filter.type?.toUpperCase()||'LP'} · Cutoff: ${gfx.filter.cut>=1000?`${(gfx.filter.cut/1000).toFixed(1)}kHz`:`${Math.round(gfx.filter.cut)}Hz`} · LFO: ${(gfx.filter as any).lfo?'ON':'OFF'} · Clic pour désactiver`:"FILTER Master Bus · LP/HP/BP avec LFO modulateur · Sculptez le timbre global · Assignable MIDI"}/>
                 <div style={{display:'flex',gap:3,marginBottom:6}}>
                   {(['lowpass','highpass','bandpass'] as const).map(ft=>(
                     <button key={ft} onClick={()=>upSec('filter','type',ft)}
@@ -1112,7 +1112,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               {/* COMP */}
               <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec('comp','on',!gfx.comp.on)} midiId="__cmp_on__"/>
+                <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec('comp','on',!gfx.comp.on)} midiId="__cmp_on__" hint={gfx.comp.on?`COMPRESSEUR actif · Seuil: ${gfx.comp.thr}dB · Ratio: ${gfx.comp.ratio?.toFixed(1)}:1 · Serre et uniformise le bus master · Clic pour désactiver`:"COMP · Compresseur Master Bus · Seuil, Ratio, Attack, Release · Contrôle la dynamique globale · Assignable MIDI"}/>
                 <div style={{display:'flex',gap:8,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?'auto':'none'}}>
                   <Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('comp','thr',v)}/>
                   <Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('comp','ratio',v)}/>
@@ -1134,7 +1134,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               {/* DRIVE multi-mode */}
               <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec('drive','on',!gfx.drive.on)} midiId="__drv_on__"/>
+                <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec('drive','on',!gfx.drive.on)} midiId="__drv_on__" hint={gfx.drive.on?`DRIVE actif · Saturation ${((gfx.drive as any).mode||'tanh').toUpperCase()} · Intensité: ${(gfx.drive as any).amt??50}% · Clic pour désactiver`:"DRIVE · Saturation / Distorsion Master Bus · Modes: Soft Clip, Hard Clip, Tanh, Fold · Assignable MIDI"}/>
                 <div style={{display:'flex',gap:2,marginBottom:4}}>
                   {([{k:'tanh',l:'TUBE'},{k:'tape',l:'TAPE'},{k:'tube',l:'TRI'},{k:'bit',l:'BIT'}] as const).map(({k,l})=>(
                     <button key={k} onClick={()=>upSec('drive','mode',k)}

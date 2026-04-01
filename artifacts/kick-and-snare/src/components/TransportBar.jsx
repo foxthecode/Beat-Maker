@@ -73,7 +73,11 @@ export default function TransportBar({
   };
 
   const VolKnob = (
-    <div onPointerDown={onVolDown} title="VOL MASTER (drag ↕, double-tap = 80)" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none", position: "relative", overflow: "hidden", padding: "4px 8px", borderRadius: 6, border: `1px solid rgba(255,255,255,0.12)`, minWidth: 50 }}>
+    <div
+      data-hint={`VOL MASTER · Volume général : ${masterVol}% · Drag ↕ pour ajuster · Double-tap = 80%`}
+      onPointerDown={onVolDown}
+      title="VOL MASTER (drag ↕, double-tap = 80)"
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none", position: "relative", overflow: "hidden", padding: "4px 8px", borderRadius: 6, border: `1px solid rgba(255,255,255,0.12)`, minWidth: 50 }}>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${masterVol}%`, background: "rgba(255,214,10,0.1)", pointerEvents: "none" }} />
       <span style={{ position: "relative", fontSize: 7, color: th.dim, letterSpacing: "0.1em", fontWeight: 700 }}>VOL</span>
       <span style={{ position: "relative", fontSize: 10, fontWeight: 800, color: "#FFD60A" }}>{masterVol}</span>
@@ -81,7 +85,11 @@ export default function TransportBar({
   );
 
   const PatIndicator = pBank && SEC_COL && (
-    <div onClick={() => setShowSong && setShowSong(false)} title="Tap to show pattern bank" style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div
+      data-hint={`Pattern actif : ${pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`} · Clic pour afficher la Pattern Bank`}
+      onClick={() => setShowSong && setShowSong(false)}
+      title="Tap to show pattern bank"
+      style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <span style={{ fontSize: 8, fontWeight: 800, color: SEC_COL[cPat % 8], letterSpacing: "0.08em" }}>
         {pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`}
       </span>
@@ -91,6 +99,7 @@ export default function TransportBar({
   const PlayBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
+        data-hint={playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace"}
         onClick={startStop}
         style={{
           width: 44, height: 44, borderRadius: "50%", border: "none",
@@ -112,6 +121,7 @@ export default function TransportBar({
   const RecBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
+        data-hint={rec ? "REC actif · Frappe les pads ou le clavier pour enregistrer en live · Raccourci : Alt" : "REC · Active l'enregistrement live · Lance la lecture d'abord · Raccourci : Alt"}
         onClick={() => onRecClick ? onRecClick() : (playing && setRec(!rec))}
         style={{
           width: 32, height: 32, borderRadius: "50%",
@@ -128,7 +138,7 @@ export default function TransportBar({
   );
 
   const BpmCtrl = (
-    <div style={{ flex: "1 1 80px", minWidth: 70 }}>
+    <div data-hint={`BPM · Tempo actuel : ${bpm} BPM · ‹ › ou slider pour ajuster · Raccourci : ← →`} style={{ flex: "1 1 80px", minWidth: 70 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
         <span style={{ fontSize: 8, color: th.dim, letterSpacing: "0.15em" }}>BPM</span>
         <MidiTag id="__bpm__" />
@@ -142,13 +152,16 @@ export default function TransportBar({
 
   const TapBtn = (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <button onClick={handleTap} style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(255,149,0,0.15)", color: "#FF9500", border: "1px solid rgba(255,149,0,0.3)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>TAP</button>
+      <button
+        data-hint="TAP · Taper 4× en rythme pour détecter le BPM automatiquement · Aussi assignable en MIDI"
+        onClick={handleTap}
+        style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(255,149,0,0.15)", color: "#FF9500", border: "1px solid rgba(255,149,0,0.3)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>TAP</button>
       <MidiTag id="__tap__" />
     </div>
   );
 
   const SwingCtrl = view !== "euclid" && (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+    <div data-hint={`SWING · Humanise le rythme en décalant les temps pairs · Actuellement ${swing}% · 0 = droit, 100 = shuffle max`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
         <span style={{ fontSize: 7, color: th.dim }}>SWING</span>
         <MidiTag id="__swing__" />
@@ -159,33 +172,48 @@ export default function TransportBar({
   );
 
   const TSBtn = view !== "euclid" && (
-    <button onClick={() => setShowTS(!showTS)} style={pill(showTS, "#30D158")}>{sig.label}</button>
+    <button
+      data-hint={`Time Signature · Mesure actuelle : ${sig?.label || "4/4"} · Clic pour changer (3/4, 5/4, 6/8…) · Définit les accents du métronome`}
+      onClick={() => setShowTS(!showTS)}
+      style={pill(showTS, "#30D158")}>{sig.label}</button>
   );
 
   const MetroBtn = (
-    <div onMouseDown={onMDown} onTouchStart={onMDown} style={{ ...pill(metro, "#FF9500"), position: "relative", overflow: "hidden", touchAction: "none", userSelect: "none", cursor: "pointer" }}>
+    <div
+      data-hint={metro ? `METRO actif · Volume : ${metroVol}% · Clic pour désactiver · Drag ↕ pour régler le volume` : `METRO · Métronome de référence · ${metroVol}% · Clic pour activer · Drag ↕ pour régler le volume`}
+      onMouseDown={onMDown} onTouchStart={onMDown}
+      style={{ ...pill(metro, "#FF9500"), position: "relative", overflow: "hidden", touchAction: "none", userSelect: "none", cursor: "pointer" }}>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${metroVol}%`, background: metro ? "rgba(255,149,0,0.12)" : "transparent", borderRadius: 6, transition: "height 0.15s", pointerEvents: "none" }} />
       <span style={{ position: "relative", zIndex: 1 }}>{`METRO ${metroVol}%`}</span>
     </div>
   );
 
   const SubBtn = metro && (
-    <button onClick={() => setMetroSub(p => p === "off" ? "light" : p === "light" ? "full" : "off")} style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
+    <button
+      data-hint={`SUB · Subdivisions du métronome · ${metroSub === "off" ? "Désactivé" : metroSub === "light" ? "Légères (croches)" : "Complètes (doubles croches)"} · Clic pour changer`}
+      onClick={() => setMetroSub(p => p === "off" ? "light" : p === "light" ? "full" : "off")}
+      style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
   const ClearBtn = (
-    <button onClick={onClear} style={pill(false, "#FF2D55")} title="Clear all hits">✕ CLEAR</button>
+    <button
+      data-hint="CLEAR · Efface tous les hits de toutes les pistes du pattern courant · Utilise Undo pour annuler"
+      onClick={onClear}
+      style={pill(false, "#FF2D55")}
+      title="Clear all hits">✕ CLEAR</button>
   );
 
   const ExportBtn = onExport && (
-    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+    <div data-hint={`Export WAV · Rend ${exportBars} mesure${exportBars > 1 ? "s" : ""} en fichier audio 16-bit PCM · Choisir 1b/2b/4b puis ⬇ WAV`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
       {[1,2,4].map(n => (
         <button key={n} onClick={() => setExportBars(n)}
+          data-hint={`Export ${n} mesure${n > 1 ? "s" : ""} · Clic pour sélectionner cette durée d'export WAV`}
           style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
           disabled={playing || exportState==="rendering"}
         >{n}b</button>
       ))}
       <button onClick={onExport}
+        data-hint={exportState === "rendering" ? "Rendu en cours… · Veuillez patienter" : `⬇ WAV · Exporte ${exportBars} mesure${exportBars > 1 ? "s" : ""} en fichier WAV · Désactivé pendant la lecture`}
         disabled={playing || exportState==="rendering"}
         style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
         title="Export WAV"
@@ -194,24 +222,32 @@ export default function TransportBar({
   );
 
   const KeybBtn = (
-    <button onClick={() => setShowK(!showK)} style={{ ...pill(showK, "#FFD60A"), display: "flex", alignItems: "center", gap: 4 }}>
+    <button
+      data-hint={showK ? "Fermer le mapping clavier · Assigner des touches aux pistes" : "KEYB · Ouvrir le mapping clavier · Assigne une touche à chaque piste · Espace=Play · Alt=Rec · ←→=BPM"}
+      onClick={() => setShowK(!showK)}
+      style={{ ...pill(showK, "#FFD60A"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11, lineHeight: 1 }}>⌨</span>
       <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>KEYB</span>
     </button>
   );
 
   const MidiBtn = hasMidiApi && (
-    <button onClick={async () => {
-      if (!midiNotes) { const ok = await initMidi(); if (!ok) return; setMidiNotes(true); }
-      const entering = !midiLM; setMidiLM(entering); if (!entering) setMidiLearnTrack(null);
-    }} style={{ ...pill(midiLM, "#FF9500"), display: "flex", alignItems: "center", gap: 4 }}>
+    <button
+      data-hint={midiLM ? "Mode MIDI LEARN actif · Touche un pad ou bouton puis frappe une note MIDI pour l'assigner · Clic pour terminer" : "MIDI · Active la connexion MIDI · Mode LEARN = assigner une note MIDI à chaque piste ou bouton"}
+      onClick={async () => {
+        if (!midiNotes) { const ok = await initMidi(); if (!ok) return; setMidiNotes(true); }
+        const entering = !midiLM; setMidiLM(entering); if (!entering) setMidiLearnTrack(null);
+      }} style={{ ...pill(midiLM, "#FF9500"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11 }}>🎹</span>
       <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>MIDI</span>
     </button>
   );
 
   const LinkBtn = hasLinkApi && (
-    <button onClick={() => setShowLink(p => !p)} style={{ ...pill(showLink || linkConnected, "#BF5AF2"), fontSize: 8, display: "flex", alignItems: "center", gap: 3 }}>
+    <button
+      data-hint={linkConnected ? `Ableton LINK · Connecté · ${linkPeers} pair${linkPeers > 1 ? "s" : ""} · Synchronisation BPM réseau active` : "Ableton LINK · Synchroniser le BPM avec d'autres apps sur le réseau local (Ableton, Traktor…)"}
+      onClick={() => setShowLink(p => !p)}
+      style={{ ...pill(showLink || linkConnected, "#BF5AF2"), fontSize: 8, display: "flex", alignItems: "center", gap: 3 }}>
       🔗{linkConnected ? ` ${linkPeers}p` : ' LINK'}
     </button>
   );

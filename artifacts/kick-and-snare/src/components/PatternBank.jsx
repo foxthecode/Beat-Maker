@@ -17,16 +17,13 @@ function MiniGrid({ steps = [], color, n = 16 }) {
   );
 }
 
-// Mini euclidean circle preview — N dots arranged in a circle, hits highlighted
 function EuclidDots({ hits, N, rot = 0, color }) {
   const r = 10;
   const dots = Array.from({ length: N }, (_, i) => {
     const angle = (i / N) * 2 * Math.PI - Math.PI / 2;
     const x = 12 + r * Math.cos(angle);
     const y = 12 + r * Math.sin(angle);
-    // Euclidean algorithm: Bjorklund
     const idx = (i - rot + N) % N;
-    // Simple approximation: hit if floor(idx * hits / N) > floor((idx-1) * hits / N)
     const isHit = Math.floor((idx + 1) * hits / N) > Math.floor(idx * hits / N);
     return { x, y, isHit };
   });
@@ -60,7 +57,6 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
     setOpen(false);
   };
 
-  // Close on outside click
   const handleBlur = (e) => {
     if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
   };
@@ -68,6 +64,9 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
   return (
     <div ref={ref} style={{ position: "relative" }} onBlur={handleBlur} tabIndex={-1}>
       <button
+        data-hint={isEuclid
+          ? `PRESETS Euclid · ${EUCLID_TEMPLATES.length} polyrhythmes prêts à l'emploi · Clic pour parcourir et charger un preset`
+          : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} patterns TR-808 (Hip-hop, Techno, Jazz…) · Clic pour parcourir · Variante ${variant} pas`}
         onClick={toggle}
         style={{
           display: "flex", alignItems: "center", gap: 5,
@@ -122,6 +121,9 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
               return (
                 <div
                   key={tpl.id}
+                  data-hint={disabled
+                    ? `${tpl.name} · Pas de variante 32 pas disponible · Basculer en 16 pas pour charger`
+                    : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · ${tpl.description || ""} · Clic pour charger dans le pattern courant`}
                   onClick={() => !disabled && load(tpl)}
                   title={disabled ? "Pas de variante 32 steps" : tpl.description || tpl.name}
                   style={{
@@ -223,7 +225,7 @@ export default function PatternBank({
       {/* ── Pattern Bank ── */}
       <div style={{ marginBottom: 8, padding: "5px 10px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-          <span style={{ fontSize: 8, color: th.dim }}>PAT</span>
+          <span data-hint={`PAT · ${pBank.length} pattern${pBank.length > 1 ? "s" : ""} disponible${pBank.length > 1 ? "s" : ""} · Pattern actif : ${cPat + 1} · Clic sur un slot pour basculer`} style={{ fontSize: 8, color: th.dim }}>PAT</span>
 
           {/* 16 / 32 step toggle — always visible, sequencer only */}
           {!isEuclid && (
@@ -231,6 +233,7 @@ export default function PatternBank({
               {["16", "32"].map(v => (
                 <button
                   key={v}
+                  data-hint={`Variante ${v} pas · Filtre les templates compatibles ${v} steps · Le pattern actuel garde sa propre longueur par piste`}
                   onClick={() => setVariant(v)}
                   style={{
                     padding: "1px 7px", borderRadius: 4, cursor: "pointer",
@@ -256,12 +259,14 @@ export default function PatternBank({
             />
             {pBank.length < MAX_PAT && (
               <button
+                data-hint={`DUP · Duplique le pattern ${cPat + 1} en slot ${cPat + 2} · Idéal pour créer des variations d'un même groove`}
                 onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }}
                 style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}
               >DUP</button>
             )}
             {pBank.length > 1 && (
               <button
+                data-hint={`DEL · Supprime le pattern ${cPat + 1} de la banque · Cette action est irréversible`}
                 onClick={() => { setPBank(p => p.filter((_, j) => j !== cPat)); if (cPat > 0) setCPat(cPat - 1); }}
                 style={{ padding: "2px 6px", border: "1px solid rgba(255,55,95,0.2)", borderRadius: 5, background: "transparent", color: "#FF375F", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}
               >DEL</button>
@@ -296,6 +301,9 @@ export default function PatternBank({
                   />
                 ) : (
                   <button
+                    data-hint={isCur
+                      ? `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Actif · Long-press pour renommer`
+                      : `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Clic pour basculer · Long-press pour renommer`}
                     onClick={() => { setCPat(i); R.pat = pBank[i]; }}
                     onMouseDown={() => startLongPress(i)}
                     onMouseUp={cancelLongPress}
@@ -313,6 +321,7 @@ export default function PatternBank({
           })}
           {pBank.length < MAX_PAT && (
             <button
+              data-hint={`+ Ajouter un pattern vide · Slot ${pBank.length + 1} · ${MAX_PAT - pBank.length - 1} slot${MAX_PAT - pBank.length - 1 > 1 ? "s" : ""} restant${MAX_PAT - pBank.length - 1 > 1 ? "s" : ""}`}
               onClick={() => { setPBank(p => [...p, mkE(STEPS)]); setCPat(pBank.length); }}
               style={{ width: isPortrait ? "100%" : 24, height: 24, border: `1px dashed ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >+</button>
@@ -329,6 +338,9 @@ export default function PatternBank({
               <span style={{ fontSize: 10, color: th.dim }}>{showSong ? "▲" : "▼"}</span>
             </div>
             <button
+              data-hint={songMode
+                ? playing ? "Mode SONG actif · Lecture automatique de la chaîne · Clic pour désactiver" : "Mode SONG ON · Lance la lecture pour enchaîner les patterns · Clic pour désactiver"
+                : "Mode SONG OFF · Active pour jouer les patterns dans l'ordre de la chaîne · Clic pour activer"}
               onClick={e => { e.stopPropagation(); setSongMode(p => !p); }}
               style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${songMode ? "#BF5AF255" : "rgba(255,255,255,0.12)"}`, background: songMode ? "#BF5AF218" : "transparent", color: songMode ? "#BF5AF2" : "inherit", fontSize: 8, fontWeight: 700, cursor: "pointer", letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "inherit", animation: songMode && playing ? "pulse 1s infinite" : "none" }}
             >
@@ -348,21 +360,38 @@ export default function PatternBank({
                       <span style={{ width: 16, fontSize: 8, color: isActive ? "#BF5AF2" : th.faint, fontWeight: 700, textAlign: "right", flexShrink: 0 }}>{chainIdx + 1}</span>
                       <div style={{ display: "flex", gap: 3, flex: 1, flexWrap: "wrap" }}>
                         {pBank.map((_, pi) => (
-                          <button key={pi} onClick={() => setSongChain(p => { const n = [...p]; n[chainIdx] = pi; return n; })} style={{ width: 26, height: 22, borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 9, fontWeight: 800, border: `1px solid ${patIdx === pi ? SEC_COL[pi % 8] + "66" : th.sBorder}`, background: patIdx === pi ? SEC_COL[pi % 8] + "20" : "transparent", color: patIdx === pi ? SEC_COL[pi % 8] : th.dim }}>{pi + 1}</button>
+                          <button
+                            key={pi}
+                            data-hint={`Slot song ${chainIdx + 1} → Pattern ${pi + 1} · Clic pour assigner ce pattern à ce slot de la chaîne`}
+                            onClick={() => setSongChain(p => { const n = [...p]; n[chainIdx] = pi; return n; })}
+                            style={{ width: 26, height: 22, borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 9, fontWeight: 800, border: `1px solid ${patIdx === pi ? SEC_COL[pi % 8] + "66" : th.sBorder}`, background: patIdx === pi ? SEC_COL[pi % 8] + "20" : "transparent", color: patIdx === pi ? SEC_COL[pi % 8] : th.dim }}>{pi + 1}</button>
                         ))}
                       </div>
                       {isActive && <span style={{ fontSize: 9, color: "#BF5AF2" }}>▶</span>}
-                      <button onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })} title="Dupliquer cette ligne" style={{ padding: "0 6px", height: 18, border: "1px solid rgba(48,209,88,0.35)", borderRadius: 3, background: "transparent", color: "#30D158", fontSize: 8, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, letterSpacing: "0.04em", fontFamily: "inherit" }}>⊕ DUP</button>
+                      <button
+                        data-hint={`⊕ DUP · Duplique le slot ${chainIdx + 1} juste après dans la chaîne`}
+                        onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })}
+                        title="Dupliquer cette ligne"
+                        style={{ padding: "0 6px", height: 18, border: "1px solid rgba(48,209,88,0.35)", borderRadius: 3, background: "transparent", color: "#30D158", fontSize: 8, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, letterSpacing: "0.04em", fontFamily: "inherit" }}>⊕ DUP</button>
                       {songChain.length > 1 && (
-                        <button onClick={() => setSongChain(p => p.filter((_, j) => j !== chainIdx))} style={{ width: 18, height: 18, border: "1px solid rgba(255,55,95,0.25)", borderRadius: 3, background: "transparent", color: "#FF375F", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+                        <button
+                          data-hint={`× Retirer le slot ${chainIdx + 1} de la chaîne song`}
+                          onClick={() => setSongChain(p => p.filter((_, j) => j !== chainIdx))}
+                          style={{ width: 18, height: 18, border: "1px solid rgba(255,55,95,0.25)", borderRadius: 3, background: "transparent", color: "#FF375F", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
                       )}
                     </div>
                   );
                 })}
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => setSongChain(p => [...p, cPat])} style={{ padding: "4px 12px", borderRadius: 6, border: "1px dashed rgba(191,90,242,0.35)", background: "transparent", color: "#BF5AF2", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ ADD STEP</button>
-                <button onClick={() => setSongChain([cPat])} style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 9, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>RESET</button>
+                <button
+                  data-hint={`+ ADD STEP · Ajoute le pattern ${cPat + 1} en fin de chaîne song · Chaîne actuelle : ${songChain.length} step${songChain.length > 1 ? "s" : ""}`}
+                  onClick={() => setSongChain(p => [...p, cPat])}
+                  style={{ padding: "4px 12px", borderRadius: 6, border: "1px dashed rgba(191,90,242,0.35)", background: "transparent", color: "#BF5AF2", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ ADD STEP</button>
+                <button
+                  data-hint="RESET · Remet la chaîne song à un seul step avec le pattern courant · Efface toute la séquence song"
+                  onClick={() => setSongChain([cPat])}
+                  style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 9, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>RESET</button>
               </div>
             </div>
           )}
