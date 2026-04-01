@@ -888,7 +888,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
     <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${open?'rgba(191,90,242,0.3)':th.sBorder}`,overflow:'hidden'}}>
       {/* Header */}
       <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 14px',userSelect:'none'}}>
-        <div onClick={()=>setOpen(p=>!p)} style={{display:'flex',alignItems:'center',gap:6,flex:1,cursor:'pointer'}}>
+        <div data-hint="FX Rack · Reverb, Delay, Chorus, Flanger, Ping-Pong, Filtre, Compresseur, Drive · Chaîne Master Bus configurable" onClick={()=>setOpen(p=>!p)} style={{display:'flex',alignItems:'center',gap:6,flex:1,cursor:'pointer'}}>
           <span style={{fontSize:8,fontWeight:800,color:'#BF5AF2',letterSpacing:'0.14em'}}>FX RACK</span>
           <span style={{fontSize:9,color:th.dim}}>{open?'▲':'▼'}</span>
           {activeCount>0&&<span style={{fontSize:7,padding:'1px 6px',borderRadius:3,background:'rgba(191,90,242,0.12)',color:'#BF5AF2',fontWeight:700}}>{activeCount} active</span>}
@@ -1199,6 +1199,15 @@ export default function KickAndSnare(){
   const [overlayVisible,setOverlayVisible]=useState(!appSt.launched);
   const [showCheatSheet,setShowCheatSheet]=useState(false);
   const [showInfo,setShowInfo]=useState(false);
+  const [hoverMsg,setHoverMsg]=useState<string|null>(null);
+  useEffect(()=>{
+    const onOver=(e:MouseEvent)=>{
+      const el=(e.target as HTMLElement).closest('[data-hint]') as HTMLElement|null;
+      setHoverMsg(el?el.dataset.hint??null:null);
+    };
+    document.addEventListener('mouseover',onOver);
+    return()=>document.removeEventListener('mouseover',onOver);
+  },[]);
   const [themeName,setThemeName]=useState("dark");
   const th=THEMES[themeName];
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
@@ -2377,7 +2386,7 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
+            <div data-hint="Logo · Pulse sur chaque temps fort — indique que l'audio Web est actif" style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
             <div>
               <div className="gradientShift" style={{fontSize:24,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
               <div className="subtitleAnim" style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM EXPERIENCE</div>
@@ -2405,7 +2414,7 @@ export default function KickAndSnare(){
               >{label}</button>
             );
             return(
-              <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+              <div data-hint="Sélecteur de kit · ‹ › pour changer · Kits disponibles : 808 Classic, CR-78 Vintage, Kit 3, Kit 8" style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                 {arrowBtn("‹",()=>{const ni=(kitIdx-1+DRUM_KITS.length)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);},"Previous kit")}
                 <div style={{
                   display:"flex",flexDirection:"column",alignItems:"center",
@@ -2443,8 +2452,8 @@ export default function KickAndSnare(){
             const aClap=act.includes("clap");const aPerc=act.includes("perc");
             const bpmMs=60000/Math.max(30,bpm||120);
             const bobDur=`${(bpmMs/1000).toFixed(3)}s`;
-            return(
-              <svg viewBox="0 0 130 52" width="130" height="52" style={{flexShrink:0,overflow:"visible",willChange:"contents",filter:playing?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
+            return(<div data-hint="Mascotte · Frappe les fûts correspondant aux pistes actives · Vitesse de bob et halo synchronisés au BPM" style={{flexShrink:0}}>
+              <svg viewBox="0 0 130 52" width="130" height="52" style={{overflow:"visible",willChange:"contents",display:"block",filter:playing?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
                 {/* Halo ring behind mascot — synced with BPM */}
                 {playing&&<ellipse cx="44" cy="24" rx="28" ry="26" fill="none" stroke={anyHit?"#FF2D55":"#FF9500"} strokeWidth={0.8} opacity={0} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite`,transformOrigin:"44px 24px"}}/>}
                 {playing&&<ellipse cx="44" cy="24" rx="22" ry="20" fill="none" stroke={anyHit?"rgba(255,45,85,0.3)":"rgba(255,149,0,0.2)"} strokeWidth={anyHit?2:1} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite alternate`}}/>}
@@ -2544,22 +2553,22 @@ export default function KickAndSnare(){
                   </g>
                 </g>
               </svg>
-            );
+            </div>);
           })()}
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
-            <button onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
-            <button onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
-            <button onClick={()=>setShowInfo(p=>!p)} title="Guide & aide" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
+            <button data-hint="Annuler (Ctrl+Z) · Revient à l'étape précédente — jusqu'à 50 étapes d'historique" onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
+            <button data-hint="Refaire (Ctrl+Y) · Rétablit l'action annulée" onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
+            <button data-hint="Guide d'utilisation · Décrit chaque commande et interaction de l'application" onClick={()=>setShowInfo(p=>!p)} title="Guide & aide" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
-            <button onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Thème · Bascule entre l'affichage sombre et le thème diurne" onClick={()=>setThemeName(p=>p==="dark"?"daylight":"dark")} style={pill(false,th.dim)}>THEME</button>
+            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
-              <button onClick={()=>view!=="sequencer"&&switchView("sequencer")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:view==="sequencer"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
-              <button onClick={()=>view!=="euclid"&&switchView("euclid")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:view==="euclid"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
+              <button data-hint="Séquenceur · Grille TR-808 pas-à-pas · Clic = on/off · Drag ↕ = vélocité · Long-press = probabilité" onClick={()=>view!=="sequencer"&&switchView("sequencer")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:view==="sequencer"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
+              <button data-hint="Séquenceur Euclidien · Distribue N frappes sur M pas de façon mathématique · Rythmes africains, polymètre" onClick={()=>view!=="euclid"&&switchView("euclid")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:view==="euclid"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
             </div>
           </div>
         </div>
@@ -2770,7 +2779,7 @@ export default function KickAndSnare(){
             </div>
           </div>)}
           <div style={{marginTop:6}}>
-            {!showAdd?<button onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
+            {!showAdd?<button data-hint="Ajouter une piste · Réactive une piste masquée ou crée une piste custom avec ton propre sample audio" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
                 {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                 {CustomTrackInput()}
@@ -2850,7 +2859,7 @@ export default function KickAndSnare(){
             ))}
           </div>
           <div style={{marginTop:10}}>
-            {!showAdd?<button onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
+            {!showAdd?<button data-hint="Ajouter une piste · Réactive une piste masquée ou crée une piste custom avec ton propre sample audio" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
                 {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                 {CustomTrackInput()}
@@ -3151,22 +3160,12 @@ export default function KickAndSnare(){
         })()}
 
 
-        {(()=>{
-          const anyStep=atO.some(tr=>(pat[tr.id]||[]).some(v=>v>0));
-          const msg=!anyStep
-            ?"Tape sur une case pour placer un son"
-            :!playing
-              ?"Lance la lecture pour entendre"
-              :appSt.usageSeconds<120
-                ?"Drag ↕ sur un step = vélocité · Hold = probabilité"
-                :null;
-          return(
-            <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px 0",borderTop:`1px solid ${th.sBorder}`,display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
-              {msg&&<span style={{fontSize:8,color:th.faint,letterSpacing:"0.04em"}}>{msg}</span>}
-              <button onClick={()=>setShowCheatSheet(true)} style={{fontSize:9,fontWeight:700,color:th.dim,background:"transparent",border:`1px solid ${th.sBorder}`,borderRadius:12,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>?</button>
-            </div>
-          );
-        })()}
+        {/* ── Barre contextuelle bas ── */}
+        <div style={{marginTop:14,padding:"7px 12px 18px",borderTop:`1px solid ${th.sBorder}`,minHeight:30,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontSize:8,color:hoverMsg?th.dim:th.faint,letterSpacing:"0.05em",textAlign:"center",transition:"opacity 0.15s",opacity:hoverMsg?1:0.6}}>
+            {hoverMsg||(atO.some(tr=>(pat[tr.id]||[]).some(v=>v>0))?(playing?"Drag ↕ sur un step = vélocité · Hold = probabilité":"Lance la lecture pour entendre"):"Passe la souris sur un élément pour voir son rôle")}
+          </span>
+        </div>
       </div>
 
       {/* ── Velocity picker popup (Euclid long-press) ── */}

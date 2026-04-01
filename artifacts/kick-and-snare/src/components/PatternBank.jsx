@@ -324,7 +324,7 @@ export default function PatternBank({
       {!isEuclid && (
         <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${showSong ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
-            <div onClick={() => setShowSong(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
+            <div data-hint="Song Arranger · Enchaîne des patterns pour créer un morceau · Active le mode SONG pour lire la chaîne dans l'ordre" onClick={() => setShowSong(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
               <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGER</span>
               <span style={{ fontSize: 10, color: th.dim }}>{showSong ? "▲" : "▼"}</span>
             </div>
