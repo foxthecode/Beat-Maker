@@ -1,5 +1,62 @@
 import { useState, useEffect } from "react";
 
+/* ─── Screenshot-based illustration ───────────────────────────────────── */
+const BASE = import.meta.env.BASE_URL as string;
+
+/**
+ * Shows a cropped region of a real app screenshot.
+ * clipTop / clipBottom are pixel coordinates in the original 1280×800 image.
+ */
+function IlluImg({
+  src,
+  clipTop = 0,
+  clipBottom = 800,
+  displayHeight = 220,
+  label,
+  labelColor = "#FF9500",
+}: {
+  src: string;
+  clipTop?: number;
+  clipBottom?: number;
+  displayHeight?: number;
+  label?: string;
+  labelColor?: string;
+}) {
+  const origW = 1280;
+  const cropH = clipBottom - clipTop;
+  const scale = displayHeight / cropH;
+  const scaledW = origW * scale;
+  const scaledH = 800 * scale;
+
+  return (
+    <div style={{ width: "100%", height: displayHeight, overflow: "hidden", position: "relative", background: "#0c0c0f" }}>
+      <img
+        src={src}
+        alt={label ?? "App screenshot"}
+        style={{
+          position: "absolute",
+          width: scaledW,
+          height: scaledH,
+          top: -clipTop * scale,
+          left: "50%",
+          transform: "translateX(-50%)",
+          imageRendering: "auto",
+          userSelect: "none",
+          pointerEvents: "none",
+        }}
+      />
+      {label && (
+        <div style={{
+          position: "absolute", bottom: 6, right: 8,
+          fontSize: 7, fontWeight: 700, color: labelColor,
+          background: "rgba(0,0,0,0.55)", padding: "2px 6px",
+          borderRadius: 4, letterSpacing: "0.08em",
+        }}>{label}</div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Palette ──────────────────────────────────────────────────────────── */
 const COLORS = {
   welcome:   "#FF9500",
@@ -85,351 +142,56 @@ function Pill({ x, y, w=36, h=16, label, color, active=false }: {
 
 function IlluWelcome() {
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* ── App header bar ── */}
-      <rect x={6} y={6} width={308} height={30} rx={6} fill={SURF} stroke="#FF950033" strokeWidth={1}/>
-      {/* K logo */}
-      <rect x={12} y={12} width={18} height={18} rx={5} fill="#FF9500"/>
-      <text x={21} y={24} fontSize={9} fontWeight={900} fill="#fff" textAnchor="middle">K</text>
-      {/* Title */}
-      <text x={35} y={22} fontSize={7.5} fontWeight={900} fill="#FF9500" letterSpacing={1.2}>KICK &amp; SNARE</text>
-      <text x={35} y={31} fontSize={4.5} fill="#FF950055" letterSpacing={2.5}>DRUM EXPERIENCE</text>
-      {/* Kit nav */}
-      <rect x={124} y={12} width={54} height={16} rx={4} fill="#FF950015" stroke="#FF950033" strokeWidth={0.8}/>
-      <text x={136} y={22.5} fontSize={6} fill="#FF9500aa">◀</text>
-      <text x={151} y={22.5} fontSize={6} fill="#FF9500" textAnchor="middle" fontWeight={700}>KIT</text>
-      <text x={168} y={22.5} fontSize={6} fill="#FF9500aa">▶</text>
-      {/* Nav buttons */}
-      <rect x={190} y={12} width={38} height={16} rx={4} fill="#5E5CE615" stroke="#5E5CE633"/>
-      <text x={209} y={22.5} fontSize={5.5} fill="#5E5CE6" textAnchor="middle" fontWeight={700}>LIVE PADS</text>
-      <rect x={232} y={12} width={40} height={16} rx={4} fill="#FF2D5515" stroke="#FF2D5533"/>
-      <text x={252} y={22.5} fontSize={5.5} fill="#FF2D55" textAnchor="middle" fontWeight={700}>SEQUENCER</text>
-      <rect x={276} y={12} width={32} height={16} rx={4} fill="#FFD60A15" stroke="#FFD60A33"/>
-      <text x={292} y={22.5} fontSize={5.5} fill="#FFD60A" textAnchor="middle" fontWeight={700}>EUCLID</text>
-
-      {/* ── Transport bar ── */}
-      <rect x={6} y={43} width={308} height={34} rx={6} fill={SURF} stroke="#30D15822" strokeWidth={1}/>
-      <circle cx={26} cy={60} r={12} fill="#30D158cc"/>
-      <PlayTriangle cx={26} cy={60} r={9} fill="#fff"/>
-      <RecDot cx={50} cy={60} r={5} color="#FF2D55"/>
-      <text x={68} y={56} fontSize={5} fill="#FF9500aa" letterSpacing={1}>BPM</text>
-      <text x={68} y={66} fontSize={13} fontWeight={900} fill="#FF9500">120</text>
-      <rect x={92} y={56} width={50} height={3.5} rx={1.5} fill="#FF950018"/>
-      <rect x={92} y={56} width={26} height={3.5} rx={1.5} fill="#FF9500"/>
-      {[
-        {x:150, l:"TAP",   c:"#30D158"},
-        {x:174, l:"SWING", c:"#5E5CE6"},
-        {x:202, l:"METRO", c:"#FF9500"},
-        {x:232, l:"VOL",   c:"#FFD60A"},
-        {x:256, l:"KEYB",  c:"#FFD60A"},
-        {x:280, l:"MIDI",  c:"#BF5AF2"},
-      ].map(({x,l,c}) => <Pill key={l} x={x} y={51} w={22} h={17} label={l} color={c}/>)}
-
-      {/* ── Pattern bank ── */}
-      <rect x={6} y={84} width={308} height={30} rx={6} fill={SURF} stroke="#64D2FF18" strokeWidth={1}/>
-      <text x={14} y={97} fontSize={5} fill="#64D2FFaa" fontWeight={700} letterSpacing={1}>PAT</text>
-      {[0,1,2,3,4,5,6,7].map(i => (
-        <g key={i}>
-          <rect x={34+i*34} y={88} width={28} height={18} rx={4}
-            fill={i===0?"#FF2D5530":"transparent"}
-            stroke={i===0?"#FF2D5588":"#ffffff18"} strokeWidth={0.8}/>
-          <text x={48+i*34} y={99} fontSize={7} fill={i===0?"#FF2D55":"#ffffff33"}
-            textAnchor="middle" fontWeight={i===0?800:400}>{i+1}</text>
-        </g>
-      ))}
-      <Pill x={316-58} y={88} w={52} h={18} label="TEMPLATES" color="#64D2FF"/>
-
-      {/* ── Sequencer rows preview ── */}
-      <rect x={6} y={121} width={308} height={23} rx={6} fill={SURF} stroke="#FF2D5514" strokeWidth={1}/>
-      {[
-        {label:"KICK",  color:"#FF2D55", p:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0]},
-        {label:"SNARE", color:"#FF9500", p:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]},
-      ].map((row, ri) => (
-        <g key={ri}>
-          <text x={14} y={130+ri*0} fontSize={5} fill={row.color} fontWeight={700}>{row.label}</text>
-          {row.p.map((on, si) => (
-            <Step key={si} x={36+si*17} y={122+ri*0} w={14} h={10+ri} on={!!on} color={row.color}/>
-          ))}
-        </g>
-      ))}
-      {/* overlay second row */}
-      {[
-        {label:"SNARE", color:"#FF9500", p:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]},
-      ].map((row) => (
-        <g key="snare2">
-          <text x={14} y={139} fontSize={5} fill={row.color} fontWeight={700}>{row.label}</text>
-          {row.p.map((on, si) => (
-            <Step key={si} x={36+si*17} y={131} w={14} h={10} on={!!on} color={row.color}/>
-          ))}
-        </g>
-      ))}
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/seq-view.jpg`}
+      clipTop={0} clipBottom={540}
+      displayHeight={220}
+      label="Vue d'ensemble" labelColor="#FF9500"
+    />
   );
 }
 
 function IlluTransport() {
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* ── Main controls row ── */}
-      {/* Play */}
-      <circle cx={28} cy={36} r={20} fill="#30D158dd"/>
-      <PlayTriangle cx={28} cy={36} r={14} fill="#fff"/>
-      <text x={28} y={65} fontSize={6} fill="#30D158" textAnchor="middle" letterSpacing={0.5}>ESPACE</text>
-
-      {/* REC */}
-      <RecDot cx={68} cy={36} r={8} color="#FF2D55"/>
-      <text x={68} y={65} fontSize={6} fill="#FF2D55" textAnchor="middle">ALT</text>
-
-      {/* BPM display */}
-      <rect x={92} y={14} width={68} height={44} rx={6} fill="#FF950012" stroke="#FF950033" strokeWidth={0.8}/>
-      <text x={126} y={30} fontSize={7} fill="#FF9500aa" textAnchor="middle" letterSpacing={1.5}>BPM</text>
-      <text x={126} y={50} fontSize={22} fontWeight={900} fill="#FF9500" textAnchor="middle">120</text>
-      <text x={105} y={42} fontSize={9} fill="#FF9500aa">‹</text>
-      <text x={149} y={42} fontSize={9} fill="#FF9500aa">›</text>
-
-      {/* TAP */}
-      <rect x={168} y={22} width={34} height={20} rx={4} fill="#30D15818" stroke="#30D15844" strokeWidth={0.8}/>
-      <text x={185} y={35} fontSize={7} fill="#30D158" textAnchor="middle" fontWeight={800}>TAP</text>
-
-      {/* SWING */}
-      <text x={216} y={26} fontSize={6} fill="#5E5CE6aa" textAnchor="middle" letterSpacing={0.5}>SWING</text>
-      <rect x={200} y={30} width={32} height={4} rx={2} fill="#5E5CE622"/>
-      <rect x={200} y={30} width={18} height={4} rx={2} fill="#5E5CE6"/>
-      <text x={216} y={43} fontSize={6} fill="#5E5CE6" textAnchor="middle" fontWeight={700}>50%</text>
-
-      {/* Metro + sig */}
-      <rect x={240} y={18} width={30} height={24} rx={4} fill="#FF950012" stroke="#FF950033" strokeWidth={0.8}/>
-      <text x={255} y={29} fontSize={5.5} fill="#FF9500" textAnchor="middle" fontWeight={700}>METRO</text>
-      <text x={255} y={38} fontSize={6} fill="#FF9500aa" textAnchor="middle">70%</text>
-      <rect x={276} y={18} width={38} height={24} rx={4} fill="#30D15812" stroke="#30D15833" strokeWidth={0.8}/>
-      <text x={295} y={29} fontSize={5} fill="#30D158aa" textAnchor="middle">TIME SIG</text>
-      <text x={295} y={38} fontSize={8} fill="#30D158" textAnchor="middle" fontWeight={800}>4/4</text>
-
-      {/* ── Separator ── */}
-      <line x1={8} y1={76} x2={312} y2={76} stroke="#ffffff0d" strokeWidth={1}/>
-
-      {/* ── Bottom controls row ── */}
-      {[
-        {x:20,  label:"VOL",   color:"#FFD60A", shape:"vol"},
-        {x:62,  label:"CLEAR", color:"#FF2D55", shape:"x"},
-        {x:104, label:"KEYB",  color:"#FFD60A", shape:"kbd"},
-        {x:148, label:"MIDI",  color:"#BF5AF2", shape:"midi"},
-        {x:192, label:"LINK",  color:"#64D2FF", shape:"link"},
-        {x:236, label:"SHARE", color:"#5E5CE6", shape:"share"},
-        {x:278, label:"WAV",   color:"#64D2FF", shape:"dl"},
-      ].map(({x, label, color, shape}) => (
-        <g key={label}>
-          <rect x={x-16} y={82} width={36} height={38} rx={5} fill={color+"12"} stroke={color+"33"} strokeWidth={0.8}/>
-          {/* Shape icon drawn with SVG, no emoji */}
-          {shape==="vol"   && <><rect x={x-6} y={97} width={12} height={3} rx={1} fill={color}/><rect x={x-4} y={93} width={8} height={3} rx={1} fill={color+"aa"}/><rect x={x-2} y={89} width={4} height={3} rx={1} fill={color+"66"}/></>}
-          {shape==="x"     && <><line x1={x-5} y1={90} x2={x+5} y2={100} stroke={color} strokeWidth={2} strokeLinecap="round"/><line x1={x+5} y1={90} x2={x-5} y2={100} stroke={color} strokeWidth={2} strokeLinecap="round"/></>}
-          {shape==="kbd"   && <><rect x={x-7} y={89} width={14} height={10} rx={2} fill="none" stroke={color} strokeWidth={1}/><rect x={x-5} y={91} width={3} height={3} rx={0.5} fill={color+"66"}/><rect x={x-1} y={91} width={3} height={3} rx={0.5} fill={color+"66"}/><rect x={x+3} y={91} width={3} height={3} rx={0.5} fill={color+"66"}/><rect x={x-3} y={95} width={6} height={2.5} rx={0.5} fill={color+"44"}/></>}
-          {shape==="midi"  && <><rect x={x-7} y={89} width={14} height={10} rx={2} fill="none" stroke={color} strokeWidth={1}/><circle cx={x-3} cy={95} r={1.5} fill={color}/><circle cx={x+3} cy={95} r={1.5} fill={color}/><line x1={x-7} y1={97} x2={x-5} y2={99} stroke={color} strokeWidth={0.8}/><line x1={x+7} y1={97} x2={x+5} y2={99} stroke={color} strokeWidth={0.8}/></>}
-          {shape==="link"  && <><circle cx={x-2} cy={94} r={3} fill="none" stroke={color} strokeWidth={1.2}/><circle cx={x+2} cy={94} r={3} fill="none" stroke={color} strokeWidth={1.2}/><line x1={x-5} y1={94} x2={x+5} y2={94} stroke={color} strokeWidth={0.8}/></>}
-          {shape==="share" && <><circle cx={x+4} cy={90} r={2.5} fill={color}/><circle cx={x-4} cy={94} r={2.5} fill={color}/><circle cx={x+4} cy={98} r={2.5} fill={color}/><line x1={x+4} y1={90} x2={x-4} y2={94} stroke={color} strokeWidth={0.8}/><line x1={x+4} y1={98} x2={x-4} y2={94} stroke={color} strokeWidth={0.8}/></>}
-          {shape==="dl"    && <><line x1={x} y1={89} x2={x} y2={97} stroke={color} strokeWidth={1.5}/><polygon points={`${x-5},96 ${x+5},96 ${x},101`} fill={color}/><line x1={x-7} y1={103} x2={x+7} y2={103} stroke={color} strokeWidth={1.5}/></>}
-          <text x={x+2} y={116} fontSize={5.5} fill={color+"99"} textAnchor="middle" fontWeight={700} letterSpacing={0.3}>{label}</text>
-        </g>
-      ))}
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/seq-view.jpg`}
+      clipTop={84} clipBottom={200}
+      displayHeight={160}
+      label="Barre de transport" labelColor="#30D158"
+    />
   );
 }
 
 function IlluSequencer() {
-  const rows = [
-    {label:"KICK",  color:"#FF2D55", p:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0], vel:[90,0,0,0,0,0,0,0,75,0,0,0,0,0,85,0]},
-    {label:"SNARE", color:"#FF9500", p:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], vel:[0,0,0,0,100,0,0,0,0,0,0,0,80,0,0,0]},
-    {label:"H.HAT", color:"#FFD60A", p:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1], vel:[70,0,60,0,70,0,65,0,70,0,65,0,70,0,60,90]},
-    {label:"CLAP",  color:"#30D158", p:[0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0], vel:[0,0,0,0,85,0,0,60,0,0,0,0,90,0,0,0]},
-  ];
-  const SW = 13, SH = 18, SG = 1;
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* Track rows */}
-      {rows.map((row, ri) => {
-        const y0 = 6 + ri * 33;
-        return (
-          <g key={ri}>
-            {/* Track label col */}
-            <rect x={2} y={y0} width={36} height={30} rx={3} fill={row.color+"14"}/>
-            <text x={20} y={y0+12} fontSize={5} fill={row.color} fontWeight={800} textAnchor="middle" letterSpacing={0.3}>{row.label}</text>
-            {/* M S buttons */}
-            <rect x={4} y={y0+15} width={8} height={8} rx={2} fill="#ffffff08" stroke="#ffffff18" strokeWidth={0.5}/>
-            <text x={8} y={y0+21} fontSize={4.5} fill="#ffffff44" textAnchor="middle">M</text>
-            <rect x={14} y={y0+15} width={8} height={8} rx={2} fill="#ffffff08" stroke="#ffffff18" strokeWidth={0.5}/>
-            <text x={18} y={y0+21} fontSize={4.5} fill="#ffffff44" textAnchor="middle">S</text>
-            {/* Steps */}
-            {row.p.map((on, si) => {
-              const x = 42 + si * (SW + SG);
-              const isActive = si === 0;
-              const vH = on ? Math.round((row.vel[si]/100) * (SH-4)) : 0;
-              return (
-                <g key={si}>
-                  <Step x={x} y={y0+4} w={SW} h={SH} on={!!on} color={row.color} active={isActive}/>
-                  {/* velocity indicator */}
-                  {on && <rect x={x+1} y={y0+4+SH-vH} width={SW-2} height={vH} rx={1} fill={row.color+"55"} opacity={0.6}/>}
-                </g>
-              );
-            })}
-          </g>
-        );
-      })}
-
-      {/* Playhead */}
-      <line x1={54} y1={0} x2={54} y2={142} stroke="#fff" strokeWidth={1.5} opacity={0.12} strokeDasharray="3 4"/>
-      <rect x={48} y={0} width={18} height={5} rx={2} fill="#ffffff22"/>
-
-      {/* Separator */}
-      <line x1={2} y1={140} x2={318} y2={140} stroke="#ffffff0a" strokeWidth={1}/>
-      {/* Action hints */}
-      <text x={60} y={148} fontSize={5.5} fill="#FF2D5566" textAnchor="middle">↕ VÉL</text>
-      <text x={140} y={148} fontSize={5.5} fill="#FF9500aa" textAnchor="middle">↔ NUDGE</text>
-      <text x={220} y={148} fontSize={5.5} fill="#30D15888" textAnchor="middle">long-press → PROBA</text>
-      <text x={296} y={148} fontSize={5.5} fill="#5E5CE688" textAnchor="middle">2× → RESET</text>
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/seq-view.jpg`}
+      clipTop={330} clipBottom={535}
+      displayHeight={200}
+      label="Séquenceur TR-808" labelColor="#FF2D55"
+    />
   );
 }
 
 function IlluEuclid() {
-  const CX = 88, CY = 75, R = 58;
-  const N = 16, hits = 5;
-  const dots = Array.from({length: N}, (_, i) => {
-    const a = (i / N) * 2 * Math.PI - Math.PI / 2;
-    const idx = i % N;
-    const on = Math.floor((idx + 1) * hits / N) > Math.floor(idx * hits / N);
-    return { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a), on };
-  });
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* Ring guides */}
-      <circle cx={CX} cy={CY} r={R} fill="none" stroke="#FFD60A18" strokeWidth={1} strokeDasharray="4 8"/>
-      <circle cx={CX} cy={CY} r={R-16} fill="none" stroke="#FF950012" strokeWidth={1} strokeDasharray="2 6"/>
-
-      {/* Connecting lines between active dots */}
-      {dots.map((d, i) => {
-        if (!d.on) return null;
-        const next = dots.slice(i+1).find(x => x.on);
-        if (!next) return null;
-        return <line key={i} x1={d.x} y1={d.y} x2={next.x} y2={next.y} stroke="#FFD60A22" strokeWidth={1}/>;
-      })}
-
-      {/* Dots */}
-      {dots.map((d, i) => (
-        <g key={i}>
-          {d.on && <circle cx={d.x} cy={d.y} r={8} fill="#FFD60A15"/>}
-          <circle cx={d.x} cy={d.y} r={d.on ? 5 : 3}
-            fill={d.on ? "#FFD60A" : "#FFD60A20"}
-            stroke={d.on ? "#FFD60Acc" : "#FFD60A33"}
-            strokeWidth={0.8}/>
-        </g>
-      ))}
-
-      {/* Center */}
-      <circle cx={CX} cy={CY} r={24} fill="#FFD60A08" stroke="#FFD60A22" strokeWidth={0.8}/>
-      <text x={CX} y={CY-5} fontSize={8} fill="#FFD60A" textAnchor="middle" fontWeight={900}>E(5,16)</text>
-      <text x={CX} y={CY+7} fontSize={5.5} fill="#FFD60A66" textAnchor="middle" letterSpacing={1}>EUCLIDEAN</text>
-      <text x={CX} y={CY+17} fontSize={5} fill="#FFD60A44" textAnchor="middle">rot +0</text>
-
-      {/* Controls panel */}
-      <rect x={164} y={8} width={150} height={134} rx={8} fill="#FFD60A07" stroke="#FFD60A1a" strokeWidth={0.8}/>
-
-      {/* Track label */}
-      <Pill x={172} y={14} w={48} h={16} label="KICK" color="#FFD60A" active/>
-
-      {/* N / HITS / ROT spinners */}
-      {[
-        {lbl:"N",    val:"16", sub:"longueur du cycle", y:40},
-        {lbl:"HITS", val:"5",  sub:"frappes à placer",  y:76},
-        {lbl:"ROT",  val:"+0", sub:"décalage de départ",y:112},
-      ].map(({lbl,val,sub,y}) => (
-        <g key={lbl}>
-          <text x={175} y={y} fontSize={6.5} fill="#FFD60Aaa" fontWeight={800} letterSpacing={0.5}>{lbl}</text>
-          <text x={175} y={y+11} fontSize={4.5} fill="#FFD60A44">{sub}</text>
-          {/* stepper */}
-          <rect x={245} y={y-12} width={56} height={20} rx={5} fill="#FFD60A18" stroke="#FFD60A33" strokeWidth={0.8}/>
-          <text x={253} y={y-1} fontSize={8} fill="#FFD60Aaa">‹</text>
-          <text x={273} y={y} fontSize={14} fontWeight={900} fill="#FFD60A" textAnchor="middle">{val}</text>
-          <text x={294} y={y-1} fontSize={8} fill="#FFD60Aaa">›</text>
-        </g>
-      ))}
-
-      {/* EDIT / PRESETS buttons */}
-      <Pill x={172} y={136} w={40} h={14} label="EDIT" color="#30D158"/>
-      <Pill x={218} y={136} w={52} h={14} label="PRESETS" color="#FFD60A"/>
-      <Pill x={276} y={136} w={32} h={14} label="M  S" color="#FF9500"/>
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/euclid-view.jpg`}
+      clipTop={190} clipBottom={760}
+      displayHeight={220}
+      label="Séquenceur Euclidien" labelColor="#FFD60A"
+    />
   );
 }
 
 function IlluPads() {
-  const pads = [
-    {c:"#FF2D55", l:"KICK",  k:"A", active:true},
-    {c:"#FF9500", l:"SNARE", k:"B", active:false},
-    {c:"#FFD60A", l:"H.HAT",k:"C", active:true},
-    {c:"#30D158", l:"CLAP",  k:"D", active:false},
-    {c:"#64D2FF", l:"TOM H", k:"E", active:false},
-    {c:"#5E5CE6", l:"TOM M", k:"F", active:false},
-    {c:"#BF5AF2", l:"TOM L", k:"G", active:false},
-    {c:"#FF6B35", l:"RIDE",  k:"H", active:false},
-  ];
-  const PW = 68, PH = 54, GAP = 6;
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* Header */}
-      <text x={160} y={16} fontSize={7} fill="#5E5CE6" textAnchor="middle" fontWeight={900} letterSpacing={2.5}>LIVE PADS</text>
-
-      {pads.map((p, i) => {
-        const col = i % 4, row = Math.floor(i / 4);
-        const x = GAP + col * (PW + GAP), y = 22 + row * (PH + GAP);
-        return (
-          <g key={i}>
-            {/* Pad background */}
-            <rect x={x} y={y} width={PW} height={PH} rx={8}
-              fill={p.active ? p.c+"2a" : p.c+"0d"}
-              stroke={p.c+(p.active ? "bb" : "33")}
-              strokeWidth={p.active ? 1.5 : 0.8}/>
-
-            {/* Active pulse ring */}
-            {p.active && (
-              <rect x={x-2} y={y-2} width={PW+4} height={PH+4} rx={10}
-                fill="none" stroke={p.c} strokeWidth={0.6} opacity={0.35}/>
-            )}
-
-            {/* Drum circle icon — no emoji, pure SVG */}
-            <circle cx={x+PW/2} cy={y+PH/2-8} r={13}
-              fill={p.active ? p.c+"40" : p.c+"10"}
-              stroke={p.c+(p.active?"99":"33")} strokeWidth={p.active?1.2:0.6}/>
-            {/* Inner ring (drum head) */}
-            <ellipse cx={x+PW/2} cy={y+PH/2-8} rx={8} ry={4}
-              fill="none" stroke={p.c+(p.active?"77":"22")} strokeWidth={0.8}/>
-            {/* Strike lines for active */}
-            {p.active && <>
-              <line x1={x+PW/2-5} y1={y+PH/2-16} x2={x+PW/2-3} y2={y+PH/2-11} stroke={p.c} strokeWidth={1.5} strokeLinecap="round"/>
-              <line x1={x+PW/2+5} y1={y+PH/2-16} x2={x+PW/2+3} y2={y+PH/2-11} stroke={p.c} strokeWidth={1.5} strokeLinecap="round"/>
-            </>}
-
-            {/* Label */}
-            <text x={x+PW/2} y={y+PH-18} fontSize={6} fill={p.c+(p.active?"dd":"88")}
-              textAnchor="middle" fontWeight={700}>{p.l}</text>
-            {/* Key badge */}
-            <rect x={x+PW/2-7} y={y+PH-14} width={14} height={10} rx={3}
-              fill={p.c+"22"} stroke={p.c+"44"} strokeWidth={0.6}/>
-            <text x={x+PW/2} y={y+PH-7} fontSize={6} fill={p.c+"cc"}
-              textAnchor="middle" fontWeight={800}>{p.k}</text>
-          </g>
-        );
-      })}
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/pads-view.jpg`}
+      clipTop={295} clipBottom={800}
+      displayHeight={220}
+      label="Live Pads" labelColor="#5E5CE6"
+    />
   );
 }
 
