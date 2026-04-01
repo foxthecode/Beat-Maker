@@ -1198,6 +1198,7 @@ export default function KickAndSnare(){
   const {state:appSt,setLaunched,markTipShown,addUsageTime}=appState;
   const [overlayVisible,setOverlayVisible]=useState(!appSt.launched);
   const [showCheatSheet,setShowCheatSheet]=useState(false);
+  const [showInfo,setShowInfo]=useState(false);
   const [themeName,setThemeName]=useState("dark");
   const th=THEMES[themeName];
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
@@ -2548,6 +2549,7 @@ export default function KickAndSnare(){
           <div style={{display:"flex",gap:4,alignItems:"center"}}>
             <button onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
             <button onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
+            <button onClick={()=>setShowInfo(p=>!p)} title="Guide & aide" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
@@ -3275,6 +3277,137 @@ export default function KickAndSnare(){
           </div>
           <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#FF2D55,#FF9500)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>C&apos;est parti !</button>
           <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.35)",fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>Je connais déjà →</button>
+        </div>
+      </div>
+    )}
+
+    {/* ── Info overlay ── */}
+    {showInfo&&(
+      <div style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.82)",backdropFilter:"blur(6px)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"20px 12px",overflowY:"auto"}} onClick={()=>setShowInfo(false)}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"min(680px,98vw)",borderRadius:18,background:th.surface,border:"1px solid rgba(191,90,242,0.3)",boxShadow:"0 12px 60px rgba(0,0,0,0.8)",overflow:"hidden"}}>
+          {/* Header */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:"1px solid rgba(191,90,242,0.15)",background:"linear-gradient(90deg,rgba(191,90,242,0.08),transparent)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:26,height:26,borderRadius:8,background:"rgba(191,90,242,0.2)",border:"1px solid rgba(191,90,242,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:"#BF5AF2",fontStyle:"italic"}}>?</div>
+              <div>
+                <div style={{fontSize:11,fontWeight:900,color:"#BF5AF2",letterSpacing:"0.12em"}}>GUIDE D'UTILISATION</div>
+                <div style={{fontSize:8,color:th.faint,letterSpacing:"0.06em"}}>Kick & Snare — Drum Experience</div>
+              </div>
+            </div>
+            <button onClick={()=>setShowInfo(false)} style={{width:28,height:28,border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+          {/* Sections */}
+          <div style={{padding:"16px 20px",display:"flex",flexDirection:"column",gap:18}}>
+            {([
+              {title:"En-tête",color:"#FF9500",icon:"🎸",items:[
+                {key:"K (logo)",desc:"Icône qui pulse à chaque temps fort — indique que l'audio est actif."},
+                {key:"◀ Kit ▶",desc:"Navigue entre les kits de sons : 808 Classic, CR-78 Vintage, Kit 3, Kit 8. Chaque kit recolore les sons de toutes les pistes."},
+                {key:"Mascotte",desc:"Batteur animé qui frappe les fûts correspondant aux pistes actives. La vitesse de bob et l'halo suivent le BPM en temps réel."},
+                {key:"↺ / ↻",desc:"Annuler (Ctrl+Z) / Refaire (Ctrl+Y) — jusqu'à 50 étapes d'historique sur les patterns."},
+                {key:"? (ce panneau)",desc:"Affiche ce guide d'utilisation. Clique en dehors pour fermer."},
+                {key:"THEME",desc:"Bascule entre le thème sombre et le thème diurne. Préférence purement visuelle."},
+                {key:"LIVE PADS",desc:"Active la vue Pads en direct : 8 pads colorés jouables au toucher ou clavier pour performer en temps réel."},
+                {key:"SEQUENCER",desc:"Vue principale : séquenceur pas-à-pas TR-808. Place des sons sur une grille de 16 ou 32 pas."},
+                {key:"⬡ EUCLID",desc:"Séquenceur euclidien algorithmique : distribue N frappes sur M pas avec une régularité mathématique (rythmes africains, polymètre)."},
+              ]},
+              {title:"Transport",color:"#30D158",icon:"▶",items:[
+                {key:"▶ / ■ (Espace)",desc:"Lance ou arrête la lecture. Le bouton vert pulse à chaque temps."},
+                {key:"BPM — ‹ › ou drag",desc:"Tempo en battements par minute (20–280). Clique sur les flèches ou glisse verticalement sur la valeur."},
+                {key:"TAP",desc:"Tape plusieurs fois en rythme pour définir le BPM automatiquement (TAP TEMPO)."},
+                {key:"SWING",desc:"Décale les pas pairs pour donner un groove shufflé (0 = rigide, 100% = swing maximal)."},
+                {key:"4/4 (signature)",desc:"Choisit la métrique : 4/4, 3/4, 6/8, 5/4, 7/8, etc. Regroupe les pas en mesures correspondantes."},
+                {key:"METRO",desc:"Active le métronome audio. Ajuste le volume et le sous-temps dans la barre de transport."},
+                {key:"VOL",desc:"Volume master global. Glisse verticalement pour ajuster."},
+                {key:"CLEAR",desc:"Efface tous les pas de toutes les pistes du pattern courant."},
+                {key:"KEYS",desc:"Affiche la mappings clavier : chaque piste a une touche assignée pour jouer en live."},
+                {key:"MIDI",desc:"Configure les notes MIDI par piste et active le MIDI Learn. Brancher un contrôleur pour piloter les pistes."},
+                {key:"SHARE / WAV",desc:"SHARE copie un lien URL encodant tout le pattern. WAV exporte l'audio en fichier PCM 16-bit."},
+              ]},
+              {title:"Pistes — Séquenceur",color:"#FF2D55",icon:"◆",items:[
+                {key:"Pas (step) — clic/tap",desc:"Active ou désactive un son à cette position. La grille avance de gauche à droite."},
+                {key:"Pas — drag ↕",desc:"Ajuste la vélocité du step (volume d'impact). Vers le haut = plus fort, vers le bas = plus doux."},
+                {key:"Pas — drag ↔",desc:"Nudge : décale le hit légèrement en avance ou en retard (swing fin indépendant par step)."},
+                {key:"Pas — long-press",desc:"Ouvre le réglage de probabilité (0–100%). Le son se déclenche aléatoirement selon ce pourcentage."},
+                {key:"Pas — double-clic",desc:"Remet le pas à ses valeurs par défaut (vélocité 100, nudge 0, probabilité 100%)."},
+                {key:"M (mute)",desc:"Coupe silencieusement la piste sans effacer les pas. Utile pour les arrangements live."},
+                {key:"S (solo)",desc:"Isole la piste : toutes les autres sont mutées. Reclique pour revenir."},
+                {key:"CLR",desc:"Efface tous les pas de cette piste uniquement."},
+                {key:"J (Jump)",desc:"Décale tous les pas d'un cran à droite (rotation du pattern)."},
+                {key:"16st / 32st",desc:"Longueur individuelle de la piste (peut différer des autres — polymètre)."},
+                {key:"VOL / PAN / PITCH",desc:"Contrôles par piste : volume, panoramique stéréo, transposition en demi-tons."},
+                {key:"REV send",desc:"Envoie la piste vers la réverb globale (FX Rack)."},
+                {key:"+ ADD TRACK",desc:"Crée une piste personnalisée supplémentaire avec un sample chargeable."},
+              ]},
+              {title:"FX Rack global",color:"#BF5AF2",icon:"⚙",items:[
+                {key:"PRESETS",desc:"Charge un preset de genre (Trap, Boom Bap, Techno, Lo-Fi, Afro…) qui configure tous les FX d'un coup."},
+                {key:"CHAIN (drag / ←→)",desc:"Réordonne la chaîne série Master Bus : Drive → Comp → Filter dans l'ordre voulu."},
+                {key:"PRE / POST",desc:"Choisit si le send FX (reverb, delay…) reçoit le signal avant ou après la chaîne série."},
+                {key:"REVERB",desc:"Réverb algorithmique (Plate/Room/Hall). Decay = durée de la queue, Size = taille de la salle. SendRow = pistes envoyées."},
+                {key:"DELAY",desc:"Écho stéréo. Sync BPM ou temps libre. Feedback = nb de répétitions."},
+                {key:"CHORUS",desc:"Dédoublement de timbre par modulation légère. Rate = vitesse de modulation, Depth = amplitude."},
+                {key:"FLANGER",desc:"Effet de phasage métallique. Rate, Depth, Feedback. S'envoie sur les pistes sélectionnées."},
+                {key:"PING-PONG",desc:"Délai qui rebondit gauche↔droite. Sync BPM disponible."},
+                {key:"FILTER",desc:"Filtre LP/HP/BP master. LFO optionnel (sine/triangle/carré) pour un effet wah automatique."},
+                {key:"COMP + GR",desc:"Compresseur master. La jauge GR affiche la réduction de gain en temps réel."},
+                {key:"DRIVE",desc:"Saturation master (4 modes : tube/tape/triangle/bit-crush)."},
+                {key:"TRANSIENT",desc:"Shaper ATK/SUS par piste : renforce ou atténue l'attaque et le corps du son indépendamment."},
+              ]},
+              {title:"Pattern Bank",color:"#64D2FF",icon:"◧",items:[
+                {key:"PAT 1–8",desc:"Slots de patterns. Clique pour basculer. Long-press pour renommer."},
+                {key:"16 / 32 pas",desc:"Change la longueur globale du pattern courant (affecte toutes les pistes)."},
+                {key:"TEMPLATES",desc:"Charge un pattern préfait : 808, Trap, Jazz Brushes, Afrobeat, etc. Insère dans le slot courant."},
+                {key:"DUP",desc:"Duplique le pattern courant dans le slot suivant disponible."},
+              ]},
+              {title:"Song Arranger",color:"#FF9500",icon:"♪",items:[
+                {key:"Ajouter un pattern",desc:"Sélectionne un slot de pattern et clique + pour l'ajouter à la chaîne de lecture."},
+                {key:"Réordonner",desc:"Drag les blocs de la chaîne pour changer l'ordre des sections du morceau."},
+                {key:"Mode SONG",desc:"Active la lecture de la chaîne complète dans l'ordre — pour composer un morceau entier."},
+              ]},
+              {title:"Looper",color:"#BF5AF2",icon:"⊙",items:[
+                {key:"⏺ REC",desc:"Démarre l'enregistrement de jeu libre (clavier, MIDI, pads). Tout ce que tu joues est capturé."},
+                {key:"▶ PLAY / ■ STOP",desc:"Relit ou arrête la boucle enregistrée en continu."},
+                {key:"OVERDUB",desc:"Enregistre par-dessus la boucle en cours sans l'effacer."},
+                {key:"BARS (1/2/4)",desc:"Durée de la boucle en mesures. À définir avant d'enregistrer."},
+                {key:"QUANT + APPLY",desc:"Sélectionne une subdivision (1/4, 1/8, 1/16, 1/32) puis clique APPLY pour snapper tous les hits."},
+                {key:"AUTO-Q",desc:"Quantise automatiquement chaque hit au moment de l'enregistrement."},
+                {key:"Drag les barres",desc:"Déplace un hit enregistré horizontalement sur la timeline. Snap 1/16 automatique."},
+                {key:"↺ UNDO",desc:"Annule la dernière passe d'enregistrement."},
+                {key:"✕ CLEAR",desc:"Efface toute la boucle."},
+                {key:"⬇ WAV",desc:"Exporte la boucle en fichier WAV. Choisis 1×, 2× ou 4× répétitions."},
+              ]},
+              {title:"Séquenceur Euclide",color:"#FFD60A",icon:"⬡",items:[
+                {key:"N (frappes)",desc:"Nombre de sons à distribuer dans le cycle."},
+                {key:"M (pas)",desc:"Longueur du cycle (nombre de subdivisions)."},
+                {key:"Offset",desc:"Décale le point de départ du motif euclidien (rotation)."},
+                {key:"Presets polyrhythme",desc:"12 motifs préfaits issus de traditions musicales du monde entier (Clave, Bembé, Tresillo…)."},
+                {key:"EDIT (vue détail)",desc:"Affiche le pattern euclidien généré et permet de l'éditer manuellement step par step."},
+              ]},
+              {title:"Live Pads",color:"#5E5CE6",icon:"⊞",items:[
+                {key:"Pads colorés",desc:"Joue chaque piste en temps réel. Sensibles à la vélocité (hold plus long = plus fort au relâcher)."},
+                {key:"Raccourcis clavier",desc:"Chaque piste a une touche assignée (Q, S, D, F, G, H, J, K par défaut — voir KEYS)."},
+                {key:"REC + pads",desc:"Active le REC pour capturer tes frappes dans le séquenceur ou le looper."},
+              ]},
+            ] as {title:string,color:string,icon:string,items:{key:string,desc:string}[]}[]).map(section=>(
+              <div key={section.title}>
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+                  <span style={{fontSize:14,lineHeight:1}}>{section.icon}</span>
+                  <span style={{fontSize:9,fontWeight:900,color:section.color,letterSpacing:"0.14em",textTransform:"uppercase"}}>{section.title}</span>
+                  <div style={{flex:1,height:1,background:`linear-gradient(90deg,${section.color}33,transparent)`}}/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:"4px 12px"}}>
+                  {section.items.map(({key,desc})=>(
+                    <div key={key} style={{display:"flex",gap:6,padding:"5px 8px",borderRadius:6,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)"}}>
+                      <div style={{minWidth:90,maxWidth:90,flexShrink:0}}>
+                        <span style={{fontSize:7.5,fontWeight:800,color:section.color,letterSpacing:"0.04em",lineHeight:1.3,wordBreak:"break-word"}}>{key}</span>
+                      </div>
+                      <div style={{fontSize:7.5,color:th.dim,lineHeight:1.45}}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div style={{textAlign:"center",fontSize:7,color:th.faint,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.06)"}}>Clique en dehors de ce panneau pour fermer · Kick & Snare v9.0 — DRUM EXPERIENCE</div>
+          </div>
         </div>
       </div>
     )}
