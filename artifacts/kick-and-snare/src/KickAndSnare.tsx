@@ -579,7 +579,9 @@ export default function KickAndSnare(){
     if(rec&&playing)setRecPadsVisible(true);
     else{const t=setTimeout(()=>setRecPadsVisible(false),150);return()=>clearTimeout(t);}
   },[rec,playing]);
-  const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
+  const [showTS,setShowTS]=useState(false);
+  const [flashing,setFlashing]=useState<Set<string>>(()=>new Set());
+  const flashTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
   const [velPicker,setVelPicker]=useState(null);
   // ── CP-I states ──
   const [euclidEditMode,setEuclidEditMode]=useState(false);
@@ -824,7 +826,9 @@ export default function KickAndSnare(){
   const trigPad=useCallback(async(tid,vel=1)=>{
     await engine.ensureRunning();engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
     if(navigator.vibrate)navigator.vibrate(15);
-    setFlash(tid);setTimeout(()=>setFlash(null),100);
+    if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
+    setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
+    flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
     // Looper recording
     const now=performance.now();
     if(R.loopRec&&loopRef.current.perfStart!==null){
@@ -1346,14 +1350,14 @@ export default function KickAndSnare(){
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
             const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
-            const hK=(playing&&isAct("kick")&&eHit("kick"))||flash==="kick";
-            const hS=(playing&&isAct("snare")&&eHit("snare"))||flash==="snare";
-            const hH=(playing&&isAct("hihat")&&eHit("hihat"))||flash==="hihat";
-            const hRide=(playing&&isAct("ride")&&eHit("ride"))||flash==="ride";
-            const hCrash=(playing&&isAct("crash")&&eHit("crash"))||flash==="crash";
-            const hT=(playing&&isAct("tom")&&eHit("tom"))||flash==="tom";
-            const hC=(playing&&isAct("clap")&&eHit("clap"))||flash==="clap";
-            const hPerc=(playing&&isAct("perc")&&eHit("perc"))||flash==="perc";
+            const hK=(playing&&isAct("kick")&&eHit("kick"))||flashing.has("kick");
+            const hS=(playing&&isAct("snare")&&eHit("snare"))||flashing.has("snare");
+            const hH=(playing&&isAct("hihat")&&eHit("hihat"))||flashing.has("hihat");
+            const hRide=(playing&&isAct("ride")&&eHit("ride"))||flashing.has("ride");
+            const hCrash=(playing&&isAct("crash")&&eHit("crash"))||flashing.has("crash");
+            const hT=(playing&&isAct("tom")&&eHit("tom"))||flashing.has("tom");
+            const hC=(playing&&isAct("clap")&&eHit("clap"))||flashing.has("clap");
+            const hPerc=(playing&&isAct("perc")&&eHit("perc"))||flashing.has("perc");
             const lHit=hS||hH||hC||hPerc||hCrash;const rHit=hRide||hT;
             const lA=hS?-55:hH?-30:hCrash?-18:(hC||hPerc)?-45:5;const rA=hRide?-60:hT?-30:5;
             const anyHit=hK||hS||hH||hRide||hCrash||hT||hC||hPerc;
@@ -1630,7 +1634,7 @@ export default function KickAndSnare(){
                   stRatch={stRatch[track.id]}
                   dragInfo={dragInfo}
                   fx={fx[track.id]||{...DEFAULT_FX}}
-                  flash={flash===track.id}
+                  flash={flashing.has(track.id)}
                   aud={aud}
                   smpN={smpN[track.id]}
                   MidiTag={MidiTag}
@@ -1661,9 +1665,9 @@ export default function KickAndSnare(){
             </div>
             <div style={{display:"grid",gridTemplateColumns:isPortrait?`repeat(2,1fr)`:`repeat(${Math.min(4,atO.length)},1fr)`,gap:6}}>
               {atO.map(tr=>(
-                <button key={tr.id} onPointerDown={e=>{e.preventDefault();trigPad(tr.id,e.pointerType==="mouse"?1:110/127);}}
-                  style={{height:52,borderRadius:10,background:flash===tr.id?tr.color+"44":`linear-gradient(145deg,${tr.color}1a,${tr.color}06)`,border:`1.5px solid ${flash===tr.id?tr.color:tr.color+"33"}`,color:tr.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===tr.id?`0 0 24px ${tr.color}55`:"none",transition:"all 0.06s",transform:flash===tr.id?"scale(0.94)":"scale(1)"}}>
-                  <DrumSVG id={tr.id} color={tr.color} hit={flash===tr.id} sz={18}/>
+                <button key={tr.id} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);trigPad(tr.id,e.pointerType==="mouse"?1:110/127);}}
+                  style={{height:52,borderRadius:10,background:flashing.has(tr.id)?tr.color+"44":`linear-gradient(145deg,${tr.color}1a,${tr.color}06)`,border:`1.5px solid ${flashing.has(tr.id)?tr.color:tr.color+"33"}`,color:tr.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(tr.id)?`0 0 24px ${tr.color}55`:"none",transition:"all 0.06s",transform:flashing.has(tr.id)?"scale(0.94)":"scale(1)",touchAction:"none",userSelect:"none"}}>
+                  <DrumSVG id={tr.id} color={tr.color} hit={flashing.has(tr.id)} sz={18}/>
                   <span style={{fontSize:8,fontWeight:700,letterSpacing:"0.06em"}}>{tr.label}</span>
                 </button>
               ))}
@@ -1712,16 +1716,17 @@ export default function KickAndSnare(){
             )}
           </div>
           {/* ─ Pads grid ─ */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12,touchAction:"none"}}>
             {atO.map((track)=>(
               <div key={track.id} style={{position:"relative"}}>
                 <button
                   onPointerDown={e=>{
                     e.preventDefault();
+                    e.currentTarget.setPointerCapture(e.pointerId);
                     trigPad(track.id,e.pointerType==="mouse"?1:110/127);
                   }}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
-                  <DrumSVG id={track.id} color={track.color} hit={flash===track.id} sz={44} />
+                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none"}}>
+                  <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
                 </button>
@@ -1869,7 +1874,7 @@ export default function KickAndSnare(){
                               <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,flexWrap:"nowrap"}}>
                                 {/* Fixed-width left block so M is always aligned */}
                                 <div onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{display:"flex",alignItems:"center",gap:3,width:92,flexShrink:0,cursor:"pointer",overflow:"hidden"}}>
-                                  <span style={{flexShrink:0,opacity:aud?1:0.4}}><DrumSVG id={tr.id} color={tr.color} hit={flash===tr.id} sz={18} /></span>
+                                  <span style={{flexShrink:0,opacity:aud?1:0.4}}><DrumSVG id={tr.id} color={tr.color} hit={flashing.has(tr.id)} sz={18} /></span>
                                   <span title={p.fold?"Expand":"Collapse"} style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,userSelect:"none"}}>{tr.label}</span>
                                   {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 3px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
                                 </div>
