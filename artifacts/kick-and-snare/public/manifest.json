@@ -1,0 +1,19 @@
+{
+  "name": "Kick & Snare Drum Sequencer",
+  "short_name": "Kick & Snare",
+  "description": "Browser-based TR-808 drum sequencer with Euclidean rhythms, live pads, and FX rack",
+  "display": "standalone",
+  "orientation": "landscape",
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0F0F0F",
+  "theme_color": "#0F0F0F",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

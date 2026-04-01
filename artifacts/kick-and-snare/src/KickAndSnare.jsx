@@ -534,6 +534,11 @@ export default function KickAndSnare(){
   const [metroVol,setMetroVol]=useState(10);
   const [dragInfo,setDragInfo]=useState(null);
   const [metroSub,setMetroSub]=useState("off");
+  // Android WebView / PWA compat
+  const [ctxSuspended,setCtxSuspended]=useState(false);
+  const hasMidiApi=typeof navigator!=='undefined'&&typeof navigator.requestMIDIAccess==='function';
+  const [hasLinkApi,setHasLinkApi]=useState(true);
+  const lastTickRef=useRef(null);
   const midiRef=useRef({access:null,ins:[]});
   // MIDI Note Input (independent of clock sync)
   const [midiNoteMap,setMidiNoteMap]=useState({});
@@ -847,7 +852,7 @@ export default function KickAndSnare(){
           em.beat=(em.beat+1)%4;em.nextTime+=sxt;
         }
       }
-      schRef.current=setTimeout(schLoop,25);
+      {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-25:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,25-drift));}
       return;
     }
     // ── Linear / Pads: global step scheduler ──
@@ -870,11 +875,18 @@ export default function KickAndSnare(){
       const sw=bd*(R.sw/100);nxtRef.current+=R.step%2===0?(bd-sw):(bd+sw);
     }
     if(stepped)setCStep(R.step);
-    schRef.current=setTimeout(schLoop,25);
+    {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-25:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,25-drift));}
   },[schSt]);
 
   const startStop=()=>{
     engine.init();
+    // Android WebView: AudioContext may start suspended — show tap-to-start overlay
+    if(engine.ctx.state==='suspended'){
+      engine.ctx.onstatechange=()=>{if(engine.ctx.state==='running')setCtxSuspended(false);};
+      setCtxSuspended(true);
+      engine.ctx.resume();
+      return;
+    }
     if(playing){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
@@ -886,6 +898,18 @@ export default function KickAndSnare(){
   };
   ssRef.current=startStop;
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
+  // Probe Ableton Link WebSocket — hide button if localhost refuses immediately (Android WebView)
+  useEffect(()=>{
+    if(typeof WebSocket==='undefined'){setHasLinkApi(false);return;}
+    let gone=false;
+    try{
+      const probe=new WebSocket('ws://localhost:9898');
+      const t=setTimeout(()=>{if(!gone){gone=true;probe.close();}},800);
+      probe.onopen=()=>{clearTimeout(t);gone=true;probe.close();setHasLinkApi(true);};
+      probe.onerror=()=>{if(!gone){clearTimeout(t);gone=true;setHasLinkApi(false);}};
+      probe.onclose=(e)=>{if(!gone){clearTimeout(t);gone=true;if(e.code===1006)setHasLinkApi(false);}};
+    }catch(e){setHasLinkApi(false);}
+  },[]);
 
   // ── Looper engine ──
   const loopSchedFn=()=>{
@@ -1110,7 +1134,7 @@ export default function KickAndSnare(){
     );
   };
 
-  return(
+  return(<>
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
       <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}}`}</style>
@@ -1310,17 +1334,17 @@ export default function KickAndSnare(){
             <span style={{fontSize:11,lineHeight:1}}>⌨</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>KEYB</span>
           </button>
-          <button onClick={async()=>{
+          {hasMidiApi&&<button onClick={async()=>{
             if(!midiNotes){const ok=await initMidi();if(!ok)return;setMidiNotes(true);}
             const entering=!midiLM;setMidiLM(entering);if(!entering)setMidiLearnTrack(null);
           }} style={{...pill(midiLM,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
             <span style={{fontSize:11}}>🎹</span>
             <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>MIDI</span>
-          </button>
-          {/* Ableton Link */}
-          <button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
+          </button>}
+          {/* Ableton Link — hidden if localhost probe fails immediately (Android WebView) */}
+          {hasLinkApi&&<button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
             🔗{linkConnected?` ${linkPeers}p`:' LINK'}
-          </button>
+          </button>}
         </div>
 
         {/* ── Time Signature ── */}
@@ -1478,7 +1502,7 @@ export default function KickAndSnare(){
                     const f=fx[track.id]||defFx();
                     const vol=f.vol??80;const pan=f.pan??0;
                     const uFx=(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||defFx()),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
-                    const btnSt={height:18,border:"none",borderRadius:3,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:7};
+                    const btnSt={height:32,minWidth:32,border:"none",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:10};
                     // VOL knob renderer
                     const r=9;const circ=2*Math.PI*r;
                     const volOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFx("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
@@ -1685,8 +1709,8 @@ export default function KickAndSnare(){
             el.addEventListener('pointerup',onUp,{once:true});
             el.addEventListener('pointercancel',onUp,{once:true});
           };
-          const btnSm={height:18,minWidth:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 3px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
-          const arw={width:16,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
+          const btnSm={height:32,minWidth:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 4px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
+          const arw={width:32,height:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
           const lbl0={fontSize:6.5,color:th.dim,fontWeight:700,letterSpacing:"0.07em",flexShrink:0};
           const val0={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",flexShrink:0};
           const sep0={fontSize:10,color:th.faint,flexShrink:0};
@@ -1910,5 +1934,15 @@ export default function KickAndSnare(){
         );
       })()}
     </div>
-  );
+    {/* Fix 1: AudioContext suspended overlay (Android WebView autoplay policy) */}
+    {ctxSuspended&&(
+      <div onClick={async()=>{await engine.ctx?.resume();setCtxSuspended(false);}} style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(0,0,0,0.85)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,cursor:"pointer",userSelect:"none"}}>
+        <div style={{width:80,height:80,borderRadius:"50%",background:"rgba(255,149,0,0.15)",border:"2px solid rgba(255,149,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontSize:36,marginLeft:6}}>▶</span>
+        </div>
+        <div style={{fontSize:22,fontWeight:800,color:"#fff",letterSpacing:"0.18em"}}>TAP TO START</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",letterSpacing:"0.06em"}}>Audio requires interaction to start</div>
+      </div>
+    )}
+  </>);
 }
