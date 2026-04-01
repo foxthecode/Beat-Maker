@@ -87,8 +87,18 @@ function TrackRow({
             {actLength > 1 && <button onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
           </div>
 
-          {/* Row 2: VOL knob · PAN knob · step count */}
+          {/* Row 2: [spacer aligns with icon] · 16st · VOL knob · PAN knob */}
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {/* Invisible spacer matching icon+label width so 16st aligns under M */}
+            <div style={{ width: 68, flexShrink: 0 }} />
+
+            {/* Step count — aligned with M button */}
+            <button
+              title={`${tSteps}st → ${nextTs}st`}
+              onClick={() => onStepCountChange(nextTs)}
+              style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}
+            >{tSteps}st</button>
+
             {/* VOL knob */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
               <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
@@ -119,13 +129,6 @@ function TrackRow({
               </div>
               <MidiTag id={`pan_${track.id}`} />
             </div>
-
-            {/* Step count */}
-            <button
-              title={`${tSteps}st → ${nextTs}st`}
-              onClick={() => onStepCountChange(nextTs)}
-              style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}
-            >{tSteps}st</button>
           </div>
 
           {/* Row 3: sample name */}
