@@ -1996,12 +1996,18 @@ export default function KickAndSnare(){
           L.scheduled.add(key);
           const delay=Math.max(0,evTime-now);
           engine.play(ev.tid,ev.vel,delay,R.fx[ev.tid]||{...DEFAULT_FX});
+          // Flash mascot/UI at the audio-scheduled moment (not capture time)
+          setTimeout(()=>{
+            setFlashing(s=>{const n=new Set(s);n.add(ev.tid);return n;});
+            setTimeout(()=>setFlashing(s=>{const nn=new Set(s);nn.delete(ev.tid);return nn;}),120);
+          },Math.max(0,delay*1000-10));
           setTimeout(()=>L.scheduled.delete(key),(delay+1)*1000);
         }
       }
     });
-    // Metro clicks anchored to L.audioStart so beat 0 = loop start = accent
-    if(R.metro){
+    // Metro clicks anchored to L.audioStart — skipped when sequencer is already running
+    // (sequencer has its own metro via schLoop; two independent metros drift against each other)
+    if(R.metro&&!R.playing){
       const beatSec=60/Math.max(30,R.bpm);
       const sigBeats=R.sig?.beats||4;
       const loopElapsed=now-L.audioStart;
@@ -2019,13 +2025,15 @@ export default function KickAndSnare(){
     }
     L.schTimer=setTimeout(loopSchedFn,25);
   };
-  const startLooper=async(isRec=false)=>{
+  const startLooper=async(isRec=false,forcedStart?:number)=>{
     await engine.ensureRunning();
     const L=loopRef.current;
-    L.lengthMs=(60000/Math.max(30,R.bpm))*4*loopBars;
+    // Use actual time-sig beats so loop length matches metro period exactly (prevents drift)
+    L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
     // Fix silence: when replaying existing events, shift audioStart back so first event fires immediately
     const minToff=(!isRec&&L.events.length>0)?Math.min(...L.events.map(e=>e.tOff)):0;
-    L.audioStart=engine.ctx.currentTime-minToff/1000;
+    // forcedStart = pre-calculated audio time from precise countdown (eliminates JS-timer jitter)
+    L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx.currentTime-minToff/1000;
     L.perfStart=performance.now()-minToff;
     L.scheduled=new Set();
     loopSchedFn();
@@ -2048,21 +2056,26 @@ export default function KickAndSnare(){
     loopRef.current.audioStart=null;
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
-  const _armLoopRec=async()=>{
+  const _armLoopRec=async(forcedStart?:number)=>{
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
-    setLoopRec(true);await startLooper(true);
+    setLoopRec(true);await startLooper(true,forcedStart);
   };
   const toggleLoopRec=()=>{
     if(!loopPlaying){
       if(loopMetro&&engine.ctx){
-        // Metro countdown: 1 bar of clicks then arm+start
-        const barMs=(60000/Math.max(30,R.bpm))*sig.beats;
-        const beatMs=barMs/sig.beats;
-        setRecCountdown(true);
-        for(let i=0;i<sig.beats;i++){
-          setTimeout(()=>{if(engine.ctx)playClk(engine.ctx.currentTime,i===0?"accent":"beat");},i*beatMs);
-        }
-        setTimeout(()=>{setRecCountdown(false);_armLoopRec();},barMs);
+        // Pre-schedule ALL countdown beats as precise WebAudio events (no JS-timer jitter)
+        engine.ensureRunning().then(()=>{
+          const ctx=engine.ctx;if(!ctx)return;
+          const beatSec=60/Math.max(30,R.bpm);
+          const t0=ctx.currentTime+0.05; // tiny look-ahead before first click
+          for(let i=0;i<sig.beats;i++)playClk(t0+i*beatSec,i===0?"accent":"beat");
+          // recStart = exact audio time of beat 0 of the recording (= t0 + 1 bar)
+          const recStart=t0+sig.beats*beatSec;
+          setRecCountdown(true);
+          // JS timer fires slightly after recStart; we pass the pre-calculated audio anchor
+          setTimeout(()=>{setRecCountdown(false);_armLoopRec(recStart);},
+            (recStart-ctx.currentTime)*1000+60);
+        });
       }else{
         _armLoopRec();
       }
@@ -2458,10 +2471,10 @@ export default function KickAndSnare(){
             const bpmMs=60000/Math.max(30,bpm||120);
             const bobDur=`${(bpmMs/1000).toFixed(3)}s`;
             return(<div data-hint="Mascotte · Frappe les fûts correspondant aux pistes actives · Vitesse de bob et halo synchronisés au BPM" style={{flexShrink:0}}>
-              <svg viewBox="0 0 130 52" width="130" height="52" style={{overflow:"visible",willChange:"contents",display:"block",filter:playing?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
+              <svg viewBox="0 0 130 52" width="130" height="52" style={{overflow:"visible",willChange:"contents",display:"block",filter:(playing||loopPlaying)?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
                 {/* Halo ring behind mascot — synced with BPM */}
-                {playing&&<ellipse cx="44" cy="24" rx="28" ry="26" fill="none" stroke={anyHit?"#FF2D55":"#FF9500"} strokeWidth={0.8} opacity={0} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite`,transformOrigin:"44px 24px"}}/>}
-                {playing&&<ellipse cx="44" cy="24" rx="22" ry="20" fill="none" stroke={anyHit?"rgba(255,45,85,0.3)":"rgba(255,149,0,0.2)"} strokeWidth={anyHit?2:1} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite alternate`}}/>}
+                {(playing||loopPlaying)&&<ellipse cx="44" cy="24" rx="28" ry="26" fill="none" stroke={anyHit?"#FF2D55":"#FF9500"} strokeWidth={0.8} opacity={0} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite`,transformOrigin:"44px 24px"}}/>}
+                {(playing||loopPlaying)&&<ellipse cx="44" cy="24" rx="22" ry="20" fill="none" stroke={anyHit?"rgba(255,45,85,0.3)":"rgba(255,149,0,0.2)"} strokeWidth={anyHit?2:1} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite alternate`}}/>}
                 {/* Hi-hat */}
                 {aHH&&<g>
                   <line x1="14" y1="16" x2="14" y2="50" stroke="#ccc" strokeWidth="0.7"/>
@@ -2831,7 +2844,7 @@ export default function KickAndSnare(){
                   }}
                   onAddHit={(tid,tOff)=>{
                     const L=loopRef.current;
-                    const dur=L.lengthMs>0?L.lengthMs:loopBars*4*(60000/Math.max(30,bpm));
+                    const dur=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
                     const ev={id:`m_${Date.now()}`,tid,tOff:Math.max(0,Math.min(dur-1,tOff)),vel:1,pass:L.passId};
                     L.events.push(ev);
                     L.events.sort((a,b)=>a.tOff-b.tOff);
@@ -2846,7 +2859,7 @@ export default function KickAndSnare(){
                   onQuantize={(div)=>{
                     const L=loopRef.current;
                     if(!L.events||!L.events.length)return;
-                    const loopDurMs=loopBars*4*(60000/Math.max(30,bpm));
+                    const loopDurMs=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
                     const snapMs=loopDurMs/(loopBars*div);
                     L.events=L.events.map(ev=>({
                       ...ev,
