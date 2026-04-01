@@ -5,7 +5,7 @@ const pill=(on,c)=>({padding:"5px 11px",borderRadius:6,border:`1px solid ${on?c+
 
 export default function TransportBar({
   themeName, bpm, setBpm, playing, startStop,
-  rec, setRec, handleTap,
+  rec, setRec, handleTap, onRecClick,
   swing, setSwing, metro, setMetro, metroVol, setMetroVol, metroSub, setMetroSub,
   midiLM, setMidiLM, linkConnected, linkPeers, showLink, setShowLink,
   MidiTag,
@@ -14,6 +14,7 @@ export default function TransportBar({
   isPortrait, isAudioReady,
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
+  showLooper, setShowLooper,
   onClear,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
@@ -43,7 +44,6 @@ export default function TransportBar({
     window.addEventListener("touchend", up);
   };
 
-  // I.2b: VOL MASTER drag knob (vertical drag, double-tap reset)
   const onVolDown = e => {
     e.preventDefault();
     const now = Date.now();
@@ -73,7 +73,6 @@ export default function TransportBar({
     </div>
   );
 
-  // I.2e: Pattern indicator
   const PatIndicator = pBank && SEC_COL && (
     <div onClick={() => setShowSong && setShowSong(false)} title="Tap to show pattern bank" style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <span style={{ fontSize: 8, fontWeight: 800, color: SEC_COL[cPat % 8], letterSpacing: "0.08em" }}>
@@ -108,7 +107,18 @@ export default function TransportBar({
 
   const RecBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <button onClick={() => { if (playing) setRec(!rec); }} style={{ width: 32, height: 32, borderRadius: "50%", border: rec ? "2px solid #FF2D55" : `2px solid ${th.sBorder}`, background: rec ? "rgba(255,45,85,0.2)" : "transparent", color: rec ? "#FF2D55" : th.dim, fontSize: 11, cursor: playing ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: playing ? 1 : 0.3, animation: rec ? "rb 0.8s infinite" : "none" }}>●</button>
+      <button
+        onClick={() => onRecClick ? onRecClick() : (playing && setRec(!rec))}
+        style={{
+          width: 32, height: 32, borderRadius: "50%",
+          border: rec ? "2px solid #FF2D55" : `2px solid ${th.sBorder}`,
+          background: rec ? "rgba(255,45,85,0.2)" : "transparent",
+          color: rec ? "#FF2D55" : th.dim,
+          fontSize: 11, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          opacity: 1,
+          animation: rec ? "rb 0.8s infinite" : "none",
+        }}>●</button>
       <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__rec__" /></div>
     </div>
   );
@@ -160,6 +170,13 @@ export default function TransportBar({
     <button onClick={() => setMetroSub(p => p === "off" ? "light" : p === "light" ? "full" : "off")} style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
+  const LoopBtn = (
+    <button onClick={() => setShowLooper && setShowLooper(p => !p)} style={{ ...pill(showLooper, "#BF5AF2"), display: "flex", alignItems: "center", gap: 3 }}>
+      <span style={{ fontSize: 10 }}>⊙</span>
+      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>LOOP</span>
+    </button>
+  );
+
   const ClearBtn = (
     <button onClick={onClear} style={pill(false, "#FF2D55")} title="Clear all hits">✕ CLEAR</button>
   );
@@ -204,6 +221,7 @@ export default function TransportBar({
           {MetroBtn}
           {SubBtn}
           {VolKnob}
+          {LoopBtn}
           {ClearBtn}
         </div>
         <div style={{ ...rowStyle }}>
@@ -226,6 +244,7 @@ export default function TransportBar({
       {MetroBtn}
       {SubBtn}
       {VolKnob}
+      {LoopBtn}
       {ClearBtn}
       {KeybBtn}
       {MidiBtn}

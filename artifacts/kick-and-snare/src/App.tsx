@@ -1,3 +1,4 @@
+import "./styles/animations.css";
 import KickAndSnare from "./KickAndSnare.tsx";
 import ErrorBoundary from "./components/ErrorBoundary";
 

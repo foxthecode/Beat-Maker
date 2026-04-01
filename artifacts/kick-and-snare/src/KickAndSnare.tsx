@@ -5,6 +5,8 @@ import { DrumSVG } from "./drumSVG.tsx";
 import TransportBar from "./components/TransportBar.jsx";
 import PatternBank from "./components/PatternBank.jsx";
 import TrackRow from "./components/TrackRow.jsx";
+import LooperPanel from "./components/LooperPanel.jsx";
+import { useAppState } from "./hooks/useAppState.js";
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 /** All built-in drum track IDs plus any custom track string. */
@@ -117,7 +119,7 @@ function euclidRhythm(hits,steps){
 
 // ═══ Audio Engine ═══
 class Eng{
-  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};}
+  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;}
   init(){if(this.ctx)return;this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
     // Global FX chain: mg → drive → comp → makeup → filter(×2 24dB/oct) → out
     this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample="4x";this.gDrv.curve=this._cv(0);
@@ -152,6 +154,13 @@ class Eng{
       }catch(e){console.warn("808 prerender failed:",id,e);}
     }
     this.onReady?.();
+  }
+  async ensureRunning(){
+    if(!this.ctx)this.init();
+    if(this.ctx.state==='suspended'){
+      if(!this._resumeP)this._resumeP=this.ctx.resume().finally(()=>{this._resumeP=null;});
+      await this._resumeP;
+    }
   }
   _mkRv(decay,size){
     const d=Math.max(0.1,decay||2);const s=Math.max(0,Math.min(1,size??0.5));
@@ -495,6 +504,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
 // ═══ Main ═══
 export default function KickAndSnare(){
+  const appState=useAppState();
   const [themeName,setThemeName]=useState("dark");
   const th=THEMES[themeName];
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
@@ -575,11 +585,16 @@ export default function KickAndSnare(){
   const [euclidEditMode,setEuclidEditMode]=useState(false);
   const [euclidTouchFeedback,setEuclidTouchFeedback]=useState<{tid:string,step:number}|null>(null);
   const [swipeToast,setSwipeToast]=useState<string|null>(null);
-  const [masterVol,setMasterVol]=useState(80);
+  const [masterVol,setMasterVol]=useState(()=>appState.state.masterVol??80);
   const [patNameEdit,setPatNameEdit]=useState<number|null>(null);
-  // masterVol → engine gain
+  // ── CP-F states ──
+  const [showLooper,setShowLooper]=useState(false);
+  const [recCountdown,setRecCountdown]=useState(false);
+  const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
+  // masterVol → engine gain + localStorage (0d)
   useEffect(()=>{
     if(engine.ctx)engine.mg.gain.setTargetAtTime(masterVol/100,engine.ctx.currentTime,0.02);
+    appState.setMasterVol(masterVol);
   },[masterVol]);
   const [probPopover,setProbPopover]=useState(null);
   const [metro,setMetro]=useState(false);
@@ -803,8 +818,8 @@ export default function KickAndSnare(){
 
 
   // Keyboard shortcuts
-  const trigPad=useCallback((tid,vel=1)=>{
-    engine.init();engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+  const trigPad=useCallback(async(tid,vel=1)=>{
+    await engine.ensureRunning();engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
     if(navigator.vibrate)navigator.vibrate(15);
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     // Looper recording
@@ -817,12 +832,26 @@ export default function KickAndSnare(){
       L.events.push(ev);
       setLoopDisp(d=>[...d,{tid,tOff,vel}]);
     }
-    // Legacy REC mode
-    if(R.rec&&R.step>=0){
-      const gSt=R.sig?.steps||16;const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);const ratio=Math.max(1,Math.round(tSt/gSt));const s=ratio>1?R.step*ratio:R.step%tSt;
+    // F.1b: REC mode with quantization snap + timing feedback + retap erase
+    if(R.rec&&R.step>=0&&engine.ctx){
+      const gSt=R.sig?.steps||16;
+      const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);
+      const ratio=Math.max(1,Math.round(tSt/gSt));
+      // F.1b: quantization snap
+      const stepDur=(60/R.bpm)*R.sig.beats/R.sig.steps;
+      const elapsed=engine.ctx.currentTime-(nxtRef.current-stepDur);
+      const snapRatio=Math.max(0,Math.min(1,elapsed/stepDur));
+      const qStep=snapRatio>0.5?(R.step+1)%gSt:R.step;
+      const targetStep=ratio>1?qStep*ratio:qStep%tSt;
+      // F.1c: timing feedback color
+      const fbColor=snapRatio>=0.35&&snapRatio<=0.65?"#30D158":snapRatio>=0.2&&snapRatio<=0.8?"#FF9500":"#FF2D55";
+      const fbLabel=snapRatio>=0.35&&snapRatio<=0.65?"✓":snapRatio>=0.2&&snapRatio<=0.8?"~":"!";
+      setRecFeedback({step:targetStep,tid,color:fbColor,label:fbLabel});
+      setTimeout(()=>setRecFeedback(null),400);
       const v100=Math.max(1,Math.round(vel*100));
-      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][s]=1;n[R.cp]=p;return n;});
-      setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[s]:v100}}));
+      // F.1d: retap erases
+      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][targetStep]=p[tid][targetStep]?0:1;n[R.cp]=p;return n;});
+      if(R.pat?.[tid]?.[targetStep]!==0)setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[targetStep]:v100}}));
     }
   },[]);
   R.trigPad=trigPad;
@@ -974,13 +1003,12 @@ export default function KickAndSnare(){
     {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
   },[schSt]);
 
-  const startStop=()=>{
-    engine.init();
-    // Android WebView: AudioContext may start suspended — show tap-to-start overlay
+  const startStop=async()=>{
+    await engine.ensureRunning();
+    // Android WebView: AudioContext may be suspended after ensureRunning on older browsers
     if(engine.ctx.state==='suspended'){
       engine.ctx.onstatechange=()=>{if(engine.ctx.state==='running')setCtxSuspended(false);};
       setCtxSuspended(true);
-      engine.ctx.resume();
       return;
     }
     if(playing){
@@ -993,6 +1021,20 @@ export default function KickAndSnare(){
     }
   };
   ssRef.current=startStop;
+  // F.1a: REC without playback — countdown 1 bar then auto-start
+  const onRecClick=()=>{
+    if(playing){setRec(p=>!p);return;}
+    // Click REC while stopped → countdown 1 bar → start + rec
+    setRecCountdown(true);
+    const barMs=(60000/Math.max(30,bpm))*sig.beats;
+    setTimeout(async()=>{
+      setRecCountdown(false);
+      await engine.ensureRunning();
+      R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
+      euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
+      schLoop();setPlaying(true);setRec(true);
+    },barMs);
+  };
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
   // Probe Ableton Link WebSocket — hide button if localhost refuses immediately (Android WebView)
   useEffect(()=>{
@@ -1030,8 +1072,8 @@ export default function KickAndSnare(){
     });
     L.schTimer=setTimeout(loopSchedFn,25);
   };
-  const startLooper=()=>{
-    engine.init();
+  const startLooper=async()=>{
+    await engine.ensureRunning();
     const L=loopRef.current;
     L.lengthMs=(60000/Math.max(30,R.bpm))*4*loopBars;
     L.audioStart=engine.ctx.currentTime;
@@ -1241,7 +1283,7 @@ export default function KickAndSnare(){
   return(<>
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
-      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}} @keyframes audioload{0%{width:0%}100%{width:100%}} @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      {/* keyframes migrated to src/styles/animations.css (imported in App.tsx at CP-F) */}
       {!isAudioReady&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,height:2,background:"rgba(0,0,0,0.25)"}}>
         <div style={{height:"100%",background:"linear-gradient(90deg,#FF2D55,#FF9500)",animation:"audioload 0.5s ease-out forwards",willChange:"width"}}/>
       </div>}
@@ -1408,8 +1450,25 @@ export default function KickAndSnare(){
           isPortrait={isPortrait} isAudioReady={isAudioReady}
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
+          showLooper={showLooper} setShowLooper={setShowLooper}
+          onRecClick={onRecClick}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
         />
+        {/* F.1a: REC countdown overlay */}
+        {recCountdown&&(
+          <div style={{position:"relative",marginBottom:8,padding:"8px 12px",borderRadius:8,background:"rgba(255,45,85,0.08)",border:"1px solid rgba(255,45,85,0.4)",overflow:"hidden"}}>
+            <div style={{position:"absolute",top:0,left:0,height:"100%",background:"rgba(255,45,85,0.15)",animation:`recCountBar ${((60000/Math.max(30,bpm))*sig.beats/1000).toFixed(2)}s linear forwards`}}/>
+            <span style={{position:"relative",fontSize:9,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em",animation:"rb 0.5s infinite"}}>● REC — EN ATTENTE 1 BARRE…</span>
+          </div>
+        )}
+        {/* F.2b: LooperPanel */}
+        {showLooper&&<LooperPanel
+          loopBars={loopBars} setLoopBars={setLoopBars}
+          loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
+          loopDisp={loopDisp}
+          onToggleRec={toggleLoopRec} onTogglePlay={stopLooper} onUndo={undoLoopPass} onClear={clearLooper}
+          themeName={themeName} isPortrait={isPortrait}
+        />}
 
         {/* ── Time Signature ── */}
         {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
@@ -1524,6 +1583,7 @@ export default function KickAndSnare(){
               }
             }}>
             {swipeToast&&<div style={{position:"absolute",top:"40%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(0,0,0,0.82)",color:"#fff",padding:"6px 18px",borderRadius:10,fontSize:16,fontWeight:800,zIndex:200,pointerEvents:"none",letterSpacing:"0.05em"}}>{swipeToast}</div>}
+            {recFeedback&&<div style={{position:"absolute",top:"30%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(0,0,0,0.85)",color:recFeedback.color,padding:"5px 16px",borderRadius:8,fontSize:20,fontWeight:900,zIndex:201,pointerEvents:"none",border:`1px solid ${recFeedback.color}`,letterSpacing:"0.05em"}}>{recFeedback.label}</div>}
             {atO.map((track)=>{
               const isM=!!muted[track.id];
               const isS=soloed===track.id;
