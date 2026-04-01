@@ -651,16 +651,39 @@ export default function KickAndSnare(){
   const [songMode,setSongMode]=useState(false);
   const [showSong,setShowSong]=useState(false);
   const songPosRef=useRef(0);
-  // Resets all sequencer state when switching between SEQUENCER ↔ EUCLID
+
+  // ── Per-view independent snapshots ──
+  // Each view (sequencer / euclid) owns its own pBank + cPat + song state.
+  // Switching saves the outgoing state and restores the incoming state — no copy.
+  const seqSnap=useRef<{pBank:any[],cPat:number,songChain:number[],songMode:boolean}>({
+    pBank:[mkE(16)], cPat:0, songChain:[0], songMode:false,
+  });
+  const euclidSnap=useRef<{pBank:any[],cPat:number}>({
+    pBank:[mkE(16)], cPat:0,
+  });
+
   const switchView=(nextView:string)=>{
+    if(view===nextView)return; // already there — noop
     if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
-    // Clear current pattern steps
-    setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};[...ALL_TRACKS,...customTracks].forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=cp[t.id].map(()=>0);});n[cPat]=cp;return n;});
-    // Reset song arranger
-    setSongMode(false);
-    setSongChain([0]);
-    songPosRef.current=0;
-    setCPat(0);
+
+    if(nextView==="euclid"){
+      // Save sequencer state
+      seqSnap.current={pBank,cPat,songChain,songMode};
+      // Restore euclid state
+      setPBank(euclidSnap.current.pBank);
+      setCPat(euclidSnap.current.cPat);
+      // Euclid has no song arranger
+      setSongMode(false);setSongChain([0]);songPosRef.current=0;
+    } else if(nextView==="sequencer"){
+      // Save euclid state
+      euclidSnap.current={pBank,cPat};
+      // Restore sequencer state
+      setPBank(seqSnap.current.pBank);
+      setCPat(seqSnap.current.cPat);
+      setSongMode(seqSnap.current.songMode);
+      setSongChain(seqSnap.current.songChain);
+      songPosRef.current=0;
+    }
     setView(nextView);
   };
   // Session
