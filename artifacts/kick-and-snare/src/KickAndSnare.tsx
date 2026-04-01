@@ -245,15 +245,31 @@ class Eng{
       comp:{i:this.gCmp,o:this.gCmpMakeup},
       drive:{i:this.gDrv,o:this.gDrv},
     };
-    // Disconnect all inter-block exits
+    // ─── 1. Disconnect all inter-block exits (inline serial chain) ───
     [this.mg,this.gFlt2,this.gCmpMakeup,this.gDrv].forEach(n=>{try{n.disconnect();}catch(e){}});
     // Restore intra-block connections
     try{this.gCmp.connect(this.gCmpMakeup);}catch(e){}
     try{this.gFlt.connect(this.gFlt2);}catch(e){}
-    // Reconnect in new order
+    // ─── 2. Disconnect send-FX return connections ───
+    try{this.gRvConv.disconnect();}catch(e){}
+    // Disconnect gDl outputs (gDl→gOut and any gDl→gRvBus), keep feedback loop
+    try{this.gDl.disconnect();}catch(e){}
+    try{this.gDl.connect(this.gDlFb);}catch(e){}  // restore feedback
+    // ─── 3. Reconnect inline serial chain in new order ───
     let prev:AudioNode=this.mg;
     order.filter(s=>B[s]).forEach(s=>{prev.connect(B[s].i);prev=B[s].o;});
     prev.connect(this.gOut);
+    // ─── 4. Route send-FX returns based on their order ───
+    // If reverb before delay: reverb tail → delay input (reverb echoes)
+    // If delay before reverb: delay echoes → reverb input (reverb on echoes)
+    const ri=order.indexOf('reverb'),di=order.indexOf('delay');
+    if(ri>=0&&di>=0){
+      if(ri<di){this.gRvConv.connect(this.gDlBus);this.gDl.connect(this.gOut);}
+      else{this.gDl.connect(this.gRvBus);this.gRvConv.connect(this.gOut);}
+    }else{
+      this.gRvConv.connect(this.gOut);
+      this.gDl.connect(this.gOut);
+    }
   }
   _build(id){
     const c={};
