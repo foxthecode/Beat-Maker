@@ -33,12 +33,6 @@ export default function LooperPanel({
   const barCount = loopDisp ? new Set(loopDisp.map(e => e.tid)).size : 0;
   const BARS_OPTS = [1, 2, 4];
 
-  const recLabel = loopRec
-    ? "■ STOP REC"
-    : loopMetro && !loopPlaying
-      ? "⏺ REC + DÉCOMPTE"
-      : "⏺ REC";
-
   return (
     <div style={{
       marginBottom: 10,
@@ -177,56 +171,16 @@ export default function LooperPanel({
         );
       })()}
 
-      {/* Controls */}
-      <div style={{
-        display: "flex",
-        gap: 5,
-        flexWrap: "wrap",
-        flexDirection: isPortrait ? "column" : "row",
-      }}>
-        {/* REC — fresh record (always visible when not currently recording) */}
-        {!loopRec && (
-          <button
-            onClick={loopPlaying ? onFreshRec : onToggleRec}
-            style={pill(false, "#FF2D55")}
-          >
-            {recLabel}
-          </button>
-        )}
-        {/* STOP REC — when recording is active */}
-        {loopRec && (
-          <button onClick={onToggleRec} style={pill(true, "#FF2D55")}>
-            ■ STOP REC
-          </button>
-        )}
-        {/* OVERDUB — only when playing and not already recording */}
-        {loopPlaying && !loopRec && (
-          <button onClick={onToggleRec} style={pill(false, "#BF5AF2")}>
-            ⊕ OVERDUB
-          </button>
-        )}
-        {/* STOP playback */}
-        {loopPlaying && (
-          <button onClick={onTogglePlay} style={pill(false, "#FF9500")}>
-            ■ STOP
-          </button>
-        )}
-        {/* PLAY — only when stopped but has events */}
-        {!loopPlaying && loopDisp && loopDisp.length > 0 && (
-          <button onClick={onTogglePlay} style={pill(false, "#30D158")}>
-            ▶ PLAY
-          </button>
-        )}
+      {/* UNDO — only control kept; transport is handled by space bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {loopDisp && loopDisp.length > 0 && (
           <button onClick={onUndo} style={pill(false, "#5E5CE6")}>
             ↺ UNDO
           </button>
         )}
-        {(loopPlaying || (loopDisp && loopDisp.length > 0)) && (
-          <button onClick={onClear} style={pill(false, "#636366")}>
-            ✕ CLEAR
-          </button>
-        )}
+        <span style={{ fontSize: 7, color: th.faint, marginLeft: "auto", letterSpacing: "0.07em" }}>
+          ESPACE — REC / STOP
+        </span>
       </div>
     </div>
   );

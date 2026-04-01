@@ -865,7 +865,7 @@ export default function KickAndSnare(){
     const down=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();R.undo?.();return;}
       if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();R.redo?.();return;}
-      if(e.code==="Space"){e.preventDefault();ssRef.current?.();return;}
+      if(e.code==="Space"){e.preventDefault();if(R.view==="pads"){R.toggleLoopRec?.();}else{ssRef.current?.();}return;}
       if(e.key==="Alt"){e.preventDefault();if(playRef.current)setRec(p=>!p);return;}
       if(e.key==="?"){setShowK(p=>!p);return;}
       if(e.key==="ArrowLeft"){e.preventDefault();setBpm(p=>Math.max(30,p-1));return;}
@@ -1141,13 +1141,14 @@ export default function KickAndSnare(){
         _armLoopRec();
       }
     }else if(!loopRec){
-      // Overdub: add new pass over existing loop
-      loopRef.current.passId++;setLoopRec(true);
+      // Playing but not recording → stop looper
+      stopLooper();return;
     }else{
       // Stop recording, keep playing
       setLoopRec(false);
     }
   };
+  R.toggleLoopRec=toggleLoopRec;
   const undoLoopPass=()=>{
     const L=loopRef.current;
     if(!L.passId)return;
