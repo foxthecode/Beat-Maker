@@ -13,6 +13,7 @@ export default function TransportBar({
   hasMidiApi, hasLinkApi, midiNotes, setMidiNotes, initMidi, midiLearnTrack, setMidiLearnTrack,
   isPortrait, isAudioReady,
   masterVol, setMasterVol,
+  beatViz,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
 }) {
@@ -127,6 +128,24 @@ export default function TransportBar({
         <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&lt;</button>
         <span style={{ fontSize: 17, fontWeight: 900, color: "#FF9500" }}>{bpm}</span>
         <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&gt;</button>
+        {beatViz && (
+          <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: 4 }}>
+            {Array.from({ length: beatViz.numBeats }, (_, i) => {
+              const isCur = i === beatViz.beat;
+              const decay = isCur ? Math.max(0.35, 1 - beatViz.frac * 0.65) : 0;
+              return (
+                <div key={i} style={{
+                  width: isCur ? 8 : 5, height: isCur ? 8 : 5,
+                  borderRadius: "50%",
+                  background: isCur ? `rgba(255,149,0,${decay})` : "rgba(255,255,255,0.12)",
+                  boxShadow: isCur ? `0 0 6px rgba(255,149,0,${decay * 0.8})` : "none",
+                  transition: "width 0.04s, height 0.04s",
+                  flexShrink: 0,
+                }} />
+              );
+            })}
+          </div>
+        )}
       </div>
       <input type="range" min={30} max={300} value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "100%", height: 4, accentColor: "#FF9500" }} />
     </div>
