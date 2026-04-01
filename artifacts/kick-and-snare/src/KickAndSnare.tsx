@@ -35,6 +35,7 @@ type Theme = typeof THEMES.dark;
 
 const TIME_SIGS=[
   {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0],stepDiv:4},
+  {label:"4/4 ×2",beats:8,steps:32,groups:[4,4,4,4,4,4,4,4],accents:[0,4],stepDiv:4},
   {label:"3/4",beats:3,steps:12,groups:[4,4,4],accents:[0],stepDiv:4},
   {label:"6/8",beats:2,steps:12,groups:[6,6],accents:[0],stepDiv:4,subDiv:2},
   {label:"12/8",beats:4,steps:24,groups:[6,6,6,6],accents:[0],stepDiv:4,subDiv:2},
@@ -1401,22 +1402,38 @@ export default function KickAndSnare(){
   const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
   R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
 
-  const loadTemplate=(tpl:typeof SEQUENCER_TEMPLATES[0])=>{
+  const loadTemplate=(tpl:typeof SEQUENCER_TEMPLATES[0],variant:"16"|"32"="16")=>{
     pushHistory();
+    const use32=variant==="32"&&!!tpl.steps32;
+    const stepsMap=use32?tpl.steps32!:tpl.steps;
+    const velMap=use32?(tpl.vel32??tpl.vel):tpl.vel;
+    const ns=use32?32:16;
+    // Resize to target step count via time sig change
+    const targetSig=use32
+      ?TIME_SIGS.find(s=>s.steps===32)??TIME_SIGS[0]
+      :TIME_SIGS.find(s=>s.label==="4/4")??TIME_SIGS[0];
+    chSig(targetSig);
+    // Apply steps to current pattern (runs after resize batch)
     const allIds=[...ALL_TRACKS.map(t=>t.id),...customTracks.map(t=>t.id)];
     setPBank(pb=>{
       const n=[...pb];const curr={...n[cPat]};
-      allIds.forEach(id=>{if(Array.isArray(curr[id]))curr[id]=Array(curr[id].length||STEPS).fill(0);});
-      Object.entries(tpl.steps).forEach(([tid,steps])=>{curr[tid]=[...steps as number[]];});
+      allIds.forEach(id=>{if(Array.isArray(curr[id]))curr[id]=Array(ns).fill(0);});
+      Object.entries(stepsMap).forEach(([tid,steps])=>{curr[tid]=[...(steps as number[])];});
       curr._name=tpl.name;n[cPat]=curr;return n;
     });
-    const tplIds=Object.keys(tpl.steps);
-    setStVel(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(100);});return n;});
-    setStNudge(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(0);});return n;});
-    setStProb(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(100);});return n;});
-    setStRatch(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(STEPS).fill(1);});return n;});
+    // Apply humanized velocities
+    const tplIds=Object.keys(stepsMap);
+    if(velMap){
+      setStVel(p=>{const n={...p};tplIds.forEach(id=>{const v=(velMap as any)[id];n[id]=v?[...(v as number[])]:Array(ns).fill(100);});return n;});
+    }
+    setStNudge(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(ns).fill(0);});return n;});
+    setStProb(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(ns).fill(100);});return n;});
+    setStRatch(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(ns).fill(1);});return n;});
+    // Activate all tracks used in this template
+    setAct(prev=>{const next=[...prev];tplIds.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     if(tpl.bpm)setBpm(tpl.bpm);
-    setSwipeToast(`✓ ${tpl.name}`);setTimeout(()=>setSwipeToast(null),800);
+    setSwipeToast(`${(tpl as any).icon||"✓"} ${tpl.name} · ${ns} steps`);
+    setTimeout(()=>setSwipeToast(null),1200);
   };
 
   const handleClick=(tid,step)=>{pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});};
@@ -1845,7 +1862,7 @@ export default function KickAndSnare(){
           showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
           STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}
           patNameEdit={patNameEdit} setPatNameEdit={setPatNameEdit}
-          onLoadTemplate={loadTemplate}
+          onLoadTemplate={loadTemplate} view={view}
         />}
 
         {/* ── SEQUENCER ── */}

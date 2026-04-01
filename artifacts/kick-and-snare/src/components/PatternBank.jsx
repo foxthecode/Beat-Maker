@@ -2,50 +2,151 @@ import { useRef, useState } from "react";
 import { THEMES } from "../theme.js";
 import { SEQUENCER_TEMPLATES } from "../sequencerTemplates.ts";
 
-function MiniGrid({ steps, color }) {
+function MiniGrid({ steps = [], color, n = 16 }) {
+  const sz = n > 16 ? 2.5 : 3.5;
   return (
-    <div style={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-      {Array(16).fill(0).map((_, i) => (
+    <div style={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "nowrap" }}>
+      {Array(n).fill(0).map((_, i) => (
         <div key={i} style={{
-          width: 4, height: 6, borderRadius: 1,
-          background: steps?.[i] ? color : "rgba(255,255,255,0.08)",
-          flexShrink: 0,
+          width: sz, height: 5, borderRadius: 0.8, flexShrink: 0,
+          background: steps?.[i] ? color : "rgba(255,255,255,0.07)",
         }} />
       ))}
     </div>
   );
 }
 
-function TemplateCard({ tpl, onLoad, th }) {
+function TemplateDropdown({ onLoad, th, view }) {
+  const [open, setOpen] = useState(false);
+  const [variant, setVariant] = useState("16");
+  const ref = useRef(null);
+
+  const n = variant === "32" ? 32 : 16;
+
+  const toggle = () => setOpen(o => !o);
+
+  const load = (tpl) => {
+    onLoad && onLoad(tpl, variant);
+    setOpen(false);
+  };
+
   return (
-    <button
-      onClick={() => onLoad(tpl)}
-      title={`Charger ${tpl.name} (${tpl.bpm || "?"}bpm)`}
-      style={{
-        display: "flex", flexDirection: "column", gap: 5,
-        padding: "8px 10px", borderRadius: 8, cursor: "pointer",
-        border: `1px solid ${tpl.color}33`,
-        background: `linear-gradient(135deg,${tpl.color}0e,${tpl.color}05)`,
-        textAlign: "left", fontFamily: "inherit", transition: "all 0.12s",
-        width: "100%",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = tpl.color + "66"; e.currentTarget.style.background = `${tpl.color}18`; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = tpl.color + "33"; e.currentTarget.style.background = `linear-gradient(135deg,${tpl.color}0e,${tpl.color}05)`; }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, letterSpacing: "0.05em", flex: 1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-          {tpl.name}
-        </span>
-        <span style={{ fontSize: 7, fontWeight: 700, color: tpl.color + "bb", letterSpacing: "0.1em", flexShrink: 0 }}>
-          {tpl.genre}
-        </span>
-        {tpl.bpm && (
-          <span style={{ fontSize: 7, color: th.dim, flexShrink: 0 }}>{tpl.bpm}</span>
-        )}
-      </div>
-      <MiniGrid steps={tpl.steps.kick} color={tpl.color} />
-      <MiniGrid steps={tpl.steps.snare || tpl.steps.clap || Object.values(tpl.steps)[1]} color={tpl.color + "88"} />
-    </button>
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={toggle}
+        style={{
+          display: "flex", alignItems: "center", gap: 5,
+          padding: "2px 8px", borderRadius: 5, cursor: "pointer",
+          border: `1px solid ${open ? "#5E5CE699" : th.sBorder}`,
+          background: open ? "#5E5CE618" : "transparent",
+          color: open ? "#5E5CE6" : th.dim,
+          fontSize: 8, fontWeight: open ? 800 : 500,
+          letterSpacing: "0.06em", fontFamily: "inherit",
+        }}
+      >
+        <span>TEMPLATES</span>
+        <span style={{ fontSize: 7 }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0,
+          zIndex: 200, width: 320,
+          background: "#1a1a1e", border: `1px solid #5E5CE644`,
+          borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+          overflow: "hidden",
+        }}>
+          {/* Header: 16 / 32 toggle */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "8px 10px 6px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}>
+            <span style={{ fontSize: 8, color: th.dim, flex: 1, letterSpacing: "0.06em" }}>STEPS</span>
+            {["16","32"].map(v => (
+              <button
+                key={v}
+                onClick={() => setVariant(v)}
+                style={{
+                  padding: "2px 10px", borderRadius: 5, cursor: "pointer",
+                  fontFamily: "inherit", fontSize: 8, fontWeight: 700,
+                  border: `1px solid ${variant === v ? "#5E5CE688" : th.sBorder}`,
+                  background: variant === v ? "#5E5CE622" : "transparent",
+                  color: variant === v ? "#5E5CE6" : th.dim,
+                  letterSpacing: "0.08em",
+                }}
+              >{v}</button>
+            ))}
+            {variant === "32" && (
+              <span style={{ fontSize: 7, color: "#FFD60A", letterSpacing: "0.04em" }}>+FINE</span>
+            )}
+          </div>
+
+          {/* Template list */}
+          <div style={{ maxHeight: 280, overflowY: "auto" }}>
+            {SEQUENCER_TEMPLATES.map(tpl => {
+              const has32 = !!tpl.steps32;
+              const disabled = variant === "32" && !has32;
+              const stepsK = variant === "32" && tpl.steps32 ? tpl.steps32.kick : tpl.steps.kick;
+              const stepsS = variant === "32" && tpl.steps32
+                ? (tpl.steps32.snare || tpl.steps32.clap || Object.values(tpl.steps32)[1])
+                : (tpl.steps.snare || tpl.steps.clap || Object.values(tpl.steps)[1]);
+              const stepsH = variant === "32" && tpl.steps32
+                ? (tpl.steps32.hihat || Object.values(tpl.steps32)[2])
+                : (tpl.steps.hihat || Object.values(tpl.steps)[2]);
+              const trackCount = Object.keys(
+                variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps
+              ).length;
+
+              return (
+                <div
+                  key={tpl.id}
+                  onClick={() => !disabled && load(tpl)}
+                  title={disabled ? "Pas de variante 32 steps" : `Charger ${tpl.name} — ${tpl.bpm || "?"}bpm`}
+                  style={{
+                    display: "flex", flexDirection: "column", gap: 3,
+                    padding: "7px 10px",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    opacity: disabled ? 0.38 : 1,
+                    transition: "background 0.08s",
+                  }}
+                  onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = `${tpl.color}12`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>{tpl.icon}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, flex: 1, letterSpacing: "0.02em" }}>
+                      {tpl.name}
+                    </span>
+                    <span style={{ fontSize: 7, color: tpl.color + "99", letterSpacing: "0.1em", fontWeight: 700 }}>
+                      {tpl.genre}
+                    </span>
+                    {tpl.bpm && (
+                      <span style={{ fontSize: 7, color: th.faint, letterSpacing: "0.06em" }}>{tpl.bpm}</span>
+                    )}
+                    <span style={{ fontSize: 7, color: "#30D15899", letterSpacing: "0.06em" }}>
+                      {trackCount}trk
+                    </span>
+                  </div>
+                  <MiniGrid steps={stepsK} color={tpl.color} n={n} />
+                  {stepsS && <MiniGrid steps={stepsS} color={tpl.color + "77"} n={n} />}
+                  {stepsH && <MiniGrid steps={stepsH} color={tpl.color + "44"} n={n} />}
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{
+            padding: "5px 10px", fontSize: 7, color: th.faint, textAlign: "center",
+            borderTop: "1px solid rgba(255,255,255,0.05)",
+            letterSpacing: "0.04em",
+          }}>
+            Vélocités humanisées incluses · Toutes pistes activées automatiquement
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -55,10 +156,10 @@ export default function PatternBank({
   playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait=false,
   patNameEdit, setPatNameEdit,
   onLoadTemplate,
+  view,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const longPressRef = useRef(null);
-  const [showTpl, setShowTpl] = useState(false);
 
   const startLongPress = (i) => {
     longPressRef.current = setTimeout(() => { setPatNameEdit && setPatNameEdit(i); }, 500);
@@ -67,9 +168,8 @@ export default function PatternBank({
     if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
   };
 
-  const handleLoadTemplate = (tpl) => {
-    onLoadTemplate && onLoadTemplate(tpl);
-    setShowTpl(false);
+  const handleLoadTemplate = (tpl, variant) => {
+    onLoadTemplate && onLoadTemplate(tpl, variant);
   };
 
   return (
@@ -78,19 +178,8 @@ export default function PatternBank({
       <div style={{ marginBottom: 8, padding: "5px 10px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           <span style={{ fontSize: 8, color: th.dim }}>PAT</span>
-          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-            <button
-              onClick={() => setShowTpl(p => !p)}
-              title="Charger un template"
-              style={{
-                padding: "2px 7px", border: `1px solid ${showTpl ? "#5E5CE699" : th.sBorder}`,
-                borderRadius: 5, background: showTpl ? "#5E5CE618" : "transparent",
-                color: showTpl ? "#5E5CE6" : th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit",
-                fontWeight: showTpl ? 800 : 400, letterSpacing: "0.06em",
-              }}
-            >
-              TEMPLATES
-            </button>
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto", position: "relative", zIndex: 10 }}>
+            <TemplateDropdown onLoad={handleLoadTemplate} th={th} view={view} />
             {pBank.length < MAX_PAT && (
               <button
                 onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }}
@@ -105,24 +194,6 @@ export default function PatternBank({
             )}
           </div>
         </div>
-
-        {/* ── Template Picker ── */}
-        {showTpl && (
-          <div style={{ marginBottom: 8 }}>
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6,
-              maxHeight: 340, overflowY: "auto",
-              padding: "4px 0",
-            }}>
-              {SEQUENCER_TEMPLATES.map(tpl => (
-                <TemplateCard key={tpl.id} tpl={tpl} onLoad={handleLoadTemplate} th={th} />
-              ))}
-            </div>
-            <p style={{ margin: "6px 0 0", fontSize: 8, color: th.dim, textAlign: "center" }}>
-              Le pattern actuel est remplacé · BPM synchronisé si souhaité
-            </p>
-          </div>
-        )}
 
         <div style={isPortrait
           ? { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }
