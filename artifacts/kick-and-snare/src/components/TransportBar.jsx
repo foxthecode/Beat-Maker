@@ -124,7 +124,6 @@ export default function TransportBar({
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
         <span style={{ fontSize: 8, color: th.dim, letterSpacing: "0.15em" }}>BPM</span>
         <MidiTag id="__bpm__" />
-        {PatIndicator}
         <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&lt;</button>
         <span style={{ fontSize: 17, fontWeight: 900, color: "#FF9500" }}>{bpm}</span>
         <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&gt;</button>
