@@ -2068,8 +2068,9 @@ export default function KickAndSnare(){
   };
   const toggleLoopRec=()=>{
     if(!loopPlaying){
-      if(loopMetro&&engine.ctx){
+      if(loopMetro){
         // Pre-schedule ALL countdown beats as precise WebAudio events (no JS-timer jitter)
+        // Check engine.ctx AFTER ensureRunning so it works even on first use (ctx null before first gesture)
         engine.ensureRunning().then(()=>{
           const ctx=engine.ctx;if(!ctx)return;
           const beatSec=60/Math.max(30,R.bpm);
