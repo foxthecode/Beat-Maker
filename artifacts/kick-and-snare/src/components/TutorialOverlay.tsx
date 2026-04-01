@@ -188,168 +188,32 @@ function IlluPads() {
   return (
     <IlluImg
       src={`${BASE}tutorial/pads-view.jpg`}
-      clipTop={295} clipBottom={800}
+      clipTop={310} clipBottom={800}
       displayHeight={220}
-      label="Live Pads" labelColor="#5E5CE6"
+      label="Live Pads — 8 pads" labelColor="#5E5CE6"
     />
   );
 }
 
 function IlluFxRack() {
-  const sends = [
-    {l:"REVERB", c:"#64D2FF", on:true,  v:"Room", angle:-40},
-    {l:"DELAY",  c:"#30D158", on:true,  v:"1/8",  angle:20},
-    {l:"CHORUS", c:"#5E5CE6", on:false, v:"—",    angle:-10},
-    {l:"FLANGR", c:"#FF9500", on:false, v:"—",    angle:-30},
-    {l:"PING",   c:"#BF5AF2", on:true,  v:"1/4",  angle:40},
-  ];
-  const chain = [
-    {l:"DRIVE", c:"#FF6B35", on:true,  v:"TUBE", angle:-50},
-    {l:"COMP",  c:"#BF5AF2", on:true,  v:"-8dB", angle:10},
-    {l:"FILTER",c:"#FF9500", on:true,  v:"LP",   angle:-20},
-  ];
-  const MW = 42, MH = 74;
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* Header */}
-      <rect x={4} y={4} width={312} height={22} rx={5} fill="#BF5AF214" stroke="#BF5AF228" strokeWidth={0.8}/>
-      <text x={12} y={17} fontSize={7.5} fill="#BF5AF2" fontWeight={900} letterSpacing={2}>FX RACK</text>
-      <Pill x={222} y={6} w={44} h={16} label="PRESETS" color="#BF5AF2" active/>
-      <Pill x={270} y={6} w={40} h={16} label="RESET" color="#FF2D55"/>
-
-      {/* ── Serial chain ── */}
-      <text x={8} y={40} fontSize={5} fill="#ffffff33" letterSpacing={1.5}>SERIAL CHAIN  IN →</text>
-      {chain.map((fx, i) => (
-        <g key={i}>
-          <rect x={80+i*74} y={30} width={58} height={18} rx={4} fill={fx.c+"1a"} stroke={fx.c+"44"} strokeWidth={0.8}/>
-          <LED cx={88+i*74} cy={39} on={fx.on} color={fx.c}/>
-          <text x={108+i*74} y={42} fontSize={6} fill={fx.c} textAnchor="middle" fontWeight={700}>{fx.l}</text>
-          {i < 2 && <text x={140+i*74} y={41} fontSize={8} fill="#ffffff22">→</text>}
-        </g>
-      ))}
-      <text x={303} y={40} fontSize={5} fill="#ffffff22">→ OUT</text>
-
-      {/* Separator */}
-      <line x1={4} y1={54} x2={316} y2={54} stroke="#ffffff0a" strokeWidth={1}/>
-      <text x={8} y={64} fontSize={5} fill="#ffffff22" letterSpacing={1.5}>SEND FX  (parallel)</text>
-
-      {/* Send FX modules */}
-      {sends.map((fx, i) => {
-        const x = 6 + i * (MW + 5);
-        return (
-          <g key={i}>
-            <rect x={x} y={68} width={MW} height={MH} rx={5}
-              fill={fx.on ? fx.c+"12" : "#ffffff05"}
-              stroke={fx.on ? fx.c+"44" : "#ffffff10"}
-              strokeWidth={0.8}/>
-            {/* LED + label */}
-            <LED cx={x+7} cy={76} on={fx.on} color={fx.c} r={2.5}/>
-            <text x={x+MW/2+2} y={78} fontSize={5} fill={fx.on?fx.c:fx.c+"44"} textAnchor="middle" fontWeight={800}>{fx.l}</text>
-            {/* Knob */}
-            <Knob cx={x+MW/2} cy={100} r={12} color={fx.on?fx.c:"#444"} angle={String(fx.angle)}/>
-            {/* Value */}
-            <text x={x+MW/2} y={122} fontSize={5.5} fill={fx.on?fx.c+"bb":"#444"} textAnchor="middle">{fx.v}</text>
-            {/* PRE/POST toggle */}
-            <rect x={x+4} y={128} width={16} height={9} rx={2} fill="#ffffff08" stroke="#ffffff14" strokeWidth={0.5}/>
-            <text x={x+12} y={134.5} fontSize={4} fill="#ffffff44" textAnchor="middle">PRE</text>
-            <rect x={x+22} y={128} width={16} height={9} rx={2} fill={fx.c+"18"} stroke={fx.c+"33"} strokeWidth={0.5}/>
-            <text x={x+30} y={134.5} fontSize={4} fill={fx.c+"88"} textAnchor="middle">POST</text>
-          </g>
-        );
-      })}
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/fx-view.jpg`}
+      clipTop={198} clipBottom={500}
+      displayHeight={220}
+      label="FX Rack Global" labelColor="#BF5AF2"
+    />
   );
 }
 
 function IlluLooper() {
-  const hits = [
-    {pos:0.06, color:"#FF2D55", h:36},
-    {pos:0.14, color:"#FF2D55", h:28},
-    {pos:0.25, color:"#FF9500", h:40},
-    {pos:0.38, color:"#FF2D55", h:32},
-    {pos:0.50, color:"#FF9500", h:36},
-    {pos:0.61, color:"#FF2D55", h:30},
-    {pos:0.75, color:"#FFD60A", h:38},
-    {pos:0.87, color:"#FF9500", h:26},
-  ];
-  const TLX = 6, TLY = 52, TLW = 308, TLH = 58;
-  const playheadX = TLX + 0.28 * TLW;
-
   return (
-    <svg viewBox="0 0 320 150" style={{ width:"100%", maxWidth:320 }}>
-      <rect width={320} height={150} rx={10} fill={BG}/>
-
-      {/* ── Controls row ── */}
-      {[
-        {x:18,  label:"REC",   color:"#FF2D55", shape:"rec"},
-        {x:52,  label:"PLAY",  color:"#30D158", shape:"play"},
-        {x:86,  label:"STOP",  color:"#64D2FF", shape:"stop"},
-        {x:120, label:"UNDO",  color:"#64D2FF", shape:"undo"},
-        {x:156, label:"OVERDUB",color:"#FF9500",shape:"ovr"},
-        {x:194, label:"BARS",  color:"#BF5AF2", shape:"bars"},
-        {x:230, label:"QUANT", color:"#30D158", shape:"q"},
-        {x:264, label:"CLR",   color:"#FF2D55", shape:"x"},
-        {x:298, label:"WAV",   color:"#64D2FF", shape:"dl"},
-      ].map(({x,label,color,shape}) => (
-        <g key={label}>
-          <rect x={x-14} y={4} width={28} height={38} rx={5} fill={color+"12"} stroke={color+"33"} strokeWidth={0.8}/>
-          {/* Shape icons */}
-          {shape==="rec"  && <RecDot cx={x} cy={18} r={6} color={color}/>}
-          {shape==="play" && <><circle cx={x} cy={18} r={8} fill={color+"22"}/><PlayTriangle cx={x} cy={18} r={7} fill={color}/></>}
-          {shape==="stop" && <rect x={x-6} y={12} width={12} height={12} rx={2} fill={color}/>}
-          {shape==="undo" && <><path d={`M${x+5},14 A7,7 0 1,0 ${x+6},21`} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round"/><polygon points={`${x-1},10 ${x+5},14 ${x-1},18`} fill={color}/></>}
-          {shape==="ovr"  && <><text x={x} y={20} fontSize={6.5} fill={color} textAnchor="middle" fontWeight={800}>OVR</text><RecDot cx={x} cy={27} r={3} color={color}/></>}
-          {shape==="bars" && <><text x={x} y={17} fontSize={7.5} fill={color} textAnchor="middle" fontWeight={900}>2</text><text x={x} y={26} fontSize={5} fill={color+"aa"} textAnchor="middle">BARS</text></>}
-          {shape==="q"    && <><text x={x} y={21} fontSize={10} fill={color} textAnchor="middle" fontWeight={900}>Q</text></>}
-          {shape==="x"    && <><line x1={x-5} y1={13} x2={x+5} y2={23} stroke={color} strokeWidth={2} strokeLinecap="round"/><line x1={x+5} y1={13} x2={x-5} y2={23} stroke={color} strokeWidth={2} strokeLinecap="round"/></>}
-          {shape==="dl"   && <><line x1={x} y1={12} x2={x} y2={20} stroke={color} strokeWidth={1.5}/><polygon points={`${x-5},19 ${x+5},19 ${x},24`} fill={color}/><line x1={x-6} y1={25} x2={x+6} y2={25} stroke={color} strokeWidth={1.5}/></>}
-          <text x={x} y={38} fontSize={4.5} fill={color+"88"} textAnchor="middle" fontWeight={700}>{label}</text>
-        </g>
-      ))}
-
-      {/* ── Timeline ── */}
-      <rect x={TLX} y={TLY} width={TLW} height={TLH} rx={6} fill={SURF} stroke="#64D2FF1a" strokeWidth={0.8}/>
-
-      {/* Grid quarters */}
-      {[0.25, 0.5, 0.75].map(p => (
-        <g key={p}>
-          <line x1={TLX+p*TLW} y1={TLY} x2={TLX+p*TLW} y2={TLY+TLH} stroke="#ffffff09" strokeWidth={1}/>
-          <text x={TLX+p*TLW} y={TLY+TLH+10} fontSize={5} fill="#ffffff28" textAnchor="middle">{p===0.25?"1/4":p===0.5?"1/2":"3/4"}</text>
-        </g>
-      ))}
-      <text x={TLX+2} y={TLY+TLH+10} fontSize={5} fill="#ffffff28">0</text>
-      <text x={TLX+TLW-6} y={TLY+TLH+10} fontSize={5} fill="#ffffff28">1</text>
-
-      {/* Hit bars */}
-      {hits.map((hit, i) => {
-        const hx = TLX + hit.pos * TLW;
-        const hy = TLY + TLH - hit.h;
-        return (
-          <g key={i}>
-            <rect x={hx-3} y={hy} width={6} height={hit.h} rx={2} fill={hit.color} opacity={0.85}/>
-            <rect x={hx-5} y={hy-2} width={10} height={hit.h+4} rx={3} fill="transparent" stroke={hit.color+"40"} strokeWidth={0.5}/>
-            {/* Drag handle */}
-            <rect x={hx-5} y={hy-2} width={10} height={5} rx={2} fill={hit.color+"55"}/>
-          </g>
-        );
-      })}
-
-      {/* Playhead */}
-      <line x1={playheadX} y1={TLY} x2={playheadX} y2={TLY+TLH} stroke="#fff" strokeWidth={1.5} opacity={0.25}/>
-      <polygon points={`${playheadX-5},${TLY-1} ${playheadX+5},${TLY-1} ${playheadX},${TLY+5}`} fill="#ffffff55"/>
-
-      {/* Drag hint */}
-      <text x={160} y={130} fontSize={5.5} fill="#64D2FF66" textAnchor="middle">← drag les barres pour repositionner →</text>
-
-      {/* QUANT options */}
-      {["1/4","1/8","1/16","1/32"].map((q,i) => (
-        <Pill key={q} x={6+i*48} y={137} w={42} h={12} label={q} color={i===2?"#30D158":"#30D158"} active={i===2}/>
-      ))}
-      <Pill x={200} y={137} w={40} h={12} label="APPLY" color="#30D158" active/>
-      <Pill x={246} y={137} w={42} h={12} label="AUTO-Q" color="#FF9500"/>
-    </svg>
+    <IlluImg
+      src={`${BASE}tutorial/looper-view.jpg`}
+      clipTop={246} clipBottom={520}
+      displayHeight={220}
+      label="Looper" labelColor="#64D2FF"
+    />
   );
 }
 
@@ -467,7 +331,7 @@ const STEPS = [
   {
     id:"pads", icon:"▣", title:"Live Pads", subtitle:"Performance en temps réel",
     color: COLORS.pads,
-    desc:"8 pads colorés pour jouer en direct au toucher, à la souris ou via les touches clavier assignées.",
+    desc:"8 pads jouables en temps réel — au toucher, à la souris ou via les touches clavier assignées.",
     tips:[
       {icon:"●", text:"Toucher / cliquer un pad = déclencher le son immédiatement"},
       {icon:"A", text:"Chaque pad répond à la touche clavier assignée via KEYB"},
