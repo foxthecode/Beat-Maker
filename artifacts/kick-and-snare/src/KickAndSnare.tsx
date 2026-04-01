@@ -1636,18 +1636,22 @@ export default function KickAndSnare(){
   const loadEuclidTemplate=(tpl:EuclidTemplate)=>{
     pushHistory();
     const paramEntries=Object.entries(tpl.params) as [string,{N:number,hits:number,rot?:number}][];
-    // Update euclidParams for each track in the preset
-    setEuclidParams(prev=>{
-      const next={...prev};
+    const newTids=paramEntries.map(([tid])=>tid);
+    // ── 1. Reset euclidParams to ONLY the new preset's tracks ──
+    setEuclidParams(()=>{
+      const next:{[k:string]:any}={};
       paramEntries.forEach(([tid,p])=>{
         next[tid]={N:p.N,hits:p.hits,rot:p.rot??0,tpl:tpl.name,fold:false};
       });
       return next;
     });
-    // Write the actual Euclidean step patterns into pBank so the dots update
+    // ── 2. Clear the current pattern entirely, then write new preset ──
     setPBank(pb=>{
       const n=[...pb];
-      const cp={...n[cPat],_steps:{...(n[cPat]._steps||{})}};
+      // Start with a blank slate for this slot: zero out ALL tracks' steps + _steps
+      const cp:any={_steps:{}};
+      [...ALL_TRACKS,...customTracks].forEach(t=>{cp[t.id]=[];});
+      // Write the new preset's Euclidean rhythms
       paramEntries.forEach(([tid,p])=>{
         const N=p.N;const hits=p.hits;const rot=p.rot??0;
         const raw=euclidRhythm(hits,N);
@@ -1659,8 +1663,8 @@ export default function KickAndSnare(){
       n[cPat]=cp;
       return n;
     });
-    // Activate those tracks
-    setAct(prev=>{const next=[...prev];paramEntries.forEach(([tid])=>{if(!next.includes(tid))next.push(tid);});return next;});
+    // ── 3. Activate ONLY the tracks in this preset ──
+    setAct(newTids);
     if(tpl.bpm)setBpm(tpl.bpm);
     setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidean`);
     setTimeout(()=>setSwipeToast(null),1400);
