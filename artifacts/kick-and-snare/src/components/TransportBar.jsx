@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { THEMES } from "../theme.js";
 
 const pill=(on,c)=>({padding:"5px 11px",borderRadius:6,border:`1px solid ${on?c+"55":on===false?"rgba(255,45,85,0.25)":"rgba(255,255,255,0.12)"}`,background:on?c+"18":"transparent",color:on?c:"inherit",fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.07em",textTransform:"uppercase",fontFamily:"inherit"});
@@ -11,9 +12,12 @@ export default function TransportBar({
   view, sig, showTS, setShowTS, showK, setShowK,
   hasMidiApi, hasLinkApi, midiNotes, setMidiNotes, initMidi, midiLearnTrack, setMidiLearnTrack,
   isPortrait, isAudioReady,
+  masterVol, setMasterVol,
+  cPat, pBank, SEC_COL, setShowSong,
   onClear,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
+  const lastTapRef = useRef(0);
 
   const onMDown = e => {
     e.preventDefault();
@@ -38,6 +42,45 @@ export default function TransportBar({
     window.addEventListener("touchmove", mv, { passive: false });
     window.addEventListener("touchend", up);
   };
+
+  // I.2b: VOL MASTER drag knob (vertical drag, double-tap reset)
+  const onVolDown = e => {
+    e.preventDefault();
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) { setMasterVol(80); lastTapRef.current = 0; return; }
+    lastTapRef.current = now;
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const startY = e.clientY;
+    const startVol = masterVol;
+    const mv = pe => {
+      const dy = startY - pe.clientY;
+      setMasterVol(Math.max(0, Math.min(100, Math.round(startVol + dy * 0.8))));
+    };
+    const up = () => {
+      el.removeEventListener("pointermove", mv);
+      el.removeEventListener("pointerup", up);
+    };
+    el.addEventListener("pointermove", mv);
+    el.addEventListener("pointerup", up, { once: true });
+  };
+
+  const VolKnob = (
+    <div onPointerDown={onVolDown} title="VOL MASTER (drag ↕, double-tap = 80)" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none", position: "relative", overflow: "hidden", padding: "4px 8px", borderRadius: 6, border: `1px solid rgba(255,255,255,0.12)`, minWidth: 50 }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${masterVol}%`, background: "rgba(255,149,0,0.1)", pointerEvents: "none" }} />
+      <span style={{ position: "relative", fontSize: 7, color: th.dim, letterSpacing: "0.1em", fontWeight: 700 }}>VOL</span>
+      <span style={{ position: "relative", fontSize: 10, fontWeight: 800, color: "#FF9500" }}>{masterVol}</span>
+    </div>
+  );
+
+  // I.2e: Pattern indicator
+  const PatIndicator = pBank && SEC_COL && (
+    <div onClick={() => setShowSong && setShowSong(false)} title="Tap to show pattern bank" style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <span style={{ fontSize: 8, fontWeight: 800, color: SEC_COL[cPat % 8], letterSpacing: "0.08em" }}>
+        {pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`}
+      </span>
+    </div>
+  );
 
   const PlayBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
@@ -75,6 +118,7 @@ export default function TransportBar({
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
         <span style={{ fontSize: 8, color: th.dim, letterSpacing: "0.15em" }}>BPM</span>
         <MidiTag id="__bpm__" />
+        {PatIndicator}
         <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&lt;</button>
         <span style={{ fontSize: 17, fontWeight: 900, color: "#FF9500" }}>{bpm}</span>
         <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&gt;</button>
@@ -148,22 +192,20 @@ export default function TransportBar({
   if (isPortrait) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
-        {/* Row 1: Play · REC · BPM */}
         <div style={{ ...rowStyle }}>
           {PlayBtn}
           {RecBtn}
           {BpmCtrl}
         </div>
-        {/* Row 2: TAP · SWING · TIME SIG · METRO · SUB · CLEAR */}
         <div style={{ ...rowStyle }}>
           {TapBtn}
           {SwingCtrl}
           {TSBtn}
           {MetroBtn}
           {SubBtn}
+          {VolKnob}
           {ClearBtn}
         </div>
-        {/* Row 3: KEYB · MIDI · LINK */}
         <div style={{ ...rowStyle }}>
           {KeybBtn}
           {MidiBtn}
@@ -183,6 +225,7 @@ export default function TransportBar({
       {TSBtn}
       {MetroBtn}
       {SubBtn}
+      {VolKnob}
       {ClearBtn}
       {KeybBtn}
       {MidiBtn}

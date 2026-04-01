@@ -1,11 +1,21 @@
+import { useRef } from "react";
 import { THEMES } from "../theme.js";
 
 export default function PatternBank({
   themeName, pBank, setPBank, cPat, setCPat,
   songChain, setSongChain, songMode, setSongMode, showSong, setShowSong,
   playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait=false,
+  patNameEdit, setPatNameEdit,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
+  const longPressRef = useRef(null);
+
+  const startLongPress = (i) => {
+    longPressRef.current = setTimeout(() => { setPatNameEdit && setPatNameEdit(i); }, 500);
+  };
+  const cancelLongPress = () => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+  };
 
   return (
     <>
@@ -22,9 +32,44 @@ export default function PatternBank({
           ? { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }
           : { display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }
         }>
-          {pBank.map((_, i) => (
-            <button key={i} onClick={() => { setCPat(i); R.pat = pBank[i]; }} style={{ width: isPortrait ? "100%" : 28, height: 24, borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 800, border: `1px solid ${cPat === i ? SEC_COL[i % 8] + "66" : th.sBorder}`, background: cPat === i ? SEC_COL[i % 8] + "20" : "transparent", color: cPat === i ? SEC_COL[i % 8] : th.dim }}>{i + 1}</button>
-          ))}
+          {pBank.map((pat, i) => {
+            const col = SEC_COL[i % 8];
+            const isCur = cPat === i;
+            const isEditing = patNameEdit === i;
+            return (
+              <div key={i} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    defaultValue={pat._name || ""}
+                    maxLength={12}
+                    onBlur={e => {
+                      const v = e.target.value.trim();
+                      setPBank(p => { const n = [...p]; n[i] = { ...n[i], _name: v || undefined }; return n; });
+                      setPatNameEdit && setPatNameEdit(null);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === "Escape") e.target.blur();
+                    }}
+                    style={{ width: isPortrait ? "100%" : 42, height: 24, borderRadius: 5, border: `1px solid ${col}88`, background: "rgba(0,0,0,0.6)", color: col, fontSize: 8, fontWeight: 800, textAlign: "center", fontFamily: "inherit", outline: "none", padding: "0 2px" }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setCPat(i); R.pat = pBank[i]; }}
+                    onMouseDown={() => startLongPress(i)}
+                    onMouseUp={cancelLongPress}
+                    onMouseLeave={cancelLongPress}
+                    onTouchStart={() => startLongPress(i)}
+                    onTouchEnd={cancelLongPress}
+                    onTouchCancel={cancelLongPress}
+                    title={pat._name || `Pattern ${i + 1}` + " (long-press to rename)"}
+                    style={{ width: isPortrait ? "100%" : 36, height: 24, borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: pat._name ? 7 : 10, fontWeight: 800, border: `1px solid ${isCur ? col + "66" : th.sBorder}`, background: isCur ? col + "20" : "transparent", color: isCur ? col : th.dim, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", padding: "0 2px" }}>
+                    {pat._name || (i + 1)}
+                  </button>
+                )}
+              </div>
+            );
+          })}
           {pBank.length < MAX_PAT && <button onClick={() => { setPBank(p => [...p, mkE(STEPS)]); setCPat(pBank.length); }} style={{ width: isPortrait ? "100%" : 24, height: 24, border: `1px dashed ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>}
         </div>
       </div>
