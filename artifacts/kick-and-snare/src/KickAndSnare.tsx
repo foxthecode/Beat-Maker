@@ -237,7 +237,24 @@ class Eng{
     }
     this.rv=b;
   }
-  updateReverb(decay,size){this._mkRv(decay,size);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}};}
+  updateReverb(decay,size){this._mkRv(decay,size);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}}
+  setSerialOrder(order:string[]){
+    if(!this.ctx||!this.gDrv)return;
+    const B:Record<string,{i:AudioNode,o:AudioNode}>={
+      filter:{i:this.gFlt,o:this.gFlt2},
+      comp:{i:this.gCmp,o:this.gCmpMakeup},
+      drive:{i:this.gDrv,o:this.gDrv},
+    };
+    // Disconnect all inter-block exits
+    [this.mg,this.gFlt2,this.gCmpMakeup,this.gDrv].forEach(n=>{try{n.disconnect();}catch(e){}});
+    // Restore intra-block connections
+    try{this.gCmp.connect(this.gCmpMakeup);}catch(e){}
+    try{this.gFlt.connect(this.gFlt2);}catch(e){}
+    // Reconnect in new order
+    let prev:AudioNode=this.mg;
+    order.filter(s=>B[s]).forEach(s=>{prev.connect(B[s].i);prev=B[s].o;});
+    prev.connect(this.gOut);
+  }
   _build(id){
     const c={};
     c.in=this.ctx.createGain();
@@ -394,12 +411,23 @@ const FX_PRESETS=[
   {id:"pumping",name:"Pumping",color:"#5E5CE6",gfx:{reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:true,thr:-28,ratio:14},drive:{on:true,amt:8}}},
 ];
 
-function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false}){
+// Per-FX static metadata (label, color, type)
+const FX_CHAIN_DEF:{sec:string,label:string,color:string,type:"serial"|"send"}[]=[
+  {sec:"filter",label:"FILTER",color:"#FF9500",type:"serial"},
+  {sec:"comp",  label:"COMP",  color:"#5E5CE6",type:"serial"},
+  {sec:"drive", label:"DRIVE", color:"#FF6B35",type:"serial"},
+  {sec:"delay", label:"DELAY", color:"#30D158",type:"send"},
+  {sec:"reverb",label:"REVERB",color:"#64D2FF",type:"send"},
+];
+
+function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false,fxChainOrder=[],setFxChainOrder=(_o:string[])=>{},onChainOrderChange=(_o:string[])=>{}}){
   const th=THEMES[themeName]||THEMES.dark;
   const [open,setOpen]=useState(false);
   const [showPresets,setShowPresets]=useState(false);
-  const upSec=(sec,k,v)=>setGfx(p=>({...p,[sec]:{...p[sec],[k]:v}}));
-  const upSend=(sec,tid,v)=>setGfx(p=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
+  const [dragSec,setDragSec]=useState<string|null>(null);
+  const [dragOverSec,setDragOverSec]=useState<string|null>(null);
+  const upSec=(sec:string,k:string,v:any)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],[k]:v}}));
+  const upSend=(sec:string,tid:string,v:any)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
   const loadPreset=(preset)=>{
     setGfx(p=>{
       const sends_rv=p.reverb?.sends||{};const sends_dl=p.delay?.sends||{};
@@ -562,79 +590,120 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
         </div>
       )}
       {open&&(
-        <div style={{padding:"8px 14px 14px",display:"flex",flexDirection:isPortrait?"column":"row",gap:10,alignItems:"flex-start",overflowX:isPortrait?"visible":"auto"}}>
-
-          {/* ── SEND FX column ── */}
-          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
-            <span style={{fontSize:6,fontWeight:800,color:"rgba(100,210,255,0.5)",letterSpacing:"0.12em",paddingLeft:2,textTransform:"uppercase"}}>Send FX</span>
-            <div style={{display:"flex",gap:0,alignItems:"flex-start",borderRadius:7,border:"1px solid rgba(100,210,255,0.12)",padding:"6px 6px 8px",background:"rgba(100,210,255,0.03)"}}>
-              {/* REVERB */}
-              <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
-                <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec("reverb","on",!gfx.reverb.on)} midiId="__rev_on__"/>
-                <div style={{display:"flex",gap:8,opacity:gfx.reverb.on?1:0.3,pointerEvents:gfx.reverb.on?"auto":"none"}}>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/><MidiTag id="__rev_decay__"/></div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/><MidiTag id="__rev_size__"/></div>
-                </div>
-              </div>
-              <Sep/>
-              {/* DELAY */}
-              <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                  <SecLabel label="DELAY" color="#30D158" active={gfx.delay.on} onToggle={()=>upSec("delay","on",!gfx.delay.on)} midiId="__dly_on__"/>
-                  <button onClick={()=>{const ns=!gfx.delay.sync;const t=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx(p=>({...p,delay:{...p.delay,sync:ns,time:t}}));}} style={{marginLeft:"auto",padding:"1px 6px",borderRadius:3,border:`1px solid ${gfx.delay.sync?"#30D158":"rgba(48,209,88,0.3)"}`,background:gfx.delay.sync?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.sync?"#30D158":"rgba(48,209,88,0.5)",fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>SYNC</button>
-                </div>
-                <div style={{display:"flex",gap:8,opacity:gfx.delay.on?1:0.3,pointerEvents:gfx.delay.on?"auto":"none"}}>
-                  {gfx.delay.sync?(
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:4}}>
-                        {["1/1","1/2","1/4","1/8","1/16","1/4.","1/8.","1/4t","1/8t"].map(d=>(
-                          <button key={d} onClick={()=>setGfx(p=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))} style={{padding:"2px 4px",borderRadius:3,border:`1px solid ${gfx.delay.syncDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,background:gfx.delay.syncDiv===d?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.syncDiv===d?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{d}</button>
-                        ))}
-                      </div>
-                      <div style={{fontSize:7,color:"#30D158",fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
-                    </div>
-                  ):(
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/><MidiTag id="__dly_time__"/></div>
+        <div style={{padding:"6px 10px 12px",overflowX:"auto"}}>
+          {/* ── Drag-reorder FX chain ── */}
+          <div style={{display:"flex",alignItems:"stretch",gap:0,minWidth:"max-content"}}>
+            {(fxChainOrder.length?fxChainOrder:["filter","comp","drive","delay","reverb"]).map((sec,i)=>{
+              const def=FX_CHAIN_DEF.find(f=>f.sec===sec);
+              if(!def)return null;
+              const {color,label,type}=def;
+              const isOver=dragOverSec===sec&&dragSec!==sec;
+              const isDragging=dragSec===sec;
+              const active=(gfx as any)[sec]?.on;
+              return(
+                <div key={sec} style={{display:"flex",alignItems:"center",gap:0}}>
+                  {i>0&&(
+                    <div style={{display:"flex",alignItems:"center",padding:"0 4px",color:isOver?"rgba(255,255,255,0.5)":"rgba(255,255,255,0.15)",fontSize:12,userSelect:"none",flexShrink:0,transition:"color 0.1s"}}>→</div>
                   )}
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/><MidiTag id="__dly_fdbk__"/></div>
+                  <div
+                    draggable
+                    onDragStart={e=>{e.dataTransfer.effectAllowed="move";setDragSec(sec);}}
+                    onDragEnd={()=>{setDragSec(null);setDragOverSec(null);}}
+                    onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";setDragOverSec(sec);}}
+                    onDragLeave={()=>setDragOverSec(null)}
+                    onDrop={e=>{
+                      e.preventDefault();
+                      if(!dragSec||dragSec===sec)return;
+                      const o=[...(fxChainOrder.length?fxChainOrder:["filter","comp","drive","delay","reverb"])];
+                      const from=o.indexOf(dragSec),to=o.indexOf(sec);
+                      if(from<0||to<0)return;
+                      o.splice(from,1);o.splice(to,0,dragSec);
+                      setFxChainOrder(o);onChainOrderChange(o);
+                      setDragSec(null);setDragOverSec(null);
+                    }}
+                    style={{
+                      borderRadius:8,
+                      border:`1px solid ${isOver?color:isDragging?color+"55":active?color+"44":color+"22"}`,
+                      background:isOver?`${color}12`:isDragging?`${color}06`:`${color}06`,
+                      padding:"6px 10px 8px",
+                      minWidth:type==="send"?120:90,
+                      flexShrink:0,
+                      cursor:"grab",
+                      opacity:isDragging?0.45:1,
+                      transition:"border-color 0.12s,opacity 0.12s,background 0.12s",
+                      position:"relative",
+                      userSelect:"none",
+                    }}
+                  >
+                    {/* Drag handle + type badge */}
+                    <div style={{position:"absolute",top:3,right:5,display:"flex",gap:3,alignItems:"center"}}>
+                      {type==="send"&&<span style={{fontSize:5,fontWeight:800,color:color+"88",letterSpacing:"0.08em",background:`${color}15`,borderRadius:2,padding:"0 3px",lineHeight:"10px"}}>SEND</span>}
+                      <span style={{fontSize:8,color:"rgba(255,255,255,0.15)",pointerEvents:"none"}}>⠿</span>
+                    </div>
+                    {/* ON/OFF toggle header */}
+                    <SecLabel label={label} color={color} active={active} onToggle={()=>upSec(sec,"on",!active)} midiId={`__${sec.slice(0,3)}_on__`}/>
+                    {/* FX-specific controls */}
+                    {sec==="reverb"&&(
+                      <div style={{display:"flex",gap:6,opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color={color} unit="s" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/><MidiTag id="__rev_decay__"/></div>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color={color} fmt={(v:number)=>(v*100).toFixed(0)} unit="%" onChange={(v:number)=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/><MidiTag id="__rev_size__"/></div>
+                      </div>
+                    )}
+                    {sec==="delay"&&(
+                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
+                        <div style={{display:"flex",alignItems:"center",marginBottom:4}}>
+                          <button onClick={()=>{const ns=!gfx.delay.sync;const t=ns?syncDivTime(gfx.delay.syncDiv,bpm):gfx.delay.time;setGfx((p:any)=>({...p,delay:{...p.delay,sync:ns,time:t}}));}} style={{marginLeft:"auto",padding:"1px 5px",borderRadius:3,border:`1px solid ${gfx.delay.sync?color:"rgba(48,209,88,0.25)"}`,background:gfx.delay.sync?"rgba(48,209,88,0.15)":"transparent",color:gfx.delay.sync?color:"rgba(48,209,88,0.4)",fontSize:6,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>SYNC</button>
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          {gfx.delay.sync?(
+                            <div>
+                              <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:3,maxWidth:100}}>
+                                {["1/4","1/8","1/16","1/4.","1/8.","1/4t"].map(d=>(
+                                  <button key={d} onClick={()=>setGfx((p:any)=>({...p,delay:{...p.delay,syncDiv:d,time:syncDivTime(d,bpm)}}))} style={{padding:"1px 3px",borderRadius:2,border:`1px solid ${gfx.delay.syncDiv===d?color:"rgba(48,209,88,0.15)"}`,background:gfx.delay.syncDiv===d?"rgba(48,209,88,0.12)":"transparent",color:gfx.delay.syncDiv===d?color:th.faint,fontSize:5.5,cursor:"pointer",fontFamily:"inherit"}}>{d}</button>
+                                ))}
+                              </div>
+                              <div style={{fontSize:6,color,fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
+                            </div>
+                          ):(
+                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color={color} unit="s" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec("delay","time",v)}/><MidiTag id="__dly_time__"/></div>
+                          )}
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color={color} fmt={(v:number)=>Math.round(v)} unit="%" onChange={(v:number)=>upSec("delay","fdbk",v)}/><MidiTag id="__dly_fdbk__"/></div>
+                        </div>
+                      </div>
+                    )}
+                    {sec==="filter"&&(
+                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
+                        <div style={{display:"flex",gap:2,marginBottom:5}}>
+                          {["lowpass","highpass","bandpass"].map(ft=>(
+                            <button key={ft} onClick={()=>upSec("filter","type",ft)} style={{flex:1,padding:"2px 0",borderRadius:3,border:`1px solid ${gfx.filter.type===ft?color:"transparent"}`,background:gfx.filter.type===ft?`${color}18`:"transparent",color:gfx.filter.type===ft?color:th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{ft==="lowpass"?"LP":ft==="highpass"?"HP":"BP"}</button>
+                          ))}
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color={color} fmt={(v:number)=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={(v:number)=>upSec("filter","cut",v)}/><MidiTag id="__flt_cut__"/></div>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RES" value={gfx.filter.res} min={0} max={25} color={color} fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec("filter","res",v)}/><MidiTag id="__flt_res__"/></div>
+                        </div>
+                      </div>
+                    )}
+                    {sec==="comp"&&(
+                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
+                        <div style={{display:"flex",gap:6}}>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color={color} unit="dB" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec("comp","thr",v)}/><MidiTag id="__cmp_thr__"/></div>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color={color} unit=":1" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec("comp","ratio",v)}/><MidiTag id="__cmp_rat__"/></div>
+                        </div>
+                        <div style={{fontSize:6,color:`${color}66`,marginTop:3,textAlign:"center",letterSpacing:"0.07em"}}>auto makeup</div>
+                      </div>
+                    )}
+                    {sec==="drive"&&(
+                      <div style={{opacity:active?1:0.3,pointerEvents:active?"auto":"none"}}>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color={color} fmt={(v:number)=>Math.round(v)} unit="%" onChange={(v:number)=>upSec("drive","amt",v)}/><MidiTag id="__drv_amt__"/></div>
+                        <div style={{fontSize:6,color:`${color}66`,marginTop:3,textAlign:"center",letterSpacing:"0.07em"}}>tanh sat</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <Sep/>
-              {/* FILTER */}
-              <div style={{minWidth:100,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="FILTER" color="#FF9500" active={gfx.filter.on} onToggle={()=>upSec("filter","on",!gfx.filter.on)} midiId="__flt_on__"/>
-                <div style={{display:"flex",gap:3,marginBottom:6}}>
-                  {["lowpass","highpass","bandpass"].map(ft=>(
-                    <button key={ft} onClick={()=>upSec("filter","type",ft)} style={{flex:1,padding:"2px 0",borderRadius:3,border:`1px solid ${gfx.filter.type===ft?"#FF9500":"transparent"}`,background:gfx.filter.type===ft?"rgba(255,149,0,0.1)":"transparent",color:gfx.filter.type===ft?"#FF9500":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{ft==="lowpass"?"LP":ft==="highpass"?"HP":"BP"}</button>
-                  ))}
-                </div>
-                <div style={{display:"flex",gap:8,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?"auto":"none"}}>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/><MidiTag id="__flt_cut__"/></div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/><MidiTag id="__flt_res__"/></div>
-                </div>
-              </div>
-              <Sep/>
-              {/* COMP */}
-              <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec("comp","on",!gfx.comp.on)} midiId="__cmp_on__"/>
-                <div style={{display:"flex",gap:8,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?"auto":"none"}}>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={v=>Math.round(v)} onChange={v=>upSec("comp","thr",v)}/><MidiTag id="__cmp_thr__"/></div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/><MidiTag id="__cmp_rat__"/></div>
-                </div>
-                <div style={{fontSize:6,color:"rgba(94,92,230,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>auto makeup</div>
-              </div>
-              <Sep/>
-              {/* DRIVE */}
-              <div style={{minWidth:65,flexShrink:0,paddingLeft:6}}>
-                <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec("drive","on",!gfx.drive.on)} midiId="__drv_on__"/>
-                <div style={{display:"flex",opacity:gfx.drive.on?1:0.3,pointerEvents:gfx.drive.on?"auto":"none"}}>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/><MidiTag id="__drv_amt__"/></div>
-                </div>
-                <div style={{fontSize:6,color:"rgba(255,107,53,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>tanh sat</div>
-              </div>
-            </div>
+              );
+            })}
           </div>
-
         </div>
       )}
     </div>
@@ -697,6 +766,7 @@ export default function KickAndSnare(){
   // Per-track send cursor: index into FX_SECS (0=reverb … 4=drive)
   const [trackSendCursor,setTrackSendCursor]=useState<{[tid:string]:number}>({});
   const upSend=(sec:string,tid:string,v:number)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
+  const [fxChainOrder,setFxChainOrder]=useState<string[]>(["filter","comp","drive","delay","reverb"]);
   useEffect(()=>{
     engine.onReady=()=>setIsAudioReady(true);
     engine.isMobile=isMobileRef.current;
@@ -2031,7 +2101,7 @@ export default function KickAndSnare(){
         </div>)}
 
         {/* ── Global FX Rack ── */}
-        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag} isPortrait={isPortrait}/>
+        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag} isPortrait={isPortrait} fxChainOrder={fxChainOrder} setFxChainOrder={setFxChainOrder} onChainOrderChange={(o:string[])=>{engine.setSerialOrder(o);}} />
 
         {/* ── Pattern Bank + Song Arranger ── */}
         {view!=="pads"&&<PatternBank

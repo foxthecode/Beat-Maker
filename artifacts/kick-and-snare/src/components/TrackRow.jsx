@@ -113,8 +113,8 @@ function TrackRow({
               <DrumSVG id={track.id} color={track.color} hit={flash} />
               <span style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{track.label}</span>
             </div>
-            {/* VOL + PAN + SEND knobs */}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+            {/* VOL + PAN + SEND knobs — flex-end so knob circles align vertically */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
               {/* VOL knob */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
