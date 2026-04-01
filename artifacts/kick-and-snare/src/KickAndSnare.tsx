@@ -1627,15 +1627,15 @@ export default function KickAndSnare(){
             el.addEventListener('pointercancel',onUp,{once:true});
           };
           const btnSm={height:32,minWidth:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 4px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
-          const arw={width:32,height:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
+          const arw={width:26,height:26,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
           const lbl0={fontSize:6.5,color:th.dim,fontWeight:700,letterSpacing:"0.07em",flexShrink:0};
           const val0={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",flexShrink:0};
           const sep0={fontSize:10,color:th.faint,flexShrink:0};
           return(
             <div style={{padding:"8px 0",overflowX:"auto"}}>
-              <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:720}}>
+              <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:820}}>
                 {/* ── LEFT: Track controls ── */}
-                <div style={{display:"flex",flexDirection:"column",gap:6,width:310,flexShrink:0}}>
+                <div style={{display:"flex",flexDirection:"column",gap:6,width:380,flexShrink:0}}>
                   <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>EUCLIDEAN TRACKS</div>
                   {atO.map((tr)=>{
                     const p=getP(tr.id);const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
@@ -1713,27 +1713,23 @@ export default function KickAndSnare(){
                             </div>
                           );
                         })()}
-                        {/* ── Body (unfolded): N / HITS spinners row ── */}
+                        {/* ── Body (unfolded): N · HITS · ROT on one line ── */}
                         {!p.fold&&(
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
-                              <span style={lbl0}>N</span>
-                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
-                              <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
-                              <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
-                              <span style={sep0}>·</span>
-                              <span style={lbl0}>HITS</span>
-                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
-                              <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
-                              <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
-                            </div>
-                            {/* ── ROT on its own row so it never overflows ── */}
-                            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"nowrap"}}>
-                              <span style={lbl0}>ROT</span>
-                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,((p.rot-1+p.N)%Math.max(p.N,1)));}} style={arw}>‹</button>
-                              <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
-                              <button onMouseDown={e=>{e.preventDefault();chR(tr.id,(p.rot+1)%Math.max(p.N,1));}} style={arw}>›</button>
-                            </div>
+                          <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"nowrap"}}>
+                            <span style={lbl0}>N</span>
+                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
+                            <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
+                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
+                            <span style={sep0}>·</span>
+                            <span style={lbl0}>HITS</span>
+                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
+                            <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
+                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
+                            <span style={sep0}>·</span>
+                            <span style={lbl0}>ROT</span>
+                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,((p.rot-1+p.N)%Math.max(p.N,1)));}} style={arw}>‹</button>
+                            <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
+                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,(p.rot+1)%Math.max(p.N,1));}} style={arw}>›</button>
                           </div>
                         )}
                       </div>
