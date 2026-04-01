@@ -1141,33 +1141,55 @@ export default function KickAndSnare(){
       const dur=(60/bpm)*sig.beats*exportBars;
       const sr=engine.ctx.sampleRate;
       const offCtx=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);
-      const sd=dur/sig.steps;
-      atO.forEach(tr=>{
-        if(muted[tr.id])return;
-        if(soloed&&soloed!==tr.id)return;
-        for(let s=0;s<sig.steps;s++){
-          if(!pat[tr.id]?.[s])continue;
-          const vel=(stVel[tr.id]?.[s]??100)/100;
-          const nm=stNudge[tr.id]?.[s]||0;
-          const t=Math.max(0.001,s*sd+nm/1000);
-          const dst=offCtx.createGain();
-          dst.gain.value=vel;dst.connect(offCtx.destination);
-          const fo=fx[tr.id]||{...DEFAULT_FX};
-          if(engine.buf[tr.id]){
-            // Custom sample: schedule in offline context
-            const src=offCtx.createBufferSource();
-            src.buffer=engine.buf[tr.id];
-            const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
-            src.playbackRate.value=r;
-            src.connect(dst);src.start(t);
-          }else{
-            engine._syn(tr.id,t,vel,dst,offCtx,
-              {sDec:fo.sDec??1,sTune:fo.sTune??1,
-               sPunch:fo.sPunch??1,sSnap:fo.sSnap??1,
-               sBody:fo.sBody??1,sTone:fo.sTone??1});
-          }
+
+      // ── Helper: schedule one hit at time t ──────────────────────────────────
+      const schedHit=(tid:string,stepIdx:number,t:number,fo:any)=>{
+        const vel=(stVel[tid]?.[stepIdx]??100)/100;
+        if(!(pat[tid]?.[stepIdx]))return;
+        const dst=offCtx.createGain();dst.gain.value=vel;dst.connect(offCtx.destination);
+        if(engine.buf[tid]){
+          const src=offCtx.createBufferSource();src.buffer=engine.buf[tid];
+          const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+          src.playbackRate.value=r;src.connect(dst);src.start(t);
+        }else{
+          engine._syn(tid,t,vel,dst,offCtx,
+            {sDec:fo.sDec??1,sTune:fo.sTune??1,
+             sPunch:fo.sPunch??1,sSnap:fo.sSnap??1,
+             sBody:fo.sBody??1,sTone:fo.sTone??1});
         }
-      });
+      };
+
+      if(view==="euclid"){
+        // ── Euclid: each track steps at 1/16th, loops its own N ──────────────
+        const sixteenth=(60/bpm)/4;
+        const totalSteps=Math.floor(dur/sixteenth);
+        atO.forEach(tr=>{
+          if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
+          const N=trackSteps[tr.id]||sig.steps;
+          const fo=fx[tr.id]||{...DEFAULT_FX};
+          for(let s=0;s<totalSteps;s++){
+            const stepIdx=s%N;
+            if(!pat[tr.id]?.[stepIdx])continue;
+            const nm=stNudge[tr.id]?.[stepIdx]||0;
+            const t=Math.max(0.001,s*sixteenth+nm/1000);
+            schedHit(tr.id,stepIdx,t,fo);
+          }
+        });
+      }else{
+        // ── Sequencer / Pads: one pass through sig.steps ─────────────────────
+        const sd=dur/sig.steps;
+        atO.forEach(tr=>{
+          if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
+          const fo=fx[tr.id]||{...DEFAULT_FX};
+          for(let s=0;s<sig.steps;s++){
+            if(!pat[tr.id]?.[s])continue;
+            const nm=stNudge[tr.id]?.[s]||0;
+            const t=Math.max(0.001,s*sd+nm/1000);
+            schedHit(tr.id,s,t,fo);
+          }
+        });
+      }
+
       const rd=await offCtx.startRendering();
       const wav=encodeWAV(rd);
       const blob=new Blob([wav],{type:"audio/wav"});
@@ -1175,7 +1197,8 @@ export default function KickAndSnare(){
       const a=document.createElement("a");
       a.href=url;
       const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
-      a.download=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar.wav`;
+      const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
+      a.download=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
       a.click();URL.revokeObjectURL(url);
     }catch(e){console.error("Export WAV error",e);}
     setExportState("idle");
