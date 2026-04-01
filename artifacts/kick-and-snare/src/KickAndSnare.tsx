@@ -445,7 +445,7 @@ class Eng{
     }
     S[id]();
   }
-  async renderShape(id,fxObj){
+  async renderShape(id,fxObj,silent=false){
     if(!this.ctx)return;
     const sh={sDec:fxObj?.sDec??1,sTune:fxObj?.sTune??1,sPunch:fxObj?.sPunch??1,sSnap:fxObj?.sSnap??1,sBody:fxObj?.sBody??1,sTone:fxObj?.sTone??1};
     const baseDur={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
@@ -455,7 +455,7 @@ class Eng{
       const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
       this._syn(id,0,1,oCtx.destination,oCtx,sh);
       this.buf[id]=await oCtx.startRendering();
-      this.play(id,0.7,0,fxObj);
+      if(!silent)this.play(id,0.7,0,fxObj);
     }catch(e){console.warn("renderShape failed",id,e);}
   }
 }
@@ -1680,17 +1680,14 @@ export default function KickAndSnare(){
         // Real sample: clear buffer so synthesis plays with new params while loading
         delete (engine.buf as any)[tid];
         engine.loadUrl(tid,kitSamples[tid]).then(ok=>{
-          if(!ok&&engine.ctx)engine.renderShape(tid,newFx).catch(()=>{});
+          if(!ok&&engine.ctx)engine.renderShape(tid,newFx,true).catch(()=>{});
         });
       } else {
         // Synthesis: clear old buffer first (instant sonic change via _syn), then re-render
         delete (engine.buf as any)[tid];
-        if(engine.ctx)engine.renderShape(tid,newFx).catch(()=>{});
+        if(engine.ctx)engine.renderShape(tid,newFx,true).catch(()=>{});
       }
     });
-    // Play a preview kick hit so user hears the new kit immediately
-    const kickFx=nextFx['kick'];
-    if(kickFx)setTimeout(()=>{engine.play('kick',0.8,0,kickFx);},30);
     // Update display labels
     setSmpN(prev=>{
       const next={...prev};
