@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
-
-const THEMES={
-  daylight:{bg:"linear-gradient(170deg,#F2EDE6 0%,#E8E1D8 100%)",surface:"rgba(255,255,255,0.72)",sBorder:"rgba(0,0,0,0.13)",text:"#1C1C1E",dim:"#44444A",faint:"#8A8A90",stepOff:"rgba(0,0,0,0.07)",stepAlt:"rgba(0,0,0,0.13)",cursor:"rgba(255,130,0,0.22)",btn:"rgba(0,0,0,0.08)",btnH:"rgba(0,0,0,0.15)"},
-  dark:{bg:"linear-gradient(170deg,#0F0F0F 0%,#1A1A1A 100%)",surface:"rgba(255,255,255,0.04)",sBorder:"rgba(255,255,255,0.1)",text:"#F0F0F0",dim:"#777",faint:"#444",stepOff:"rgba(255,255,255,0.035)",stepAlt:"rgba(255,255,255,0.055)",cursor:"rgba(255,255,255,0.12)",btn:"rgba(255,255,255,0.07)",btnH:"rgba(255,255,255,0.13)"}
-};
+import { THEMES } from "./theme.js";
+import { DrumSVG } from "./drumSVG.jsx";
+import TransportBar from "./components/TransportBar.jsx";
+import PatternBank from "./components/PatternBank.jsx";
+import TrackRow from "./components/TrackRow.jsx";
 
 const TIME_SIGS=[
   {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0],stepDiv:4},
@@ -27,20 +27,6 @@ const ALL_TRACKS=[
   {id:"perc",label:"PERC",color:"#BF5AF2",icon:"▲"},
 ];
 const TRACKS=ALL_TRACKS;
-// Mini SVG drum illustrations per track
-const DrumSVG=(id,color,hit=false,sz=22)=>{
-  const c=hit?"#FF2D55":color;const sw=hit?1.8:1.2;const bg=hit?color+"22":"none";
-  const s={display:"block",overflow:"visible",flexShrink:0,transition:"opacity 0.05s",pointerEvents:"none"};
-  if(id==="kick")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><ellipse cx="11" cy="15" rx="9" ry="6" fill={bg} stroke={c} strokeWidth={sw}/><ellipse cx="11" cy="15" rx="4.5" ry="2.8" fill="none" stroke={c} strokeWidth="0.5" opacity="0.45"/><line x1="2" y1="21" x2="2" y2="15" stroke={c} strokeWidth="1.1"/><line x1="20" y1="21" x2="20" y2="15" stroke={c} strokeWidth="1.1"/></svg>);
-  if(id==="snare")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><rect x="2" y="8" width="18" height="8" rx="2.5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="5.5" y1="9" x2="5.5" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="9" y1="9" x2="9" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="13" y1="9" x2="13" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/><line x1="16.5" y1="9" x2="16.5" y2="15" stroke={c} strokeWidth="0.4" opacity="0.5"/></svg>);
-  if(id==="hihat")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="8" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="8" rx="9" ry="2.5" fill={bg} stroke={c} strokeWidth={sw}/><ellipse cx="11" cy={hit?"6":"6.5"} rx="9" ry="2.5" fill="none" stroke={c} strokeWidth="0.8" opacity="0.65"/></svg>);
-  if(id==="clap")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><path d="M3,12 Q7.5,7 11,9.5 Q14.5,7 19,12" fill={bg} stroke={c} strokeWidth={sw} strokeLinecap="round"/><path d="M5.5,15.5 Q11,11 16.5,15.5" fill="none" stroke={c} strokeWidth="0.9" strokeLinecap="round" opacity="0.55"/></svg>);
-  if(id==="tom")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><ellipse cx="11" cy="11" rx="8" ry="5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="4" y1="16" x2="4" y2="21" stroke={c} strokeWidth="1.1"/><line x1="18" y1="16" x2="18" y2="21" stroke={c} strokeWidth="1.1"/></svg>);
-  if(id==="ride")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="7" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="7" rx="10" ry="2.8" fill={bg} stroke={c} strokeWidth={sw}/></svg>);
-  if(id==="crash")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><line x1="11" y1="7" x2="11" y2="22" stroke={c} strokeWidth="0.9"/><ellipse cx="11" cy="7" rx="10" ry="2.5" fill={bg} stroke={c} strokeWidth={sw}/><line x1="5.5" y1="5" x2="3" y2="2" stroke={c} strokeWidth="0.9" opacity="0.7"/><line x1="16.5" y1="5" x2="19" y2="2" stroke={c} strokeWidth="0.9" opacity="0.7"/><line x1="11" y1="4.5" x2="11" y2="1.5" stroke={c} strokeWidth="0.9" opacity="0.7"/></svg>);
-  if(id==="perc")return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><circle cx="11" cy="11" r="8" fill={bg} stroke={c} strokeWidth={sw}/><circle cx="11" cy="11" r="4" fill="none" stroke={c} strokeWidth="0.5" opacity="0.45"/></svg>);
-  return(<svg width={sz} height={sz} viewBox="0 0 22 22" style={s}><circle cx="11" cy="11" r="8" fill={bg} stroke={c} strokeWidth={sw}/><line x1="3" y1="19" x2="3" y2="22" stroke={c} strokeWidth="1"/><line x1="19" y1="19" x2="19" y2="22" stroke={c} strokeWidth="1"/></svg>);
-};
 const DEFAULT_ACTIVE=["kick","snare"];
 const DEFAULT_KEY_MAP={kick:"q",snare:"s",hihat:"d",clap:"f",tom:"g",ride:"h",crash:"j",perc:"k"};
 const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247,__tap__:null,__bpm__:null,__swing__:null}; // CC = value+128 (__play__=CC118 __rec__=CC119)
@@ -1286,66 +1272,19 @@ export default function KickAndSnare(){
         </div>
 
         {/* ── Transport ── */}
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 12px",borderRadius:12,background:th.surface,border:`1px solid ${th.sBorder}`,flexWrap:"wrap"}}>
-          <div style={{position:"relative",display:"inline-block"}}>
-            <button onClick={startStop} style={{width:44,height:44,borderRadius:"50%",border:"none",background:playing?"linear-gradient(135deg,#FF2D55,#FF375F)":"linear-gradient(135deg,#30D158,#34C759)",color:"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:playing?"0 0 20px rgba(255,45,85,0.4)":"0 0 20px rgba(48,209,88,0.4)"}}>{playing?"■":"▶"}</button>
-            <div style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)"}}><MidiTag id="__play__"/></div>
-          </div>
-          <div style={{position:"relative",display:"inline-block"}}>
-            <button onClick={()=>{if(playing)setRec(!rec);}} style={{width:32,height:32,borderRadius:"50%",border:rec?"2px solid #FF2D55":`2px solid ${th.sBorder}`,background:rec?"rgba(255,45,85,0.2)":"transparent",color:rec?"#FF2D55":th.dim,fontSize:11,cursor:playing?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",opacity:playing?1:0.3,animation:rec?"rb 0.8s infinite":"none"}}>●</button>
-            <div style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)"}}><MidiTag id="__rec__"/></div>
-          </div>
-          <div style={{flex:"1 1 80px",minWidth:70}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-              <span style={{fontSize:8,color:th.dim,letterSpacing:"0.15em"}}>BPM</span>
-              <MidiTag id="__bpm__"/>
-              <button onClick={()=>setBpm(Math.max(30,bpm-1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:11,padding:"0 3px"}}>&lt;</button>
-              <span style={{fontSize:17,fontWeight:900,color:"#FF9500"}}>{bpm}</span>
-              <button onClick={()=>setBpm(Math.min(300,bpm+1))} style={{border:"none",background:"transparent",color:th.dim,cursor:"pointer",fontSize:11,padding:"0 3px"}}>&gt;</button>
-            </div>
-            <input type="range" min={30} max={300} value={bpm} onChange={e=>setBpm(Number(e.target.value))} style={{width:"100%",height:4,accentColor:"#FF9500"}}/>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}>
-            <button onClick={handleTap} style={{padding:"6px 12px",borderRadius:6,background:"rgba(255,149,0,0.15)",color:"#FF9500",border:"1px solid rgba(255,149,0,0.3)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>TAP</button>
-            <MidiTag id="__tap__"/>
-          </div>
-          {view!=="euclid"&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-            <div style={{display:"flex",alignItems:"center",gap:3}}>
-              <span style={{fontSize:7,color:th.dim}}>SWING</span>
-              <MidiTag id="__swing__"/>
-            </div>
-            <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6"}}>{swing}%</span>
-            <input type="range" min={0} max={100} value={swing} onChange={e=>setSwing(Number(e.target.value))} style={{width:42,height:3,accentColor:"#5E5CE6"}}/>
-          </div>}
-          {view!=="euclid"&&<button onClick={()=>setShowTS(!showTS)} style={pill(showTS,"#30D158")}>{sig.label}</button>}
-          {(()=>{
-            const onMDown=e=>{e.preventDefault();const startY=e.touches?e.touches[0].clientY:e.clientY;const startVol=metroVol;let moved=false;
-              const mv=ev=>{ev.preventDefault();const cy=ev.touches?ev.touches[0].clientY:ev.clientY;const dy=cy-startY;if(Math.abs(dy)>5){moved=true;setMetroVol(Math.max(0,Math.min(100,Math.round(startVol-dy*0.8))));}};
-              const up=()=>{if(!moved)setMetro(p=>!p);window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);};
-              window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);};
-            return(<div onMouseDown={onMDown} onTouchStart={onMDown} style={{...pill(metro,"#FF9500"),position:"relative",overflow:"hidden",touchAction:"none",userSelect:"none",cursor:"pointer"}}>
-              <div style={{position:"absolute",bottom:0,left:0,right:0,height:`${metroVol}%`,background:metro?"rgba(255,149,0,0.12)":"transparent",borderRadius:6,transition:"height 0.15s",pointerEvents:"none"}}/>
-              <span style={{position:"relative",zIndex:1}}>{`METRO ${metroVol}%`}</span>
-            </div>);
-          })()}
-          {metro&&<button onClick={()=>setMetroSub(p=>p==="off"?"light":p==="light"?"full":"off")} style={pill(metroSub!=="off","#FF9500")}>SUB {metroSub==="off"?"OFF":metroSub==="light"?"◦":"●"}</button>}
-          <button onClick={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}} style={pill(false,"#FF2D55")} title="Clear all hits">✕ CLEAR</button>
-          <button onClick={()=>setShowK(!showK)} style={{...pill(showK,"#FFD60A"),display:"flex",alignItems:"center",gap:4}}>
-            <span style={{fontSize:11,lineHeight:1}}>⌨</span>
-            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>KEYB</span>
-          </button>
-          {hasMidiApi&&<button onClick={async()=>{
-            if(!midiNotes){const ok=await initMidi();if(!ok)return;setMidiNotes(true);}
-            const entering=!midiLM;setMidiLM(entering);if(!entering)setMidiLearnTrack(null);
-          }} style={{...pill(midiLM,"#FF9500"),display:"flex",alignItems:"center",gap:4}}>
-            <span style={{fontSize:11}}>🎹</span>
-            <span style={{fontSize:8,fontWeight:800,letterSpacing:"0.04em"}}>MIDI</span>
-          </button>}
-          {/* Ableton Link — hidden if localhost probe fails immediately (Android WebView) */}
-          {hasLinkApi&&<button onClick={()=>setShowLink(p=>!p)} style={{...pill(showLink||linkConnected,"#BF5AF2"),fontSize:8,display:"flex",alignItems:"center",gap:3}}>
-            🔗{linkConnected?` ${linkPeers}p`:' LINK'}
-          </button>}
-        </div>
+        <TransportBar
+          themeName={themeName} bpm={bpm} setBpm={setBpm} playing={playing} startStop={startStop}
+          rec={rec} setRec={setRec} handleTap={handleTap}
+          swing={swing} setSwing={setSwing} metro={metro} setMetro={setMetro}
+          metroVol={metroVol} setMetroVol={setMetroVol} metroSub={metroSub} setMetroSub={setMetroSub}
+          midiLM={midiLM} setMidiLM={setMidiLM} linkConnected={linkConnected} linkPeers={linkPeers}
+          showLink={showLink} setShowLink={setShowLink} MidiTag={MidiTag}
+          view={view} sig={sig} showTS={showTS} setShowTS={setShowTS} showK={showK} setShowK={setShowK}
+          hasMidiApi={hasMidiApi} hasLinkApi={hasLinkApi}
+          midiNotes={midiNotes} setMidiNotes={setMidiNotes} initMidi={initMidi}
+          midiLearnTrack={midiLearnTrack} setMidiLearnTrack={setMidiLearnTrack}
+          onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
+        />
 
         {/* ── Time Signature ── */}
         {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
@@ -1437,167 +1376,57 @@ export default function KickAndSnare(){
         {/* ── Global FX Rack ── */}
         <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag}/>
 
-        {/* ── Pattern Bank ── */}
-        {view!=="pads"&&<div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8,padding:"5px 10px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
-          <span style={{fontSize:8,color:th.dim}}>PAT</span>
-          {pBank.map((_,i)=>(<button key={i} onClick={()=>{setCPat(i);R.pat=pBank[i];}} style={{width:28,height:24,borderRadius:5,cursor:"pointer",fontFamily:"inherit",fontSize:10,fontWeight:800,border:`1px solid ${cPat===i?SEC_COL[i%8]+"66":th.sBorder}`,background:cPat===i?SEC_COL[i%8]+"20":"transparent",color:cPat===i?SEC_COL[i%8]:th.dim}}>{i+1}</button>))}
-          {pBank.length<MAX_PAT&&<button onClick={()=>{setPBank(p=>[...p,mkE(STEPS)]);setCPat(pBank.length);}} style={{width:24,height:24,border:`1px dashed ${th.sBorder}`,borderRadius:5,background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>}
-          <div style={{display:"flex",gap:4,marginLeft:"auto"}}>
-            {pBank.length<MAX_PAT&&<button onClick={()=>{const dup=JSON.parse(JSON.stringify(pBank[cPat]));setPBank(p=>{const n=[...p];n.splice(cPat+1,0,dup);return n;});setCPat(cPat+1);}} style={{padding:"2px 6px",border:`1px solid ${th.sBorder}`,borderRadius:5,background:"transparent",color:th.dim,fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>DUP</button>}
-            {pBank.length>1&&<button onClick={()=>{setPBank(p=>p.filter((_,j)=>j!==cPat));if(cPat>0)setCPat(cPat-1);}} style={{padding:"2px 6px",border:"1px solid rgba(255,55,95,0.2)",borderRadius:5,background:"transparent",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>DEL</button>}
-          </div>
-        </div>}
-
-        {/* ── SONG ARRANGER (foldable) ── */}
-        {view!=="pads"&&<div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${showSong?"rgba(191,90,242,0.35)":th.sBorder}`,overflow:"hidden"}}>
-          {/* Fold header */}
-          <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",userSelect:"none"}}>
-            <div onClick={()=>setShowSong(p=>!p)} style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}}>
-              <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.1em"}}>SONG ARRANGER</span>
-              <span style={{fontSize:10,color:th.dim}}>{showSong?"▲":"▼"}</span>
-            </div>
-            <button onClick={e=>{e.stopPropagation();setSongMode(p=>!p);}} style={{...pill(songMode,"#BF5AF2"),fontSize:8,padding:"2px 8px",animation:songMode&&playing?"pulse 1s infinite":"none"}}>
-              {songMode?(playing?"▶ ON":"ON"):"OFF"}
-            </button>
-          </div>
-          {showSong&&(<div style={{padding:"0 12px 12px"}}>
-            <div style={{marginBottom:10}}>
-              {songMode&&<span style={{fontSize:8,color:th.dim}}>The sequencer automatically advances through the pattern chain each cycle</span>}
-            </div>
-            {/* Chain rows */}
-            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
-              {songChain.map((patIdx,chainIdx)=>{
-                const isActive=songMode&&playing&&songPosRef.current===chainIdx;
-                return(<div key={chainIdx} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",borderRadius:6,background:isActive?"rgba(191,90,242,0.08)":"transparent",border:`1px solid ${isActive?"rgba(191,90,242,0.3)":"transparent"}`}}>
-                  <span style={{width:16,fontSize:8,color:isActive?"#BF5AF2":th.faint,fontWeight:700,textAlign:"right",flexShrink:0}}>{chainIdx+1}</span>
-                  <div style={{display:"flex",gap:3,flex:1,flexWrap:"wrap"}}>
-                    {pBank.map((_,pi)=>(<button key={pi} onClick={()=>setSongChain(p=>{const n=[...p];n[chainIdx]=pi;return n;})} style={{width:26,height:22,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:9,fontWeight:800,border:`1px solid ${patIdx===pi?SEC_COL[pi%8]+"66":th.sBorder}`,background:patIdx===pi?SEC_COL[pi%8]+"20":"transparent",color:patIdx===pi?SEC_COL[pi%8]:th.dim}}>{pi+1}</button>))}
-                  </div>
-                  {isActive&&<span style={{fontSize:9,color:"#BF5AF2"}}>▶</span>}
-                  <button onClick={()=>setSongChain(p=>{const n=[...p];n.splice(chainIdx+1,0,patIdx);return n;})} title="Duplicate below" style={{width:18,height:18,border:`1px solid ${th.sBorder}`,borderRadius:3,background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>+</button>
-                  {songChain.length>1&&<button onClick={()=>setSongChain(p=>p.filter((_,j)=>j!==chainIdx))} style={{width:18,height:18,border:"1px solid rgba(255,55,95,0.25)",borderRadius:3,background:"transparent",color:"#FF375F",fontSize:9,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>×</button>}
-                </div>);
-              })}
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>setSongChain(p=>[...p,cPat])} style={{padding:"4px 12px",borderRadius:6,border:"1px dashed rgba(191,90,242,0.35)",background:"transparent",color:"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ ADD STEP</button>
-              <button onClick={()=>setSongChain([cPat])} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>RESET</button>
-            </div>
-          </div>)}
-        </div>}
+        {/* ── Pattern Bank + Song Arranger ── */}
+        {view!=="pads"&&<PatternBank
+          themeName={themeName} pBank={pBank} setPBank={setPBank} cPat={cPat} setCPat={setCPat}
+          songChain={songChain} setSongChain={setSongChain} songMode={songMode} setSongMode={setSongMode}
+          showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
+          STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R}
+        />}
 
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
           <div style={{display:"flex",flexDirection:"column",gap:0}}>
             {atO.map((track)=>{
-              const isM=muted[track.id],isS=soloed===track.id,aud=soloed?isS:!isM;
-              const hasSmp=!!smpN[track.id];
-              const tsOpts=[STEPS,STEPS*2];const tSteps=tsOpts.includes(trackSteps[track.id])?trackSteps[track.id]:STEPS;
-              const tsIdx=tsOpts.indexOf(tSteps);const nextTs=tsOpts[(tsIdx+1)%tsOpts.length];
-              const isCustomTs=tSteps!==STEPS;
-              return(<div key={track.id}>
-                <div style={{display:"flex",alignItems:"flex-start",gap:6,opacity:aud?1:0.3,padding:"4px 0"}}>
-                  {/* Track Label + VOL/PAN — 2-col grid */}
-                  {(()=>{
-                    const f=fx[track.id]||defFx();
-                    const vol=f.vol??80;const pan=f.pan??0;
-                    const uFx=(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||defFx()),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
-                    const btnSt={height:32,minWidth:32,border:"none",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:10};
-                    // VOL knob renderer
-                    const r=9;const circ=2*Math.PI*r;
-                    const volOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFx("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                    const panOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                    const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+r*Math.cos(toRad(sa));const y1=11+r*Math.sin(toRad(sa));const x2=11+r*Math.cos(toRad(ea));const y2=11+r*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
-                    return(
-                      <div style={{flexShrink:0,width:190,display:"flex",flexDirection:"column",gap:2,justifyContent:"flex-start"}}>
-                        {/* Row 1: [fixed icon+label] · MidiTag · M · S · CLR · ♪ · × */}
-                        <div style={{display:"flex",alignItems:"center",gap:3,flexWrap:"nowrap"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:3,width:80,flexShrink:0,overflow:"hidden"}}>
-                            {DrumSVG(track.id,track.color,flash===track.id)}
-                            <span style={{fontSize:10,fontWeight:700,color:track.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{track.label}</span>
-                          </div>
-                          <MidiTag id={track.id}/>
-                          <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
-                          <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
-                          <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
-                          <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
-                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
-                        </div>
-                        {/* Row 2: [16st] · [VOL knob] · [PAN knob] */}
-                        <div style={{display:"flex",alignItems:"center",gap:5}}>
-                          <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",flexShrink:0,cursor:"pointer",border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim}}>{tSteps}st</button>
-                          {/* VOL knob */}
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-                            <div onPointerDown={volOnPD} onDoubleClick={()=>uFx("vol",80)} title={`VOL: ${vol} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
-                              <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
-                                  <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
-                                  <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*vol/100} ${circ}`}/>
-                                </svg>
-                                <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
-                              </div>
-                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vol}</span>
-                            </div>
-                            <MidiTag id={`vol_${track.id}`}/>
-                          </div>
-                          {/* PAN knob */}
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-                            <div onPointerDown={panOnPD} onDoubleClick={()=>uFx("pan",0)} title={`PAN: ${pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
-                              <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
-                                  <circle cx="11" cy="11" r={r} fill="none" stroke={track.color+"22"} strokeWidth="2.5"/>
-                                  {panArc&&<path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round"/>}
-                                  <circle cx="11" cy="11" r="1.5" fill={track.color}/>
-                                </svg>
-                                <span style={{fontSize:6,fontWeight:900,color:track.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
-                              </div>
-                              <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`}</span>
-                            </div>
-                            <MidiTag id={`pan_${track.id}`}/>
-                          </div>
-                        </div>
-                        {/* Row 3: sample name */}
-                        {smpN[track.id]&&<span style={{fontSize:6,color:th.dim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block"}}>{smpN[track.id].substring(0,30)}</span>}
-                      </div>
-                    );
-                  })()}
-                  {/* Steps */}
-                  <div style={{display:"flex",gap:0,flex:1,alignSelf:"flex-start"}}>
-                    {Array(tSteps).fill(0).map((_,step)=>{
-                      const ac=!!pat[track.id]?.[step];
-                      const ratio=Math.max(1,Math.round(tSteps/STEPS));const isCur=ratio>1?(step>=cStep*ratio&&step<(cStep+1)*ratio):cStep%tSteps===step;
-                      const gs=Math.min(STEPS-1,Math.floor(step*STEPS/tSteps));const gi=gInfo(gs);
-                      const sn=stNudge[track.id]?.[step]||0;const vel=(stVel[track.id]?.[step]??100);
-                      const prob=stProb[track.id]?.[step]??100;const ratch=stRatch[track.id]?.[step]||1;
-                      const isDrag=dragInfo?.tid===track.id&&dragInfo?.step===step;
-                      const dragAxis=isDrag?dragInfo.axis:null;
-                      return(<div key={step}
-                        onMouseDown={e=>{if(e.shiftKey&&handleShiftClick(track.id,step,e))return;startDrag(track.id,step,e);}}
-                        onTouchStart={e=>startDrag(track.id,step,e)}
-                        onContextMenu={e=>handleRightClick(track.id,step,e)}
-                        style={{flex:1,aspectRatio:"1",borderRadius:3,cursor:ac?"grab":"pointer",
-                          position:"relative",minWidth:0,overflow:"hidden",
-                          marginLeft:gi.first&&step>0?6:2,touchAction:"none",userSelect:"none",
-                          background:isCur&&gi.first?"rgba(255,149,0,0.45)":isCur?th.cursor:gi.gi%2===1?th.stepAlt:th.stepOff,
-                          boxShadow:ac&&isCur?`0 0 10px ${track.color},inset 0 0 5px ${track.color}`:"none",
-                          transform:isDrag?"scale(1.15)":ac&&isCur?"scale(1.08)":"scale(1)",
-                          transition:isDrag?"none":"all 0.08s",
-                          border:isDrag?`1px solid ${dragAxis==="v"?"#FFD60A":dragAxis==="h"?"#64D2FF":"transparent"}`:ac?`1px solid ${track.color}`:`1px solid ${th.sBorder}`,
-                        }}>
-                        {ac&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:`${vel}%`,borderRadius:3,background:track.color,transition:isDrag?"none":"height 0.15s"}}/>}
-                        {ac&&prob<100&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:2,background:`${track.color}33`,zIndex:3}}>
-                          <div style={{height:"100%",width:`${prob}%`,background:"#FFD60A",borderRadius:1}}/>
-                        </div>}
-                        {ac&&ratch>1&&<div style={{position:"absolute",top:1,right:1,fontSize:5,fontWeight:900,color:"#fff",background:"rgba(0,0,0,0.7)",borderRadius:2,padding:"0 1px",lineHeight:"8px",zIndex:4}}>×{ratch}</div>}
-                        {ac&&sn!==0&&<div style={{position:"absolute",top:0,bottom:0,left:`${50+sn*0.4}%`,width:2,borderRadius:1,background:track.color,opacity:0.6,transform:"translateX(-50%)",pointerEvents:"none"}}/>}
-                        {isDrag&&dragAxis==="v"&&<span style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:7,fontWeight:800,color:"#fff",textShadow:"0 0 3px rgba(0,0,0,0.5)",pointerEvents:"none",zIndex:5}}>{vel}%</span>}
-                        {isDrag&&dragAxis==="h"&&<span style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:7,fontWeight:800,color:"#fff",textShadow:"0 0 3px rgba(0,0,0,0.5)",pointerEvents:"none",zIndex:5}}>{sn>0?"+":""}{sn}</span>}
-                        {ac&&prob<100&&!isDrag&&<span style={{position:"absolute",top:1,left:1,fontSize:5,color:"#FFD60A",fontWeight:700,lineHeight:1,zIndex:4}}>{prob}%</span>}
-                      </div>);
-                    })}
-                  </div>
-                </div>
-              </div>);
+              const isM=!!muted[track.id];
+              const isS=soloed===track.id;
+              const aud=soloed?isS:!isM;
+              const tsOpts=[STEPS,STEPS*2];
+              const tSteps=tsOpts.includes(trackSteps[track.id])?trackSteps[track.id]:STEPS;
+              return(
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  tSteps={tSteps}
+                  STEPS={STEPS}
+                  pat={pat[track.id]}
+                  cStep={cStep}
+                  stVel={stVel[track.id]}
+                  stNudge={stNudge[track.id]}
+                  stProb={stProb[track.id]}
+                  stRatch={stRatch[track.id]}
+                  dragInfo={dragInfo}
+                  fx={fx[track.id]||defFx()}
+                  flash={flash===track.id}
+                  aud={aud}
+                  smpN={smpN[track.id]}
+                  MidiTag={MidiTag}
+                  actLength={act.length}
+                  themeName={themeName}
+                  gInfo={gInfo}
+                  isMuted={isM}
+                  isSoloed={isS}
+                  onStepDown={(step,e)=>{if(e.shiftKey&&handleShiftClick(track.id,step,e))return;startDrag(track.id,step,e);}}
+                  onContextMenu={(step,e)=>handleRightClick(track.id,step,e)}
+                  onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
+                  onSoloToggle={()=>setSoloed(p=>p===track.id?null:track.id)}
+                  onLoadSample={()=>ldFile(track.id)}
+                  onRemove={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                  onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||defFx()),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
+                  onStepCountChange={(nt)=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nt}};cp[track.id]=remap(cp[track.id],tSteps,nt);n[cPat]=cp;return n;});}}
+                  onClear={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}}
+                />
+              );
             })}
           </div>
           <div style={{marginTop:6}}>
