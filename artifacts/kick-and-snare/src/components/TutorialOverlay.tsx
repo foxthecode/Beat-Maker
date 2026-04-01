@@ -6,41 +6,38 @@ const BASE = import.meta.env.BASE_URL as string;
 /**
  * Shows a cropped region of a real app screenshot.
  * clipTop / clipBottom are pixel coordinates in the original 1280×800 image.
+ * The component fills 100% of the available width and auto-sizes its height
+ * to preserve the exact aspect ratio of the crop — no fixed displayHeight needed.
  */
 function IlluImg({
   src,
   clipTop = 0,
   clipBottom = 800,
-  displayHeight = 220,
   label,
   labelColor = "#FF9500",
 }: {
   src: string;
   clipTop?: number;
   clipBottom?: number;
-  displayHeight?: number;
   label?: string;
   labelColor?: string;
 }) {
-  const origW = 1280;
+  const origW = 1280, origH = 800;
   const cropH = clipBottom - clipTop;
-  const scale = displayHeight / cropH;
-  const scaledW = origW * scale;
-  const scaledH = 800 * scale;
+  // padding-top % trick: container height = width × (cropH / origW)
+  const padPct = (cropH / origW) * 100;
 
   return (
-    <div style={{ width: "100%", height: displayHeight, overflow: "hidden", position: "relative", background: "#0c0c0f" }}>
+    <div style={{ width: "100%", paddingTop: `${padPct}%`, position: "relative", overflow: "hidden", background: "#0c0c0f" }}>
       <img
         src={src}
         alt={label ?? "App screenshot"}
         style={{
           position: "absolute",
-          width: scaledW,
-          height: scaledH,
-          top: -clipTop * scale,
-          left: "50%",
-          transform: "translateX(-50%)",
-          imageRendering: "auto",
+          width: "100%",
+          height: `${(origH / cropH) * 100}%`,
+          top: `-${(clipTop / cropH) * 100}%`,
+          left: 0,
           userSelect: "none",
           pointerEvents: "none",
         }}
@@ -145,7 +142,6 @@ function IlluWelcome() {
     <IlluImg
       src={`${BASE}tutorial/seq-view.jpg`}
       clipTop={0} clipBottom={540}
-      displayHeight={220}
       label="Vue d'ensemble" labelColor="#FF9500"
     />
   );
@@ -156,7 +152,6 @@ function IlluTransport() {
     <IlluImg
       src={`${BASE}tutorial/seq-view.jpg`}
       clipTop={84} clipBottom={230}
-      displayHeight={185}
       label="Barre de transport" labelColor="#30D158"
     />
   );
@@ -167,7 +162,6 @@ function IlluSequencer() {
     <IlluImg
       src={`${BASE}tutorial/seq-view.jpg`}
       clipTop={330} clipBottom={535}
-      displayHeight={200}
       label="Séquenceur TR-808" labelColor="#FF2D55"
     />
   );
@@ -178,7 +172,6 @@ function IlluEuclid() {
     <IlluImg
       src={`${BASE}tutorial/euclid-view.jpg`}
       clipTop={190} clipBottom={760}
-      displayHeight={220}
       label="Séquenceur Euclidien" labelColor="#FFD60A"
     />
   );
@@ -189,7 +182,6 @@ function IlluPads() {
     <IlluImg
       src={`${BASE}tutorial/pads-view.jpg`}
       clipTop={310} clipBottom={800}
-      displayHeight={220}
       label="Live Pads — 8 pads" labelColor="#5E5CE6"
     />
   );
@@ -200,7 +192,6 @@ function IlluFxRack() {
     <IlluImg
       src={`${BASE}tutorial/fx-view.jpg`}
       clipTop={198} clipBottom={500}
-      displayHeight={220}
       label="FX Rack Global" labelColor="#BF5AF2"
     />
   );
@@ -211,7 +202,6 @@ function IlluLooper() {
     <IlluImg
       src={`${BASE}tutorial/looper-view.jpg`}
       clipTop={246} clipBottom={520}
-      displayHeight={220}
       label="Looper" labelColor="#64D2FF"
     />
   );
