@@ -2979,7 +2979,7 @@ export default function KickAndSnare(){
                 <div style={{display:"flex",flexDirection:"column",gap:6,width:380,flexShrink:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
                     <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>EUCLIDEAN TRACKS</div>
-                    <button onClick={()=>setEuclidEditMode(p=>!p)} style={{padding:"2px 8px",borderRadius:10,border:`1px solid ${euclidEditMode?"#30D158":"#FFD60A"}`,background:euclidEditMode?"#30D15818":"#FFD60A18",color:euclidEditMode?"#30D158":"#FFD60A",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}>{euclidEditMode?"DONE":"EDIT"}</button>
+                    <button data-hint={euclidEditMode?"Mode EDIT actif · Les dots euclidiens sont plus grands et modifiables · Clic DONE pour terminer":"Mode EDIT · Agrandit les dots pour les placer ou déplacer précisément · Clic pour activer"} onClick={()=>setEuclidEditMode(p=>!p)} style={{padding:"2px 8px",borderRadius:10,border:`1px solid ${euclidEditMode?"#30D158":"#FFD60A"}`,background:euclidEditMode?"#30D15818":"#FFD60A18",color:euclidEditMode?"#30D158":"#FFD60A",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}>{euclidEditMode?"DONE":"EDIT"}</button>
                   </div>
                   {atO.map((tr)=>{
                     const p=getP(tr.id);const cnt=(pat[tr.id]||[]).filter(v=>v>0).length;
@@ -3002,17 +3002,17 @@ export default function KickAndSnare(){
                               {/* Row 1: [icon+label+cnt fixed-width] · M · S · ♪ · MIDI · CLR · × */}
                               <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,flexWrap:"nowrap"}}>
                                 {/* Fixed-width left block so M is always aligned */}
-                                <div onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{display:"flex",alignItems:"center",gap:3,width:92,flexShrink:0,cursor:"pointer",overflow:"hidden"}}>
+                                <div data-hint={`Piste ${tr.label} · ${cnt} hit${cnt>1?"s":""} · Clic pour plier/déplier les réglages · ${p.fold?"Déplié":"Plié"}`} onClick={()=>writeP(tr.id,{fold:!p.fold})} style={{display:"flex",alignItems:"center",gap:3,width:92,flexShrink:0,cursor:"pointer",overflow:"hidden"}}>
                                   <span style={{flexShrink:0,opacity:aud?1:0.4}}><DrumSVG id={tr.id} color={tr.color} hit={flashing.has(tr.id)} sz={18} /></span>
                                   <span title={p.fold?"Expand":"Collapse"} style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,userSelect:"none"}}>{tr.label}</span>
                                   {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 3px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
                                 </div>
-                                <button onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
-                                <button onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
-                                {(()=>{const hasSmp=!!smpN[tr.id];return(<button onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
+                                <button data-hint={isM?`MUTE actif · Piste ${tr.label} silencieuse · Clic pour réactiver`:`MUTE · Coupe la piste ${tr.label} sans effacer le rythme euclidien`} onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
+                                <button data-hint={isS?`SOLO actif · Seule la piste ${tr.label} joue · Clic pour désactiver`:`SOLO · Isole la piste ${tr.label} — toutes les autres pistes sont silencieuses`} onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
+                                {(()=>{const hasSmp=!!smpN[tr.id];return(<button data-hint={hasSmp?`Sample: ${smpN[tr.id]} · Clic pour changer le fichier audio`:`Charger un sample audio pour la piste ${tr.label} (MP3, WAV, OGG)`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 <MidiTag id={tr.id}/>
-                                <button onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
-                                {act.length>1&&<button onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                                <button data-hint={`CLR · Efface tous les hits euclidiens de la piste ${tr.label} · Remet N=${p.N} hits=0`} onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
+                                {act.length>1&&<button data-hint={`Retirer la piste ${tr.label} de la vue Euclid`} onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 2: VOL knob + PAN knob + template dropdown — hidden when folded */}
                               <div style={{display:p.fold?"none":"flex",alignItems:"center",gap:6}}>
@@ -3060,20 +3060,20 @@ export default function KickAndSnare(){
                         {/* ── Body (unfolded): N · HITS · ROT on one line ── */}
                         {!p.fold&&(
                           <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"nowrap"}}>
-                            <span style={lbl0}>N</span>
-                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
-                            <span onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
-                            <button onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
+                            <span data-hint={`N · Longueur du cycle pour la piste ${tr.label} · Actuellement ${p.N} pas · ‹ › ou drag ↕ pour ajuster (3–32)`} style={lbl0}>N</span>
+                            <button data-hint={`Réduire N · Raccourcit le cycle euclidien de ${tr.label} (actuellement ${p.N} pas)`} onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.max(3,p.N-1));}} style={arw}>‹</button>
+                            <span data-hint={`N = ${p.N} · Nombre de subdivisions dans le cycle de ${tr.label} · Drag ↕ pour changer`} onPointerDown={mkDrag(p.N,3,32,v=>chN(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.N}</span>
+                            <button data-hint={`Augmenter N · Allonge le cycle euclidien de ${tr.label} (actuellement ${p.N} pas)`} onMouseDown={e=>{e.preventDefault();chN(tr.id,Math.min(32,p.N+1));}} style={arw}>›</button>
                             <span style={sep0}>·</span>
-                            <span style={lbl0}>HITS</span>
-                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
-                            <span onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
-                            <button onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
+                            <span data-hint={`HITS · Nombre de frappes réparties mathématiquement sur ${p.N} pas pour ${tr.label} · Actuellement ${p.hits} hits`} style={lbl0}>HITS</span>
+                            <button data-hint={`Moins de hits · Retire une frappe euclidienne de ${tr.label} (${p.hits}→${Math.max(0,p.hits-1)})`} onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.max(0,p.hits-1));}} style={arw}>‹</button>
+                            <span data-hint={`HITS = ${p.hits}/${p.N} · L'algorithme euclidien répartit ${p.hits} sons sur ${p.N} pas de façon optimale · Drag ↕ pour ajuster`} onPointerDown={mkDrag(p.hits,0,p.N,v=>chH(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>{p.hits}<span style={{fontSize:7,color:th.faint,fontWeight:400}}>/{p.N}</span></span>
+                            <button data-hint={`Plus de hits · Ajoute une frappe euclidienne à ${tr.label} (${p.hits}→${Math.min(p.N,p.hits+1)})`} onMouseDown={e=>{e.preventDefault();chH(tr.id,Math.min(p.N,p.hits+1));}} style={arw}>›</button>
                             <span style={sep0}>·</span>
-                            <span style={lbl0}>ROT</span>
-                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,((p.rot-1+p.N)%Math.max(p.N,1)));}} style={arw}>‹</button>
-                            <span onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
-                            <button onMouseDown={e=>{e.preventDefault();chR(tr.id,(p.rot+1)%Math.max(p.N,1));}} style={arw}>›</button>
+                            <span data-hint={`ROT · Rotation du motif · Décale le point de départ de ${p.rot} pas pour ${tr.label} · Change l'accentuation rythmique`} style={lbl0}>ROT</span>
+                            <button data-hint={`Rotation gauche · Décale le motif euclidien de ${tr.label} d'un cran à gauche`} onMouseDown={e=>{e.preventDefault();chR(tr.id,((p.rot-1+p.N)%Math.max(p.N,1)));}} style={arw}>‹</button>
+                            <span data-hint={`ROT = +${p.rot} · Rotation actuelle du motif de ${tr.label} · Drag ↕ pour ajuster`} onPointerDown={mkDrag(p.rot,0,Math.max(p.N-1,0),v=>chR(tr.id,v))} title="Drag ↕" style={{...val0,color:tr.color}}>+{p.rot}</span>
+                            <button data-hint={`Rotation droite · Décale le motif euclidien de ${tr.label} d'un cran à droite`} onMouseDown={e=>{e.preventDefault();chR(tr.id,(p.rot+1)%Math.max(p.N,1));}} style={arw}>›</button>
                           </div>
                         )}
                       </div>
@@ -3122,8 +3122,11 @@ export default function KickAndSnare(){
                             const rv=euclidEditMode?Math.round(baseR*1.4):baseR;
                             const vOp=on?0.3+(velPct/100)*0.7:0.45;
                             const hasFeedback=euclidTouchFeedback?.tid===tr.id&&euclidTouchFeedback?.step===i;
+                            const eucDotHint=on
+                              ?`Step ${i+1}/${N} · ${tr.label} · Actif · Vélocité: ${velPct}%${cur?" · En cours de lecture":""} · Clic = désactiver · Long-press = régler vélocité & probabilité`
+                              :`Step ${i+1}/${N} · ${tr.label} · Inactif · Clic pour activer · Long-press = options avancées`;
                             return(
-                              <g key={i} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none",WebkitTouchCallout:"none"}}>
+                              <g key={i} data-hint={eucDotHint} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none",WebkitTouchCallout:"none"}}>
                                 {/* I.1a: transparent tap zone for easier touch */}
                                 <circle cx={vx} cy={vy} r={Math.max(28,rv+20)} fill="transparent"
                                   style={{cursor:"pointer",touchAction:"none"}}
