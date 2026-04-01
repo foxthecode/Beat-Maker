@@ -311,7 +311,7 @@ const engine=new Eng();
 const SYNC_DIVS=[{l:"1/1",b:4},{l:"1/2",b:2},{l:"1/4",b:1},{l:"1/8",b:0.5},{l:"1/16",b:0.25},{l:"1/4.",b:1.5},{l:"1/8.",b:0.75},{l:"1/4t",b:2/3},{l:"1/8t",b:1/3}];
 const syncDivTime=(div,bpmV)=>{const d=SYNC_DIVS.find(x=>x.l===div)||SYNC_DIVS[2];return Math.min(1.9,d.b*(60/Math.max(30,bpmV)));};
 
-function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
+function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null}){
   const th=THEMES[themeName]||THEMES.dark;
   const [open,setOpen]=useState(true);
   const upSec=(sec,k,v)=>setGfx(p=>({...p,[sec]:{...p[sec],[k]:v}}));
@@ -395,8 +395,8 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
               <div style={{minWidth:110,flexShrink:0,paddingRight:6}}>
                 <SecLabel label="REVERB" color="#64D2FF" active={gfx.reverb.on} onToggle={()=>upSec("reverb","on",!gfx.reverb.on)}/>
                 <div style={{display:"flex",gap:8,opacity:gfx.reverb.on?1:0.3,pointerEvents:gfx.reverb.on?"auto":"none"}}>
-                  <Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/>
-                  <Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/><MidiTag id="__rev_decay__"/></div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/><MidiTag id="__rev_size__"/></div>
                 </div>
                 <SendRow sec="reverb" color="#64D2FF"/>
               </div>
@@ -418,9 +418,9 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
                       <div style={{fontSize:7,color:"#30D158",fontWeight:700,textAlign:"center"}}>{gfx.delay.time.toFixed(3)}s</div>
                     </div>
                   ):(
-                    <Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="TIME" value={gfx.delay.time} min={0.01} max={1.9} color="#30D158" unit="s" fmt={v=>v.toFixed(2)} onChange={v=>upSec("delay","time",v)}/><MidiTag id="__dly_time__"/></div>
                   )}
-                  <Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/><MidiTag id="__dly_fdbk__"/></div>
                 </div>
                 <SendRow sec="delay" color="#30D158"/>
               </div>
@@ -443,8 +443,8 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
                   ))}
                 </div>
                 <div style={{display:"flex",gap:8,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?"auto":"none"}}>
-                  <Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/>
-                  <Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="CUT" value={gfx.filter.cut} min={20} max={20000} color="#FF9500" fmt={v=>v>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"Hz"} onChange={v=>upSec("filter","cut",v)}/><MidiTag id="__flt_cut__"/></div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={v=>v.toFixed(1)} onChange={v=>upSec("filter","res",v)}/><MidiTag id="__flt_res__"/></div>
                 </div>
               </div>
               <Sep/>
@@ -452,8 +452,8 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
               <div style={{minWidth:90,flexShrink:0,paddingLeft:6,paddingRight:6}}>
                 <SecLabel label="COMP" color="#5E5CE6" active={gfx.comp.on} onToggle={()=>upSec("comp","on",!gfx.comp.on)}/>
                 <div style={{display:"flex",gap:8,opacity:gfx.comp.on?1:0.3,pointerEvents:gfx.comp.on?"auto":"none"}}>
-                  <Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={v=>Math.round(v)} onChange={v=>upSec("comp","thr",v)}/>
-                  <Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="THR" value={gfx.comp.thr} min={-60} max={0} color="#5E5CE6" unit="dB" fmt={v=>Math.round(v)} onChange={v=>upSec("comp","thr",v)}/><MidiTag id="__cmp_thr__"/></div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="RATIO" value={gfx.comp.ratio} min={1} max={20} color="#5E5CE6" unit=":1" fmt={v=>v.toFixed(1)} onChange={v=>upSec("comp","ratio",v)}/><MidiTag id="__cmp_rat__"/></div>
                 </div>
                 <div style={{fontSize:6,color:"rgba(94,92,230,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>auto makeup</div>
               </div>
@@ -462,7 +462,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120}){
               <div style={{minWidth:65,flexShrink:0,paddingLeft:6}}>
                 <SecLabel label="DRIVE" color="#FF6B35" active={gfx.drive.on} onToggle={()=>upSec("drive","on",!gfx.drive.on)}/>
                 <div style={{display:"flex",opacity:gfx.drive.on?1:0.3,pointerEvents:gfx.drive.on?"auto":"none"}}>
-                  <Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="AMT" value={gfx.drive.amt} min={0} max={100} color="#FF6B35" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("drive","amt",v)}/><MidiTag id="__drv_amt__"/></div>
                 </div>
                 <div style={{fontSize:6,color:"rgba(255,107,53,0.5)",marginTop:4,textAlign:"center",letterSpacing:"0.08em"}}>tanh sat</div>
               </div>
@@ -579,6 +579,7 @@ export default function KickAndSnare(){
   R.songMode=songMode;R.songChain=songChain;R.ts=trackSteps;R.lkSync=linkSyncPlay;
   R.loopRec=loopRec;
   R.mnMap=midiNoteMap;R.mLearn=midiLearnTrack;R.mNotes=midiNotes;
+  R.sGfx=setGfx;R.sFx=setFx;
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -602,6 +603,19 @@ export default function KickAndSnare(){
       if(mapped==='__tap__'&&byte2>0){R.htap?.();return;}
       if(mapped==='__bpm__'){R.setBpmR?.(Math.max(30,Math.min(300,30+Math.round(byte2/127*270))));return;}
       if(mapped==='__swing__'){R.setSwingR?.(Math.round(byte2/127*100));return;}
+      // ── FX Rack CC ──
+      if(mapped==='__rev_decay__'){R.sGfx?.(p=>({...p,reverb:{...p.reverb,decay:+(0.1+byte2/127*5.9).toFixed(2)}}));return;}
+      if(mapped==='__rev_size__'){R.sGfx?.(p=>({...p,reverb:{...p.reverb,size:+(byte2/127).toFixed(3)}}));return;}
+      if(mapped==='__dly_time__'){R.sGfx?.(p=>({...p,delay:{...p.delay,time:+(0.01+byte2/127*1.89).toFixed(3)}}));return;}
+      if(mapped==='__dly_fdbk__'){R.sGfx?.(p=>({...p,delay:{...p.delay,fdbk:Math.round(byte2/127*95)}}));return;}
+      if(mapped==='__flt_cut__'){R.sGfx?.(p=>({...p,filter:{...p.filter,cut:Math.round(20+Math.pow(byte2/127,2)*19980)}}));return;}
+      if(mapped==='__flt_res__'){R.sGfx?.(p=>({...p,filter:{...p.filter,res:+(byte2/127*25).toFixed(1)}}));return;}
+      if(mapped==='__cmp_thr__'){R.sGfx?.(p=>({...p,comp:{...p.comp,thr:Math.round(-60+byte2/127*60)}}));return;}
+      if(mapped==='__cmp_rat__'){R.sGfx?.(p=>({...p,comp:{...p.comp,ratio:+(1+byte2/127*19).toFixed(1)}}));return;}
+      if(mapped==='__drv_amt__'){R.sGfx?.(p=>({...p,drive:{...p.drive,amt:Math.round(byte2/127*100)}}));return;}
+      // ── Vol/Pan per track CC ──
+      if(mapped?.startsWith('vol_')){const tid=mapped.slice(4);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{vol:80,pan:0}),vol:Math.round(byte2/127*100)}}));return;}
+      if(mapped?.startsWith('pan_')){const tid=mapped.slice(4);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{vol:80,pan:0}),pan:Math.round(byte2/127*200-100)}}));return;}
       return;
     }
     // Note messages (pads, keys)
@@ -1387,7 +1401,7 @@ export default function KickAndSnare(){
         </div>)}
 
         {/* ── Global FX Rack ── */}
-        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm}/>
+        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag}/>
 
         {/* ── Pattern Bank ── */}
         {view!=="pads"&&<div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8,padding:"5px 10px",borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
@@ -1461,20 +1475,25 @@ export default function KickAndSnare(){
                     const panOnPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFx("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
                     const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+r*Math.cos(toRad(sa));const y1=11+r*Math.sin(toRad(sa));const x2=11+r*Math.cos(toRad(ea));const y2=11+r*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                     return(
-                      <div style={{flexShrink:0,width:188,display:"flex",flexDirection:"column",gap:2,justifyContent:"flex-start"}}>
-                        {/* Row 1: icon · label · MidiTag · M · S · CLR */}
-                        <div style={{display:"flex",alignItems:"center",gap:3}}>
-                          {DrumSVG(track.id,track.color,flash===track.id)}
-                          <span style={{fontSize:10,fontWeight:700,color:track.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:60}}>{track.label}</span>
+                      <div style={{flexShrink:0,width:190,display:"flex",flexDirection:"column",gap:2,justifyContent:"flex-start"}}>
+                        {/* Row 1: [fixed icon+label] · MidiTag · M · S · CLR · ♪ · × */}
+                        <div style={{display:"flex",alignItems:"center",gap:3,flexWrap:"nowrap"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:3,width:80,flexShrink:0,overflow:"hidden"}}>
+                            {DrumSVG(track.id,track.color,flash===track.id)}
+                            <span style={{fontSize:10,fontWeight:700,color:track.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{track.label}</span>
+                          </div>
                           <MidiTag id={track.id}/>
                           <button onClick={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))} style={{...btnSt,width:18,background:isM?"rgba(255,55,95,0.25)":th.btn,color:isM?"#FF375F":th.faint}}>M</button>
                           <button onClick={()=>setSoloed(p=>p===track.id?null:track.id)} style={{...btnSt,width:18,background:isS?"rgba(255,214,10,0.25)":th.btn,color:isS?"#FFD60A":th.faint}}>S</button>
                           <button onClick={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}} style={{...btnSt,width:22,background:th.btn,color:th.dim,fontSize:6}} title="Clear track">CLR</button>
+                          <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
+                          {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
                         </div>
-                        {/* Row 2: [VOL+PAN knobs] ←→ [16st·♪·×] */}
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
-                          <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                            {/* VOL knob */}
+                        {/* Row 2: [16st] · [VOL knob] · [PAN knob] */}
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",flexShrink:0,cursor:"pointer",border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim}}>{tSteps}st</button>
+                          {/* VOL knob */}
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
                             <div onPointerDown={volOnPD} onDoubleClick={()=>uFx("vol",80)} title={`VOL: ${vol} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
                               <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
                                 <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
@@ -1485,7 +1504,10 @@ export default function KickAndSnare(){
                               </div>
                               <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vol}</span>
                             </div>
-                            {/* PAN knob */}
+                            <MidiTag id={`vol_${track.id}`}/>
+                          </div>
+                          {/* PAN knob */}
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
                             <div onPointerDown={panOnPD} onDoubleClick={()=>uFx("pan",0)} title={`PAN: ${pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
                               <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
                                 <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
@@ -1497,12 +1519,7 @@ export default function KickAndSnare(){
                               </div>
                               <span style={{fontSize:6,color:track.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`}</span>
                             </div>
-                          </div>
-                          {/* 16st · ♪ · × */}
-                          <div style={{display:"flex",gap:2,alignItems:"center",flexShrink:0}}>
-                            <button title={`${tSteps}st → ${nextTs}st`} onClick={()=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nextTs}};cp[track.id]=remap(cp[track.id],tSteps,nextTs);n[cPat]=cp;return n;});}} style={{...btnSt,padding:"0 3px",cursor:"pointer",border:`1px solid ${isCustomTs?track.color+"44":th.sBorder}`,background:isCustomTs?track.color+"11":"transparent",color:isCustomTs?track.color:th.dim}}>{tSteps}st</button>
-                            <button onClick={()=>ldFile(track.id)} title={hasSmp?smpN[track.id]:"Load sample"} style={{...btnSt,width:20,background:hasSmp?"rgba(255,149,0,0.2)":th.btn,color:hasSmp?"#FF9500":th.dim}}>♪</button>
-                            {act.length>1&&<button onClick={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}} style={{...btnSt,width:18,background:"rgba(255,55,95,0.08)",color:"#FF375F",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+                            <MidiTag id={`pan_${track.id}`}/>
                           </div>
                         </div>
                         {/* Row 3: sample name */}
@@ -1704,26 +1721,32 @@ export default function KickAndSnare(){
                               </div>
                               {/* Row 2: VOL knob + PAN knob + template dropdown — hidden when folded */}
                               <div style={{display:p.fold?"none":"flex",alignItems:"center",gap:6}}>
-                                <div onPointerDown={volPD} onDoubleClick={()=>uFxL("vol",80)} title={`VOL: ${vDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",flexShrink:0}}>
-                                  <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                    <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
-                                      <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
-                                      <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*vol/100} ${circ}`}/>
-                                    </svg>
-                                    <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
+                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0}}>
+                                  <div onPointerDown={volPD} onDoubleClick={()=>uFxL("vol",80)} title={`VOL: ${vDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
+                                    <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                      <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
+                                        <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
+                                        <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*vol/100} ${circ}`}/>
+                                      </svg>
+                                      <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
+                                    </div>
+                                    <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vDisp}</span>
                                   </div>
-                                  <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vDisp}</span>
+                                  <MidiTag id={`vol_${tr.id}`}/>
                                 </div>
-                                <div onPointerDown={panPD} onDoubleClick={()=>uFxL("pan",0)} title={`PAN: ${pDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none",flexShrink:0}}>
-                                  <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                    <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
-                                      <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
-                                      {panArc&&<path d={panArc} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round"/>}
-                                      <circle cx="11" cy="11" r="1.5" fill={tr.color}/>
-                                    </svg>
-                                    <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
+                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0}}>
+                                  <div onPointerDown={panPD} onDoubleClick={()=>uFxL("pan",0)} title={`PAN: ${pDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
+                                    <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                      <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
+                                        <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
+                                        {panArc&&<path d={panArc} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round"/>}
+                                        <circle cx="11" cy="11" r="1.5" fill={tr.color}/>
+                                      </svg>
+                                      <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
+                                    </div>
+                                    <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pDisp}</span>
                                   </div>
-                                  <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pDisp}</span>
+                                  <MidiTag id={`pan_${tr.id}`}/>
                                 </div>
                                 <select value={p.tpl||""} onChange={e=>{const t=EUCLID_TEMPLATES.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,flex:1,fontSize:8}}>
                                   <option value="">— Template —</option>
