@@ -9,6 +9,7 @@ function TrackRow({
   smpN, MidiTag,
   actLength, themeName, gInfo,
   isMuted, isSoloed,
+  isPortrait,
   onStepDown, onContextMenu,
   onMuteToggle, onSoloToggle, onLoadSample, onRemove, onFxChange,
   onStepCountChange, onClear,
@@ -23,7 +24,7 @@ function TrackRow({
   const tsIdx = tsOpts.indexOf(tSteps);
   const nextTs = tsOpts[(tsIdx + 1) % tsOpts.length];
 
-  const leftW = typeof window !== "undefined" && window.innerWidth < 600 ? 140 : 190;
+  const leftW = isPortrait ? 140 : (typeof window !== "undefined" && window.innerWidth < 600 ? 140 : 190);
 
   const btnSt = {
     height: 28, minWidth: 0, border: "none", borderRadius: 4,
@@ -67,7 +68,7 @@ function TrackRow({
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 6, opacity: aud ? 1 : 0.3, padding: "4px 0" }}>
+      <div style={{ display: "flex", flexDirection: isPortrait ? "column" : "row", alignItems: isPortrait ? "stretch" : "flex-start", gap: 6, opacity: aud ? 1 : 0.3, padding: "4px 0" }}>
 
         {/* ── Left: Track Label + controls (fixed width, never shrinks) ── */}
         <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -131,7 +132,11 @@ function TrackRow({
         </div>
 
         {/* ── Steps grid (grows to fill, never pushes siblings) ── */}
-        <div style={{
+        <div style={isPortrait ? {
+          width: "100%", overflowX: "auto", display: "flex",
+          scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch",
+          gap: 2, touchAction: "manipulation", paddingBottom: 2,
+        } : {
           flex: "1 1 0", minWidth: 0, overflow: "hidden",
           alignSelf: "flex-start",
           display: "flex", gap: 0,
@@ -154,9 +159,12 @@ function TrackRow({
               <div key={step}
                 onPointerDown={e => onStepDown(step, e)}
                 onContextMenu={e => onContextMenu(step, e)}
+                data-step="true"
                 style={{
-                  flex: 1, aspectRatio: "1", borderRadius: 3, cursor: ac ? "grab" : "pointer",
-                  position: "relative", minWidth: 0, overflow: "hidden",
+                  flex: isPortrait ? "0 0 24px" : 1, minWidth: isPortrait ? 24 : 0,
+                  height: isPortrait ? 32 : undefined, aspectRatio: isPortrait ? undefined : "1",
+                  borderRadius: 3, cursor: ac ? "grab" : "pointer",
+                  position: "relative", overflow: "hidden",
                   scrollSnapAlign: "start",
                   marginLeft: gi.first && step > 0 ? 6 : 2, touchAction: "none", userSelect: "none", WebkitTouchCallout: "none",
                   background: isCur && gi.first ? "rgba(255,149,0,0.45)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,

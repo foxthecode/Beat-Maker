@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 import { THEMES } from "./theme.js";
 import { DrumSVG } from "./drumSVG.tsx";
@@ -254,7 +254,9 @@ class Eng{
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
-    if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);}
+    // H.1c: mobile — if no buffer yet, trigger async render then bail
+    if(this.isMobile&&!this.buf[id]){this.renderShape(id,f).catch(()=>{});return;}
+    if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();};} // H.1d
     else this._syn(id,t,vel,c.in);
   }
   _syn(id,t,v,d,octx,sh){
@@ -326,7 +328,7 @@ const engine=new Eng();
 const SYNC_DIVS=[{l:"1/1",b:4},{l:"1/2",b:2},{l:"1/4",b:1},{l:"1/8",b:0.5},{l:"1/16",b:0.25},{l:"1/4.",b:1.5},{l:"1/8.",b:0.75},{l:"1/4t",b:2/3},{l:"1/8t",b:1/3}];
 const syncDivTime=(div,bpmV)=>{const d=SYNC_DIVS.find(x=>x.l===div)||SYNC_DIVS[2];return Math.min(1.9,d.b*(60/Math.max(30,bpmV)));};
 
-function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null}){
+function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false}){
   const th=THEMES[themeName]||THEMES.dark;
   const [open,setOpen]=useState(false);
   const upSec=(sec,k,v)=>setGfx(p=>({...p,[sec]:{...p[sec],[k]:v}}));
@@ -401,7 +403,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
         ))}
       </div>
       {open&&(
-        <div style={{padding:"8px 14px 14px",display:"flex",gap:10,alignItems:"flex-start",overflowX:"auto"}}>
+        <div style={{padding:"8px 14px 14px",display:"flex",flexDirection:isPortrait?"column":"row",gap:10,alignItems:"flex-start",overflowX:isPortrait?"visible":"auto"}}>
 
           {/* ── SEND FX column ── */}
           <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
@@ -517,6 +519,14 @@ export default function KickAndSnare(){
   const chSig=s=>{setTSig(s);setGrpIdx(0);resize(s.steps);};
 
   const [isAudioReady,setIsAudioReady]=useState(false);
+  // ── H.1a: Mobile detection ──
+  const isMobile=useMemo(()=>/Android|iPhone|iPad/i.test(navigator.userAgent)||window.innerWidth<768,[]);
+  const isMobileRef=useRef(isMobile);
+  // ── H.2a: Portrait detection ──
+  const [isPortrait,setIsPortrait]=useState(()=>window.innerHeight>window.innerWidth);
+  // ── H.3: REC pads fade-out ──
+  const [recPadsVisible,setRecPadsVisible]=useState(false);
+
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
@@ -526,7 +536,17 @@ export default function KickAndSnare(){
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}});
-  useEffect(()=>{engine.onReady=()=>setIsAudioReady(true);},[]);
+  useEffect(()=>{
+    engine.onReady=()=>setIsAudioReady(true);
+    engine.isMobile=isMobileRef.current;
+  },[]);
+  // ── H.2a: Portrait orientation listener ──
+  useEffect(()=>{
+    const h=()=>setIsPortrait(window.innerHeight>window.innerWidth);
+    window.addEventListener('resize',h);
+    screen.orientation?.addEventListener('change',h);
+    return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
+  },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
   // BPM sync for delay
   useEffect(()=>{
@@ -544,6 +564,11 @@ export default function KickAndSnare(){
   // Session
   // UI
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
+  // ── H.3: recPadsVisible with 150ms fade-out ──
+  useEffect(()=>{
+    if(rec&&playing)setRecPadsVisible(true);
+    else{const t=setTimeout(()=>setRecPadsVisible(false),150);return()=>clearTimeout(t);}
+  },[rec,playing]);
   const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
   const [velPicker,setVelPicker]=useState(null);
   const [probPopover,setProbPopover]=useState(null);
@@ -640,6 +665,9 @@ export default function KickAndSnare(){
   R.mNotes=midiNotes;      // MIDI notes mode active — enables note-on triggering
   R.sGfx=setGfx;  // setGfx setter — MIDI CC handler updates global FX rack state
   R.sFx=setFx;    // setFx setter — MIDI CC handler updates per-track FX state
+  R.isPortrait=isPortrait; // H.2a — portrait flag for scheduler / components
+  R.isMobile=isMobileRef.current; // H.1a — mobile flag for scheduler
+  R.euclidEdit=euclidEditMode; // I.1d — edit mode flag
   // Tap tempo
   const handleTap=()=>{
     const now=Date.now();const times=tapTimesRef.current;
@@ -866,6 +894,9 @@ export default function KickAndSnare(){
 
   const schLoop=useCallback(()=>{
     if(!engine.ctx)return;const ct=engine.ctx.currentTime;
+    // H.1a: adaptive look-ahead + tick interval for mobile
+    const LA=engine.isMobile?0.18:0.1;
+    const schDelay=engine.isMobile?20:25;
     if(R.view==="euclid"){
       // ── Euclid: independent per-track polyrhythm clock ──
       // Fixed step = 1/16th note — each track's cycle duration is N × (1/16th).
@@ -880,7 +911,7 @@ export default function KickAndSnare(){
         const stepDur=sixteenth;
         if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-0.5){euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05};}
         const ec=euclidClockR.current[tr.id];
-        while(ec.nextTime<ct+0.1){
+        while(ec.nextTime<ct+LA){
           const si=ec.step;
           if(R.pat?.[tr.id]?.[si]){
             const sp=R.prob[tr.id]?.[si]??100;
@@ -905,14 +936,14 @@ export default function KickAndSnare(){
           em.beat=(em.beat+1)%4;em.nextTime+=sxt;
         }
       }
-      {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-25:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,25-drift));}
+      {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
       return;
     }
     // ── Linear / Pads: global step scheduler ──
     const cs=R.sig;const gr=cs.groups||[cs.steps];
     if(nxtRef.current<ct-0.05)nxtRef.current=ct+0.02; // resync if stale (e.g. switching from Euclid)
     let stepped=false;
-    while(nxtRef.current<ct+0.1){
+    while(nxtRef.current<ct+LA){
       const prevStep=R.step;
       R.step=(R.step+1)%cs.steps;
       // Song mode: advance pattern on cycle wrap
@@ -928,7 +959,7 @@ export default function KickAndSnare(){
       const sw=bd*(R.sw/100);nxtRef.current+=R.step%2===0?(bd-sw):(bd+sw);
     }
     if(stepped)setCStep(R.step);
-    {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-25:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,25-drift));}
+    {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
   },[schSt]);
 
   const startStop=()=>{
@@ -1198,7 +1229,7 @@ export default function KickAndSnare(){
   return(<>
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
-      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}} @keyframes audioload{0%{width:0%}100%{width:100%}}`}</style>
+      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}} @keyframes audioload{0%{width:0%}100%{width:100%}} @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
       {!isAudioReady&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,height:2,background:"rgba(0,0,0,0.25)"}}>
         <div style={{height:"100%",background:"linear-gradient(90deg,#FF2D55,#FF9500)",animation:"audioload 0.5s ease-out forwards",willChange:"width"}}/>
       </div>}
@@ -1361,6 +1392,7 @@ export default function KickAndSnare(){
           hasMidiApi={hasMidiApi} hasLinkApi={hasLinkApi}
           midiNotes={midiNotes} setMidiNotes={setMidiNotes} initMidi={initMidi}
           midiLearnTrack={midiLearnTrack} setMidiLearnTrack={setMidiLearnTrack}
+          isPortrait={isPortrait} isAudioReady={isAudioReady}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
         />
 
@@ -1452,14 +1484,14 @@ export default function KickAndSnare(){
         </div>)}
 
         {/* ── Global FX Rack ── */}
-        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag}/>
+        <FXRack gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm} midiLM={midiLM} MidiTag={MidiTag} isPortrait={isPortrait}/>
 
         {/* ── Pattern Bank + Song Arranger ── */}
         {view!=="pads"&&<PatternBank
           themeName={themeName} pBank={pBank} setPBank={setPBank} cPat={cPat} setCPat={setCPat}
           songChain={songChain} setSongChain={setSongChain} songMode={songMode} setSongMode={setSongMode}
           showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
-          STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R}
+          STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}
         />}
 
         {/* ── SEQUENCER ── */}
@@ -1494,6 +1526,7 @@ export default function KickAndSnare(){
                   gInfo={gInfo}
                   isMuted={isM}
                   isSoloed={isS}
+                  isPortrait={isPortrait}
                   onStepDown={(step,e)=>{if(e.shiftKey&&handleShiftClick(track.id,step,e))return;startDrag(track.id,step,e);}}
                   onContextMenu={(step,e)=>e.preventDefault()}
                   onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
@@ -1507,6 +1540,22 @@ export default function KickAndSnare(){
               );
             })}
           </div>
+          {/* ── H.3: REC pads — appear when rec+playing in sequencer view ── */}
+          {recPadsVisible&&(<div style={{marginTop:8,borderRadius:10,background:"rgba(255,45,85,0.06)",border:"1px solid rgba(255,45,85,0.28)",padding:"8px 10px",animation:"slideDown 0.18s ease-out",opacity:rec&&playing?1:0,transition:"opacity 0.15s",pointerEvents:rec&&playing?"auto":"none"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7,background:"rgba(255,45,85,0.12)",padding:"5px 8px",borderRadius:6,border:"1px solid #FF2D55"}}>
+              <span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.15em",animation:"rb 0.8s infinite"}}>●</span>
+              <span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em"}}>REC — Joue les pads · les hits tombent dans la grille</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:isPortrait?`repeat(2,1fr)`:`repeat(${Math.min(4,atO.length)},1fr)`,gap:6}}>
+              {atO.map(tr=>(
+                <button key={tr.id} onPointerDown={e=>{e.preventDefault();trigPad(tr.id,e.pointerType==="mouse"?1:110/127);}}
+                  style={{height:52,borderRadius:10,background:flash===tr.id?tr.color+"44":`linear-gradient(145deg,${tr.color}1a,${tr.color}06)`,border:`1.5px solid ${flash===tr.id?tr.color:tr.color+"33"}`,color:tr.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===tr.id?`0 0 24px ${tr.color}55`:"none",transition:"all 0.06s",transform:flash===tr.id?"scale(0.94)":"scale(1)"}}>
+                  <DrumSVG id={tr.id} color={tr.color} hit={flash===tr.id} sz={18}/>
+                  <span style={{fontSize:8,fontWeight:700,letterSpacing:"0.06em"}}>{tr.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>)}
           <div style={{marginTop:6}}>
             {!showAdd?<button onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -1641,8 +1690,8 @@ export default function KickAndSnare(){
           const val0={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",flexShrink:0};
           const sep0={fontSize:10,color:th.faint,flexShrink:0};
           return(
-            <div style={{padding:"8px 0",overflowX:"auto"}}>
-              <div style={{display:"flex",gap:16,alignItems:"flex-start",minWidth:820}}>
+            <div style={{padding:"8px 0",overflowX:isPortrait?"visible":"auto"}}>
+              <div style={{display:"flex",flexDirection:isPortrait?"column":"row",gap:16,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
                 {/* ── LEFT: Track controls ── */}
                 <div style={{display:"flex",flexDirection:"column",gap:6,width:380,flexShrink:0}}>
                   <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em",marginBottom:2}}>EUCLIDEAN TRACKS</div>
@@ -1764,7 +1813,7 @@ export default function KickAndSnare(){
 
                 {/* ── RIGHT: Concentric rings SVG ── */}
                 <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flex:1}}>
-                  <svg width={380} height={380} style={{display:"block",overflow:"visible"}}>
+                  <svg width={isPortrait?320:380} height={isPortrait?320:380} style={{display:"block",overflow:"visible"}}>
                     <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;

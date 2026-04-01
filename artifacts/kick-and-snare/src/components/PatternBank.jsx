@@ -3,22 +3,29 @@ import { THEMES } from "../theme.js";
 export default function PatternBank({
   themeName, pBank, setPBank, cPat, setCPat,
   songChain, setSongChain, songMode, setSongMode, showSong, setShowSong,
-  playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R,
+  playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait=false,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
 
   return (
     <>
       {/* ── Pattern Bank ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8, padding: "5px 10px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
-        <span style={{ fontSize: 8, color: th.dim }}>PAT</span>
-        {pBank.map((_, i) => (
-          <button key={i} onClick={() => { setCPat(i); R.pat = pBank[i]; }} style={{ width: 28, height: 24, borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 800, border: `1px solid ${cPat === i ? SEC_COL[i % 8] + "66" : th.sBorder}`, background: cPat === i ? SEC_COL[i % 8] + "20" : "transparent", color: cPat === i ? SEC_COL[i % 8] : th.dim }}>{i + 1}</button>
-        ))}
-        {pBank.length < MAX_PAT && <button onClick={() => { setPBank(p => [...p, mkE(STEPS)]); setCPat(pBank.length); }} style={{ width: 24, height: 24, border: `1px dashed ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>}
-        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-          {pBank.length < MAX_PAT && <button onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }} style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>}
-          {pBank.length > 1 && <button onClick={() => { setPBank(p => p.filter((_, j) => j !== cPat)); if (cPat > 0) setCPat(cPat - 1); }} style={{ padding: "2px 6px", border: "1px solid rgba(255,55,95,0.2)", borderRadius: 5, background: "transparent", color: "#FF375F", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DEL</button>}
+      <div style={{ marginBottom: 8, padding: "5px 10px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+          <span style={{ fontSize: 8, color: th.dim }}>PAT</span>
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+            {pBank.length < MAX_PAT && <button onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }} style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>}
+            {pBank.length > 1 && <button onClick={() => { setPBank(p => p.filter((_, j) => j !== cPat)); if (cPat > 0) setCPat(cPat - 1); }} style={{ padding: "2px 6px", border: "1px solid rgba(255,55,95,0.2)", borderRadius: 5, background: "transparent", color: "#FF375F", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DEL</button>}
+          </div>
+        </div>
+        <div style={isPortrait
+          ? { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }
+          : { display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }
+        }>
+          {pBank.map((_, i) => (
+            <button key={i} onClick={() => { setCPat(i); R.pat = pBank[i]; }} style={{ width: isPortrait ? "100%" : 28, height: 24, borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 800, border: `1px solid ${cPat === i ? SEC_COL[i % 8] + "66" : th.sBorder}`, background: cPat === i ? SEC_COL[i % 8] + "20" : "transparent", color: cPat === i ? SEC_COL[i % 8] : th.dim }}>{i + 1}</button>
+          ))}
+          {pBank.length < MAX_PAT && <button onClick={() => { setPBank(p => [...p, mkE(STEPS)]); setCPat(pBank.length); }} style={{ width: isPortrait ? "100%" : 24, height: 24, border: `1px dashed ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>}
         </div>
       </div>
 

@@ -1,0 +1,994 @@
+Tu vas implémenter une série de 10 étapes sur l'application Kick & Snare.
+Règles absolues :
+- Valider chaque checkpoint avant de passer à l'étape suivante
+- Si un point du checkpoint échoue : corriger, revalider, puis commiter
+- Ne jamais passer à l'étape suivante sans commit validé
+- Ne jamais accéder à localStorage directement (useAppState uniquement dès F)
+- Ne jamais ajouter de keyframe inline (animations.css uniquement dès F)
+- Ne jamais appeler engine.init() directement (engine.ensureRunning() dès F)
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 0 — Correctif layout séquenceur
+═══════════════════════════════════════════════════════════════
+
+Corrige les problèmes de layout introduits par l'extraction de TrackRow.
+Ne touche pas à la logique audio, aux states React, au rendu Euclid/Pads.
+Fichiers concernés uniquement : KickAndSnare.jsx, TrackRow.jsx,
+TransportBar.jsx.
+
+1. CHEVAUCHEMENT steps/boutons :
+   Bloc label/contrôles gauche : width:190px, flexShrink:0 explicites.
+   Conteneur steps : flex:'1 1 0', minWidth:0, overflow:'hidden'.
+   Vérifie que TrackRow ne les écrase pas avec ses propres styles.
+
+2. BOUTON REC hors cadre :
+   TransportBar : flexWrap:'wrap', gap:6 sur le conteneur principal.
+   Supprime tout margin négatif ou position:absolute sur le bouton REC.
+
+3. RESPONSIVE mobile :
+   Si window.innerWidth < 600 : bloc gauche width:140px via style
+   conditionnel.
+
+CHECKPOINT CP-0 :
+□ Aucun chevauchement entre steps et boutons dans le séquenceur
+□ Bouton REC visible et dans le cadre du transport
+□ App tourne sans erreur dans la console browser
+□ Lecture audio fonctionne sur au moins 2 tracks
+COMMIT : "CP-0 : correctif layout séquenceur validé"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE H — Mobile : lag audio, portrait, REC pads
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-0 validé et commité.
+
+── PARTIE 1 : Lag audio sur mobile ──
+
+1a. Détecte mobile au mount :
+    const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent)
+      ||window.innerWidth<768;
+    const isMobileRef=useRef(isMobile);
+    R.isMobile=isMobileRef.current;
+
+    Dans schLoop() :
+    const LA=isMobileRef.current?0.18:0.1;
+    while(nxtRef.current<ct+LA)
+    setTimeout(schLoop,isMobileRef.current?20:25);
+
+1b. State audioReady (false).
+    Modifie engine._loadDefaults pour accepter un callback onReady :
+    engine._loadDefaults=async(onReady)=>{
+      const durs={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,
+                  tom:0.65,ride:0.45,crash:1.6,perc:0.65};
+      for(const [id,dur] of Object.entries(durs)){
+        try{
+          const sr=this.ctx.sampleRate;
+          const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
+          this._syn(id,0,1,oCtx.destination,oCtx);
+          this.buf[id]=await oCtx.startRendering();
+        }catch(e){console.warn('808 prerender failed:',id,e);}
+      }
+      onReady?.();
+    }
+    Au mount : engine.init(); engine._loadDefaults(()=>setAudioReady(true));
+    Tant que !audioReady : bouton Play disabled.
+    Barre chargement 2px en haut de page dans <style> existant :
+    @keyframes loadingBar{from{width:0%}to{width:100%}}
+    Note : cette keyframe migrera dans animations.css à l'étape F.
+
+1c. Dans engine.play(), si isMobileRef.current && !this.buf[id] :
+    this.renderShape(id,f).catch(()=>{});
+    return;
+
+1d. Libère noeuds après lecture :
+    s.onended=()=>{s.disconnect();g.disconnect();};
+
+── PARTIE 2 : Layout portrait responsive ──
+
+2a. Détecte orientation :
+    const [isPortrait,setIsPortrait]=useState(
+      window.innerHeight>window.innerWidth
+    );
+    useEffect(()=>{
+      const h=()=>setIsPortrait(window.innerHeight>window.innerWidth);
+      window.addEventListener('resize',h);
+      screen.orientation?.addEventListener('change',h);
+      return()=>{
+        window.removeEventListener('resize',h);
+        screen.orientation?.removeEventListener('change',h);
+      };
+    },[]);
+    Passe isPortrait en prop à TransportBar, TrackRow, PatternBank, FXRack.
+    Stocke dans R.isPortrait=isPortrait pour accès dans les closures.
+
+2b. TransportBar en portrait — 3 lignes :
+    Ligne 1 : Play · REC · BPM slider pleine largeur
+    Ligne 2 : TAP · SWING · TIME SIG · METRO · CLEAR
+    Ligne 3 : KEYB · MIDI · LINK
+    flexDirection:isPortrait?'column':'row'
+    Chaque ligne : flexDirection:'row', flexWrap:'wrap'
+
+2c. TrackRow en portrait :
+    rowStyle=isPortrait
+      ?{flexDirection:'column',width:'100%'}
+      :{flexDirection:'row',alignItems:'flex-start'};
+    stepsStyle=isPortrait
+      ?{width:'100%',overflowX:'auto',display:'flex',
+        scrollSnapType:'x mandatory',WebkitOverflowScrolling:'touch'}
+      :{flex:'1 1 0',minWidth:0,overflow:'hidden',display:'flex'};
+    Chaque step en portrait : scrollSnapAlign:'start',
+    minWidth:24px, height:32px.
+
+2d. Pattern bank en portrait :
+    display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:4
+
+2e. FX Rack en portrait :
+    flexDirection:isPortrait?'column':'row'
+
+2f. Vue Euclid en portrait :
+    SVG 320×320. Contrôles sous le SVG.
+    flexDirection:isPortrait?'column':'row'
+
+── PARTIE 3 : Pads dans le séquenceur en mode REC ──
+
+3a. Quand rec===true ET playing===true ET view==='sequencer' :
+    Affiche bloc pads sous la grille avant "+ ADD TRACK".
+    Grille 4 colonnes, aspectRatio:'1.2', fontSize labels:10px.
+
+3b. Dans <style> existant (migrera dans animations.css à l'étape F) :
+    @keyframes slideDown{
+      from{opacity:0;transform:translateY(-8px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}}
+    Conteneur pads : animation:'slideDown 0.2s ease-out'
+
+3c. Bannière au-dessus des pads :
+    Fond rgba(255,45,85,0.12), bordure #FF2D55.
+    "● REC — Joue les pads · les hits tombent dans la grille"
+    Point ● : animation:rb 0.8s infinite.
+
+3d. Chaque pad : trigPad(tid) — aucune nouvelle logique.
+
+3e. En portrait : gridTemplateColumns:'repeat(2,1fr)', min-height:72px.
+
+3f. State recPadsVisible reste true 150ms après rec→false.
+    opacity:0, transform:translateY(-4px) en 150ms puis unmount.
+
+CHECKPOINT CP-H :
+□ Barre de chargement audio s'affiche au démarrage puis disparaît
+□ 4 tracks actives : lecture stable sans lag sur tablette Android
+□ Rotation portrait : steps scrollables horizontalement sans coupure
+□ Rotation portrait : transport sur plusieurs lignes lisibles
+□ Mode REC actif : pads visibles sous la grille
+□ Tap sur un pad en REC : step s'allume dans la grille
+□ Pas d'erreur console
+COMMIT : "CP-H : mobile lag + portrait + REC pads validés"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE I — UX Euclid + UX globale
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-H validé et commité.
+
+── PARTIE 1 : Fix interactions Euclid ──
+
+1a. Zone de tap élargie sur chaque dot Euclid :
+    Avant le dot visible, ajoute un cercle transparent :
+    <circle
+      cx={vx} cy={vy}
+      r={Math.max(28,rv+20)}
+      fill="transparent"
+      style={{cursor:'pointer',touchAction:'none'}}
+      onPointerDown={mkVelDrag(tr.id,i,on,velPct)}
+    />
+    Le dot coloré visible reste inchangé.
+
+1b. Feedback visuel immédiat au pointerdown :
+    Ajoute state euclidTouchFeedback:{tid,step}|null.
+    Dans mkVelDrag au début : setEuclidTouchFeedback({tid:tr.id,step:i});
+    Dans onUp et dans le timer : setEuclidTouchFeedback(null);
+    Quand feedback actif sur ce dot :
+    <circle cx={vx} cy={vy} r={rv+12}
+      fill={tr.color} opacity={0.35}
+      style={{pointerEvents:'none'}}/>
+
+1c. Seuil de mouvement plus tolérant :
+    Dans mkVelDrag :
+    Math.abs(dx)>8||Math.abs(dy)>8 → Math.abs(dx)>14||Math.abs(dy)>14
+
+1d. Bouton EDIT dans la vue Euclid :
+    State euclidEditMode (false). R.euclidEdit=euclidEditMode.
+    Bouton "EDIT" pill #FFD60A à droite du titre "EUCLIDEAN TRACKS".
+    Quand euclidEditMode===true :
+    - r des dots augmenté de 40%
+    - Timer long-press passe à 600ms
+    - Badge "EDIT" clignote dans le coin du SVG (animation rb)
+    - Bouton affiche "DONE" couleur #30D158
+    Note : animation rb déjà dans <style> depuis H.
+
+── PARTIE 2 : UX globale ──
+
+2a. Undo/redo par swipe sur la grille :
+    Sur le conteneur principal de la grille de steps, ajoute :
+    onTouchStart : mémorise touchStartX, touchStartY, touchTarget
+    onTouchEnd :
+      const dx=e.changedTouches[0].clientX-touchStartX;
+      const dy=Math.abs(e.changedTouches[0].clientY-touchStartY);
+      // Swipe horizontal uniquement (pas de scroll vertical)
+      if(Math.abs(dx)>60&&dy<30&&!touchTarget.dataset.step){
+        if(dx<0){undo();setSwipeToast('↺ Annulé');}
+        else{redo();setSwipeToast('↻ Rétabli');}
+        setTimeout(()=>setSwipeToast(null),300);
+      }
+    State swipeToast:string|null.
+    Toast centré en haut de la grille, opacity:1 pendant 300ms.
+    Vérifie que e.target n'est pas un step div avant d'activer
+    (ajoute data-step="true" sur chaque step div dans TrackRow).
+
+2b. Volume master permanent dans le transport :
+    State masterVol (80, 0-100) dans KickAndSnare.
+    R.masterVol=masterVol.
+    Connecte à engine.mg : useEffect sur masterVol :
+    if(engine.ctx)engine.mg.gain.setTargetAtTime(
+      masterVol/100,engine.ctx.currentTime,0.02);
+    Knob VOL MASTER dans TransportBar entre METRO et CLEAR.
+    Props : masterVol, setMasterVol.
+    Drag vertical onPointerDown (ns-resize), double-tap reset à 80.
+    Note : masterVol sera ajouté à AppState à l'étape F.
+    Pour l'instant : state local dans KickAndSnare.
+
+2c. Nommage des patterns :
+    pBank[i]._name optionnel (string max 12 caractères).
+    State patNameEdit:number|null (index du pattern en édition).
+    Tap long (500ms) sur un bouton de pattern → setPatNameEdit(i).
+    Input inline à la place du bouton, onBlur/Enter → sauvegarde.
+    setPBank(pb=>{const n=[...pb];n[i]={...n[i],_name:value};return n;});
+    Bouton affiche _name tronqué si présent, sinon numéro.
+    Font-size 7px si nom, 10px si numéro.
+    Note : _name sera inclus dans encodePattern() à l'étape C.
+
+2d. Vue hybride Euclid + Séquenceur :
+    State view peut valoir 'hybrid' en plus de 'sequencer'/'euclid'/'pads'.
+    Bouton "⊞ HYBRID" dans les contrôles de vue.
+    En mode hybrid, layout côte à côte :
+    - Colonne gauche 40% : mini SVG Euclid 160×160
+      (même logique vue Euclid, dots proportionnellement réduits)
+    - Colonne droite 60% : grille séquenceur (même TrackRow)
+    Les deux vues partagent le même pBank[cPat] — toute modification
+    dans l'une se reflète dans l'autre en temps réel via les states
+    partagés existants (pas de duplication de state).
+    En portrait : SVG Euclid en haut (height:160), grille en dessous.
+    isPortrait passé aux deux sous-vues.
+
+2e. Indicateur de pattern actif dans le transport :
+    À côté du BPM, affiche :
+    pBank[cPat]._name || `PAT ${cPat+1}`
+    fontSize:8, couleur:SEC_COL[cPat%8].
+    Tap sur ce label → setShowSong(false) puis scroll/focus
+    sur la pattern bank (ref sur le conteneur pattern bank).
+
+CHECKPOINT CP-I :
+□ Tap sur un dot Euclid : zone confortable, pas de raté sur 10 taps
+□ Feedback flash visible au toucher sur les dots
+□ Tap rapide toggle sans déclencher le velocity picker
+□ Mode EDIT : dots plus grands, badge EDIT clignote
+□ Swipe gauche sur grille : undo avec toast "↺ Annulé"
+□ Swipe droit sur grille : redo avec toast "↻ Rétabli"
+□ Swipe vertical : ne déclenche pas undo/redo
+□ Knob VOL MASTER dans transport, drag fonctionne
+□ Double-tap VOL MASTER : reset à 80
+□ Tap long sur pattern : input de nom apparaît
+□ Nom affiché sur le bouton de pattern
+□ Vue HYBRID : modifications synchronisées entre les deux vues
+□ Portrait HYBRID : Euclid en haut, grille en dessous
+□ Indicateur de pattern actif visible dans transport
+COMMIT : "CP-I : UX Euclid + UX globale validés"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE F — Fondation partagée
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-I validé et commité.
+
+── PARTIE 0 : Infrastructure ──
+
+0a. Crée src/styles/animations.css.
+    Migre TOUTES les @keyframes existantes depuis <style> :
+    rb, slideDown, loadingBar (créées par H).
+    Ajoute :
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+    @keyframes mbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+    @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+    @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}}
+    @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}}
+    @keyframes stepPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+    @keyframes gradientShift{0%{background-position:0% center}100%{background-position:200% center}}
+    @keyframes bpmFlash{0%{transform:scale(1)}40%{transform:scale(1.2)}100%{transform:scale(1)}}
+    @keyframes haloRing{0%,100%{opacity:0.15}50%{opacity:0.45}}
+    Importe dans App.tsx : import './styles/animations.css'
+    Supprime la balise <style> inline de KickAndSnare.jsx.
+
+0b. Crée src/hooks/useAppState.ts :
+    interface AppState{
+      launched:boolean
+      tipsShown:string[]
+      lastTemplateId:string
+      lastBpm:number
+      usageSeconds:number
+      masterVol:number      // migré depuis le state local de I
+    }
+    Clé localStorage unique : 'ks_state'
+    Expose : state, setLaunched(), markTipShown(id),
+    setLastTemplate(id), addUsageTime(seconds), setMasterVol(v)
+    Au mount : si state.masterVol existe, initialise le state local
+    masterVol avec cette valeur (synchronisation depuis localStorage).
+
+0c. Dans Eng, ajoute ensureRunning() :
+    this._resumeP=null
+    async ensureRunning(){
+      if(!this.ctx)this.init();
+      if(this.ctx.state==='suspended'){
+        if(!this._resumeP)
+          this._resumeP=this.ctx.resume()
+            .finally(()=>this._resumeP=null);
+        await this._resumeP;
+      }
+    }
+    Remplace TOUS les engine.init() dans startStop(), trigPad(),
+    startLooper() par await engine.ensureRunning().
+    NE PAS toucher _loadDefaults() — déjà modifié par H.
+
+0d. Synchronise masterVol avec useAppState :
+    Dans le useEffect sur masterVol (créé à l'étape I) :
+    ajoute useAppState().setMasterVol(masterVol) après la mise à jour
+    de engine.mg.gain.
+
+── PARTIE 1 : REC amélioré ──
+
+1a. REC sans lecture :
+    Clic ● quand !playing → overlay countdown 1 barre →
+    après (60000/bpm*sig.beats)ms :
+    engine.ensureRunning()→startStop()→setRec(true)
+
+1b. Quantization snap dans trigPad() en REC :
+    const stepDur=(60/R.bpm)*R.sig.beats/R.sig.steps;
+    const elapsed=engine.ctx.currentTime-(nxtRef.current-stepDur);
+    const ratio=Math.max(0,Math.min(1,elapsed/stepDur));
+    const targetStep=ratio>0.5?(R.step+1)%R.sig.steps:R.step;
+
+1c. Feedback timing :
+    State recFeedback:{step,tid,color,label}|null, reset 400ms.
+    Vert(#30D158)+"✓" ratio 0.35-0.65
+    Orange(#FF9500)+"~" ratio 0.2-0.35 ou 0.65-0.8
+    Rouge(#FF2D55)+"!" sinon
+
+1d. Retap efface : p[tid][targetStep]=p[tid][targetStep]?0:1
+
+── PARTIE 2 : Looper exposé ──
+
+2a. Bouton "⊙ LOOP" transport pill #BF5AF2, état showLooper.
+
+2b. Crée src/components/LooperPanel.jsx :
+    Props:{loopBars,setLoopBars,loopRec,loopPlaying,loopPlayhead,
+    loopDisp,onToggleRec,onTogglePlay,onUndo,onClear,themeName,
+    isPortrait}
+    Sélecteur 1/2/4 bars · REC · PLAY · UNDO · CLEAR ·
+    barre progression · dots visualisation.
+    En portrait : layout vertical, boutons min 44px.
+    Utilise className pour toute animation (animations.css).
+
+2c. Dans startLooper() et toggleLoopRec() :
+    engine.init()→await engine.ensureRunning()
+
+2d. Tooltip looper via markTipShown('looper').
+
+CHECKPOINT CP-F :
+□ src/styles/animations.css importé sans erreur de build
+□ Aucune keyframe restante dans les balises <style> inline
+□ console.log(useAppState().state) retourne un objet valide avec masterVol
+□ engine.ensureRunning() ne casse pas la lecture
+□ Bouton LOOP visible, LooperPanel s'affiche
+□ REC activable sans lecture, countdown visible
+□ Feedback timing vert/orange/rouge après tap REC
+□ masterVol rechargé depuis localStorage au refresh
+□ Mascot drummer s'anime toujours correctement
+□ Vue HYBRID toujours fonctionnelle (pas de régression depuis I)
+COMMIT : "CP-F : fondation useAppState + ensureRunning + Looper validés"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE A — Templates séquenceur
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-F validé et commité.
+
+1. import {useAppState} from './hooks/useAppState';
+   const {state,setLastTemplate}=useAppState();
+
+2. Constante SEQ_TEMPLATES avant le composant :
+const SEQ_TEMPLATES=[
+  {name:"Boom Bap",genre:"Hip-Hop",bpm:90,
+   kick:[1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0],
+   snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+   hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]},
+  {name:"Four On The Floor",genre:"House/Techno",bpm:128,
+   kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+   snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+   hihat:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0]},
+  {name:"Trap",genre:"Trap",bpm:140,
+   kick:[1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0],
+   snare:[0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+   hihat:[1,1,0,1,1,0,1,0,1,1,0,1,1,0,1,1]},
+  {name:"Reggaeton",genre:"Latin",bpm:100,
+   kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0],
+   snare:[0,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0],
+   hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]},
+  {name:"Bossa Nova",genre:"Brazilian",bpm:110,
+   kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0],
+   snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+   hihat:[1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1]},
+  {name:"Afrobeat",genre:"Africa",bpm:105,
+   kick:[1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0],
+   snare:[0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,0],
+   hihat:[1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1]},
+  {name:"Drum & Bass",genre:"Electronic",bpm:174,
+   kick:[1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+   snare:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+   hihat:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]},
+  {name:"Funk",genre:"Funk/Soul",bpm:98,
+   kick:[1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0],
+   snare:[0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0],
+   hihat:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+];
+
+3. État showSeqTemplates (false).
+   Bouton "TEMPLATES" pill existant au-dessus de la pattern bank.
+
+4. Panel groupé par genre. Au clic :
+   setPBank, setBpm, setAct(kick/snare/hihat)
+   setLastTemplate(template.name) via useAppState
+   await engine.ensureRunning() puis startStop() si !playing
+   Ferme le panel.
+
+5. Bouton RANDOM : template aléatoire + toggle 2-3 steps par track.
+
+6. Zéro localStorage direct — useAppState uniquement.
+
+CHECKPOINT CP-A :
+□ Bouton TEMPLATES visible et cliquable
+□ Clic "Boom Bap" : kick/snare/hihat chargés, BPM=90, lecture démarre
+□ Clic "Trap" : pattern différent, BPM=140
+□ Bouton RANDOM produit un résultat différent à chaque clic
+□ localStorage 'ks_state' contient lastTemplateId après sélection
+□ Vue HYBRID : template chargé visible dans les deux colonnes
+□ Pas de régression sur la lecture audio
+COMMIT : "CP-A : templates séquenceur validés"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE E — Onboarding
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-A validé et commité.
+
+1. import {useAppState} from './hooks/useAppState';
+   const {state,setLaunched,markTipShown}=useAppState();
+
+2. Premier lancement (useEffect mount, une fois) :
+   if(!state.launched){
+     const bb=SEQ_TEMPLATES.find(t=>t.name==='Boom Bap');
+     if(bb){
+       setBpm(bb.bpm);
+       setPBank(pb=>{const n=[...pb];const cp={...n[0]};
+         cp.kick=[...bb.kick];cp.snare=[...bb.snare];
+         cp.hihat=[...bb.hihat];n[0]=cp;return n;});
+       setAct(a=>[...new Set([...a,'kick','snare','hihat'])]);
+     }
+     setTimeout(()=>engine.ensureRunning().then(()=>startStop()),800);
+     setLaunched();
+   }
+
+3. Overlay bienvenue (si !state.launched au mount) :
+   position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.88)'
+   display flex centré.
+   Titre gradient · sous-titre · 4 icônes :
+   ◆ Séquenceur | ⬡ Euclid | ⊞ Hybrid | ⊙ Looper
+   (inclut la vue Hybrid créée en I)
+   Bouton "C'est parti !" → setLaunched() + ferme.
+   Lien "Je connais déjà" → ferme sans action.
+   Transition opacity 300ms via state overlayVisible.
+
+4. Tooltips via markTipShown() — jamais localStorage direct :
+   'seq_steps'   → vue séquenceur : "Tape pour activer un son"
+   'euclid_n'    → vue Euclid : "N = steps, HITS = sons"
+   'euclid_edit' → vue Euclid : "Appuie sur EDIT pour placer
+                   facilement tes sons"
+   'pads_tap'    → vue Pads : "Joue en live !"
+   'hybrid_tip'  → vue Hybrid : "Dessine en cercles, affine
+                   en grille — le même pattern"
+   'looper_tip'  → géré dans LooperPanel
+   'swipe_undo'  → après 1er undo : "Swipe ← pour annuler,
+                   → pour rétablir"
+   Badge + flèche + ✕ → markTipShown(id).
+
+5. Footer dynamique :
+   Aucun step → "Tape sur une case pour placer un son"
+   Steps !playing → "Lance la lecture pour entendre"
+   playing <120s → "Drag ↕ sur un step = vélocité"
+   >120s → masqué. Temps via addUsageTime() du hook.
+
+6. Bouton "?" dans footer à droite (pas position:fixed).
+   Cheat-sheet inclut : swipe ←/→ pour undo/redo,
+   tap long sur pattern pour le nommer,
+   mode EDIT pour Euclid.
+
+CHECKPOINT CP-E :
+□ Vider localStorage 'ks_state' puis recharger :
+  overlay avec les 4 icônes visible
+□ Clic "C'est parti !" : overlay disparaît, Boom Bap joue
+□ Tooltip 'euclid_edit' visible à la 1ère visite Euclid
+□ Tooltip 'hybrid_tip' visible à la 1ère visite Hybrid
+□ Footer change de texte selon l'état de l'app
+□ Bouton "?" : cheat-sheet inclut swipe et mode EDIT
+□ État launched : rechargement n'affiche plus l'overlay
+COMMIT : "CP-E : onboarding validé"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE G — FX Rack complet
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-E validé et commité.
+
+── PARTIE 0 : Extension defFx() et Eng ──
+
+0a. Étends defFx() :
+    eqLow:0,eqMid:0,eqHigh:0,eqMidFreq:1000,onEq:false,
+    compAttack:5,compRelease:80,
+    driveMode:'tanh',driveBits:8,
+
+0b. Dans engine._build(id), chaîne étendue :
+    in→vol→eqLo→eqMid→eqHi→comp→drv→pan→sends
+    c.eqLo=ctx.createBiquadFilter();c.eqLo.type='lowshelf';
+    c.eqLo.frequency.value=200;
+    c.eqMid=ctx.createBiquadFilter();c.eqMid.type='peaking';
+    c.eqMid.frequency.value=1000;
+    c.eqHi=ctx.createBiquadFilter();c.eqHi.type='highshelf';
+    c.eqHi.frequency.value=8000;
+    c.comp=ctx.createDynamicsCompressor();
+    c.drv=ctx.createWaveShaper();c.drv.oversample='4x';
+
+0c. Dans engine.uFx(id,f) :
+    if(f.onEq){
+      c.eqLo.gain.setTargetAtTime(f.eqLow,t,0.02);
+      c.eqMid.gain.setTargetAtTime(f.eqMid,t,0.02);
+      c.eqMid.frequency.setTargetAtTime(f.eqMidFreq,t,0.02);
+      c.eqHi.gain.setTargetAtTime(f.eqHigh,t,0.02);
+    }else{[c.eqLo,c.eqMid,c.eqHi].forEach(n=>
+      n.gain.setTargetAtTime(0,t,0.02));}
+    if(f.onComp){
+      c.comp.threshold.setTargetAtTime(f.compThresh,t,0.02);
+      c.comp.ratio.setTargetAtTime(f.compRatio,t,0.02);
+      c.comp.attack.setTargetAtTime(f.compAttack/1000,t,0.02);
+      c.comp.release.setTargetAtTime(f.compRelease/1000,t,0.02);
+    }
+    if(f.onDrive&&f.driveAmt>0)
+      c.drv.curve=_buildDriveCurve(f.driveMode,f.driveAmt,f.driveBits);
+    else c.drv.curve=_buildDriveCurve('tanh',0,8);
+
+0d. Ajoute _buildDriveCurve(mode,amt,bits=8) dans Eng :
+    _buildDriveCurve(mode,amt,bits=8){
+      const n=8192,a=new Float32Array(n),d=amt/100;
+      for(let i=0;i<n;i++){
+        const x=i*2/n-1;
+        if(mode==='tanh'){const v=d*6;
+          a[i]=v>0?Math.tanh(x*(1+v))/Math.tanh(1+v):x;}
+        else if(mode==='tape'){const v=d*3;
+          a[i]=x*(1+v)/(1+v*Math.abs(x));}
+        else if(mode==='tube'){const v=d*4;
+          const s=Math.tanh(x*(1+v))/Math.tanh(1+v);
+          a[i]=s*(1+0.15*s);}
+        else if(mode==='bit'){
+          const steps=Math.pow(2,Math.max(2,
+            Math.round(bits*(1-d)+2*d)));
+          a[i]=Math.round(x*steps)/steps;}
+      }
+      return a;
+    }
+
+0e. Étends defGfx() :
+    reverb : ajoute type:'room'
+    filter : ajoute lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'
+    comp   : ajoute attack:5,release:80
+    drive  : ajoute mode:'tanh',bits:8
+    Ajoute :
+    mod:{on:false,type:'chorus',rate:1,depth:30,sends:{}}
+    sidechain:{on:false,source:'kick',amount:80,attack:2,release:150}
+    limiter:{on:true,ceiling:-0.1}
+
+0f. Dans engine.init() :
+    this.gFltLfo=ctx.createOscillator();
+    this.gFltLfoDpth=ctx.createGain();
+    this.gFltLfoDpth.gain.value=0;
+    this.gFltLfo.connect(this.gFltLfoDpth);
+    this.gFltLfoDpth.connect(this.gFlt.frequency);
+    this.gFltLfo.start();
+    this.gModBus=ctx.createGain();
+    this.gModDl=ctx.createDelay(0.05);
+    this.gModLfo=ctx.createOscillator();
+    this.gModLfoDpth=ctx.createGain();
+    this.gModFb=ctx.createGain();this.gModFb.gain.value=0;
+    this.gModLfo.connect(this.gModLfoDpth);
+    this.gModLfoDpth.connect(this.gModDl.delayTime);
+    this.gModBus.connect(this.gModDl);
+    this.gModDl.connect(this.gModFb);
+    this.gModFb.connect(this.gModDl);
+    this.gModDl.connect(this.gOut);
+    this.gModLfo.start();
+    this.gLim=ctx.createDynamicsCompressor();
+    this.gLim.threshold.value=-0.1;this.gLim.ratio.value=20;
+    this.gLim.attack.value=0.001;this.gLim.release.value=0.01;
+    this.gLim.knee.value=0;
+    this.gOut.disconnect();
+    this.gOut.connect(this.gLim);
+    this.gLim.connect(ctx.destination);
+    this.gScAnalyser=ctx.createAnalyser();
+    this.gScAnalyser.fftSize=256;
+
+0g. Améliore _mkRv(decay,size,type='room') :
+    plate : pre-delay 2-5ms, reflections denses, HF brillant
+    room  : algorithme existant
+    hall  : pre-delay 25-50ms, reflections espacées, queue longue
+
+0h. Dans engine.uGfx(gfx) :
+    if(gfx.filter.lfo){
+      this.gFltLfo.frequency.setTargetAtTime(gfx.filter.lfoRate,t,0.05);
+      this.gFltLfoDpth.gain.setTargetAtTime(
+        gfx.filter.lfoDepth*100,t,0.05);
+    }else{this.gFltLfoDpth.gain.setTargetAtTime(0,t,0.05);}
+    if(gfx.mod.on){
+      const dl=gfx.mod.type==='chorus'?0.025:0.005;
+      this.gModDl.delayTime.setTargetAtTime(dl,t,0.02);
+      this.gModLfo.frequency.setTargetAtTime(gfx.mod.rate,t,0.05);
+      this.gModLfoDpth.gain.setTargetAtTime(
+        dl*gfx.mod.depth/100,t,0.05);
+      this.gModFb.gain.setTargetAtTime(
+        gfx.mod.type==='flanger'?0.7:0,t,0.05);
+    }
+    this.gLim.threshold.setTargetAtTime(gfx.limiter.ceiling,t,0.02);
+
+── PARTIE 1 : UI FX par track (TrackRow.jsx) ──
+
+1a. Panel "FX TRACK" inline, 2 modes :
+    Simple : knobs LOW/MID/HI + toggle COMP +
+    sélecteur TANH/TAPE/TUBE/BIT
+    Avancé (bouton "▸") : EQ freq, Comp att/rel, bits
+    isPortrait → layout vertical.
+    Réutilise le composant Knob existant du FXRack.
+    Zéro <style> inline — animations.css uniquement.
+
+── PARTIE 2 : UI FX global (FXRack.jsx) ──
+
+2a. REVERB : sélecteur PLATE/ROOM/HALL.
+    engine.updateReverb(decay,size,type) au changement.
+
+2b. FILTER : toggle LFO.
+    Si on : RATE(0.1-8Hz) · DEPTH(0-100%) · SINE/TRI/SQ.
+
+2c. COMP : ajoute knobs ATT(1-100ms) et REL(20-500ms).
+
+2d. Section MOD (après DRIVE) :
+    Toggle · CHORUS/FLANGER/PHASER · RATE · DEPTH · SendRow.
+
+2e. Section SIDECHAIN :
+    Toggle · source track · AMOUNT(0-100%) · RELEASE(50-500ms)
+    Label "pumping" si on.
+
+2f. Section LIMITER (toujours visible) :
+    Knob CEILING(-6 à 0dBFS).
+    Indicateur rouge si engine.gLim.reduction < -0.5.
+
+2g. isPortrait → sections empilées verticalement.
+
+── PARTIE 3 : Cohérence ──
+engine.ensureRunning() partout dans FXRack et TrackRow.
+animations.css uniquement, zéro <style> inline.
+useAppState pour tout localStorage.
+
+CHECKPOINT CP-G :
+□ EQ : boost +12dB HIGH sur hihat change le son
+□ Drive TAPE vs TUBE vs BIT : 3 caractères distincts
+□ Reverb PLATE vs HALL : tails différentes
+□ Filter LFO : balayage audible
+□ Mod CHORUS : épaississement audible sur ride
+□ Sidechain : ducking sur les tracks cibles
+□ Limiter indicateur rouge si drive poussé à fond
+□ Pas de clic/artefact en togglant FX pendant la lecture
+□ 4 tracks + FX : pas de lag sur tablette
+□ Vue HYBRID : FX par track fonctionnels dans les deux colonnes
+□ Portrait : FX Rack empilé verticalement
+COMMIT : "CP-G : FX Rack complet validé"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE D — Identité visuelle
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-G validé et commité.
+RÈGLE ABSOLUE : zéro keyframe inline — animations.css uniquement.
+
+1. Vérifie que stepPulse, gradientShift, bpmFlash, haloRing
+   sont dans animations.css. Si manquants, les ajouter.
+
+2. THEMES.dark bg :
+   "linear-gradient(170deg,#0D0D1A 0%,#1A0A0F 50%,#0A0F1A 100%)"
+
+3. Steps actifs au cursor (TrackRow.jsx) :
+   Quand isCur && ac :
+   className="stepPulse"
+   boxShadow:`0 0 18px ${track.color},0 0 40px ${track.color}66,
+              inset 0 0 8px ${track.color}44`
+
+4. Header titre :
+   fontSize:24,fontWeight:900
+   background:"linear-gradient(90deg,#FF2D55,#FF9500,
+               #FFD60A,#30D158,#5E5CE6)"
+   backgroundSize:"200% auto"
+   animation:"gradientShift 4s linear infinite"
+
+5. BPM (TransportBar.jsx) :
+   fontSize:28,fontWeight:900
+   State bpmFlash + useEffect bpm → setBpmFlash(true) 150ms
+   className="bpmFlash" quand actif.
+
+6. Euclid dots actifs :
+   Second cercle SVG derrière le dot :
+   style={{animation:'haloRing 0.6s ease-in-out infinite'}}
+   Note : en mode EDIT (étape I), r augmenté de 40% — le halo
+   doit scaler proportionnellement (rv+12 devient (rv*1.4)+12).
+
+7. Nouveaux knobs FX (G) :
+   EQ → #30D158 · Sidechain → #FF2D55 · Mod → #5E5CE6
+   Limiter actif → #FF375F
+
+8. VOL MASTER (I) :
+   Le knob master dans TransportBar reçoit une couleur distincte
+   #FFD60A pour le distinguer des knobs vol par track.
+
+9. Vue HYBRID (I) :
+   Bordure de séparation entre les deux colonnes :
+   1px solid rgba(255,255,255,0.08) en dark mode.
+   Mini SVG Euclid : les dots actifs ont le même haloRing.
+
+10. Bannière REC pads (H) :
+    Le ● utilise animation:rb (de animations.css).
+
+CHECKPOINT CP-D :
+□ Gradient titre animé visible et fluide
+□ Steps pulsent au cursor (scale + glow)
+□ BPM flash au changement via tap tempo
+□ Dots Euclid ont un halo pulsé
+□ Mode EDIT Euclid : halo scalé proportionnellement
+□ Knob VOL MASTER en jaune #FFD60A dans transport
+□ Vue HYBRID : dots mini Euclid ont le halo
+□ Pas de flash/glitch au chargement initial
+□ 60fps sur tablette avec animations actives
+COMMIT : "CP-D : identité visuelle validée"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE B — Export WAV
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-D validé et commité.
+
+1. States : exportState:'idle'|'rendering', exportBars:1|2|4.
+
+2. Dans TransportBar.jsx :
+   Sélecteur 1/2/4 bars + bouton "EXPORT" pill #64D2FF.
+   Disabled si playing ou exportState==='rendering'.
+   En portrait : sur ligne séparée.
+
+3. Fonction encodeWAV(buffer) pure :
+   function encodeWAV(buffer){
+     const numCh=buffer.numberOfChannels,sr=buffer.sampleRate;
+     const samples=buffer.length,bps=16;
+     const ba=numCh*bps/8,byr=sr*ba,ds=samples*ba;
+     const ab=new ArrayBuffer(44+ds);
+     const v=new DataView(ab);
+     const ws=(o,s)=>[...s].forEach((c,i)=>
+       v.setUint8(o+i,c.charCodeAt(0)));
+     ws(0,'RIFF');v.setUint32(4,36+ds,true);
+     ws(8,'WAVE');ws(12,'fmt ');
+     v.setUint32(16,16,true);v.setUint16(20,1,true);
+     v.setUint16(22,numCh,true);v.setUint32(24,sr,true);
+     v.setUint32(28,byr,true);v.setUint16(32,ba,true);
+     v.setUint16(34,bps,true);ws(36,'data');
+     v.setUint32(40,ds,true);
+     let off=44;
+     for(let i=0;i<samples;i++)
+       for(let ch=0;ch<numCh;ch++){
+         const s=Math.max(-1,Math.min(1,
+           buffer.getChannelData(ch)[i]));
+         v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;
+       }
+     return ab;
+   }
+
+4. Fonction exportWAV() :
+   await engine.ensureRunning();
+   setExportState('rendering');
+   const dur=(60/bpm)*sig.beats*exportBars;
+   const sr=engine.ctx.sampleRate;
+   const offCtx=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);
+   const sd=dur/sig.steps;
+   atO.forEach(tr=>{
+     if(muted[tr.id])return;
+     if(soloed&&soloed!==tr.id)return;
+     for(let s=0;s<sig.steps;s++){
+       if(!pat[tr.id]?.[s])continue;
+       const vel=(stVel[tr.id]?.[s]??100)/100;
+       const nm=stNudge[tr.id]?.[s]||0;
+       const t=Math.max(0.001,s*sd+nm/1000);
+       const dst=offCtx.createGain();
+       dst.gain.value=vel;dst.connect(offCtx.destination);
+       const fo=fx[tr.id]||defFx();
+       engine._syn(tr.id,t,vel,dst,offCtx,
+         {sDec:fo.sDec??1,sTune:fo.sTune??1,
+          sPunch:fo.sPunch??1,sSnap:fo.sSnap??1,
+          sBody:fo.sBody??1,sTone:fo.sTone??1});
+     }
+   });
+   const rd=await offCtx.startRendering();
+   const wav=encodeWAV(rd);
+   const blob=new Blob([wav],{type:'audio/wav'});
+   const url=URL.createObjectURL(blob);
+   const a=document.createElement('a');
+   a.href=url;
+   const pName=pBank[cPat]._name||`PAT${cPat+1}`;
+   a.download=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar.wav`;
+   a.click();URL.revokeObjectURL(url);
+   setExportState('idle');
+   Note : le nom du pattern (I) est inclus dans le nom du fichier.
+
+CHECKPOINT CP-B :
+□ Bouton EXPORT visible, grisé pendant lecture
+□ Export 1 bar : fichier WAV téléchargé
+□ Nom de fichier inclut le nom du pattern si défini
+□ Fichier lisible dans un lecteur audio
+□ Durée correcte : 1 bar à 90 BPM ≈ 2.67s
+□ Stéréo : 2 canaux
+□ Pas de silence total dans le WAV
+□ Pas d'erreur console
+COMMIT : "CP-B : export WAV validé"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE C — Partage URL
+═══════════════════════════════════════════════════════════════
+
+PRÉREQUIS : CP-B validé et commité.
+
+1. State shareToast:'copied'|'loaded'|null.
+
+2. Fonction encodePattern() :
+   function encodePattern(pat,bpm,sw,sig,fx,gfx,act,sv,sn,
+                          tplId,pBank,cPat){
+     const tracks={};
+     act.forEach(tid=>{
+       const hits=(pat[tid]||[]).reduce((a,v,i)=>{
+         if(v)a.push({i,
+           v:(sv[tid]||[])[i]!==100?(sv[tid]||[])[i]:undefined,
+           n:(sn[tid]||[])[i]!==0?(sn[tid]||[])[i]:undefined});
+         return a;
+       },[]);
+       if(hits.length)tracks[tid]=hits;
+     });
+     return btoa(JSON.stringify({
+       v:2,b:bpm,sw:sw||undefined,s:sig.label,
+       t:tracks,
+       tpl:tplId||undefined,
+       pn:pBank[cPat]._name||undefined, // nom du pattern (I)
+       rv:gfx.reverb.on?gfx.reverb:undefined,
+       dl:gfx.delay.on?gfx.delay:undefined,
+       fl:gfx.filter.on?gfx.filter:undefined,
+       cp:gfx.comp.on?gfx.comp:undefined,
+       dr:gfx.drive.on?gfx.drive:undefined,
+       md:gfx.mod?.on?gfx.mod:undefined,
+       sc:gfx.sidechain?.on?gfx.sidechain:undefined,
+     }));
+   }
+
+3. decodePattern(e) :
+   try{return JSON.parse(atob(e));}catch{return null;}
+
+4. Mount useEffect — lit ?p= :
+   const p=new URLSearchParams(window.location.search).get('p');
+   if(p){
+     const data=decodePattern(p);
+     if(data?.v===2){
+       if(data.b)setBpm(data.b);
+       if(data.sw)setSwing(data.sw);
+       if(data.s){const ts=TIME_SIGS.find(x=>x.label===data.s);
+         if(ts)chSig(ts);}
+       if(data.tpl)useAppState().setLastTemplate(data.tpl);
+       if(data.t){
+         setPBank(pb=>{
+           const n=[...pb];const cp={...n[0]};
+           // Restaure le nom du pattern si présent
+           if(data.pn)cp._name=data.pn;
+           Object.entries(data.t).forEach(([tid,hits])=>{
+             const arr=Array(sig.steps).fill(0);
+             hits.forEach(h=>{arr[h.i]=1;});cp[tid]=arr;
+             setStVel(sv=>{
+               const nv={...sv,[tid]:Array(sig.steps).fill(100)};
+               hits.forEach(h=>{if(h.v)nv[tid][h.i]=h.v;});
+               return nv;
+             });
+             setStNudge(sn=>{
+               const nn={...sn,[tid]:Array(sig.steps).fill(0)};
+               hits.forEach(h=>{if(h.n)nn[tid][h.i]=h.n;});
+               return nn;
+             });
+           });
+           n[0]=cp;return n;
+         });
+         setAct(Object.keys(data.t));
+       }
+       if(data.rv||data.dl||data.fl||data.cp||data.dr
+          ||data.md||data.sc){
+         setGfx(g=>({...g,
+           reverb:data.rv?{...g.reverb,...data.rv}:g.reverb,
+           delay:data.dl?{...g.delay,...data.dl}:g.delay,
+           filter:data.fl?{...g.filter,...data.fl}:g.filter,
+           comp:data.cp?{...g.comp,...data.cp}:g.comp,
+           drive:data.dr?{...g.drive,...data.dr}:g.drive,
+           mod:data.md?{...(g.mod||{}),...data.md}:g.mod,
+           sidechain:data.sc?
+             {...(g.sidechain||{}),...data.sc}:g.sidechain,
+         }));
+       }
+       history.replaceState(null,'',location.pathname);
+       setShareToast('loaded');
+       setTimeout(()=>setShareToast(null),2500);
+     }
+   }
+
+5. Bouton SHARE dans transport :
+   const encoded=encodePattern(pat,bpm,swing,sig,fx,gfx,act,
+     stVel,stNudge,useAppState().state.lastTemplateId,pBank,cPat);
+   navigator.clipboard.writeText(
+     window.location.origin+'?p='+encoded
+   ).then(()=>{
+     setShareToast('copied');
+     setTimeout(()=>setShareToast(null),2000);
+   });
+
+6. Toast position:'sticky',bottom:0 (pas fixed — TWA Android) :
+   copied → fond #30D158 "Lien copié !"
+   loaded → fond #5E5CE6 "Pattern chargé depuis un partage !"
+   Transition opacity 300ms.
+
+CHECKPOINT CP-C :
+□ Bouton SHARE visible dans le transport
+□ Clic SHARE : toast "Lien copié !"
+□ Lien dans nouvel onglet : pattern se recharge
+□ BPM, time sig, pattern et nom identiques après chargement
+□ FX actifs restaurés (reverb, sidechain, etc.)
+□ Toast "Pattern chargé" visible
+□ URL nettoyée après chargement
+□ Lien invalide : app démarre normalement
+COMMIT : "CP-C : partage URL validé"
+
+═══════════════════════════════════════════════════════════════
+COMMIT FINAL ET VÉRIFICATIONS PLAY STORE
+═══════════════════════════════════════════════════════════════
+
+COMMIT : "RELEASE : Kick & Snare v9 — séquence complète validée"
+
+Vérifications finales sur tablette Android physique :
+□ Test complet en paysage sur tablette
+□ Test complet en portrait sur téléphone
+□ 8 tracks actives + FX : pas de lag
+□ Vue HYBRID : synchronisation correcte en temps réel
+□ Mode EDIT Euclid : 10 taps sans raté
+□ Swipe undo/redo fonctionnel
+□ Premier lancement (localStorage vide) : onboarding correct
+□ Export WAV 4 bars avec FX actifs : fichier lisible
+□ Lien partagé avec pattern nommé + FX : restauration complète
+□ Pas d'erreur dans console Android (chrome://inspect/#devices)
