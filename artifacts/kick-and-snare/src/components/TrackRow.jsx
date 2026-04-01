@@ -106,72 +106,62 @@ function TrackRow({
         {/* ── Left: two sub-columns side by side ── */}
         <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "row", gap: 3, alignItems: "flex-start" }}>
 
-          {/* Sub-col A: icon + label + VOL + PAN all inline */}
-          <div style={{ width: 92, flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
-            {/* Row: icon · label · VOL knob · PAN knob */}
+          {/* Sub-col A: Row1 = icon+label+VOL+PAN  |  Row2 = ◀BUS▶ + SND knob */}
+          <div style={{ width: 92, flexShrink: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Row 1: icon · label · VOL · PAN */}
             <div style={{ display: "flex", alignItems: "center", gap: 2, overflow: "hidden" }}>
               <DrumSVG id={track.id} color={track.color} hit={flash} />
               <span style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
-              {/* VOL knob — 18px rendered, viewBox 22 for arc math compatibility */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, flexShrink: 0 }}>
-                <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                  <div style={{ position: "relative", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
-                      <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
-                      <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * vol / 100} ${circ}`} />
-                    </svg>
-                    <span style={{ fontSize: 5, fontWeight: 900, color: track.color, zIndex: 1, pointerEvents: "none" }}>VOL</span>
-                  </div>
+              {/* VOL */}
+              <div style={{ flexShrink: 0 }}>
+                <div onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                  <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
+                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
+                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * vol / 100} ${circ}`} />
+                  </svg>
+                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>VOL</span>
                 </div>
                 <MidiTag id={`vol_${track.id}`} />
               </div>
-              {/* PAN knob — 18px rendered, viewBox 22 for panArc compatibility */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, flexShrink: 0 }}>
-                <div onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                  <div style={{ position: "relative", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
-                      <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
-                      {panArc && <path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" />}
-                      <circle cx="11" cy="11" r="1.5" fill={track.color} />
-                    </svg>
-                    <span style={{ fontSize: 5, fontWeight: 900, color: track.color, zIndex: 1, pointerEvents: "none" }}>PAN</span>
-                  </div>
+              {/* PAN */}
+              <div style={{ flexShrink: 0 }}>
+                <div onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                  <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
+                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
+                    {panArc && <path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" />}
+                    <circle cx="11" cy="11" r="1.5" fill={track.color} />
+                  </svg>
+                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>PAN</span>
                 </div>
                 <MidiTag id={`pan_${track.id}`} />
               </div>
             </div>
+            {/* Row 2: ◀ BUS ▶ · SND knob */}
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(-1); }} style={arrowBtnSt}>◀</button>
+              <span style={{ fontSize: 5.5, fontWeight: 900, letterSpacing: "0.06em", width: 22, textAlign: "center", lineHeight: 1, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", textShadow: sendAmt > 0 ? `0 0 5px ${fxColor}` : "none", transition: "color 0.15s,text-shadow 0.15s" }}>{fxLabel}</span>
+              <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(1); }} style={arrowBtnSt}>▶</button>
+              <div style={{ flexShrink: 0 }}>
+                <div onPointerDown={sendOnPD} onDoubleClick={() => onSendAmtChange?.(0)} title={`SEND→${fxLabel}: ${sendAmt}% — drag ↕ · dbl-click=0`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                  <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
+                    <circle cx="11" cy="11" r={r} fill="none" stroke={(sendAmt > 0 ? fxColor : "#ffffff") + "18"} strokeWidth="2.5" />
+                    {sendAmt > 0 && <circle cx="11" cy="11" r={r} fill="none" stroke={fxColor} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * sendAmt / 100} ${circ}`} style={{ filter: `drop-shadow(0 0 3px ${fxColor})` }} />}
+                  </svg>
+                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", pointerEvents: "none" }}>SND</span>
+                </div>
+                <MidiTag id={`snd_${track.id}`} />
+              </div>
+            </div>
           </div>
 
-          {/* Sub-col B: [M · S · CLR · ◀BUS▶ · SND knob · ♪ · ×] then [16st + name] */}
+          {/* Sub-col B: [M · S · CLR · ♪ · ×] then [16st + name] */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Row 1: MidiTag · M · S · CLR · SND selector · SND knob · ♪ · × */}
+            {/* Row 1: MidiTag · M · S · CLR · ♪ · × */}
             <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "nowrap" }}>
               <MidiTag id={track.id} />
               <button onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
               <button onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
               <button onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
-              {/* ── SND selector + knob inline ── */}
-              <div style={{ display: "flex", alignItems: "center", gap: 1, borderLeft: "1px solid rgba(255,255,255,0.07)", paddingLeft: 3 }}>
-                {/* Bus selector ◀ BUS ▶ */}
-                <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                  <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(-1); }} style={arrowBtnSt}>◀</button>
-                  <span style={{ fontSize: 5.5, fontWeight: 900, letterSpacing: "0.06em", width: 20, textAlign: "center", lineHeight: 1, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", textShadow: sendAmt > 0 ? `0 0 5px ${fxColor}` : "none", transition: "color 0.15s,text-shadow 0.15s" }}>{fxLabel}</span>
-                  <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(1); }} style={arrowBtnSt}>▶</button>
-                </div>
-                {/* SND amount knob — 18px inline */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-                  <div onPointerDown={sendOnPD} onDoubleClick={() => onSendAmtChange?.(0)} title={`SEND→${fxLabel}: ${sendAmt}% — drag ↕ · dbl-click=0`} style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                    <div style={{ position: "relative", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
-                        <circle cx="11" cy="11" r={r} fill="none" stroke={(sendAmt > 0 ? fxColor : "#ffffff") + "18"} strokeWidth="2.5" />
-                        {sendAmt > 0 && <circle cx="11" cy="11" r={r} fill="none" stroke={fxColor} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * sendAmt / 100} ${circ}`} style={{ filter: `drop-shadow(0 0 3px ${fxColor})` }} />}
-                      </svg>
-                      <span style={{ fontSize: 5, fontWeight: 900, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", zIndex: 1, pointerEvents: "none" }}>SND</span>
-                    </div>
-                  </div>
-                  <MidiTag id={`snd_${track.id}`} />
-                </div>
-              </div>
               <button onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
               {actLength > 1 && <button onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
