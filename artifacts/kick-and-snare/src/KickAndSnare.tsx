@@ -2216,7 +2216,7 @@ export default function KickAndSnare(){
     // Apply default kit for this euclid preset
     const kitId=TEMPLATE_KITS[tpl.id];
     if(kitId){const kit=DRUM_KITS.find(k=>k.id===kitId);if(kit)applyKit(kit);}
-    setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidean`);
+    setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidian`);
     setTimeout(()=>setSwipeToast(null),1400);
   };
 
@@ -2571,7 +2571,7 @@ export default function KickAndSnare(){
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
               <button data-hint="Séquenceur · Grille TR-808 pas-à-pas · Clic = on/off · Drag ↕ = vélocité · Long-press = probabilité" onClick={()=>view!=="sequencer"&&switchView("sequencer")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:view==="sequencer"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
-              <button data-hint="Séquenceur Euclidien · Distribue N frappes sur M pas de façon mathématique · Rythmes africains, polymètre" onClick={()=>view!=="euclid"&&switchView("euclid")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:view==="euclid"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLID</button>
+              <button data-hint="Séquenceur Euclidien · Distribue N frappes sur M pas de façon mathématique · Rythmes africains, polymètre" onClick={()=>view!=="euclid"&&switchView("euclid")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:view==="euclid"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLIDIAN</button>
             </div>
           </div>
         </div>
@@ -2995,7 +2995,7 @@ export default function KickAndSnare(){
                 {/* ── LEFT: Track controls ── */}
                 <div style={{display:"flex",flexDirection:"column",gap:6,width:380,flexShrink:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
-                    <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>EUCLIDEAN TRACKS</div>
+                    <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>EUCLIDIAN TRACKS</div>
                     <button data-hint={euclidEditMode?"Mode EDIT actif · Les dots euclidiens sont plus grands et modifiables · Clic DONE pour terminer":"Mode EDIT · Agrandit les dots pour les placer ou déplacer précisément · Clic pour activer"} onClick={()=>setEuclidEditMode(p=>!p)} style={{padding:"2px 8px",borderRadius:10,border:`1px solid ${euclidEditMode?"#30D158":"#FFD60A"}`,background:euclidEditMode?"#30D15818":"#FFD60A18",color:euclidEditMode?"#30D158":"#FFD60A",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}>{euclidEditMode?"DONE":"EDIT"}</button>
                   </div>
                   {atO.map((tr)=>{
@@ -3029,7 +3029,7 @@ export default function KickAndSnare(){
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button data-hint={hasSmp?`Sample: ${smpN[tr.id]} · Clic pour changer le fichier audio`:`Charger un sample audio pour la piste ${tr.label} (MP3, WAV, OGG)`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 <MidiTag id={tr.id}/>
                                 <button data-hint={`CLR · Efface tous les hits euclidiens de la piste ${tr.label} · Remet N=${p.N} hits=0`} onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
-                                {act.length>1&&<button data-hint={`Retirer la piste ${tr.label} de la vue Euclid`} onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                                {act.length>1&&<button data-hint={`Retirer la piste ${tr.label} de la vue Euclidian`} onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 2: VOL knob + PAN knob + template dropdown — hidden when folded */}
                               <div style={{display:p.fold?"none":"flex",alignItems:"center",gap:6}}>
@@ -3283,7 +3283,7 @@ export default function KickAndSnare(){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,width:"100%"}}>
             {[
               {icon:"◆",label:"Séquenceur",desc:"Place tes sons\nstep by step",col:"#FF2D55"},
-              {icon:"⬡",label:"Euclid",desc:"Rythmes\nalgorithmiques",col:"#FFD60A"},
+              {icon:"⬡",label:"Euclidian",desc:"Rythmes\nalgorithmiques",col:"#FFD60A"},
               {icon:"⊙",label:"Looper",desc:"Enregistre\nen live",col:"#BF5AF2"},
               {icon:"⊞",label:"Live Pads",desc:"Joue\nen temps réel",col:"#5E5CE6"},
             ].map(({icon,label,desc,col})=>(
@@ -3329,7 +3329,7 @@ export default function KickAndSnare(){
                 {key:"THEME",desc:"Bascule entre le thème sombre et le thème diurne. Préférence purement visuelle."},
                 {key:"LIVE PADS",desc:"Active la vue Pads en direct : 8 pads colorés jouables au toucher ou clavier pour performer en temps réel."},
                 {key:"SEQUENCER",desc:"Vue principale : séquenceur pas-à-pas TR-808. Place des sons sur une grille de 16 ou 32 pas."},
-                {key:"⬡ EUCLID",desc:"Séquenceur euclidien algorithmique : distribue N frappes sur M pas avec une régularité mathématique (rythmes africains, polymètre)."},
+                {key:"⬡ EUCLIDIAN",desc:"Séquenceur euclidien algorithmique : distribue N frappes sur M pas avec une régularité mathématique (rythmes africains, polymètre)."},
               ]},
               {title:"Transport",color:"#30D158",icon:"▶",items:[
                 {key:"▶ / ■ (Espace)",desc:"Lance ou arrête la lecture. Le bouton vert pulse à chaque temps."},
@@ -3396,7 +3396,7 @@ export default function KickAndSnare(){
                 {key:"✕ CLEAR",desc:"Efface toute la boucle."},
                 {key:"⬇ WAV",desc:"Exporte la boucle en fichier WAV. Choisis 1×, 2× ou 4× répétitions."},
               ]},
-              {title:"Séquenceur Euclide",color:"#FFD60A",icon:"⬡",items:[
+              {title:"Séquenceur Euclidian",color:"#FFD60A",icon:"⬡",items:[
                 {key:"N (frappes)",desc:"Nombre de sons à distribuer dans le cycle."},
                 {key:"M (pas)",desc:"Longueur du cycle (nombre de subdivisions)."},
                 {key:"Offset",desc:"Décale le point de départ du motif euclidien (rotation)."},
@@ -3451,7 +3451,7 @@ export default function KickAndSnare(){
               ["Double-tap step","Reset"],
               ["Swipe ← / →","Undo / Redo"],
               ["Long-press PAT","Nommer le pattern"],
-              ["Vue EUCLID → EDIT","Placer les sons visuellement"],
+              ["Vue EUCLIDIAN → EDIT","Placer les sons visuellement"],
               ["VOL MASTER","Drag ↕ en jaune (transport)"],
             ].map(([k,v])=>(
               <div key={k} style={{display:"flex",flexDirection:"column",padding:"4px 0",borderBottom:`1px solid ${th.sBorder}`}}>

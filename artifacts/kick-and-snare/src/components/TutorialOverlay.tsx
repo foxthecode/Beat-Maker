@@ -172,7 +172,7 @@ function IlluEuclid() {
     <IlluImg
       src={`${BASE}tutorial/euclid-view.jpg`}
       clipTop={190} clipBottom={760}
-      label="Séquenceur Euclidien" labelColor="#FFD60A"
+      label="Séquenceur Euclidian" labelColor="#FFD60A"
     />
   );
 }
@@ -308,7 +308,7 @@ const STEPS = [
     Illu: IlluSequencer,
   },
   {
-    id:"euclid", icon:"⬡", title:"Séquenceur Euclidien", subtitle:"Rythmes algorithmiques",
+    id:"euclid", icon:"⬡", title:"Séquenceur Euclidian", subtitle:"Rythmes algorithmiques",
     color: COLORS.euclid,
     desc:"L'algorithme de Björklund distribue N frappes sur M pas avec une régularité mathématique — idéal pour les polymètres et les rythmes world music.",
     tips:[
@@ -524,7 +524,7 @@ export default function TutorialOverlay({
                     letterSpacing: "0.03em", lineHeight: 1.35,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                   }}>
-                    {s.title.replace("Bienvenue dans ", "").replace("Séquenceur Euclidien","Euclidien")}
+                    {s.title.replace("Bienvenue dans ", "").replace("Séquenceur Euclidian","Euclidian")}
                   </div>
                   {i === step && (
                     <div style={{ fontSize: 5.5, color: s.color + "77", marginTop: 1 }}>

@@ -65,7 +65,7 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
     <div ref={ref} style={{ position: "relative" }} onBlur={handleBlur} tabIndex={-1}>
       <button
         data-hint={isEuclid
-          ? `PRESETS Euclid · ${EUCLID_TEMPLATES.length} polyrhythmes prêts à l'emploi · Clic pour parcourir et charger un preset`
+          ? `PRESETS Euclidian · ${EUCLID_TEMPLATES.length} polyrhythmes prêts à l'emploi · Clic pour parcourir et charger un preset`
           : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} patterns TR-808 (Hip-hop, Techno, Jazz…) · Clic pour parcourir · Variante ${variant} pas`}
         onClick={toggle}
         style={{
@@ -98,7 +98,7 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
             background: "rgba(255,255,255,0.02)",
           }}>
             <span style={{ fontSize: 8, color: accentColor, fontWeight: 800, letterSpacing: "0.08em", flex: 1 }}>
-              {isEuclid ? "⬡ EUCLIDEAN PRESETS" : "■ STEP TEMPLATES"}
+              {isEuclid ? "⬡ EUCLIDIAN PRESETS" : "■ STEP TEMPLATES"}
             </span>
             {!isEuclid && (
               <span style={{ fontSize: 7, color: th.faint }}>{variant} steps</span>
