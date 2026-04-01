@@ -1746,7 +1746,6 @@ export default function KickAndSnare(){
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
-          exportState={exportState} exportBars={exportBars} setExportBars={setExportBars} onExport={exportWAV}
         />
 
         {/* ── Time Signature ── */}
@@ -1963,8 +1962,6 @@ export default function KickAndSnare(){
                   onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
                   themeName={themeName} isPortrait={isPortrait}
                   bpm={bpm} tracks={atO}
-                  onExportLoop={exportLooperWAV} loopExportState={loopExportState}
-                  loopExportReps={loopExportReps} setLoopExportReps={setLoopExportReps}
                   onMoveHit={(idx,newTOff)=>{
                     const L=loopRef.current;
                     if(!L.events[idx])return;
