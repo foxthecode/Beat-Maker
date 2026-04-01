@@ -1552,7 +1552,27 @@ export default function KickAndSnare(){
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=[...rotated];n[cPat]=cp;return n;});
           };
           const clearTrack=(tid)=>{const N=getP(tid).N;writeP(tid,{hits:0,rot:0,tpl:""});setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=Array(N).fill(0);n[cPat]=cp;return n;});};
-          const chN=(tid,newN)=>{const p=getP(tid);const h=Math.min(p.hits,newN);const r=p.rot%newN;writeP(tid,{N:newN,hits:h,rot:r});applyE(tid,newN,h,r);};
+          const chN=(tid,newN)=>{
+            const p=getP(tid);
+            const h=Math.min(p.hits,newN);
+            const r=((p.rot%Math.max(newN,1))+Math.max(newN,1))%Math.max(newN,1);
+            // Detect manual overrides: steps ON in current pattern that Euclid didn't place
+            const curPat=pBank[cPat][tid]||[];
+            const oldN=p.N||STEPS;
+            const oldEucl=euclidRhythm(p.hits||0,oldN);
+            const oldR2=((p.rot%Math.max(oldN,1))+Math.max(oldN,1))%Math.max(oldN,1);
+            const oldRotated=[...oldEucl.slice(oldR2),...oldEucl.slice(0,oldR2)];
+            const manualOn=new Set<number>();
+            for(let i=0;i<oldN;i++){if((curPat[i]||0)>0&&!oldRotated[i])manualOn.add(i);}
+            // Build new Euclidean pattern
+            const raw=euclidRhythm(h,newN);
+            const r2=((r%Math.max(newN,1))+Math.max(newN,1))%Math.max(newN,1);
+            const merged=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+            // Re-apply manual overrides that still fit within the new length
+            manualOn.forEach(i=>{if(i<newN)merged[i]=curPat[i]||100;});
+            writeP(tid,{N:newN,hits:h,rot:r});
+            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:newN}};cp[tid]=[...merged];n[cPat]=cp;return n;});
+          };
           const chH=(tid,h)=>{const p=getP(tid);writeP(tid,{hits:h,tpl:""});applyE(tid,p.N,h,p.rot);};
           const chR=(tid,r)=>{
             const p=getP(tid);writeP(tid,{rot:r});
