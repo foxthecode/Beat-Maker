@@ -415,7 +415,7 @@ const STEPS = [
   {
     id:"welcome", icon:"K", title:"Bienvenue dans Kick & Snare", subtitle:"Drum Experience",
     color: COLORS.welcome,
-    desc:"Un séquenceur de batterie TR-808 complet dans le navigateur. Compose des patterns, performe en live, génère des rythmes euclidiens et exporte en WAV.",
+    desc:"Une expérience percussive complète. Compose des patterns, performe en live, génère des rythmes euclidiens.",
     tips:[
       {icon:"◆", text:"Séquenceur pas-à-pas TR-808 avec vélocité et probabilité"},
       {icon:"⬡", text:"Rythmes euclidiens algorithmiques pour polymètres complexes"},
