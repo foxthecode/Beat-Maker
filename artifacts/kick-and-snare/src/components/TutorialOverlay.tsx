@@ -312,6 +312,7 @@ const STEPS = [
       {icon:"◌", text:"Long-press = probabilité 0–100 % (aléatoire contrôlé)"},
       {icon:"↺", text:"Double-clic = réinitialiser le step aux valeurs par défaut"},
       {icon:"M", text:"M = Mute  ·  S = Solo  ·  CLR = effacer la piste entière"},
+      {icon:"◉", text:"Live REC — active ● REC puis lance la lecture : taper un pad inscrit ce son dans la grille au pas courant, en temps réel"},
     ],
     Illu: IlluSequencer,
   },
