@@ -208,7 +208,7 @@ export default function LooperPanel({
           const rect = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - rect.left;
           const raw = (x / rect.width) * loopDurMs;
-          const snapMs = loopDurMs / (loopBars * 16);
+          const snapMs = loopDurMs / (loopBars * 32);
           const snapped = Math.max(0, Math.min(loopDurMs - snapMs, Math.round(raw / snapMs) * snapMs));
           onAddHit(effectiveAddTid, snapped);
         };
@@ -298,7 +298,7 @@ export default function LooperPanel({
                     const rect = gridEl.getBoundingClientRect();
                     const startX = e.clientX;
                     const startTOff = ev.tOff;
-                    const snapMs = loopDurMs / (loopBars * 16);
+                    const snapMs = loopDurMs / (loopBars * 32);
                     let moved = false;
                     const mv = me => {
                       if (Math.abs(me.clientX - startX) > 3) moved = true;
