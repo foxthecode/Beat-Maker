@@ -611,7 +611,8 @@ export default function KickAndSnare(){
       if(!engine.ctx){beatRafRef.current=requestAnimationFrame(tick);return;}
       const elapsed=Math.max(0,engine.ctx.currentTime-playStartRef.current);
       const beatDur=60/Math.max(30,R.bpm);const tb=elapsed/beatDur;
-      setBeatViz({beat:Math.floor(tb)%nb,frac:tb-Math.floor(tb),numBeats:nb});
+      const totalBeat=Math.floor(tb);
+      setBeatViz({beat:totalBeat,frac:tb-totalBeat,numBeats:nb});
       beatRafRef.current=requestAnimationFrame(tick);
     };beatRafRef.current=requestAnimationFrame(tick);
     return()=>{if(beatRafRef.current)cancelAnimationFrame(beatRafRef.current);};
