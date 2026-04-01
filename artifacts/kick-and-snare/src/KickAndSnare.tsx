@@ -421,16 +421,77 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
       {midiId&&<MidiTag id={midiId}/>}
     </div>
   );
-  const SendRow=({sec,color})=>(
-    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
-      {tracks.map(t=>(
-        <label key={t.id} style={{display:"flex",alignItems:"center",gap:3,cursor:"pointer"}}>
-          <input type="checkbox" checked={!!gfx[sec].sends[t.id]} onChange={e=>upSend(sec,t.id,e.target.checked)} style={{accentColor:color,width:10,height:10,margin:0}}/>
-          <span style={{fontSize:7,fontWeight:700,color:gfx[sec].sends[t.id]?color:th.faint}}>{(t.label||t.id).slice(0,2).toUpperCase()}</span>
-        </label>
-      ))}
-    </div>
-  );
+  // ── SendRing — circular send bus selector ──────────────────────────────────
+  // Destinations: MASTER + all active tracks. Drag ring or use ◀ ▶ arrows to move
+  // cursor; click dot or toggle button to activate/deactivate that destination.
+  const SendRing=({sec,color})=>{
+    const [cursor,setCursor]=useState(0);
+    const dests=[{id:"_master",label:"MST"},...tracks.map(t=>({id:t.id,label:(t.label||t.id).slice(0,3).toUpperCase()}))];
+    const n=dests.length;
+    const R=20,SZ=52,cx=SZ/2,cy=SZ/2;
+    const isOn=id=>!!gfx[sec].sends[id];
+    const tog=id=>upSend(sec,id,!gfx[sec].sends[id]);
+    const prev=()=>setCursor(c=>(c-1+n)%n);
+    const next=()=>setCursor(c=>(c+1)%n);
+    const curDest=dests[cursor];
+    const arw={padding:"1px 5px",borderRadius:4,border:"1px solid rgba(255,255,255,0.12)",
+      background:"transparent",color:"rgba(255,255,255,0.4)",fontSize:8,cursor:"pointer",
+      fontFamily:"inherit",lineHeight:1.2,flexShrink:0};
+    const onMouseDown=e=>{
+      e.preventDefault();
+      const rect=e.currentTarget.getBoundingClientRect();
+      const mv=ev=>{
+        const dx=ev.clientX-(rect.left+cx),dy=ev.clientY-(rect.top+cy);
+        const ang=((Math.atan2(dy,dx)+Math.PI/2)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+        setCursor(Math.round(ang/(2*Math.PI)*n)%n);
+      };
+      const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};
+      window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
+    };
+    return(
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,marginTop:8,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+        <span style={{fontSize:5.5,color:"rgba(255,255,255,0.22)",letterSpacing:"0.1em",fontWeight:700}}>SEND BUS</span>
+        <div style={{display:"flex",alignItems:"center",gap:4}}>
+          <button onClick={prev} style={arw}>◀</button>
+          <svg width={SZ} height={SZ} onMouseDown={onMouseDown} style={{cursor:"grab",display:"block",touchAction:"none"}}>
+            {/* Background ring */}
+            <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={6}/>
+            {/* Active blobs on ring */}
+            {dests.map((d,i)=>{
+              if(!isOn(d.id))return null;
+              const a=(i/n)*2*Math.PI-Math.PI/2;
+              return<circle key={i} cx={cx+R*Math.cos(a)} cy={cy+R*Math.sin(a)} r={4.5} fill={color} opacity={0.85}/>;
+            })}
+            {/* Cursor spoke */}
+            {(()=>{const a=(cursor/n)*2*Math.PI-Math.PI/2;return<line x1={cx} y1={cy} x2={cx+(R-2)*Math.cos(a)} y2={cy+(R-2)*Math.sin(a)} stroke={color+"70"} strokeWidth={1.5} strokeDasharray="2,2"/>;})()}
+            {/* Destination dots */}
+            {dests.map((d,i)=>{
+              const a=(i/n)*2*Math.PI-Math.PI/2;
+              const dx=cx+R*Math.cos(a),dy=cy+R*Math.sin(a);
+              const focused=i===cursor,active=isOn(d.id);
+              return(
+                <g key={i} onClick={()=>tog(d.id)} style={{cursor:"pointer"}}>
+                  <circle cx={dx} cy={dy} r={focused?5.5:3.2}
+                    fill={active?color:"rgba(255,255,255,0.09)"}
+                    stroke={focused?color:"none"} strokeWidth={1.5} opacity={focused?1:active?0.9:0.5}/>
+                </g>
+              );
+            })}
+            {/* Center */}
+            <circle cx={cx} cy={cy} r={10} fill={isOn(curDest.id)?color+"18":"rgba(255,255,255,0.03)"} stroke={isOn(curDest.id)?color+"50":"rgba(255,255,255,0.07)"} strokeWidth={1}/>
+            <text x={cx} y={cy+2.5} textAnchor="middle" fontSize={5.5} fontFamily="monospace" fill={isOn(curDest.id)?color:"rgba(255,255,255,0.35)"} fontWeight="bold">{curDest.label}</text>
+          </svg>
+          <button onClick={next} style={arw}>▶</button>
+        </div>
+        <button onClick={()=>tog(curDest.id)} style={{
+          padding:"2px 10px",borderRadius:4,fontFamily:"inherit",fontSize:6.5,fontWeight:800,cursor:"pointer",letterSpacing:"0.08em",
+          border:`1px solid ${isOn(curDest.id)?color+"80":"rgba(255,255,255,0.1)"}`,
+          background:isOn(curDest.id)?color+"1a":"transparent",
+          color:isOn(curDest.id)?color:"rgba(255,255,255,0.3)",
+        }}>{isOn(curDest.id)?"● SEND ON":"○ ADD SEND"}</button>
+      </div>
+    );
+  };
 
   const activeCount=["reverb","delay","filter","comp","drive"].filter(s=>gfx[s].on).length;
   return(
@@ -477,7 +538,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="DECAY" value={gfx.reverb.decay} min={0.1} max={6} color="#64D2FF" unit="s" fmt={v=>v.toFixed(1)} onChange={v=>{upSec("reverb","decay",v);if(engine.ctx)engine.updateReverb(v,gfx.reverb.size);}}/><MidiTag id="__rev_decay__"/></div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="SIZE" value={gfx.reverb.size} min={0} max={1} color="#64D2FF" fmt={v=>(v*100).toFixed(0)} unit="%" onChange={v=>{upSec("reverb","size",v);if(engine.ctx)engine.updateReverb(gfx.reverb.decay,v);}}/><MidiTag id="__rev_size__"/></div>
                 </div>
-                <SendRow sec="reverb" color="#64D2FF"/>
+                <SendRing sec="reverb" color="#64D2FF"/>
               </div>
               <Sep/>
               {/* DELAY */}
@@ -501,7 +562,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   )}
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1}}><Knob label="FDBK" value={gfx.delay.fdbk} min={0} max={95} color="#30D158" fmt={v=>Math.round(v)} unit="%" onChange={v=>upSec("delay","fdbk",v)}/><MidiTag id="__dly_fdbk__"/></div>
                 </div>
-                <SendRow sec="delay" color="#30D158"/>
+                <SendRing sec="delay" color="#30D158"/>
               </div>
             </div>
           </div>
