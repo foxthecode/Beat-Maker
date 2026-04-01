@@ -986,7 +986,6 @@ export default function KickAndSnare(){
     // ── Linear / Pads: global step scheduler ──
     const cs=R.sig;const gr=cs.groups||[cs.steps];
     if(nxtRef.current<ct-0.05)nxtRef.current=ct+0.02; // resync if stale (e.g. switching from Euclid)
-    let stepped=false;
     while(nxtRef.current<ct+LA){
       const prevStep=R.step;
       R.step=(R.step+1)%cs.steps;
@@ -998,11 +997,11 @@ export default function KickAndSnare(){
       }
       const st=nxtRef.current;schSt(R.step,st);
       if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);const sd=cs.subDiv||1;if(gs.y)playClk(st,gs.f?"accent":"beat");else if(R.step%sd===0)playClk(st,"sub");}
-      stepped=true;
+      // Delay visual step update to match actual audio playback time (avoid visual running ahead of sound)
+      {const capturedStep=R.step;const vizDelay=Math.max(0,(st-ct)*1000-8);if(vizDelay<5)setCStep(capturedStep);else setTimeout(()=>setCStep(capturedStep),vizDelay);}
       const bd=cs.stepDiv?(60/R.bpm)/cs.stepDiv:(60/R.bpm)*cs.beats/cs.steps;
       const sw=bd*(R.sw/100);nxtRef.current+=R.step%2===0?(bd-sw):(bd+sw);
     }
-    if(stepped)setCStep(R.step);
     {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
   },[schSt]);
 
