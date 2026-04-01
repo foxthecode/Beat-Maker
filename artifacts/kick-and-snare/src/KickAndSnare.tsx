@@ -913,12 +913,17 @@ export default function KickAndSnare(){
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
     flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
-    // Looper recording
-    const now=performance.now();
-    if(R.loopRec&&loopRef.current.perfStart!==null){
+    // Looper recording — use audio clock (ctx.currentTime) to stay in the same
+    // time domain as the scheduler. performance.now() has a capture-order bias
+    // vs audioStart (set one line earlier) that makes hits sound slightly early.
+    if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
       const L=loopRef.current;
-      let tOff=(now-L.perfStart)%L.lengthMs;
-      // AUTO-Q: snap to nearest 1/16th of loop length on capture
+      // Subtract output + base latency so the hit aligns with the heard beat,
+      // not with the moment the user's finger touched the screen.
+      const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0.02);
+      const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
+      let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
+      // AUTO-Q: snap to nearest subdivision on capture
       if(autoQRef.current&&L.lengthMs>0){
         const snapMs=L.lengthMs/(R.loopBars*16);
         tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));
