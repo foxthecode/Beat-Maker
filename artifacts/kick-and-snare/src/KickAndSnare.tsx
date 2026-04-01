@@ -591,7 +591,7 @@ export default function KickAndSnare(){
   const [showLooper,setShowLooper]=useState(false);
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
-  const [loopMetro,setLoopMetro]=useState(false);
+  const [loopMetro,setLoopMetro]=useState(true);
   // masterVol → engine gain + localStorage (0d)
   useEffect(()=>{
     if(engine.ctx)engine.mg.gain.setTargetAtTime(masterVol/100,engine.ctx.currentTime,0.02);
