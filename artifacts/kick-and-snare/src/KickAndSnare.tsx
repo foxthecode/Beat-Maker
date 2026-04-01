@@ -819,12 +819,14 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
   const handleMoveLeft=(idx:number)=>{if(idx===0)return;const n=[...fxChainOrder];[n[idx-1],n[idx]]=[n[idx],n[idx-1]];setFxChainOrder(n);onChainOrderChange(n);};
   const handleMoveRight=(idx:number)=>{if(idx===fxChainOrder.length-1)return;const n=[...fxChainOrder];[n[idx],n[idx+1]]=[n[idx+1],n[idx]];setFxChainOrder(n);onChainOrderChange(n);};
   const loadPreset=(preset:any)=>{
-    setGfx(()=>{
-      const ng=JSON.parse(JSON.stringify(preset.gfx));
-      if(engine.ctx)setTimeout(()=>{engine.uGfx(ng);engine.updateReverb(ng.reverb.decay,ng.reverb.size,ng.reverb.type);},20);
-      return ng;
-    });
+    const ng=JSON.parse(JSON.stringify(preset.gfx));
+    setGfx(ng);
     setShowPresets(false);
+    setOpen(true);
+    if(engine.ctx){
+      engine.uGfx(ng);
+      engine.updateReverb(ng.reverb.decay,ng.reverb.size,ng.reverb.type||'room');
+    }
   };
 
   // SVG circular knob (drag up/down)
@@ -1348,6 +1350,15 @@ export default function KickAndSnare(){
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
   },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
+  // Apply gfx the moment the audio engine first becomes ready (e.g. preset loaded before first play)
+  const gfxRef=useRef(gfx);
+  useEffect(()=>{gfxRef.current=gfx;},[gfx]);
+  useEffect(()=>{
+    if(isAudioReady&&engine.ctx){
+      engine.uGfx(gfxRef.current);
+      engine.updateReverb(gfxRef.current.reverb?.decay??1.5,gfxRef.current.reverb?.size??0.5,gfxRef.current.reverb?.type||'room');
+    }
+  },[isAudioReady]);
   // BPM sync for delay and ping-pong — recalculate time when BPM or syncDiv changes
   useEffect(()=>{
     setGfx(p=>{
