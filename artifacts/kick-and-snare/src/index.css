@@ -9,4 +9,20 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   background: #F5F3EE;
+  /* Prevent iOS callout + Android copy bubble on long-press across the whole app */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Re-allow text selection only where it makes sense (inputs) */
+input, textarea {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Suppress native context menu on interactive app elements */
+button, [role="button"], canvas, svg {
+  -webkit-touch-callout: none;
 }

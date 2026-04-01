@@ -1782,7 +1782,7 @@ export default function KickAndSnare(){
                             const rv=(cur?dotR+2:dotR)+(on?Math.round((velPct/100)*3):0);
                             const vOp=on?0.3+(velPct/100)*0.7:0.45;
                             return(
-                              <g key={i} onPointerDown={mkVelDrag(tr.id,i,on,velPct)} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none"}}>
+                              <g key={i} onPointerDown={mkVelDrag(tr.id,i,on,velPct)} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none",WebkitTouchCallout:"none"}}>
                                 {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"28":"11")}/>}
                                 <circle cx={vx} cy={vy} r={rv}
                                   fill={on?tr.color:(cur?tr.color+"33":th.stepOff)}
