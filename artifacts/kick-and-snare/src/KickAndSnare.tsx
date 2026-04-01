@@ -1071,6 +1071,21 @@ export default function KickAndSnare(){
         }
       }
     });
+    // Metro clicks synced to loop when metro is on
+    if(R.metro){
+      const beatSec=60/Math.max(30,R.bpm);
+      const sigBeats=R.sig?.beats||4;
+      const nextBeat=Math.ceil((now+0.005)/beatSec)*beatSec;
+      for(let bt=nextBeat;bt<now+ahead;bt+=beatSec){
+        const bKey=`lm:${Math.round(bt*1000)}`;
+        if(!L.scheduled.has(bKey)){
+          L.scheduled.add(bKey);
+          const bInBar=Math.round(bt/beatSec)%sigBeats;
+          playClk(bt,bInBar===0?"accent":"beat");
+          setTimeout(()=>L.scheduled.delete(bKey),(bt-now+1)*1000);
+        }
+      }
+    }
     L.schTimer=setTimeout(loopSchedFn,25);
   };
   const startLooper=async(isRec=false)=>{
@@ -1311,7 +1326,7 @@ export default function KickAndSnare(){
             <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",boxShadow:"0 0 20px rgba(255,45,85,0.3)"}}>K</div>
             <div>
               <div style={{fontSize:18,fontWeight:800,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>KICK & SNARE</div>
-              <div style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM SEQUENCER</div>
+              <div style={{fontSize:9,letterSpacing:"0.4em",color:th.dim}}>DRUM EXPERIENCE</div>
             </div>
           </div>
           {/* Animated drummer mascot + UNDO/REDO */}

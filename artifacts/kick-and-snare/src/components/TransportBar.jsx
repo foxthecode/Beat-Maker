@@ -84,21 +84,18 @@ export default function TransportBar({
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         onClick={startStop}
-        disabled={!isAudioReady}
         style={{
           width: 44, height: 44, borderRadius: "50%", border: "none",
-          background: !isAudioReady
-            ? "rgba(80,80,80,0.4)"
-            : playing
-              ? "linear-gradient(135deg,#FF2D55,#FF375F)"
-              : "linear-gradient(135deg,#30D158,#34C759)",
-          color: "#fff", fontSize: 16, cursor: isAudioReady ? "pointer" : "default",
+          background: playing
+            ? "linear-gradient(135deg,#FF2D55,#FF375F)"
+            : "linear-gradient(135deg,#30D158,#34C759)",
+          color: "#fff", fontSize: 16, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: !isAudioReady ? "none" : playing ? "0 0 20px rgba(255,45,85,0.4)" : "0 0 20px rgba(48,209,88,0.4)",
-          opacity: isAudioReady ? 1 : 0.55, transition: "opacity 0.25s",
+          boxShadow: playing ? "0 0 20px rgba(255,45,85,0.4)" : "0 0 20px rgba(48,209,88,0.4)",
+          transition: "all 0.15s",
         }}
       >
-        {!isAudioReady ? "…" : playing ? "■" : "▶"}
+        {playing ? "■" : "▶"}
       </button>
       <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__play__" /></div>
     </div>

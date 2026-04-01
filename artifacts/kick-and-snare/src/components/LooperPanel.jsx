@@ -86,19 +86,6 @@ export default function LooperPanel({
         )}
       </div>
 
-      {/* Progress bar */}
-      <div style={{ position: "relative", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", marginBottom: 10, overflow: "hidden" }}>
-        <div style={{
-          position: "absolute", left: 0, top: 0, bottom: 0,
-          width: `${loopPlayhead * 100}%`,
-          background: loopRec
-            ? "linear-gradient(90deg, #FF2D55, #BF5AF2)"
-            : "linear-gradient(90deg, #BF5AF2, #5E5CE6)",
-          borderRadius: 3,
-          transition: "width 0.025s linear",
-        }} />
-      </div>
-
       {/* Dots visualisation */}
       {loopDisp && loopDisp.length > 0 && (
         <div style={{ position: "relative", height: 20, marginBottom: 10, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
