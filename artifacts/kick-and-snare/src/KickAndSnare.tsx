@@ -364,7 +364,11 @@ class Eng{
     // H.1c: mobile — if no buffer yet, trigger async render then bail
     if(this.isMobile&&!this.buf[id]){this.renderShape(id,f).catch(()=>{});return;}
     if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();};} // H.1d
-    else this._syn(id,t,vel,c.in);
+    else{
+      // Pass shape params from fx object so _syn respects kit timbre even before buffer exists
+      const sh=f?{sDec:f.sDec??1,sTune:f.sTune??1,sPunch:f.sPunch??1,sSnap:f.sSnap??1,sBody:f.sBody??1,sTone:f.sTone??1}:undefined;
+      this._syn(id,t,vel,c.in,undefined,sh);
+    }
   }
   _syn(id,t,v,d,octx,sh){
     // ── TR-808 synthesis with SHAPE params ─────────────────────────────────
@@ -1634,14 +1638,22 @@ export default function KickAndSnare(){
   const applyKit=(kit:DrumKit)=>{
     const idx=DRUM_KITS.findIndex(k=>k.id===kit.id);
     setKitIdx(Math.max(0,idx));
-    // Apply shape params to all existing tracks
+    // Apply shape params to all tracks AND re-render buffers with new timbre
     setFx(prev=>{
       const next={...prev};
-      Object.keys(next).forEach(tid=>{next[tid]={...next[tid],...kit.shape};});
+      Object.keys(next).forEach(tid=>{
+        const newFx={...next[tid],...kit.shape};
+        next[tid]=newFx;
+        if(engine.ctx){
+          // Context ready: bake new timbre into buffer immediately
+          engine.renderShape(tid,newFx).catch(()=>{});
+        } else {
+          // Context not yet initialized: clear buffer so next play() uses _syn with new shape
+          delete (engine.buf as any)[tid];
+        }
+      });
       return next;
     });
-    // Clear synth buffers so next play() re-renders with new shape
-    if(engine.buf){Object.keys(engine.buf).forEach(tid=>{delete (engine.buf as any)[tid];});}
     // Update display labels
     setSmpN(prev=>{
       const next={...prev};
