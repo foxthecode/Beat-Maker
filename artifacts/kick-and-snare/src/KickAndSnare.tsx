@@ -1707,6 +1707,7 @@ export default function KickAndSnare(){
                   loopMetro={loopMetro} setLoopMetro={setLoopMetro}
                   onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
                   themeName={themeName} isPortrait={isPortrait}
+                  bpm={bpm} tracks={atO}
                 />
               </div>
             )}

@@ -7,6 +7,7 @@ export default function LooperPanel({
   loopMetro, setLoopMetro,
   onToggleRec, onFreshRec, onTogglePlay, onUndo, onClear,
   themeName, isPortrait,
+  bpm, tracks,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
 
@@ -84,28 +85,96 @@ export default function LooperPanel({
         )}
       </div>
 
-      {/* Dots visualisation */}
-      {loopDisp && loopDisp.length > 0 && (
-        <div style={{ position: "relative", height: 20, marginBottom: 10, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
-          {loopDisp.map((ev, i) => {
-            const maxToff = loopDisp.reduce((m, e) => Math.max(m, e.tOff), 1) + 200;
-            const pct = (ev.tOff / maxToff) * 100;
-            return (
-              <div key={i} style={{
+      {/* Grid visualisation */}
+      {(() => {
+        const totalSteps = loopBars * 16;
+        const loopDurMs = loopBars * 4 * (60000 / Math.max(30, bpm || 120));
+        const hasEvents = loopDisp && loopDisp.length > 0;
+        const showGrid = hasEvents || loopRec || loopPlaying;
+        if (!showGrid) return null;
+        const trackColorMap = {};
+        (tracks || []).forEach(t => { trackColorMap[t.id] = t.color; });
+        const playPct = loopPlaying && loopDurMs > 0
+          ? Math.min(99.5, ((loopPlayhead || 0) / loopDurMs) * 100)
+          : null;
+        return (
+          <div style={{ position: "relative", height: 32, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 4, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+            {/* Step grid lines */}
+            {Array.from({ length: totalSteps + 1 }, (_, i) => {
+              const pct = (i / totalSteps) * 100;
+              const isBeat = i % 4 === 0;
+              const isBar = i % 16 === 0;
+              return (
+                <div key={`g${i}`} style={{
+                  position: "absolute",
+                  left: `${pct}%`,
+                  top: 0,
+                  bottom: 0,
+                  width: isBar ? 1 : 1,
+                  background: isBar
+                    ? "rgba(255,255,255,0.2)"
+                    : isBeat
+                      ? "rgba(255,255,255,0.1)"
+                      : "rgba(255,255,255,0.04)",
+                  pointerEvents: "none",
+                }} />
+              );
+            })}
+            {/* Beat labels */}
+            {Array.from({ length: loopBars * 4 }, (_, i) => {
+              const pct = (i / (loopBars * 4)) * 100;
+              return (
+                <div key={`b${i}`} style={{
+                  position: "absolute",
+                  left: `${pct + 0.5}%`,
+                  top: 2,
+                  fontSize: 5,
+                  lineHeight: 1,
+                  color: i % 4 === 0 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.18)",
+                  fontFamily: "monospace",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}>
+                  {i % 4 === 0 ? `${Math.floor(i / 4) + 1}` : "·"}
+                </div>
+              );
+            })}
+            {/* Recorded hits */}
+            {hasEvents && loopDisp.map((ev, i) => {
+              const pct = Math.min(99.5, (ev.tOff / loopDurMs) * 100);
+              const color = trackColorMap[ev.tid] || "#BF5AF2";
+              return (
+                <div key={i} style={{
+                  position: "absolute",
+                  left: `${pct}%`,
+                  top: "30%",
+                  bottom: 0,
+                  width: 2,
+                  borderRadius: "1px 1px 0 0",
+                  background: color,
+                  opacity: 0.5 + (ev.vel || 0.8) * 0.5,
+                  pointerEvents: "none",
+                }} />
+              );
+            })}
+            {/* Playhead */}
+            {playPct !== null && (
+              <div style={{
                 position: "absolute",
-                left: `${Math.min(99, pct)}%`,
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 4,
-                height: 4,
-                borderRadius: "50%",
-                background: "#BF5AF2",
-                opacity: 0.7 + ev.vel * 0.3,
+                left: `${playPct}%`,
+                top: 0,
+                bottom: 0,
+                width: 2,
+                background: "#30D158",
+                opacity: 0.9,
+                borderRadius: 1,
+                pointerEvents: "none",
+                boxShadow: "0 0 4px #30D158",
               }} />
-            );
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* Controls */}
       <div style={{
