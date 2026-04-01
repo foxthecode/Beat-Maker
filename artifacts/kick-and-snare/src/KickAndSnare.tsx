@@ -1071,18 +1071,20 @@ export default function KickAndSnare(){
         }
       }
     });
-    // Metro clicks synced to loop when metro is on
+    // Metro clicks anchored to L.audioStart so beat 0 = loop start = accent
     if(R.metro){
       const beatSec=60/Math.max(30,R.bpm);
       const sigBeats=R.sig?.beats||4;
-      const nextBeat=Math.ceil((now+0.005)/beatSec)*beatSec;
-      for(let bt=nextBeat;bt<now+ahead;bt+=beatSec){
-        const bKey=`lm:${Math.round(bt*1000)}`;
+      const loopElapsed=now-L.audioStart;
+      const firstBeatIdx=Math.ceil((loopElapsed-0.005)/beatSec);
+      for(let bn=Math.max(0,firstBeatIdx);L.audioStart+bn*beatSec<now+ahead;bn++){
+        const bt=L.audioStart+bn*beatSec;
+        const bKey=`lm:${bn}`;
         if(!L.scheduled.has(bKey)){
           L.scheduled.add(bKey);
-          const bInBar=Math.round(bt/beatSec)%sigBeats;
+          const bInBar=bn%sigBeats;
           playClk(bt,bInBar===0?"accent":"beat");
-          setTimeout(()=>L.scheduled.delete(bKey),(bt-now+1)*1000);
+          setTimeout(()=>L.scheduled.delete(bKey),(bt-now+1.5)*1000);
         }
       }
     }
