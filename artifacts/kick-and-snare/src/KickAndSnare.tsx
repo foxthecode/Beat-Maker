@@ -591,6 +591,7 @@ export default function KickAndSnare(){
   const [showLooper,setShowLooper]=useState(false);
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
+  const [loopMetro,setLoopMetro]=useState(false);
   // masterVol → engine gain + localStorage (0d)
   useEffect(()=>{
     if(engine.ctx)engine.mg.gain.setTargetAtTime(masterVol/100,engine.ctx.currentTime,0.02);
@@ -1072,12 +1073,14 @@ export default function KickAndSnare(){
     });
     L.schTimer=setTimeout(loopSchedFn,25);
   };
-  const startLooper=async()=>{
+  const startLooper=async(isRec=false)=>{
     await engine.ensureRunning();
     const L=loopRef.current;
     L.lengthMs=(60000/Math.max(30,R.bpm))*4*loopBars;
-    L.audioStart=engine.ctx.currentTime;
-    L.perfStart=performance.now();
+    // Fix silence: when replaying existing events, shift audioStart back so first event fires immediately
+    const minToff=(!isRec&&L.events.length>0)?Math.min(...L.events.map(e=>e.tOff)):0;
+    L.audioStart=engine.ctx.currentTime-minToff/1000;
+    L.perfStart=performance.now()-minToff;
     L.scheduled=new Set();
     loopSchedFn();
     // RAF playhead
@@ -1099,13 +1102,26 @@ export default function KickAndSnare(){
     loopRef.current.audioStart=null;
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
+  const _armLoopRec=async()=>{
+    const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
+    setLoopRec(true);await startLooper(true);
+  };
   const toggleLoopRec=()=>{
     if(!loopPlaying){
-      // Arm + start
-      const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
-      setLoopRec(true);startLooper();
+      if(loopMetro&&engine.ctx){
+        // Metro countdown: 1 bar of clicks then arm+start
+        const barMs=(60000/Math.max(30,R.bpm))*sig.beats;
+        const beatMs=barMs/sig.beats;
+        setRecCountdown(true);
+        for(let i=0;i<sig.beats;i++){
+          setTimeout(()=>{if(engine.ctx)playClk(engine.ctx.currentTime,i===0?"accent":"beat");},i*beatMs);
+        }
+        setTimeout(()=>{setRecCountdown(false);_armLoopRec();},barMs);
+      }else{
+        _armLoopRec();
+      }
     }else if(!loopRec){
-      // Overdub: add new pass
+      // Overdub: add new pass over existing loop
       loopRef.current.passId++;setLoopRec(true);
     }else{
       // Stop recording, keep playing
@@ -1450,25 +1466,8 @@ export default function KickAndSnare(){
           isPortrait={isPortrait} isAudioReady={isAudioReady}
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
-          showLooper={showLooper} setShowLooper={setShowLooper}
-          onRecClick={onRecClick}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
         />
-        {/* F.1a: REC countdown overlay */}
-        {recCountdown&&(
-          <div style={{position:"relative",marginBottom:8,padding:"8px 12px",borderRadius:8,background:"rgba(255,45,85,0.08)",border:"1px solid rgba(255,45,85,0.4)",overflow:"hidden"}}>
-            <div style={{position:"absolute",top:0,left:0,height:"100%",background:"rgba(255,45,85,0.15)",animation:`recCountBar ${((60000/Math.max(30,bpm))*sig.beats/1000).toFixed(2)}s linear forwards`}}/>
-            <span style={{position:"relative",fontSize:9,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em",animation:"rb 0.5s infinite"}}>● REC — EN ATTENTE 1 BARRE…</span>
-          </div>
-        )}
-        {/* F.2b: LooperPanel */}
-        {showLooper&&<LooperPanel
-          loopBars={loopBars} setLoopBars={setLoopBars}
-          loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
-          loopDisp={loopDisp}
-          onToggleRec={toggleLoopRec} onTogglePlay={stopLooper} onUndo={undoLoopPass} onClear={clearLooper}
-          themeName={themeName} isPortrait={isPortrait}
-        />}
 
         {/* ── Time Signature ── */}
         {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
@@ -1655,6 +1654,35 @@ export default function KickAndSnare(){
 
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
+          {/* ── Looper banner (foldable) ── */}
+          <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
+            <button onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+              <span style={{fontSize:10,color:"#BF5AF2"}}>⊙</span>
+              <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.08em"}}>LOOPER</span>
+              {loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#FF2D55",animation:"rb 0.8s infinite"}}>● REC</span>}
+              {loopPlaying&&!loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#30D158"}}>▶ PLAY</span>}
+              {recCountdown&&<span style={{fontSize:7,fontWeight:800,color:"#FF9500",animation:"rb 0.5s infinite"}}>DÉCOMPTE…</span>}
+              <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showLooper?"▲":"▼"}</span>
+            </button>
+            {showLooper&&(
+              <div style={{padding:"0 12px 12px"}}>
+                {recCountdown&&(
+                  <div style={{position:"relative",marginBottom:8,padding:"7px 10px",borderRadius:7,background:"rgba(255,149,0,0.06)",border:"1px solid rgba(255,149,0,0.35)",overflow:"hidden"}}>
+                    <div style={{position:"absolute",top:0,left:0,height:"100%",background:"rgba(255,149,0,0.12)",animation:`recCountBar ${((60000/Math.max(30,bpm))*sig.beats/1000).toFixed(2)}s linear forwards`}}/>
+                    <span style={{position:"relative",fontSize:8,fontWeight:800,color:"#FF9500",letterSpacing:"0.08em"}}>🎵 DÉCOMPTE — REC dans 1 barre…</span>
+                  </div>
+                )}
+                <LooperPanel
+                  loopBars={loopBars} setLoopBars={setLoopBars}
+                  loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
+                  loopDisp={loopDisp}
+                  loopMetro={loopMetro} setLoopMetro={setLoopMetro}
+                  onToggleRec={toggleLoopRec} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
+                  themeName={themeName} isPortrait={isPortrait}
+                />
+              </div>
+            )}
+          </div>
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12}}>
             {atO.map((track)=>(

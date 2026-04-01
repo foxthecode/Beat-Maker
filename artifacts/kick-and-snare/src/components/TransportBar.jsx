@@ -14,7 +14,6 @@ export default function TransportBar({
   isPortrait, isAudioReady,
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
-  showLooper, setShowLooper,
   onClear,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
@@ -170,13 +169,6 @@ export default function TransportBar({
     <button onClick={() => setMetroSub(p => p === "off" ? "light" : p === "light" ? "full" : "off")} style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
-  const LoopBtn = (
-    <button onClick={() => setShowLooper && setShowLooper(p => !p)} style={{ ...pill(showLooper, "#BF5AF2"), display: "flex", alignItems: "center", gap: 3 }}>
-      <span style={{ fontSize: 10 }}>⊙</span>
-      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>LOOP</span>
-    </button>
-  );
-
   const ClearBtn = (
     <button onClick={onClear} style={pill(false, "#FF2D55")} title="Clear all hits">✕ CLEAR</button>
   );
@@ -221,7 +213,6 @@ export default function TransportBar({
           {MetroBtn}
           {SubBtn}
           {VolKnob}
-          {LoopBtn}
           {ClearBtn}
         </div>
         <div style={{ ...rowStyle }}>
@@ -244,7 +235,6 @@ export default function TransportBar({
       {MetroBtn}
       {SubBtn}
       {VolKnob}
-      {LoopBtn}
       {ClearBtn}
       {KeybBtn}
       {MidiBtn}
