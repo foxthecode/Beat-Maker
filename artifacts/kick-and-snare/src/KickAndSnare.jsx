@@ -125,6 +125,7 @@ class Eng{
         this.buf[id]=await oCtx.startRendering();
       }catch(e){console.warn("808 prerender failed:",id,e);}
     }
+    this.onReady?.();
   }
   _mkRv(decay,size){
     const d=Math.max(0.1,decay||2);const s=Math.max(0,Math.min(1,size??0.5));
@@ -223,6 +224,7 @@ class Eng{
   async load(id,file){this.init();if(!this.ch[id])this._build(id);try{const a=await file.arrayBuffer();this.buf[id]=await this.ctx.decodeAudioData(a);return true;}catch(e){return false;}}
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
+    if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));}
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
@@ -488,6 +490,7 @@ export default function KickAndSnare(){
   };
   const chSig=s=>{setTSig(s);setGrpIdx(0);resize(s.steps);};
 
+  const [isAudioReady,setIsAudioReady]=useState(false);
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
@@ -497,6 +500,7 @@ export default function KickAndSnare(){
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,defFx()])));
   const [gfx,setGfx]=useState({reverb:{on:false,decay:1.5,size:0.5,sends:{}},delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:"1/4"},filter:{on:false,type:"lowpass",cut:18000,res:0},comp:{on:false,thr:-12,ratio:4},drive:{on:false,amt:0}});
+  useEffect(()=>{engine.onReady=()=>setIsAudioReady(true);},[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
   // BPM sync for delay
   useEffect(()=>{
@@ -699,6 +703,7 @@ export default function KickAndSnare(){
   // Keyboard shortcuts
   const trigPad=useCallback((tid,vel=1)=>{
     engine.init();engine.play(tid,vel,0,R.fx[tid]||defFx());
+    if(navigator.vibrate)navigator.vibrate(15);
     setFlash(tid);setTimeout(()=>setFlash(null),100);
     // Looper recording
     const now=performance.now();
@@ -1014,7 +1019,7 @@ export default function KickAndSnare(){
   const lastTap=useRef({});
   const dblTap=(tid,step)=>{
     const key=`${tid}-${step}`;const now=Date.now();
-    if(lastTap.current[key]&&now-lastTap.current[key]<300){
+    if(lastTap.current[key]&&now-lastTap.current[key]<450){
       setStNudge(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(0);a[step]=0;n[tid]=a;return n;});
       setStVel(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=100;n[tid]=a;return n;});
       didDragRef.current=true;lastTap.current[key]=0;
@@ -1123,7 +1128,10 @@ export default function KickAndSnare(){
   return(<>
     <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
-      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}}`}</style>
+      <style>{`@keyframes rb{0%,100%{opacity:1}50%{opacity:0.4}} @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}} @keyframes mbob{0%,100%{transform:translateY(0px)}50%{transform:translateY(-2.5px)}} @keyframes mhead{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}} @keyframes marm-l{0%,100%{transform:rotate(5deg)}50%{transform:rotate(-58deg)}} @keyframes marm-r{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(58deg)}} @keyframes audioload{0%{width:0%}100%{width:100%}}`}</style>
+      {!isAudioReady&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,height:2,background:"rgba(0,0,0,0.25)"}}>
+        <div style={{height:"100%",background:"linear-gradient(90deg,#FF2D55,#FF9500)",animation:"audioload 0.5s ease-out forwards",willChange:"width"}}/>
+      </div>}
       <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px"}}>
 
         {/* ── Header ── */}
@@ -1449,7 +1457,6 @@ export default function KickAndSnare(){
                   onPointerDown={e=>{
                     e.preventDefault();
                     trigPad(track.id,e.pointerType==="mouse"?1:110/127);
-                    if(navigator.vibrate)navigator.vibrate(15);
                   }}
                   style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flash===track.id?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flash===track.id?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flash===track.id?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flash===track.id?"scale(0.95)":"scale(1)"}}>
                   {DrumSVG(track.id,track.color,flash===track.id,44)}

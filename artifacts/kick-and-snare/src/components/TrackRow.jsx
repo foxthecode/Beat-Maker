@@ -113,7 +113,7 @@ function TrackRow({
           {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{smpN.substring(0, 30)}</span>}
         </div>
         {/* Steps */}
-        <div style={{ display: "flex", gap: 0, flex: 1, alignSelf: "flex-start" }}>
+        <div style={{ display: "flex", gap: 0, flex: 1, alignSelf: "flex-start", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", touchAction: "manipulation" }}>
           {Array(tSteps).fill(0).map((_, step) => {
             const ac = !!(pat?.[step]);
             const ratio = Math.max(1, Math.round(tSteps / STEPS));
@@ -134,6 +134,7 @@ function TrackRow({
                 style={{
                   flex: 1, aspectRatio: "1", borderRadius: 3, cursor: ac ? "grab" : "pointer",
                   position: "relative", minWidth: 0, overflow: "hidden",
+                  scrollSnapAlign: "start",
                   marginLeft: gi.first && step > 0 ? 6 : 2, touchAction: "none", userSelect: "none",
                   background: isCur && gi.first ? "rgba(255,149,0,0.45)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,
                   boxShadow: ac && isCur ? `0 0 10px ${track.color},inset 0 0 5px ${track.color}` : "none",
