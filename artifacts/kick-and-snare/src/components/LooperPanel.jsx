@@ -10,6 +10,8 @@ export default function LooperPanel({
   themeName, isPortrait,
   bpm, tracks,
   onMoveHit,
+  onAddHit,
+  onRemoveHit,
   onQuantize,
   autoQ, setAutoQ,
   onExportLoop, loopExportState, loopExportReps, setLoopExportReps,
@@ -17,6 +19,13 @@ export default function LooperPanel({
   const th = THEMES[themeName] || THEMES.dark;
   const [quantDiv, setQuantDiv] = useState(16);
   const [dragIdx, setDragIdx] = useState(null);
+  const [addTid, setAddTid] = useState(() => (tracks && tracks[0]?.id) || null);
+
+  // keep addTid valid if tracks change
+  const validTids = (tracks || []).map(t => t.id);
+  const effectiveAddTid = validTids.includes(addTid) ? addTid : (validTids[0] || null);
+
+  const canEdit = !loopRec && !!onAddHit;
 
   const pill = (on, c) => ({
     padding: isPortrait ? "10px 16px" : "5px 12px",
@@ -158,10 +167,35 @@ export default function LooperPanel({
         )}
       </div>
 
+      {/* ── Track selector (outside IIFE to avoid Fragment issues) ── */}
+      {canEdit && tracks && tracks.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+          <span style={{ fontSize: 6, color: th.dim, letterSpacing: "0.08em", flexShrink: 0 }}>+ TRACK</span>
+          {tracks.map(t => (
+            <button
+              key={t.id}
+              title={t.label}
+              onClick={() => setAddTid(t.id)}
+              style={{
+                width: 13, height: 13, borderRadius: "50%", padding: 0,
+                background: effectiveAddTid === t.id ? t.color : t.color + "33",
+                border: `1.5px solid ${effectiveAddTid === t.id ? t.color + "cc" : t.color + "55"}`,
+                cursor: "pointer",
+                boxShadow: effectiveAddTid === t.id ? `0 0 5px ${t.color}88` : "none",
+                transition: "all 0.1s",
+              }}
+            />
+          ))}
+          <span style={{ fontSize: 6, color: th.faint, marginLeft: 2 }}>
+            {(tracks.find(t => t.id === effectiveAddTid) || tracks[0])?.label || ""}
+          </span>
+        </div>
+      )}
+
       {/* ── Timeline grid ── */}
       {(() => {
         const hasEvents = loopDisp && loopDisp.length > 0;
-        const showGrid = hasEvents || loopRec || loopPlaying;
+        const showGrid = hasEvents || loopRec || loopPlaying || canEdit;
         if (!showGrid) return null;
         const trackColorMap = {};
         (tracks || []).forEach(t => { trackColorMap[t.id] = t.color; });
@@ -169,8 +203,21 @@ export default function LooperPanel({
           ? Math.min(99.5, (loopPlayhead || 0) * 100)
           : null;
 
+        const handleTimelineClick = e => {
+          if (!canEdit || !effectiveAddTid) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const raw = (x / rect.width) * loopDurMs;
+          const snapMs = loopDurMs / (loopBars * 16);
+          const snapped = Math.max(0, Math.min(loopDurMs - snapMs, Math.round(raw / snapMs) * snapMs));
+          onAddHit(effectiveAddTid, snapped);
+        };
+
         return (
-          <div style={{ position: "relative", height: 44, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 6, overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div
+            style={{ position: "relative", height: 44, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 6, overflow: "hidden", border: `1px solid ${canEdit ? "rgba(191,90,242,0.18)" : "rgba(255,255,255,0.07)"}`, cursor: canEdit ? "crosshair" : "default" }}
+            onClick={handleTimelineClick}
+          >
             {/* Step grid lines */}
             {Array.from({ length: totalSteps + 1 }, (_, i) => {
               const pct = (i / totalSteps) * 100;
@@ -210,32 +257,40 @@ export default function LooperPanel({
               </div>
             ))}
 
-            {/* Recorded hits — draggable */}
+            {/* Recorded hits — draggable + removable on dbl-click */}
             {hasEvents && loopDisp.map((ev, i) => {
               const pct = Math.min(99.5, (ev.tOff / loopDurMs) * 100);
               const color = trackColorMap[ev.tid] || "#BF5AF2";
               const canDrag = !!onMoveHit && !loopRec;
+              const canRemove = canEdit && !!onRemoveHit;
               const isDragging = dragIdx === i;
+              const label = (tracks||[]).find(t=>t.id===ev.tid)?.label || ev.tid;
 
               return (
                 <div
                   key={`h${i}`}
-                  title={canDrag ? `${(tracks||[]).find(t=>t.tid===ev.tid)?.label||ev.tid} — drag to reposition` : undefined}
+                  title={canRemove ? `${label} — drag to move · double-click to delete` : canDrag ? `${label} — drag to move` : undefined}
                   style={{
                     position: "absolute",
                     left: `${pct}%`,
                     top: 0,
                     bottom: 0,
-                    width: canDrag ? 14 : 3,
-                    transform: canDrag ? "translateX(-6px)" : "none",
+                    width: (canDrag || canRemove) ? 16 : 3,
+                    transform: (canDrag || canRemove) ? "translateX(-8px)" : "none",
                     display: "flex",
                     alignItems: "stretch",
                     justifyContent: "center",
-                    cursor: canDrag ? "ew-resize" : "default",
-                    pointerEvents: canDrag ? "auto" : "none",
+                    cursor: canDrag ? "ew-resize" : canRemove ? "pointer" : "default",
+                    pointerEvents: (canDrag || canRemove) ? "auto" : "none",
                     touchAction: "none",
                     zIndex: isDragging ? 10 : 2,
                   }}
+                  onClick={e => e.stopPropagation()}
+                  onDoubleClick={canRemove ? e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRemoveHit(i);
+                  } : undefined}
                   onPointerDown={canDrag ? e => {
                     e.preventDefault(); e.stopPropagation();
                     setDragIdx(i);
@@ -244,7 +299,9 @@ export default function LooperPanel({
                     const startX = e.clientX;
                     const startTOff = ev.tOff;
                     const snapMs = loopDurMs / (loopBars * 16);
+                    let moved = false;
                     const mv = me => {
+                      if (Math.abs(me.clientX - startX) > 3) moved = true;
                       const dx = me.clientX - startX;
                       const dMs = (dx / rect.width) * loopDurMs;
                       const raw = startTOff + dMs;
@@ -263,19 +320,19 @@ export default function LooperPanel({
                   {/* Hit bar */}
                   <div style={{
                     width: 2, height: "100%",
-                    background: isDragging ? color : color,
-                    opacity: isDragging ? 1 : (0.45 + (ev.vel || 0.8) * 0.55),
+                    background: color,
+                    opacity: isDragging ? 1 : (0.5 + (ev.vel || 0.8) * 0.5),
                     borderRadius: 1,
                     flexShrink: 0,
-                    boxShadow: isDragging ? `0 0 6px ${color}` : "none",
+                    boxShadow: isDragging ? `0 0 6px ${color}` : `0 0 2px ${color}44`,
                   }} />
-                  {/* Drag handle — top chevron visible when canDrag */}
-                  {canDrag && (
+                  {/* Handle indicator */}
+                  {(canDrag || canRemove) && (
                     <div style={{
                       position: "absolute", top: 2,
                       width: 8, height: 6,
                       borderRadius: 2,
-                      background: isDragging ? color : color + "66",
+                      background: isDragging ? color : color + "77",
                       left: "50%", transform: "translateX(-50%)",
                     }} />
                   )}
@@ -340,10 +397,14 @@ export default function LooperPanel({
         )}
       </div>
 
-      {/* Drag hint */}
-      {loopDisp && loopDisp.length > 0 && !loopRec && onMoveHit && (
+      {/* Hint bar */}
+      {!loopRec && (
         <div style={{ marginTop: 6, fontSize: 6.5, color: th.faint, letterSpacing: "0.04em", textAlign: "center" }}>
-          Drag les barres pour repositionner · APPLY pour snapper tout
+          {canEdit
+            ? "Clic = ajouter · Drag = déplacer · Double-clic = supprimer · APPLY pour snapper"
+            : loopDisp && loopDisp.length > 0
+              ? "Drag les barres pour repositionner · APPLY pour snapper tout"
+              : null}
         </div>
       )}
     </div>

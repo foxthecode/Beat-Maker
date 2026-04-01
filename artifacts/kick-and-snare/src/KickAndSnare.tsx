@@ -2826,6 +2826,20 @@ export default function KickAndSnare(){
                     L.events[idx]={...L.events[idx],tOff:Math.max(0,newTOff)};
                     setLoopDisp([...L.events]);
                   }}
+                  onAddHit={(tid,tOff)=>{
+                    const L=loopRef.current;
+                    const dur=L.lengthMs>0?L.lengthMs:loopBars*4*(60000/Math.max(30,bpm));
+                    const ev={id:`m_${Date.now()}`,tid,tOff:Math.max(0,Math.min(dur-1,tOff)),vel:1,pass:L.passId};
+                    L.events.push(ev);
+                    L.events.sort((a,b)=>a.tOff-b.tOff);
+                    setLoopDisp([...L.events]);
+                  }}
+                  onRemoveHit={(idx)=>{
+                    const L=loopRef.current;
+                    if(idx<0||idx>=L.events.length)return;
+                    L.events.splice(idx,1);
+                    setLoopDisp([...L.events]);
+                  }}
                   onQuantize={(div)=>{
                     const L=loopRef.current;
                     if(!L.events||!L.events.length)return;
