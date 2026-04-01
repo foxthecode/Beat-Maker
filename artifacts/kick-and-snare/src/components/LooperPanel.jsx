@@ -63,8 +63,7 @@ export default function LooperPanel({
       padding: "10px 12px",
       borderRadius: 10,
       background: th.surface,
-      border: `1px solid ${loopRec ? "rgba(191,90,242,0.45)" : loopPlaying ? "rgba(191,90,242,0.25)" : "rgba(191,90,242,0.18)"}`,
-      animation: loopRec ? "pulse 1s infinite" : "none",
+      border: `1px solid ${loopRec ? "rgba(255,45,85,0.45)" : loopPlaying ? "rgba(191,90,242,0.25)" : "rgba(191,90,242,0.18)"}`,
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
