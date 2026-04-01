@@ -1666,24 +1666,31 @@ export default function KickAndSnare(){
     setKitIdx(Math.max(0,idx));
     const kitSamples=kit.samples as Record<string,string>;
     // Build updated fx map locally (needed before React state batch)
-    setFx(prev=>{
-      const next={...prev};
-      Object.keys(next).forEach(tid=>{
-        const newFx={...next[tid],...kit.shape};
-        next[tid]=newFx;
-        if(kitSamples[tid]){
-          // Load real sample from local URL, fall back to synthesis if it fails
-          engine.loadUrl(tid,kitSamples[tid]).then(ok=>{
-            if(!ok&&engine.ctx)engine.renderShape(tid,newFx).catch(()=>{});
-          });
-        } else if(engine.ctx){
-          engine.renderShape(tid,newFx).catch(()=>{});
-        } else {
-          delete (engine.buf as any)[tid];
-        }
-      });
-      return next;
+    // Compute new fx synchronously — use R.fx (ref) to avoid stale closure on `fx`
+    const prevFx=R.fx as typeof fx;
+    const nextFx={...prevFx};
+    Object.keys(nextFx).forEach(tid=>{nextFx[tid]={...nextFx[tid],...kit.shape};});
+    setFx(nextFx);
+    // Audio: clear old buffers immediately so _syn uses new shape params right away,
+    // then re-render or load real samples asynchronously
+    const allTids=Object.keys(nextFx);
+    allTids.forEach(tid=>{
+      const newFx=nextFx[tid];
+      if(kitSamples[tid]){
+        // Real sample: clear buffer so synthesis plays with new params while loading
+        delete (engine.buf as any)[tid];
+        engine.loadUrl(tid,kitSamples[tid]).then(ok=>{
+          if(!ok&&engine.ctx)engine.renderShape(tid,newFx).catch(()=>{});
+        });
+      } else {
+        // Synthesis: clear old buffer first (instant sonic change via _syn), then re-render
+        delete (engine.buf as any)[tid];
+        if(engine.ctx)engine.renderShape(tid,newFx).catch(()=>{});
+      }
     });
+    // Play a preview kick hit so user hears the new kit immediately
+    const kickFx=nextFx['kick'];
+    if(kickFx)setTimeout(()=>{engine.play('kick',0.8,0,kickFx);},30);
     // Update display labels
     setSmpN(prev=>{
       const next={...prev};
