@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "L9EianRL3VJpaDd_2seTr"
+uri = "file://kick-and-snare-export.txt"
+type = "text"
+title = "Kick & Snare v8.0 — Export code complet"
