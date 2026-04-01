@@ -546,6 +546,7 @@ export default function KickAndSnare(){
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
   const [showTS,setShowTS]=useState(false);const [flash,setFlash]=useState(null);
   const [velPicker,setVelPicker]=useState(null);
+  const [probPopover,setProbPopover]=useState(null);
   const [metro,setMetro]=useState(false);
   const [metroVol,setMetroVol]=useState(10);
   const [dragInfo,setDragInfo]=useState(null);
@@ -1055,25 +1056,34 @@ export default function KickAndSnare(){
   const startDrag=(tid,step,e)=>{
     e.preventDefault();
     const ac=!!pat[tid]?.[step];
+    const rect=e.currentTarget.getBoundingClientRect();
     const startX=e.touches?e.touches[0].clientX:e.clientX;
     const startY=e.touches?e.touches[0].clientY:e.clientY;
     const startNudge=stNudge[tid]?.[step]||0;const startVel=stVel[tid]?.[step]??100;
-    let axis=null;let moved=false;didDragRef.current=false;
+    let axis=null;let moved=false;let longPressed=false;didDragRef.current=false;
     if(ac)setDragInfo({tid,step,axis:null});
     const mv=ev=>{
-      if(!ac)return;ev.preventDefault();
+      if(!ac||longPressed)return;ev.preventDefault();
       const cx=ev.touches?ev.touches[0].clientX:ev.clientX;const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
       const dx=cx-startX,dy=cy-startY;
-      if(!axis&&(Math.abs(dx)>5||Math.abs(dy)>5)){axis=Math.abs(dx)>Math.abs(dy)?"h":"v";moved=true;didDragRef.current=true;setDragInfo({tid,step,axis});}
+      if(!axis&&(Math.abs(dx)>5||Math.abs(dy)>5)){clearTimeout(longTimer);axis=Math.abs(dx)>Math.abs(dy)?"h":"v";moved=true;didDragRef.current=true;setDragInfo({tid,step,axis});}
       if(axis==="h"){const nv=Math.round((startNudge+dx*0.5)/5)*5;setStNudge(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(0);a[step]=Math.max(-NR,Math.min(NR,nv));n[tid]=a;return n;});}
       else if(axis==="v"){const nv=Math.round(startVel-dy*0.8);setStVel(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=Math.max(5,Math.min(100,nv));n[tid]=a;return n;});}
     };
     const up=()=>{
-      setDragInfo(null);
-      if(!moved){dblTap(tid,step);setTimeout(()=>{if(!didDragRef.current)handleClick(tid,step);},10);}
+      clearTimeout(longTimer);setDragInfo(null);
+      if(!longPressed&&!moved){dblTap(tid,step);setTimeout(()=>{if(!didDragRef.current)handleClick(tid,step);},10);}
       window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);
       window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);
     };
+    // Long-press (600ms, step must be active) → probability popover
+    const longTimer=ac?setTimeout(()=>{
+      longPressed=true;moved=true;setDragInfo(null);
+      window.removeEventListener("mousemove",mv);window.removeEventListener("touchmove",mv);
+      const px=Math.min(Math.max(rect.left+rect.width/2-70,8),window.innerWidth-160);
+      const py=Math.min(Math.max(rect.top-120,8),window.innerHeight-170);
+      setProbPopover({tid,step,x:px,y:py});
+    },600):null;
     window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
     window.addEventListener("touchmove",mv,{passive:false});window.addEventListener("touchend",up);
   };
@@ -1370,7 +1380,7 @@ export default function KickAndSnare(){
           </div>
           <div style={{fontSize:9,fontWeight:700,color:"#FF9500",marginBottom:6}}>STEP INTERACTIONS</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:4,fontSize:8}}>
-            {[["Click","Toggle step on/off"],["Drag →","Nudge timing (ms)"],["Drag ↑↓","Set velocity"],["Double-tap","Reset nudge + velocity"],["Shift+click","Cycle probability 100→75→50→25%"]].map(([k,v])=>(
+            {[["Click","Toggle step on/off"],["Drag ↔","Nudge timing (ms)"],["Drag ↑↓","Set velocity"],["Double-tap","Reset nudge + velocity"],["Hold (active step)","Set probability (popover)"]].map(([k,v])=>(
               <div key={k} style={{display:"flex",gap:6,alignItems:"flex-start"}}>
                 <span style={{color:"#FF9500",fontWeight:700,minWidth:80,fontSize:7}}>{k}</span>
                 <span style={{color:th.dim}}>{v}</span>
@@ -1600,7 +1610,7 @@ export default function KickAndSnare(){
               el.removeEventListener('pointercancel',onUp);
               const px=Math.min(Math.max(sx-70,8),window.innerWidth-160);
               const py=Math.min(Math.max(sy-160,8),window.innerHeight-240);
-              setVelPicker({tid,step,x:px,y:py,velPct:isOn?initVelPct:100});
+              setVelPicker({tid,step,x:px,y:py,velPct:isOn?initVelPct:100,probPct:R.prob[tid]?.[step]??100});
             },400);
             const onMove=me=>{
               const dx=me.clientX-sx,dy=me.clientY-sy;
@@ -1799,25 +1809,51 @@ export default function KickAndSnare(){
 
 
         <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
-          KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Shift+click probability
+          KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Hold step → probabilité
         </div>
       </div>
 
       {/* ── Velocity picker popup (Euclid long-press) ── */}
+      {/* ── Probability popover (step sequencer long-press) ── */}
+      {probPopover&&(()=>{
+        const {tid,step,x,y}=probPopover;
+        const trk=allT.find(t=>t.id===tid);
+        const col=trk?.color||"#FF9500";
+        const cur=stProb[tid]?.[step]??100;
+        const applyProb=v=>{pushHistory();setStProb(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(100);a[step]=v;n[tid]=a;return n;});setProbPopover(null);};
+        return(
+          <>
+            <div style={{position:"fixed",inset:0,zIndex:9998}} onPointerDown={()=>setProbPopover(null)}/>
+            <div style={{position:"fixed",left:x,top:y,zIndex:9999,background:th.surface,border:`1px solid ${col}55`,borderRadius:10,padding:"12px 14px",boxShadow:`0 8px 32px rgba(0,0,0,0.6),0 0 0 1px ${col}22`,minWidth:155,userSelect:"none"}}>
+              <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>STEP {step+1} — PROBABILITÉ</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,marginBottom:10}}>
+                {[100,75,50,25].map(v=>(
+                  <button key={v} onPointerDown={e=>{e.stopPropagation();applyProb(v);}}
+                    style={{padding:"8px 0",borderRadius:6,border:`1px solid ${cur===v?"#FF9500":th.sBorder}`,background:cur===v?"rgba(255,149,0,0.22)":"transparent",color:cur===v?"#FF9500":th.dim,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s"}}>{v}%</button>
+                ))}
+              </div>
+              <button onPointerDown={e=>{e.stopPropagation();setProbPopover(null);}}
+                style={{width:"100%",padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ ANNULER</button>
+            </div>
+          </>
+        );
+      })()}
       {velPicker&&(()=>{
         const {tid,step,x,y}=velPicker;
         const trk=allT.find(t=>t.id===tid);
         const col=trk?.color||"#FF2D55";
         const cur=velPicker.velPct;
+        const curProb=velPicker.probPct??100;
         const apply=v=>{
           setStVel(sv=>{const ns={...sv};ns[tid]=[...(Array.isArray(ns[tid])?ns[tid]:Array(32).fill(100))];ns[tid][step]=v;return ns;});
           setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};if(!(cp[tid]?.[step]>0)){const a=[...(cp[tid]||[])];a[step]=100;cp[tid]=a;}n[cPat]=cp;return n;});
+          setStProb(sp=>{const ns={...sp};ns[tid]=[...(Array.isArray(ns[tid])?ns[tid]:Array(32).fill(100))];ns[tid][step]=curProb;return ns;});
           setVelPicker(null);
         };
         return(
           <>
             <div style={{position:"fixed",inset:0,zIndex:9998}} onPointerDown={()=>setVelPicker(null)}/>
-            <div style={{position:"fixed",left:x,top:y,zIndex:9999,background:th.surface,border:`1px solid ${col}55`,borderRadius:10,padding:"10px 12px",boxShadow:`0 8px 32px rgba(0,0,0,0.6),0 0 0 1px ${col}22`,minWidth:140,userSelect:"none"}}>
+            <div style={{position:"fixed",left:x,top:y,zIndex:9999,background:th.surface,border:`1px solid ${col}55`,borderRadius:10,padding:"10px 12px",boxShadow:`0 8px 32px rgba(0,0,0,0.6),0 0 0 1px ${col}22`,minWidth:150,userSelect:"none"}}>
               <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",textAlign:"center",marginBottom:4}}>STEP {step+1} — VÉLOCITÉ</div>
               <div style={{fontSize:28,fontWeight:800,color:col,textAlign:"center",marginBottom:8,lineHeight:1}}>{cur}<span style={{fontSize:12,fontWeight:600,color:th.faint}}>%</span></div>
               {/* Horizontal slider */}
@@ -1826,11 +1862,20 @@ export default function KickAndSnare(){
                 <div style={{height:"100%",width:`${cur}%`,borderRadius:8,background:`linear-gradient(90deg,${col}88,${col})`}}/>
                 <div style={{position:"absolute",top:"50%",left:`${cur}%`,width:16,height:16,borderRadius:"50%",background:col,transform:"translate(-50%,-50%)",boxShadow:`0 0 0 3px ${col}44`,pointerEvents:"none"}}/>
               </div>
-              {/* Presets */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:8}}>
+              {/* Velocity presets */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3,marginBottom:10}}>
                 {[25,50,75,100].map(v=>(
-                  <button key={v} onPointerDown={e=>{e.stopPropagation();apply(v);}} style={{padding:"4px 0",borderRadius:5,border:`1px solid ${Math.abs(cur-v)<13?col:th.sBorder}`,background:Math.abs(cur-v)<13?col+"22":"transparent",color:Math.abs(cur-v)<13?col:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{v}%</button>
+                  <button key={v} onPointerDown={e=>{e.stopPropagation();setVelPicker(p=>({...p,velPct:v}));}} style={{padding:"4px 0",borderRadius:5,border:`1px solid ${Math.abs(cur-v)<13?col:th.sBorder}`,background:Math.abs(cur-v)<13?col+"22":"transparent",color:Math.abs(cur-v)<13?col:th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{v}%</button>
                 ))}
+              </div>
+              {/* Probability row */}
+              <div style={{borderTop:`1px solid ${th.sBorder}`,paddingTop:8,marginBottom:8}}>
+                <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",marginBottom:5}}>PROBABILITÉ</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3}}>
+                  {[100,75,50,25].map(v=>(
+                    <button key={v} onPointerDown={e=>{e.stopPropagation();setVelPicker(p=>({...p,probPct:v}));}} style={{padding:"5px 0",borderRadius:5,border:`1px solid ${curProb===v?"#FF9500":th.sBorder}`,background:curProb===v?"rgba(255,149,0,0.2)":"transparent",color:curProb===v?"#FF9500":th.dim,fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{v}%</button>
+                  ))}
+                </div>
               </div>
               {/* OK / Cancel */}
               <div style={{display:"flex",gap:4}}>
