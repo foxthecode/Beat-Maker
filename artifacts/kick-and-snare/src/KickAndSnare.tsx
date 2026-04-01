@@ -57,7 +57,7 @@ const ALL_TRACKS=[
   {id:"perc",label:"PERC",color:"#BF5AF2",icon:"▲"},
 ];
 const TRACKS=ALL_TRACKS;
-const DEFAULT_ACTIVE=["kick","snare"];
+const DEFAULT_ACTIVE=["kick","snare","hihat","clap","tom","ride","crash","perc"];
 const DEFAULT_KEY_MAP={kick:"q",snare:"s",hihat:"d",clap:"f",tom:"g",ride:"h",crash:"j",perc:"k"};
 const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247,__tap__:null,__bpm__:null,__swing__:null}; // CC = value+128 (__play__=CC118 __rec__=CC119)
 const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
