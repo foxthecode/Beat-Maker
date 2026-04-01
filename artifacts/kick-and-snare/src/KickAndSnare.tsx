@@ -1087,13 +1087,6 @@ export default function KickAndSnare(){
     }else lastTap.current[key]=now;
   };
 
-  // Right-click: cycle ratchet 1→2→3→4→1
-  const handleRightClick=(tid,step,e)=>{
-    e.preventDefault();if(!pat[tid]?.[step])return;
-    pushHistory();
-    setStRatch(p=>{const n={...p};const src=n[tid];const a=Array.isArray(src)?[...src]:Array(STEPS).fill(1);a[step]=(a[step]%4)+1;n[tid]=a;return n;});
-  };
-
   // Shift-click: cycle probability 100→75→50→25→100
   const handleShiftClick=(tid,step,e)=>{
     if(!e.shiftKey)return false;
@@ -1377,7 +1370,7 @@ export default function KickAndSnare(){
           </div>
           <div style={{fontSize:9,fontWeight:700,color:"#FF9500",marginBottom:6}}>STEP INTERACTIONS</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:4,fontSize:8}}>
-            {[["Click","Toggle step on/off"],["Drag →","Nudge timing (ms)"],["Drag ↑↓","Set velocity"],["Double-tap","Reset nudge + velocity"],["Right-click","Cycle ratchet 1→2→3→4"],["Shift+click","Cycle probability 100→75→50→25%"]].map(([k,v])=>(
+            {[["Click","Toggle step on/off"],["Drag →","Nudge timing (ms)"],["Drag ↑↓","Set velocity"],["Double-tap","Reset nudge + velocity"],["Shift+click","Cycle probability 100→75→50→25%"]].map(([k,v])=>(
               <div key={k} style={{display:"flex",gap:6,alignItems:"flex-start"}}>
                 <span style={{color:"#FF9500",fontWeight:700,minWidth:80,fontSize:7}}>{k}</span>
                 <span style={{color:th.dim}}>{v}</span>
@@ -1486,7 +1479,7 @@ export default function KickAndSnare(){
                   isMuted={isM}
                   isSoloed={isS}
                   onStepDown={(step,e)=>{if(e.shiftKey&&handleShiftClick(track.id,step,e))return;startDrag(track.id,step,e);}}
-                  onContextMenu={(step,e)=>handleRightClick(track.id,step,e)}
+                  onContextMenu={(step,e)=>e.preventDefault()}
                   onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
                   onSoloToggle={()=>setSoloed(p=>p===track.id?null:track.id)}
                   onLoadSample={()=>ldFile(track.id)}
@@ -1806,7 +1799,7 @@ export default function KickAndSnare(){
 
 
         <div style={{textAlign:"center",marginTop:14,padding:"8px 0 20px",borderTop:`1px solid ${th.sBorder}`,fontSize:8,color:th.faint}}>
-          KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Right-click ratchet · Shift+click probability
+          KICK &amp; SNARE v8 — Drag ↔ nudge · Drag ↕ velocity · Double-tap reset · Shift+click probability
         </div>
       </div>
 
