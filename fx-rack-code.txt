@@ -1,0 +1,117 @@
+// ═══════════════════════════════════════════════════════════════
+// AUDIO ENGINE — FX nodes + serial chain routing
+// ═══════════════════════════════════════════════════════════════
+
+// Init (inside Eng.init()):
+//   mg = master summing bus (all tracks' dry signal → mg)
+//
+//   Serial inline effects:
+//   mg → gDrv → gCmp → gCmpMakeup → gFlt → gFlt2 → gOut → destination
+//
+//   gDrv  = WaveShaper (tanh saturation, oversample 4x)
+//   gCmp  = DynamicsCompressor (thr=0, ratio=1, knee=6, atk=5ms, rel=80ms)
+//   gCmpMakeup = Gain (auto makeup, default 1)
+//   gFlt  = BiquadFilter pole 1 (lowpass 20kHz default)
+//   gFlt2 = BiquadFilter pole 2 → 24dB/oct slope
+//   gOut  = Gain (master output, value=1) → ctx.destination
+//
+//   Reverb bus (parallel send):
+//   gRvBus (Gain) → gRvConv (Convolver, algorithmic IR) → gOut
+//
+//   Delay bus (parallel send, LP filter in feedback):
+//   gDlBus (Gain) → gDl (Delay, max 2s) → gDlFb (Gain, 0.35)
+//                                        → gDlLpf (BiquadFilter LP 4500Hz)
+//                                        → gDl  (feedback loop)
+//                                        → gOut
+//
+//   Per-track channel strip:
+//   c.in → c.vol → c.pan → c.dry → mg         (dry path)
+//                        → c.rvSend → gRvBus   (reverb send)
+//                        → c.dlSend → gDlBus   (delay send)
+
+setSerialOrder(order: string[]) {
+  if (!this.ctx || !this.gDrv) return;
+
+  // All 5 effects as serial blocks.
+  // delay/reverb: per-track sends still feed gDlBus/gRvBus;
+  // their OUTPUTS chain serially through the rest of the effects.
+  const B: Record<string, { i: AudioNode; o: AudioNode }> = {
+    filter: { i: this.gFlt,    o: this.gFlt2       },
+    comp:   { i: this.gCmp,    o: this.gCmpMakeup   },
+    drive:  { i: this.gDrv,    o: this.gDrv         },
+    delay:  { i: this.gDlBus,  o: this.gDl          },
+    reverb: { i: this.gRvBus,  o: this.gRvConv      },
+  };
+
+  // 1. Disconnect all exit connections
+  [this.mg, this.gFlt2, this.gCmpMakeup, this.gDrv, this.gRvConv].forEach(n => {
+    try { n.disconnect(); } catch (e) {}
+  });
+  try { this.gDl.disconnect(); } catch (e) {}
+
+  // 2. Restore intra-block connections that got clobbered
+  try { this.gDl.connect(this.gDlFb); } catch (e) {}
+  // gCmp→gCmpMakeup, gFlt→gFlt2, gDlBus→gDl, gRvBus→gRvConv
+  // are wired in init() and never disconnected above — they persist.
+
+  // 3. Chain all blocks in the specified order: mg → B[0] → B[1] → … → gOut
+  let prev: AudioNode = this.mg;
+  order.filter(s => B[s]).forEach(s => {
+    prev.connect(B[s].i);
+    prev = B[s].o;
+  });
+  prev.connect(this.gOut);
+}
+
+// uGfx(gfx) applies gain/param values to already-connected nodes.
+// It does NOT rewire; setSerialOrder does the wiring.
+// Called automatically via useEffect whenever gfx state changes.
+
+// ═══════════════════════════════════════════════════════════════
+// FX RACK — React component
+// ═══════════════════════════════════════════════════════════════
+
+// Static metadata for each effect slot
+const FX_CHAIN_DEF = [
+  { sec: "filter", label: "FILTER", color: "#FF9500", type: "serial" },
+  { sec: "comp",   label: "COMP",   color: "#5E5CE6", type: "serial" },
+  { sec: "drive",  label: "DRIVE",  color: "#FF6B35", type: "serial" },
+  { sec: "delay",  label: "DELAY",  color: "#30D158", type: "send"   }, // also serial
+  { sec: "reverb", label: "REVERB", color: "#64D2FF", type: "send"   }, // also serial
+];
+
+// Default chain order (can be drag-reordered):
+// ["filter", "comp", "drive", "delay", "reverb"]
+// → audio path: mg → filter → comp → drive → delay → reverb → gOut
+
+// Props received by FXRack:
+//   gfx           : full FX state object
+//   setGfx        : setter
+//   fxChainOrder  : string[]  (e.g. ["filter","comp","drive","delay","reverb"])
+//   setFxChainOrder: (order: string[]) => void
+//   onChainOrderChange: (order: string[]) => void  — calls engine.setSerialOrder(order)
+
+// gfx state shape:
+// {
+//   reverb: { on: bool, decay: 1.5, size: 0.5, sends: { [trackId]: 0..1 } }
+//   delay:  { on: bool, time: 0.25, fdbk: 35, sync: false, syncDiv: "1/4", sends: {} }
+//   filter: { on: bool, type: "lowpass"|"highpass"|"bandpass", cut: 18000, res: 0, sends: {} }
+//   comp:   { on: bool, thr: -12, ratio: 4, sends: {} }
+//   drive:  { on: bool, amt: 0, sends: {} }
+// }
+
+// Drag-reorder logic (simplified):
+// onDrop: remove dragSec from order, insert at target index, call setFxChainOrder + onChainOrderChange
+
+// The → arrows between cards represent the actual audio signal flow.
+// Changing card order rewires engine nodes in real time.
+
+// Known limitation:
+// When delay or reverb is in the middle of the chain (e.g. [filter, delay, reverb, comp]):
+//   - The filtered signal (gFlt2 output) feeds gDlBus (delay input)
+//   - Per-track dlSend also feeds gDlBus → additive (dry signal goes through delay + sends)
+//   - gDl output → gRvBus (reverb input)
+//   - Per-track rvSend also feeds gRvBus → additive
+//   - gRvConv output → gCmp input (comp processes reverbed signal)
+// This creates rich parallel+serial interactions but may cause level buildup
+// when both sends and serial path are active simultaneously.

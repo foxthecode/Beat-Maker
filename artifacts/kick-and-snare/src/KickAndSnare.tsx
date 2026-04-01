@@ -240,36 +240,26 @@ class Eng{
   updateReverb(decay,size){this._mkRv(decay,size);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}}
   setSerialOrder(order:string[]){
     if(!this.ctx||!this.gDrv)return;
+    // All 5 effects as serial blocks: in = entry node, o = exit node
+    // delay/reverb: tracks still feed gDlBus/gRvBus via sends; their OUTPUTS chain serially
     const B:Record<string,{i:AudioNode,o:AudioNode}>={
-      filter:{i:this.gFlt,o:this.gFlt2},
-      comp:{i:this.gCmp,o:this.gCmpMakeup},
-      drive:{i:this.gDrv,o:this.gDrv},
+      filter:{i:this.gFlt,   o:this.gFlt2},
+      comp:  {i:this.gCmp,   o:this.gCmpMakeup},
+      drive: {i:this.gDrv,   o:this.gDrv},
+      delay: {i:this.gDlBus, o:this.gDl},
+      reverb:{i:this.gRvBus, o:this.gRvConv},
     };
-    // ─── 1. Disconnect all inter-block exits (inline serial chain) ───
-    [this.mg,this.gFlt2,this.gCmpMakeup,this.gDrv].forEach(n=>{try{n.disconnect();}catch(e){}});
-    // Restore intra-block connections
-    try{this.gCmp.connect(this.gCmpMakeup);}catch(e){}
-    try{this.gFlt.connect(this.gFlt2);}catch(e){}
-    // ─── 2. Disconnect send-FX return connections ───
-    try{this.gRvConv.disconnect();}catch(e){}
-    // Disconnect gDl outputs (gDl→gOut and any gDl→gRvBus), keep feedback loop
+    // ─── 1. Disconnect all exit connections ───
+    [this.mg,this.gFlt2,this.gCmpMakeup,this.gDrv,this.gRvConv].forEach(n=>{try{n.disconnect();}catch(e){}});
     try{this.gDl.disconnect();}catch(e){}
-    try{this.gDl.connect(this.gDlFb);}catch(e){}  // restore feedback
-    // ─── 3. Reconnect inline serial chain in new order ───
+    // ─── 2. Restore intra-block connections ───
+    try{this.gDl.connect(this.gDlFb);}catch(e){}  // delay feedback loop
+    // gCmp→gCmpMakeup and gFlt→gFlt2 and gDlBus→gDl and gRvBus→gRvConv
+    // are set in init() and not touched above — they persist
+    // ─── 3. Chain all blocks in the specified order: mg → B[0] → B[1] → … → gOut ───
     let prev:AudioNode=this.mg;
     order.filter(s=>B[s]).forEach(s=>{prev.connect(B[s].i);prev=B[s].o;});
     prev.connect(this.gOut);
-    // ─── 4. Route send-FX returns based on their order ───
-    // If reverb before delay: reverb tail → delay input (reverb echoes)
-    // If delay before reverb: delay echoes → reverb input (reverb on echoes)
-    const ri=order.indexOf('reverb'),di=order.indexOf('delay');
-    if(ri>=0&&di>=0){
-      if(ri<di){this.gRvConv.connect(this.gDlBus);this.gDl.connect(this.gOut);}
-      else{this.gDl.connect(this.gRvBus);this.gRvConv.connect(this.gOut);}
-    }else{
-      this.gRvConv.connect(this.gOut);
-      this.gDl.connect(this.gOut);
-    }
   }
   _build(id){
     const c={};
@@ -2715,8 +2705,8 @@ export default function KickAndSnare(){
               </div>
             ))}
           </div>
-          <button onClick={()=>{setOverlayVisible(false);}} style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#FF2D55,#FF9500)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>C&apos;est parti !</button>
-          <button onClick={()=>setOverlayVisible(false)} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.35)",fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>Je connais déjà →</button>
+          <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#FF2D55,#FF9500)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>C&apos;est parti !</button>
+          <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.35)",fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>Je connais déjà →</button>
         </div>
       </div>
     )}
