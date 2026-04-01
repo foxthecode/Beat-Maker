@@ -1063,7 +1063,10 @@ export default function KickAndSnare(){
     const startNudge=stNudge[tid]?.[step]||0;const startVel=stVel[tid]?.[step]??100;
     // Touch dead-zone is wider (10px) to absorb natural finger jitter on tablet/phone
     const moveThr=isTouch?10:5;
-    let axis=null;let moved=false;let longPressed=false;didDragRef.current=false;
+    let axis=null;let moved=false;let longPressed=false;let toggledEarly=false;didDragRef.current=false;
+    // On touch: immediately activate an inactive step (instant drum-machine feel).
+    // Active steps keep touchend behaviour so drag-for-velocity can still trigger.
+    if(isTouch&&!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});toggledEarly=true;}
     if(ac)setDragInfo({tid,step,axis:null});
     const mv=ev=>{
       if(!ac||longPressed)return;ev.preventDefault();
@@ -1075,7 +1078,8 @@ export default function KickAndSnare(){
     };
     const up=()=>{
       clearTimeout(longTimer);setDragInfo(null);
-      if(!longPressed&&!moved){dblTap(tid,step);setTimeout(()=>{if(!didDragRef.current)handleClick(tid,step);},10);}
+      // toggledEarly: step was already activated at touchstart — skip double-toggle
+      if(!longPressed&&!moved&&!toggledEarly){dblTap(tid,step);setTimeout(()=>{if(!didDragRef.current)handleClick(tid,step);},10);}
       window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);
       window.removeEventListener("touchmove",mv);window.removeEventListener("touchend",up);
     };
