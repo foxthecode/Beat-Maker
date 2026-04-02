@@ -2297,65 +2297,41 @@ export default function KickAndSnare(){
     setLoopDisp([]);setLoopCanUndo(false);setLoopCanRedo(false);
   };
   // ── CAPTURE MODE ──
-  // Smart-quantize looper hits into the current sequencer pattern then switch view.
-  const captureToSequencer=()=>{
+  // Smart-quantize looper hits IN PLACE — stays in Live Pads, updates looper timeline.
+  const captureToLooper=()=>{
     const L=loopRef.current;
     if(!L.events||L.events.length===0)return;
     const loopDurMs=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
     const beatMs=60000/Math.max(30,bpm);
     // Available subdivisions (ms): 1/4, 1/8, 1/16, 1/32
     const subdivMs=[beatMs,beatMs/2,beatMs/4,beatMs/8];
-    // 1/16-step grid
-    const totalSteps=loopBars*sig.beats*4;
-    const stepMs=loopDurMs/totalSteps;
-    // Zeroed pattern + velocity arrays (init vel to 0, restore 100 for empty steps later)
-    const newPat=Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(totalSteps).fill(0)]));
-    const newVel=Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(totalSteps).fill(0)]));
-    L.events.forEach(ev=>{
-      if(!newPat[ev.tid])return;
-      // Find nearest subdivision — minimum-distance snap
-      let bestSnapMs=stepMs;let bestDist=Infinity;
+    // Snapshot for looper undo before modifying events
+    pushLoopSnapshot();
+    // Snap each event to nearest subdivision — minimum-distance detection
+    L.events=L.events.map(ev=>{
+      let bestSnapMs=subdivMs[0];let bestDist=Infinity;
       subdivMs.forEach(sub=>{
         const snapped=Math.round(ev.tOff/sub)*sub;
         const dist=Math.abs(ev.tOff-snapped);
         if(dist<bestDist){bestDist=dist;bestSnapMs=sub;}
       });
-      const snappedMs=Math.round(ev.tOff/bestSnapMs)*bestSnapMs;
-      const stepIdx=Math.round(snappedMs/stepMs)%totalSteps;
-      newPat[ev.tid][stepIdx]=1;
-      const velPct=Math.round((ev.vel||1)*100);
-      // Keep loudest velocity when multiple hits land on the same step
-      newVel[ev.tid][stepIdx]=Math.max(newVel[ev.tid][stepIdx],velPct);
+      const snappedMs=Math.max(0,Math.min(loopDurMs-1,Math.round(ev.tOff/bestSnapMs)*bestSnapMs));
+      return {...ev,tOff:snappedMs};
     });
-    // Restore default velocity (100) for steps that have no hit
-    ALL_TRACKS.forEach(t=>{
-      newVel[t.id]=newVel[t.id].map((v,i)=>newPat[t.id][i]?Math.max(1,v):100);
+    // Sort by time then deduplicate same-track same-tOff (keep loudest)
+    L.events.sort((a,b)=>a.tOff-b.tOff);
+    const seen=new Map<string,typeof L.events[0]>();
+    L.events.forEach(ev=>{
+      const key=`${ev.tid}:${ev.tOff}`;
+      if(!seen.has(key)||ev.vel>(seen.get(key)!.vel||0))seen.set(key,ev);
     });
-    // Snapshot for undo BEFORE modifying the sequencer
-    pushHistory();
-    // Build the updated pBank with captured tracks written into current slot
-    const newPBank=[...pBank];
-    const cp={...newPBank[cPat]};
-    ALL_TRACKS.forEach(t=>{if(newPat[t.id].some(v=>v>0))cp[t.id]=[...newPat[t.id]];});
-    newPBank[cPat]=cp;
-    // Activate captured tracks
-    const capturedIds=ALL_TRACKS.filter(t=>newPat[t.id].some(v=>v>0)).map(t=>t.id);
-    setAct(prev=>{const next=[...prev];capturedIds.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
-    setStVel(sv=>{const n={...sv};ALL_TRACKS.forEach(t=>{if(newPat[t.id].some(v=>v>0))n[t.id]=[...newVel[t.id]];});return n;});
-    // Update seqSnap BEFORE switching view so switchView('sequencer') restores OUR pattern
-    seqSnap.current={pBank:newPBank,cPat,songChain,songMode};
-    setPBank(newPBank);
-    stopLooper(); // also resets captureReadyRef + setCaptureReady(false)
-    // Go directly to sequencer — seqSnap already has our captured pBank
-    setView('sequencer');
-    // Brief delay to let React flush state before starting the scheduler
-    setTimeout(()=>{
-      if(!engine.ctx)return;
-      R.step=-1;
-      nxtRef.current=engine.ctx.currentTime+0.05;
-      schLoop();
-      setPlaying(true);
-    },80);
+    L.events=[...seen.values()].sort((a,b)=>a.tOff-b.tOff);
+    // Force scheduler to reschedule at new tOff positions on the next tick
+    L.scheduled=new Set();
+    // Update display
+    setLoopDisp([...L.events]);
+    // Hide capture button — user can record again to get a fresh session
+    captureReadyRef.current=false;setCaptureReady(false);
   };
 
   const freshRecLooper=async()=>{
@@ -3148,13 +3124,13 @@ export default function KickAndSnare(){
                 {loopDisp.length} hit{loopDisp.length>1?"s":""} prêts à capturer
               </span>
               <button
-                onClick={captureToSequencer}
+                onClick={captureToLooper}
                 style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#30D158,#34C759)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",boxShadow:"0 0 24px rgba(48,209,88,0.45)",animation:"pulse 1.4s ease-in-out infinite"}}
               >
-                ⬇ CAPTURE → SÉQUENCEUR
+                ⚡ QUANTISER LE LOOPER
               </button>
               <span style={{fontSize:7,color:"rgba(255,255,255,0.3)",letterSpacing:"0.06em",textAlign:"center"}}>
-                Quantise intelligemment · Remplace le pattern courant · Ctrl+Z pour annuler
+                Snap intelligent 1/4·1/8·1/16·1/32 · ↺ UNDO pour annuler
               </span>
             </div>
           )}
