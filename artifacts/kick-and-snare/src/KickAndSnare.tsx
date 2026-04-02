@@ -1490,6 +1490,8 @@ export default function KickAndSnare(){
   const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0});
   const loopPhRef=useRef(null);
   const wakeLockRef=useRef<any>(null); // Screen Wake Lock — prevents screen sleep during playback
+  const [captureReady,setCaptureReady]=useState(false); // true after first full loop bar recorded
+  const captureReadyRef=useRef(false); // ref mirror — safe to read inside RAF closure
   const [autoQ,setAutoQ]=useState(false);
   // Undo / redo for looper — snapshot-based (covers rec passes, overdub, add, move, remove, quantize)
   const loopHistRef=useRef<{past:any[][];future:any[][]}>({past:[],future:[]});
@@ -2185,6 +2187,11 @@ export default function KickAndSnare(){
       const el=engine.ctx.currentTime-LL.audioStart;
       const lenS=LL.lengthMs/1000;
       setLoopPlayhead((el%lenS)/lenS);
+      // Detect first full bar via ref (not state) to avoid stale-closure false-alarm
+      if(!captureReadyRef.current&&el>=lenS){
+        captureReadyRef.current=true;
+        setCaptureReady(true);
+      }
       loopPhRef.current=requestAnimationFrame(animate);
     };
     cancelAnimationFrame(loopPhRef.current);
@@ -2196,6 +2203,7 @@ export default function KickAndSnare(){
     cancelAnimationFrame(loopPhRef.current);
     loopRef.current.audioStart=null;
     R.loopRec=false; // immediate ref — stop capturing before next render
+    captureReadyRef.current=false;setCaptureReady(false);
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
   const _armLoopRec=async(forcedStart?:number)=>{
@@ -2287,6 +2295,68 @@ export default function KickAndSnare(){
     loopHistRef.current={past:[],future:[]};
     setLoopDisp([]);setLoopCanUndo(false);setLoopCanRedo(false);
   };
+  // ── CAPTURE MODE ──
+  // Smart-quantize looper hits into the current sequencer pattern then switch view.
+  const captureToSequencer=()=>{
+    const L=loopRef.current;
+    if(!L.events||L.events.length===0)return;
+    const loopDurMs=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
+    const beatMs=60000/Math.max(30,bpm);
+    // Available subdivisions (ms): 1/4, 1/8, 1/16, 1/32
+    const subdivMs=[beatMs,beatMs/2,beatMs/4,beatMs/8];
+    // 1/16-step grid
+    const totalSteps=loopBars*sig.beats*4;
+    const stepMs=loopDurMs/totalSteps;
+    // Zeroed pattern + velocity arrays (init vel to 0, restore 100 for empty steps later)
+    const newPat=Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(totalSteps).fill(0)]));
+    const newVel=Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(totalSteps).fill(0)]));
+    L.events.forEach(ev=>{
+      if(!newPat[ev.tid])return;
+      // Find nearest subdivision — minimum-distance snap
+      let bestSnapMs=stepMs;let bestDist=Infinity;
+      subdivMs.forEach(sub=>{
+        const snapped=Math.round(ev.tOff/sub)*sub;
+        const dist=Math.abs(ev.tOff-snapped);
+        if(dist<bestDist){bestDist=dist;bestSnapMs=sub;}
+      });
+      const snappedMs=Math.round(ev.tOff/bestSnapMs)*bestSnapMs;
+      const stepIdx=Math.round(snappedMs/stepMs)%totalSteps;
+      newPat[ev.tid][stepIdx]=1;
+      const velPct=Math.round((ev.vel||1)*100);
+      // Keep loudest velocity when multiple hits land on the same step
+      newVel[ev.tid][stepIdx]=Math.max(newVel[ev.tid][stepIdx],velPct);
+    });
+    // Restore default velocity (100) for steps that have no hit
+    ALL_TRACKS.forEach(t=>{
+      newVel[t.id]=newVel[t.id].map((v,i)=>newPat[t.id][i]?Math.max(1,v):100);
+    });
+    // Snapshot for undo BEFORE modifying the sequencer
+    pushHistory();
+    // Build the updated pBank with captured tracks written into current slot
+    const newPBank=[...pBank];
+    const cp={...newPBank[cPat]};
+    ALL_TRACKS.forEach(t=>{if(newPat[t.id].some(v=>v>0))cp[t.id]=[...newPat[t.id]];});
+    newPBank[cPat]=cp;
+    // Activate captured tracks
+    const capturedIds=ALL_TRACKS.filter(t=>newPat[t.id].some(v=>v>0)).map(t=>t.id);
+    setAct(prev=>{const next=[...prev];capturedIds.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+    setStVel(sv=>{const n={...sv};ALL_TRACKS.forEach(t=>{if(newPat[t.id].some(v=>v>0))n[t.id]=[...newVel[t.id]];});return n;});
+    // Update seqSnap BEFORE switching view so switchView('sequencer') restores OUR pattern
+    seqSnap.current={pBank:newPBank,cPat,songChain,songMode};
+    setPBank(newPBank);
+    stopLooper(); // also resets captureReadyRef + setCaptureReady(false)
+    // Go directly to sequencer — seqSnap already has our captured pBank
+    setView('sequencer');
+    // Brief delay to let React flush state before starting the scheduler
+    setTimeout(()=>{
+      if(!engine.ctx)return;
+      R.step=-1;
+      nxtRef.current=engine.ctx.currentTime+0.05;
+      schLoop();
+      setPlaying(true);
+    },80);
+  };
+
   const freshRecLooper=async()=>{
     // Stop playback + wipe events, then immediately arm a fresh recording
     clearLooper();
@@ -3067,6 +3137,23 @@ export default function KickAndSnare(){
                   }}
                   autoQ={autoQ} setAutoQ={setAutoQ}
                 />
+                {/* CAPTURE button — appears after first full bar is recorded */}
+                {captureReady&&loopDisp&&loopDisp.length>0&&(
+                  <div style={{padding:"8px 0 4px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:8,color:"rgba(48,209,88,0.7)",letterSpacing:"0.08em",animation:"rb 1.2s infinite"}}>
+                      {loopDisp.length} hit{loopDisp.length>1?"s":""} prêts à capturer
+                    </span>
+                    <button
+                      onClick={captureToSequencer}
+                      style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#30D158,#34C759)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",boxShadow:"0 0 24px rgba(48,209,88,0.45)",animation:"pulse 1.4s ease-in-out infinite"}}
+                    >
+                      ⬇ CAPTURE → SÉQUENCEUR
+                    </button>
+                    <span style={{fontSize:7,color:"rgba(255,255,255,0.3)",letterSpacing:"0.06em",textAlign:"center"}}>
+                      Quantise intelligemment · Remplace le pattern courant · Ctrl+Z pour annuler
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
