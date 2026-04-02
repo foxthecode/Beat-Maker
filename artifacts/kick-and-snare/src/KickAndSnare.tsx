@@ -1726,16 +1726,20 @@ export default function KickAndSnare(){
       const buf=freeCaptureRef.current;
       setFreeCaptureCount(buf.length);
       if(buf.length>=4){
-        const intervals:number[]=[];
-        for(let i=1;i<buf.length;i++) intervals.push(buf[i].t-buf[i-1].t);
-        // Trimmed mean (remove outer 20%) — more robust than plain median
-        const sorted=[...intervals].sort((a,b)=>a-b);
-        const trim=Math.max(1,Math.floor(sorted.length*0.2));
-        const trimmed=sorted.slice(trim,sorted.length-trim);
-        const avg=trimmed.reduce((a,b)=>a+b,0)/trimmed.length;
-        // Try normal / half-time / quarter-time
-        const detected=[avg,avg*2,avg*4].map(ms=>Math.round(60000/ms)).find(b=>b>=40&&b<=240)??null;
-        if(detected!==null)setFreeBpm(detected);
+        // Grid-alignment BPM detection (same principle as MPC "Detect Tempo" / Ableton)
+        // For each candidate BPM, compute how well hits align to the beat grid.
+        // Normalized error = avg_distance_to_nearest_beat / beatMs
+        // This prevents slower BPMs from winning simply because they have larger grids.
+        const ts=buf.map(h=>h.t);
+        let bestBpm:number|null=null,bestScore=Infinity;
+        for(let cBpm=40;cBpm<=240;cBpm++){
+          const beatMs=60000/cBpm;
+          let err=0;
+          ts.forEach(t=>{const ph=t%beatMs;err+=Math.min(ph,beatMs-ph);});
+          const score=(err/ts.length)/beatMs; // normalized: fraction of a beat
+          if(score<bestScore){bestScore=score;bestBpm=cBpm;}
+        }
+        if(bestBpm!==null)setFreeBpm(bestBpm);
       }
     }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
@@ -2388,7 +2392,16 @@ export default function KickAndSnare(){
   const captureFromFreePlay=async()=>{
     const buf=freeCaptureRef.current;
     if(buf.length<2)return;
-    const finalBpm=Math.max(40,Math.min(240,freeBpm??bpm));
+    // Re-run grid-alignment BPM detection on the full buffer for maximum accuracy
+    const ts=buf.map(h=>h.t);
+    let gridBpm:number|null=null,gridBest=Infinity;
+    for(let cBpm=40;cBpm<=240;cBpm++){
+      const bMs=60000/cBpm;
+      let err=0;ts.forEach(t=>{const ph=t%bMs;err+=Math.min(ph,bMs-ph);});
+      const score=(err/ts.length)/bMs;
+      if(score<gridBest){gridBest=score;gridBpm=cBpm;}
+    }
+    const finalBpm=Math.max(40,Math.min(240,gridBpm??freeBpm??bpm));
     setBpm(finalBpm);
     R.bpm=finalBpm; // sync ref immediately — React batching means startLooper would otherwise read old bpm
     const beatMs=60000/finalBpm;
