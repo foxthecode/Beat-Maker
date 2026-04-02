@@ -3384,9 +3384,8 @@ export default function KickAndSnare(){
                 {/* ── Delete pad button ── */}
                 {atO.length>1&&(
                   <button
-                    onTouchStart={e=>e.stopPropagation()}
-                    onPointerDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                    onPointerDown={e=>{e.stopPropagation();e.preventDefault();}}
                     title={`Remove ${track.label}`}
                     style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
                   >×</button>
@@ -3397,8 +3396,8 @@ export default function KickAndSnare(){
                   const pR=9;const pC=2*Math.PI*pR;
                   return(
                     <div
-                      style={{position:"absolute",bottom:8,right:8,display:"flex",flexDirection:"column",alignItems:"center",gap:1,zIndex:2}}
-                      onTouchStart={e=>e.stopPropagation()}
+                      style={{position:"absolute",bottom:8,right:8,display:"flex",flexDirection:"column",alignItems:"center",gap:1,zIndex:2,touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
+                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();}}
                       onPointerDown={e=>{
                         e.stopPropagation();e.preventDefault();
                         const el=e.currentTarget;el.setPointerCapture(e.pointerId);
