@@ -2823,7 +2823,7 @@ export default function KickAndSnare(){
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");if(!R.loopRec){_armLoopRec();}}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(true);if(!R.loopRec){_armLoopRec();}}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
@@ -3069,6 +3069,9 @@ export default function KickAndSnare(){
                     <span style={{position:"relative",fontSize:8,fontWeight:800,color:"#FF9500",letterSpacing:"0.08em"}}>🎵 COUNTDOWN — REC in 1 bar…</span>
                   </div>
                 )}
+                {/* Flex row: LooperPanel left (full width), CAPTURE button anchored bottom-right */}
+                <div style={{display:"flex",alignItems:"flex-end",gap:6}}>
+                <div style={{flex:1,minWidth:0}}>
                 <LooperPanel
                   loopBars={loopBars} setLoopBars={setLoopBars}
                   loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
@@ -3121,26 +3124,28 @@ export default function KickAndSnare(){
                   }}
                   autoQ={autoQ} setAutoQ={setAutoQ}
                 />
+                </div>{/* end LooperPanel flex wrapper */}
+                {/* CAPTURE button — always visible, 3 states: empty / waiting / ready */}
+                {(()=>{
+                  const ready=captureReady&&loopDisp.length>0;
+                  const waiting=!captureReady&&loopDisp.length>0;
+                  return(
+                    <button
+                      onClick={ready?captureToLooper:undefined}
+                      title={ready?`Quantiser ${loopDisp.length} hit${loopDisp.length>1?"s":""}`:waiting?"Attends 1 bar complet…":"Joue des pads pour activer"}
+                      style={{flexShrink:0,alignSelf:"flex-end",marginBottom:6,padding:"5px 10px",borderRadius:6,border:ready?"none":`1px solid rgba(48,209,88,${waiting?"0.25":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":waiting?"rgba(48,209,88,0.07)":"rgba(48,209,88,0.02)",color:ready?"#fff":waiting?"rgba(48,209,88,0.55)":"rgba(48,209,88,0.2)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.07em",boxShadow:ready?"0 0 14px rgba(48,209,88,0.35)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.25s",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:68}}
+                    >
+                      <span>⚡ CAPTURE</span>
+                      <span style={{fontSize:7,fontWeight:700,opacity:0.8}}>
+                        {loopDisp.length>0?`${loopDisp.length} hit${loopDisp.length>1?"s":""}${ready?"":waiting?"…":""}`:"\u00a0"}
+                      </span>
+                    </button>
+                  );
+                })()}
+                </div>{/* end outer flex row */}
               </div>
             )}
           </div>
-          {/* CAPTURE button — outside looper panel so it's visible even when panel is collapsed */}
-          {captureReady&&loopDisp&&loopDisp.length>0&&(
-            <div style={{marginBottom:10,padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-              <span style={{fontSize:8,color:"rgba(48,209,88,0.7)",letterSpacing:"0.08em",animation:"rb 1.2s infinite"}}>
-                {loopDisp.length} hit{loopDisp.length>1?"s":""} prêts à capturer
-              </span>
-              <button
-                onClick={captureToLooper}
-                style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#30D158,#34C759)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",boxShadow:"0 0 24px rgba(48,209,88,0.45)",animation:"pulse 1.4s ease-in-out infinite"}}
-              >
-                ⚡ QUANTISER LE LOOPER
-              </button>
-              <span style={{fontSize:7,color:"rgba(255,255,255,0.3)",letterSpacing:"0.06em",textAlign:"center"}}>
-                Snap intelligent 1/4·1/8·1/16·1/32 · ↺ UNDO pour annuler
-              </span>
-            </div>
-          )}
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12,touchAction:"none"}}>
             {atO.map((track)=>(

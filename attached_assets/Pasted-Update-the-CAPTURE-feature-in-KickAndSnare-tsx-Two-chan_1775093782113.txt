@@ -1,0 +1,206 @@
+Update the CAPTURE feature in KickAndSnare.tsx.
+Two changes vs the previous implementation:
+
+1. Multi-bar detection: CAPTURE takes everything played (2-4 bars),
+   not just 1 bar. Pattern length = first→last hit rounded up to
+   nearest complete bar at detected BPM. No maximum bar limit.
+
+2. CAPTURE button moves: it now sits on the same line as COUNTDOWN,
+   to its right. Remove the full-width CAPTURE button that was placed
+   above the looper banner.
+
+════════════════════════════════════════════════════════
+FIX 1 — Multi-bar capture in captureToSequencer
+════════════════════════════════════════════════════════
+
+The existing captureToSequencer already rounds up to nearest bar —
+but it caps totalSteps at 32 when choosing the target time signature.
+Replace that cap with a dynamic lookup that supports 1, 2, and 4 bars:
+
+FIND (in captureToSequencer):
+  const targetSig =
+    totalSteps === 32
+      ? TIME_SIGS.find(s => s.steps === 32) ?? TIME_SIGS[0]
+      : TIME_SIGS.find(s => s.label === '4/4') ?? TIME_SIGS[0];
+
+REPLACE WITH:
+  // Pick the best matching time sig for the detected step count.
+  // Prefer an exact match, fall back to 4/4 and let the sequencer
+  // show the correct number of steps via the _steps override.
+  const targetSig =
+    TIME_SIGS.find(s => s.steps === totalSteps) ??
+    TIME_SIGS.find(s => s.label === '4/4 ×2') ??
+    TIME_SIGS.find(s => s.label === '4/4') ??
+    TIME_SIGS[0];
+
+Also remove any hardcoded cap on numBars — the existing
+  const numBars = Math.max(1, Math.ceil(totalDurationMs / barMs));
+is correct as-is and already supports any number of bars.
+
+════════════════════════════════════════════════════════
+FIX 2 — Move CAPTURE button next to COUNTDOWN
+════════════════════════════════════════════════════════
+
+--- 2a. Remove the standalone full-width CAPTURE button ---
+
+Remove the entire IIFE block that renders the full-width CAPTURE button
+above the looper banner (the block starting with {(() => { const ready =
+captureHasHits && captureBufferRef.current.length >= 4 ... })()}).
+
+--- 2b. Add CAPTURE inline with COUNTDOWN ---
+
+In LooperPanel.jsx, the COUNTDOWN button is rendered as:
+
+  {!loopPlaying && !loopRec && setLoopMetro && (
+    <button
+      onClick={() => setLoopMetro(p => !p)}
+      ...
+    >
+      {loopMetro ? "COUNTDOWN ON" : "COUNTDOWN"}
+    </button>
+  )}
+
+This button is inside the Controls section of LooperPanel.
+LooperPanel does not have access to captureToSequencer or captureHasHits
+— so do NOT modify LooperPanel.jsx.
+
+Instead, in KickAndSnare.tsx, find where LooperPanel is rendered
+inside the Live Pads view and replace it with a wrapper that adds
+the CAPTURE button on the same line as COUNTDOWN.
+
+The COUNTDOWN button is rendered inside LooperPanel and cannot be
+extracted — so render CAPTURE as a sibling that visually aligns with it
+by placing it in a flex row immediately below the LooperPanel, but
+use a negative margin to visually pull it up alongside COUNTDOWN.
+
+More precisely: wrap the LooperPanel in a relative div, then render
+the CAPTURE button as an absolutely-or-flexibly positioned element.
+
+The simplest correct approach: add a flex row just ABOVE the LooperPanel
+that contains only the CAPTURE button aligned right, then inside
+LooperPanel the COUNTDOWN button appears on its own line. This keeps
+the two visually close without modifying LooperPanel internals.
+
+FIND (in the Live Pads view, the looper banner content div):
+  <div style={{padding:"0 12px 12px"}}>
+    {recCountdown && ( ... )}
+    <LooperPanel ... />
+  </div>
+
+REPLACE WITH:
+  <div style={{padding:"0 12px 12px"}}>
+    {recCountdown && ( ... )}
+    {/* CAPTURE sits on same visual line as COUNTDOWN inside LooperPanel */}
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 6,
+      position: 'relative',
+    }}>
+      {/* LooperPanel takes all available width */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <LooperPanel
+          loopBars={loopBars} setLoopBars={setLoopBars}
+          loopRec={loopRec} loopPlaying={loopPlaying}
+          loopPlayhead={loopPlayhead} loopDisp={loopDisp}
+          loopMetro={loopMetro} setLoopMetro={setLoopMetro}
+          onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper}
+          onTogglePlay={loopPlaying ? stopLooper : () => startLooper(false)}
+          onUndo={undoLoopPass} onClear={clearLooper}
+          themeName={themeName} isPortrait={isPortrait}
+          bpm={bpm} tracks={atO}
+          onMoveHit={(idx, newTOff) => { ... }}
+          onAddHit={(tid, tOff) => { ... }}
+          onRemoveHit={(idx) => { ... }}
+          onQuantize={(div) => { ... }}
+          autoQ={autoQ} setAutoQ={setAutoQ}
+        />
+      </div>
+      {/* CAPTURE button — fixed width, vertically aligned with COUNTDOWN row */}
+      {(() => {
+        const count = captureBufferRef.current.length;
+        const ready = captureHasHits && count >= 4;
+        const waiting = captureHasHits && count < 4;
+        const remaining = Math.max(0, 4 - count);
+        return (
+          <button
+            onClick={ready ? captureToSequencer : undefined}
+            title={
+              ready
+                ? `Capturer ${count} hits · ${captureDetectedBpm ?? '?'} BPM détecté`
+                : waiting
+                ? `Encore ${remaining} hit${remaining > 1 ? 's' : ''} avant capture`
+                : 'Joue des pads pour activer CAPTURE'
+            }
+            style={{
+              flexShrink: 0,
+              alignSelf: 'flex-end',
+              marginBottom: 6,
+              padding: '5px 12px',
+              borderRadius: 6,
+              border: ready
+                ? 'none'
+                : `1px solid rgba(48,209,88,0.2)`,
+              background: ready
+                ? 'linear-gradient(90deg,#30D158,#34C759)'
+                : waiting
+                ? 'rgba(48,209,88,0.08)'
+                : 'rgba(48,209,88,0.03)',
+              color: ready ? '#fff' : waiting ? 'rgba(48,209,88,0.6)' : 'rgba(48,209,88,0.2)',
+              fontSize: 8,
+              fontWeight: 800,
+              cursor: ready ? 'pointer' : 'default',
+              fontFamily: 'inherit',
+              letterSpacing: '0.07em',
+              boxShadow: ready ? '0 0 14px rgba(48,209,88,0.35)' : 'none',
+              animation: ready ? 'pulse 1.4s ease-in-out infinite' : 'none',
+              transition: 'all 0.2s',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2,
+              minWidth: 72,
+            }}
+          >
+            <span>{ready ? '⬇ CAPTURE' : '⬇ CAPTURE'}</span>
+            <span style={{
+              fontSize: 7,
+              fontWeight: 700,
+              opacity: 0.85,
+            }}>
+              {ready && captureDetectedBpm
+                ? `${captureDetectedBpm} BPM`
+                : waiting
+                ? `+${remaining} hits`
+                : ''}
+            </span>
+          </button>
+        );
+      })()}
+    </div>
+  </div>
+
+Note: keep all the existing onMoveHit / onAddHit / onRemoveHit / onQuantize
+inline handlers exactly as they were — only the wrapping div and the
+LooperPanel JSX position change.
+
+════════════════════════════════════════════════════════
+BEHAVIOR SUMMARY
+════════════════════════════════════════════════════════
+- CAPTURE button always visible next to COUNTDOWN, greyed out until hits
+- After 4 hits: button activates, shows detected BPM live
+- Multi-bar play (2-4 bars): all hits captured, pattern length auto-detected
+- Click CAPTURE:
+    · detected BPM replaces global BPM
+    · pattern length = first→last hit rounded to nearest bar (any number)
+    · smart quantization per hit (1/4, 1/8, 1/16, 1/32)
+    · switches to Sequencer, starts playback immediately
+    · Ctrl+Z restores previous state
+
+════════════════════════════════════════════════════════
+CONSTRAINTS
+════════════════════════════════════════════════════════
+- Do not modify LooperPanel.jsx
+- Do not add new files
+- All other CAPTURE logic (buffer, BPM detection, quantization,
+  captureToSequencer) remains exactly as previously implemented
