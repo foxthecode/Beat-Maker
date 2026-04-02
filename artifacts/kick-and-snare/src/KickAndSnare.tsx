@@ -2394,8 +2394,9 @@ export default function KickAndSnare(){
     const beatMs=60000/finalBpm;
     const barMs=beatMs*sig.beats;
     const totalMs=buf[buf.length-1].t;
-    // Math.round + 1/8 bar lookahead so "last hit before bar end" stays in the same bar
-    const numBars=Math.max(1,Math.round((totalMs+barMs*0.125)/barMs));
+    // Snap to nearest even bar count (min 2) — odd bar loops are musically awkward
+    const rawBars=Math.round((totalMs+barMs*0.125)/barMs);
+    const numBars=Math.max(2,Math.round(rawBars/2)*2);
     const loopDurMs=numBars*barMs;
     // Quantize each hit to nearest of 1/4·1/8·1/16·1/32
     const snapHit=(tMs:number)=>{
