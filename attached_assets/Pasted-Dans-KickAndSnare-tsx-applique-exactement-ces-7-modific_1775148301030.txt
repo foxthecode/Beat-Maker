@@ -1,0 +1,138 @@
+Dans KickAndSnare.tsx, applique exactement ces
+7 modifications chirurgicales dans l'ordre indiqué.
+Chaque modification est isolée et vérifiée sans
+side effet sur les autres fonctionnalités.
+
+━━━ M1 — uFx() : transTime adaptatif pad vs scheduler ━━━
+
+Dans la méthode uFx(id, f, noteTime?) de la classe Eng,
+remplace les 3 premières lignes du bloc vol/pan :
+
+AVANT :
+    const transTime=this._isMobile?0.08:0.005;
+    c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,transTime);
+    if(c.pan?.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
+
+APRÈS :
+    // isPadTap = true quand appelé depuis un tap live
+    // (noteTime absent ou dans les 5ms qui suivent ct)
+    // isPadTap = false quand appelé depuis le scheduler
+    // (noteTime = step futur planifié > ct+0.005)
+    const isPadTap = noteTime == null || noteTime <= ct + 0.005;
+    const transTime = isPadTap
+      ? 0.001                             // quasi-instantané pour pads
+      : (this._isMobile ? 0.05 : 0.005); // rampe douce pour scheduler
+    // cancelScheduledValues évite l'accumulation de rampes
+    // sur les frappes rapides successives
+    c.vol.gain.cancelScheduledValues(ct);
+    c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,transTime);
+    if(c.pan?.pan){
+      c.pan.pan.cancelScheduledValues(ct);
+      c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
+    }
+
+NE PAS TOUCHER le bloc transient shaper (c.tsAtk)
+qui suit — il reste inchangé.
+
+━━━ M2 — trigPad : court-circuit synchrone ━━━
+
+Dans trigPad, remplace uniquement les 2 premières lignes :
+
+AVANT :
+    const trigPad=useCallback(async(tid,vel=1)=>{
+      if(engine.ctx?.state!=='running')await engine.ensureRunning();
+      engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+
+APRÈS :
+    const trigPad=useCallback(async(tid,vel=1)=>{
+      // Court-circuit : joue immédiatement sans await.
+      // play() gère ctx.resume() en interne si suspendu.
+      // L'await est supprimé du chemin nominal (ctx running)
+      // pour éliminer le saut de microtask queue.
+      if(engine.ctx?.state!=='running'){
+        // Contexte suspendu : on joue quand même.
+        // play() appelle ctx.resume() sans await (ligne ~602).
+        // Le son démarre dès que le contexte reprend.
+        engine.ensureRunning().catch(()=>{});
+      }
+      engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+
+Le reste de trigPad (vibrate, flash, looper, BPM, REC)
+reste strictement identique — ne pas y toucher.
+
+━━━ M3 — BPM detection hors thread principal ━━━
+
+Dans trigPad, dans le bloc free capture
+(if(R.view==='pads'&&!R.loopRec&&engine.ctx)),
+remplace uniquement le bloc if(buf.length>=4) :
+
+AVANT :
+      if(buf.length>=4){
+        const ts=buf.map(h=>h.t);
+        let bestBpm:number|null=null,bestScore=Infinity;
+        for(let cBpm=40;cBpm<=240;cBpm++){
+          const beatMs=60000/cBpm;
+          let err=0;
+          ts.forEach(t=>{const ph=t%beatMs;err+=Math.min(ph,beatMs-ph);});
+          const score=(err/ts.length)/beatMs;
+          if(score<bestScore){bestScore=score;bestBpm=cBpm;}
+        }
+        if(bestBpm!==null)setFreeBpm(bestBpm);
+      }
+
+APRÈS :
+      if(buf.length>=4){
+        // Snapshot immutable AVANT le setTimeout
+        // pour éviter toute race condition avec les
+        // taps suivants qui mutent freeCaptureRef
+        const snapshot=buf.map(h=>h.t);
+        setTimeout(()=>{
+          let bestBpm:number|null=null,bestScore=Infinity;
+          for(let cBpm=40;cBpm<=240;cBpm++){
+            const beatMs=60000/cBpm;
+            let err=0;
+            snapshot.forEach(t=>{const ph=t%beatMs;err+=Math.min(ph,beatMs-ph);});
+            const score=(err/snapshot.length)/beatMs;
+            if(score<bestScore){bestScore=score;bestBpm=cBpm;}
+          }
+          if(bestBpm!==null)setFreeBpm(bestBpm);
+        },0);
+      }
+
+━━━ M4 — nodeCount seuil 12 → 20 ━━━
+
+Dans la méthode play() de la classe Eng,
+remplace :
+    if(this._isMobile&&this._nodeCount>=12){return;}
+Par :
+    if(this._isMobile&&this._nodeCount>=20){return;}
+
+Une seule ligne à changer. Aucun autre changement.
+
+━━━ M5 — vibrate hors du chemin critique ━━━
+
+Dans trigPad, remplace :
+    if(navigator.vibrate)navigator.vibrate(15);
+Par :
+    if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
+
+Une seule ligne à changer.
+
+━━━ M6 — touchAction sur la div racine ━━━
+
+Sur la div racine du composant (ligne ~2851),
+celle avec style={{minHeight:"100vh",...}},
+ajoute touchAction:"manipulation" dans le style :
+
+AVANT :
+    <div style={{minHeight:"100vh",background:th.bg,color:th.text,
+      fontFamily:"...",overflow:"auto"}}>
+
+APRÈS :
+    <div style={{minHeight:"100vh",background:th.bg,color:th.text,
+      fontFamily:"...",overflow:"auto",
+      touchAction:"manipulation"}}>
+
+Explication : supprime le délai 300ms de
+"double-tap to zoom" Android sur toute l'app
+sans bloquer le scroll nati

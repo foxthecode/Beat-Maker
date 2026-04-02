@@ -564,9 +564,22 @@ class Eng{
   uFx(id,f,noteTime?:number){
     const c=this.ch[id];if(!c||!this.ctx)return;const ct=this.ctx.currentTime;
     // vol/pan: apply at current time (persistent settings)
-    const transTime=this._isMobile?0.08:0.005;
+    // isPadTap = true quand appelé depuis un tap live
+    // (noteTime absent ou dans les 5ms qui suivent ct)
+    // isPadTap = false quand appelé depuis le scheduler
+    // (noteTime = step futur planifié > ct+0.005)
+    const isPadTap = noteTime == null || noteTime <= ct + 0.005;
+    const transTime = isPadTap
+      ? 0.001                             // quasi-instantané pour pads
+      : (this._isMobile ? 0.05 : 0.005); // rampe douce pour scheduler
+    // cancelScheduledValues évite l'accumulation de rampes
+    // sur les frappes rapides successives
+    c.vol.gain.cancelScheduledValues(ct);
     c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,transTime);
-    if(c.pan?.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
+    if(c.pan?.pan){
+      c.pan.pan.cancelScheduledValues(ct);
+      c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
+    }
     // Transient shaper: per-note envelope anchored at the note's scheduled time
     if(c.tsAtk){
       // nt = the moment the note starts (or now for immediate pads)
@@ -607,7 +620,7 @@ class Eng{
     if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
     if(this.buf[id]){
       // Mobile node throttle: skip if too many voices active to prevent glitching
-      if(this._isMobile&&this._nodeCount>=12){return;}
+      if(this._isMobile&&this._nodeCount>=20){return;}
       this._nodeCount++;
       const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);};
     } // H.1d
@@ -1732,9 +1745,18 @@ export default function KickAndSnare(){
 
   // Keyboard shortcuts
   const trigPad=useCallback(async(tid,vel=1)=>{
-    if(engine.ctx?.state!=='running')await engine.ensureRunning();
+    // Court-circuit : joue immédiatement sans await.
+    // play() gère ctx.resume() en interne si suspendu.
+    // L'await est supprimé du chemin nominal (ctx running)
+    // pour éliminer le saut de microtask queue.
+    if(engine.ctx?.state!=='running'){
+      // Contexte suspendu : on joue quand même.
+      // play() appelle ctx.resume() sans await (ligne ~602).
+      // Le son démarre dès que le contexte reprend.
+      engine.ensureRunning().catch(()=>{});
+    }
     engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
-    if(navigator.vibrate)navigator.vibrate(15);
+    if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
     flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
@@ -1774,20 +1796,21 @@ export default function KickAndSnare(){
       const buf=freeCaptureRef.current;
       setFreeCaptureCount(buf.length);
       if(buf.length>=4){
-        // Grid-alignment BPM detection (same principle as MPC "Detect Tempo" / Ableton)
-        // For each candidate BPM, compute how well hits align to the beat grid.
-        // Normalized error = avg_distance_to_nearest_beat / beatMs
-        // This prevents slower BPMs from winning simply because they have larger grids.
-        const ts=buf.map(h=>h.t);
-        let bestBpm:number|null=null,bestScore=Infinity;
-        for(let cBpm=40;cBpm<=240;cBpm++){
-          const beatMs=60000/cBpm;
-          let err=0;
-          ts.forEach(t=>{const ph=t%beatMs;err+=Math.min(ph,beatMs-ph);});
-          const score=(err/ts.length)/beatMs; // normalized: fraction of a beat
-          if(score<bestScore){bestScore=score;bestBpm=cBpm;}
-        }
-        if(bestBpm!==null)setFreeBpm(bestBpm);
+        // Snapshot immutable AVANT le setTimeout
+        // pour éviter toute race condition avec les
+        // taps suivants qui mutent freeCaptureRef
+        const snapshot=buf.map(h=>h.t);
+        setTimeout(()=>{
+          let bestBpm:number|null=null,bestScore=Infinity;
+          for(let cBpm=40;cBpm<=240;cBpm++){
+            const beatMs=60000/cBpm;
+            let err=0;
+            snapshot.forEach(t=>{const ph=t%beatMs;err+=Math.min(ph,beatMs-ph);});
+            const score=(err/snapshot.length)/beatMs;
+            if(score<bestScore){bestScore=score;bestBpm=cBpm;}
+          }
+          if(bestBpm!==null)setFreeBpm(bestBpm);
+        },0);
       }
     }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
@@ -2848,7 +2871,7 @@ export default function KickAndSnare(){
   };
 
   return(<>
-    <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto"}}>
+    <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto",touchAction:"manipulation"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
       {/* keyframes migrated to src/styles/animations.css (imported in App.tsx at CP-F) */}
       {!isAudioReady&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,height:2,background:"rgba(0,0,0,0.25)"}}>
