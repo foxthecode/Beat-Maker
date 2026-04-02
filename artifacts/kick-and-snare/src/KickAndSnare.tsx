@@ -2507,7 +2507,7 @@ export default function KickAndSnare(){
             </div>
           </div>
           {/* Animated drummer mascot + kit selector + UNDO/REDO */}
-          <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:20}}>
           {/* ── Kit selector ◀ [icon · NAME] ▶ ── */}
           {(()=>{
             const curKit=DRUM_KITS[kitIdx]||DRUM_KITS[0];
