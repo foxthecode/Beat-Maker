@@ -394,9 +394,7 @@ class Eng{
       for(let i=0;i<chain.length-1;i++)seriesOut[chain[i]].connect(seriesIn[chain[i+1]]);
       seriesOut[chain[chain.length-1]].connect(this.gOut);
     }
-    // Re-attach chorus/flanger master feeds (safeDisc(mg) broke them)
-    if(this.gChoFeed)try{this.mg.connect(this.gChoFeed);}catch(e){}
-    if(this.gFlaFeed)try{this.mg.connect(this.gFlaFeed);}catch(e){}
+    // chorus/flanger use per-track sends — no master feed to re-attach
     this._chainOrder=chain;this._sendPositions=sendPositions;
   }
   setSerialOrder(order:string[]){this.rebuildChain(order,this._sendPositions);}
@@ -468,24 +466,20 @@ class Eng{
     if(this.gDl)this.gDl.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay?.time||0.25),t,0.01);
     if(this.gDlFb)this.gDlFb.gain.setTargetAtTime((gfx.delay?.fdbk||35)/100,t,0.01);
     if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay?.on?4500:20000,t,0.01);
-    // ── Chorus — master bus insert via gChoFeed ──
+    // ── Chorus — per-track sends (same model as reverb/delay) ──
     const choOn=gfx.chorus?.on??false;
-    const choWet=Math.min(1,((gfx.chorus?.wet??70)/100)*0.85);
-    // gChoBus gate (shared by per-track sends + master feed)
     if(this.gChoBus)this.gChoBus.gain.setTargetAtTime(choOn?1:0,t,0.01);
-    // Master feed from mg → gChoFeed → gChoBus (the primary routing)
-    if(this.gChoFeed)this.gChoFeed.gain.setTargetAtTime(choOn?choWet:0,t,0.01);
+    if(this.gChoFeed)this.gChoFeed.gain.setTargetAtTime(0,t,0.01); // master feed disabled
     if(this.gChoLfo)this.gChoLfo.frequency.setTargetAtTime(Math.max(0.1,gfx.chorus?.rate??0.8),t,0.01);
     if(this.gChoDepthL&&this.gChoDepthR){
       const depth=(gfx.chorus?.depth??30)/100*0.007;
       this.gChoDepthL.gain.setTargetAtTime(choOn?depth:0,t,0.01);
       this.gChoDepthR.gain.setTargetAtTime(choOn?-depth:0,t,0.01);
     }
-    // ── Flanger — master bus insert via gFlaFeed ──
+    // ── Flanger — per-track sends (same model as reverb/delay) ──
     const flaOn=gfx.flanger?.on??false;
-    const flaWet=Math.min(1,((gfx.flanger?.wet??70)/100)*0.75);
     if(this.gFlaBus)this.gFlaBus.gain.setTargetAtTime(flaOn?1:0,t,0.01);
-    if(this.gFlaFeed)this.gFlaFeed.gain.setTargetAtTime(flaOn?flaWet:0,t,0.01);
+    if(this.gFlaFeed)this.gFlaFeed.gain.setTargetAtTime(0,t,0.01); // master feed disabled
     if(this.gFlaLfo)this.gFlaLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.flanger?.rate??0.3),t,0.01);
     if(this.gFlaDepth){const depth=(gfx.flanger?.depth??50)/100*0.004;this.gFlaDepth.gain.setTargetAtTime(flaOn?depth:0,t,0.01);}
     if(this.gFlaFb)this.gFlaFb.gain.setTargetAtTime(flaOn?Math.min(0.9,(gfx.flanger?.feedback??60)/100):0,t,0.01);
@@ -510,14 +504,15 @@ class Eng{
       const rvOn=gfx.reverb?.on&&!!gfx.reverb?.sends?.[id];
       const dlOn=gfx.delay?.on&&!!gfx.delay?.sends?.[id];
       const ppS=ppOn&&!!gfx.pingpong?.sends?.[id];
+      const choS=choOn&&!!gfx.chorus?.sends?.[id];
+      const flaS=flaOn&&!!gfx.flanger?.sends?.[id];
       if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?0.85:0,t,0.01);
       if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?0.85:0,t,0.01);
-      // Chorus/flanger are now master bus inserts — zero per-track sends
-      if(c.choSend)c.choSend.gain.setTargetAtTime(0,t,0.01);
-      if(c.flaSend)c.flaSend.gain.setTargetAtTime(0,t,0.01);
+      if(c.choSend)c.choSend.gain.setTargetAtTime(choS?0.85:0,t,0.01);
+      if(c.flaSend)c.flaSend.gain.setTargetAtTime(flaS?0.85:0,t,0.01);
       if(c.ppSend)c.ppSend.gain.setTargetAtTime(ppS?0.70:0,t,0.01);
-      const anySend=rvOn||dlOn||ppS;
-      const manySend=[rvOn,dlOn,ppS].filter(Boolean).length>1;
+      const anySend=rvOn||dlOn||choS||flaS||ppS;
+      const manySend=[rvOn,dlOn,choS,flaS,ppS].filter(Boolean).length>1;
       if(c.dry)c.dry.gain.setTargetAtTime(manySend?0.3:anySend?0.6:1,t,0.3);
     });
   }
@@ -682,8 +677,8 @@ const GFX_DRY={
   filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,sends:{}},
   comp:{on:false,thr:-12,ratio:4,attack:5,release:80,sends:{}},
   drive:{on:false,amt:0,mode:'tanh',sends:{}},
-  chorus:{on:false,rate:0.8,depth:30,wet:70},
-  flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+  chorus:{on:false,rate:0.8,depth:30,sends:{}},
+  flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
   pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
 };
 
@@ -695,8 +690,8 @@ const FX_PRESETS=[
     filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-18,ratio:6,attack:3,release:60},
     drive:  {on:true, amt:15,mode:'tanh'},
-    chorus: {on:false,rate:0.8,depth:30,wet:70},
-    flanger:{on:true, rate:0.5,depth:60,feedback:70,wet:80},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:true, rate:0.5,depth:60,feedback:70,sends:{kick:true,snare:true}},
     pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
   }},
   {name:'Boom Bap',color:'#FF9500',gfx:{
@@ -705,8 +700,8 @@ const FX_PRESETS=[
     filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-12,ratio:4,attack:8,release:100},
     drive:  {on:true, amt:8,mode:'tape'},
-    chorus: {on:true, rate:0.5,depth:20,wet:50},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus: {on:true, rate:0.5,depth:20,sends:{kick:true,snare:true}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
   }},
   {name:'Techno',color:'#64D2FF',gfx:{
@@ -715,8 +710,8 @@ const FX_PRESETS=[
     filter: {on:true, type:'highpass',cut:80,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-8,ratio:8,attack:2,release:50},
     drive:  {on:false,amt:0,mode:'tanh'},
-    chorus: {on:false,rate:0.8,depth:30,wet:70},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:true,time:0.25,fdbk:40,sync:true,syncDiv:'1/4',sends:{kick:true}},
   }},
   {name:'Lo-Fi',color:'#BF5AF2',gfx:{
@@ -725,8 +720,8 @@ const FX_PRESETS=[
     filter: {on:true, type:'lowpass',cut:8000,res:2,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-6,ratio:3,attack:15,release:200},
     drive:  {on:true, amt:35,mode:'bit'},
-    chorus: {on:true, rate:1.2,depth:60,wet:75},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus: {on:true, rate:1.2,depth:60,sends:{snare:true,hihat:true}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
   }},
   {name:'Afro',color:'#30D158',gfx:{
@@ -735,8 +730,8 @@ const FX_PRESETS=[
     filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-14,ratio:3,attack:10,release:120},
     drive:  {on:false,amt:0,mode:'tanh'},
-    chorus: {on:false,rate:0.8,depth:30,wet:70},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:true,time:0.188,fdbk:35,sync:true,syncDiv:'1/8',sends:{perc:true,clap:true}},
   }},
   {name:'Stadium',color:'#BF5AF2',gfx:{
@@ -745,8 +740,8 @@ const FX_PRESETS=[
     filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-16,ratio:4,attack:5,release:80},
     drive:  {on:false,amt:0,mode:'tanh'},
-    chorus: {on:false,rate:0.8,depth:30,wet:70},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
   }},
   {name:'Pumping',color:'#5E5CE6',gfx:{
@@ -755,8 +750,8 @@ const FX_PRESETS=[
     filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
     comp:   {on:true, thr:-28,ratio:14,attack:2,release:40},
     drive:  {on:true, amt:8,mode:'tanh'},
-    chorus: {on:false,rate:0.8,depth:30,wet:70},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus: {on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
   }},
 ];
@@ -1072,27 +1067,27 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
 
               <Sep/>
 
-              {/* CHORUS — master bus insert, no per-track sends needed */}
-              <div style={{minWidth:130,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="CHORUS" color="#5E5CE6" active={gfx.chorus?.on??false} onToggle={()=>upSec('chorus','on',!(gfx.chorus?.on??false))} hint={(gfx.chorus?.on??false)?"CHORUS actif · Modulation de hauteur stéréo sur le bus master · Clic pour désactiver":"CHORUS · Élargissement stéréo par double-delay LFO · Agit sur le mix entier"}/>
+              {/* CHORUS — per-track sends */}
+              <div style={{minWidth:150,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="CHORUS" color="#5E5CE6" active={gfx.chorus?.on??false} onToggle={()=>upSec('chorus','on',!(gfx.chorus?.on??false))} hint={(gfx.chorus?.on??false)?"CHORUS actif · Modulation de hauteur stéréo par send · Clic pour désactiver":"CHORUS · Élargissement stéréo par double-delay LFO · Routage par send par track"}/>
                 <div style={{display:'flex',gap:8,opacity:(gfx.chorus?.on??false)?1:0.3,pointerEvents:(gfx.chorus?.on??false)?'auto':'none'}}>
                   <Knob label="RATE" value={gfx.chorus?.rate??0.8} min={0.1} max={5} color="#5E5CE6" unit="Hz" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('chorus','rate',v)}/>
                   <Knob label="DEPTH" value={gfx.chorus?.depth??30} min={0} max={100} color="#5E5CE6" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('chorus','depth',v)}/>
-                  <Knob label="WET" value={gfx.chorus?.wet??70} min={0} max={100} color="#5E5CE6" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('chorus','wet',v)}/>
                 </div>
+                <SendRow sec="chorus" color="#5E5CE6"/>
               </div>
 
               <Sep/>
 
-              {/* FLANGER — master bus insert, no per-track sends needed */}
-              <div style={{minWidth:145,flexShrink:0,paddingLeft:6,paddingRight:6}}>
-                <SecLabel label="FLANGER" color="#FF375F" active={gfx.flanger?.on??false} onToggle={()=>upSec('flanger','on',!(gfx.flanger?.on??false))} hint={(gfx.flanger?.on??false)?"FLANGER actif · Effet jet d'avion sur le mix master · Clic pour désactiver":"FLANGER · Déphasage modulé en feedback — effet métallique ou aérien sur tout le mix"}/>
+              {/* FLANGER — per-track sends */}
+              <div style={{minWidth:165,flexShrink:0,paddingLeft:6,paddingRight:6}}>
+                <SecLabel label="FLANGER" color="#FF375F" active={gfx.flanger?.on??false} onToggle={()=>upSec('flanger','on',!(gfx.flanger?.on??false))} hint={(gfx.flanger?.on??false)?"FLANGER actif · Effet jet d'avion par send · Clic pour désactiver":"FLANGER · Déphasage modulé en feedback — routage par send par track"}/>
                 <div style={{display:'flex',gap:8,opacity:(gfx.flanger?.on??false)?1:0.3,pointerEvents:(gfx.flanger?.on??false)?'auto':'none'}}>
                   <Knob label="RATE" value={gfx.flanger?.rate??0.3} min={0.05} max={3} color="#FF375F" unit="Hz" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('flanger','rate',v)}/>
                   <Knob label="DEPTH" value={gfx.flanger?.depth??50} min={0} max={100} color="#FF375F" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('flanger','depth',v)}/>
                   <Knob label="FDBK" value={gfx.flanger?.feedback??60} min={0} max={90} color="#FF375F" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('flanger','feedback',v)}/>
-                  <Knob label="WET" value={gfx.flanger?.wet??70} min={0} max={100} color="#FF375F" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('flanger','wet',v)}/>
                 </div>
+                <SendRow sec="flanger" color="#FF375F"/>
               </div>
 
               <Sep/>
@@ -1324,8 +1319,8 @@ export default function KickAndSnare(){
     filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,sends:{}},
     comp:{on:false,thr:-12,ratio:4,attack:5,release:80,sends:{}},
     drive:{on:false,amt:0,mode:'tanh',sends:{}},
-    chorus:{on:false,rate:0.8,depth:30,wet:70},
-    flanger:{on:false,rate:0.3,depth:50,feedback:60,wet:70},
+    chorus:{on:false,rate:0.8,depth:30,sends:{}},
+    flanger:{on:false,rate:0.3,depth:50,feedback:60,sends:{}},
     pingpong:{on:false,time:0.25,fdbk:50,sync:false,syncDiv:'1/4',sends:{}},
   });
   const [fxChainOrder,setFxChainOrder]=useState<string[]>(['drive','comp','filter']);
