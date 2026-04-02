@@ -1,0 +1,11 @@
+[
+  {
+    "_comment": "TODO: Replace sha256_cert_fingerprints with the actual SHA-256 fingerprint of your Android keystore before publishing to Google Play. Generate with: keytool -list -v -keystore release.keystore",
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kickandsnare.twa",
+      "sha256_cert_fingerprints": ["REPLACE_WITH_KEYSTORE_SHA256_FINGERPRINT"]
+    }
+  }
+]
