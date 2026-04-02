@@ -6,3 +6,9 @@ id = "L9EianRL3VJpaDd_2seTr"
 uri = "file://kick-and-snare-export.txt"
 type = "text"
 title = "Kick & Snare v8.0 — Export code complet"
+
+[[outputs]]
+id = "EPBMxWjkcyW7o_U5BCapf"
+uri = "file://artifacts/kick-and-snare/kick_snare_v9_export.txt"
+type = "text"
+title = "Kick & Snare v9.0 — Export code complet"
