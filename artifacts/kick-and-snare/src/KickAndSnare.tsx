@@ -222,7 +222,7 @@ class Eng{
   init(){
     if(this.ctx)return;
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(
-      this._isMobile?{latencyHint:'playback',sampleRate:44100}:{}
+      this._isMobile?{latencyHint:'interactive',sampleRate:44100}:{latencyHint:'interactive'}
     );
     // ── Master input gain ──
     this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
@@ -1696,7 +1696,8 @@ export default function KickAndSnare(){
 
   // Keyboard shortcuts
   const trigPad=useCallback(async(tid,vel=1)=>{
-    await engine.ensureRunning();engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+    if(engine.ctx?.state!=='running')await engine.ensureRunning();
+    engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
     if(navigator.vibrate)navigator.vibrate(15);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
@@ -2136,7 +2137,20 @@ export default function KickAndSnare(){
       }
     };
     document.addEventListener('visibilitychange',onVis);
-    return()=>document.removeEventListener('visibilitychange',onVis);
+    // FIX PAD LATENCY — pre-resume AudioContext on FIRST touch so it's running
+    // before the user's finger reaches a pad (avoids ctx.resume() delay in trigPad)
+    const onFirstTouch=()=>{
+      if(engine.ctx&&engine.ctx.state==='suspended')engine.ctx.resume().catch(()=>{});
+      document.removeEventListener('touchstart',onFirstTouch,true);
+      document.removeEventListener('pointerdown',onFirstTouch,true);
+    };
+    document.addEventListener('touchstart',onFirstTouch,{capture:true,passive:true});
+    document.addEventListener('pointerdown',onFirstTouch,{capture:true,passive:true});
+    return()=>{
+      document.removeEventListener('visibilitychange',onVis);
+      document.removeEventListener('touchstart',onFirstTouch,true);
+      document.removeEventListener('pointerdown',onFirstTouch,true);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[schLoop]);
 
