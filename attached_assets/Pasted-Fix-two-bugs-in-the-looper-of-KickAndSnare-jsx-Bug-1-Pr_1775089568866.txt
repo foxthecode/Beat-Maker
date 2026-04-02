@@ -1,0 +1,56 @@
+Fix two bugs in the looper of KickAndSnare.jsx.
+
+---
+
+## Bug 1 — Premier tour : le premier coup joue immédiatement au lieu d'attendre le beat 1
+
+**Cause :** Dans `startLooper()`, `L.audioStart` est initialisé à `engine.ctx.currentTime`. Du coup, les events avec `tSec ≈ 0` (coups enregistrés au début de la boucle) tombent exactement dans la fenêtre de `loopSchedFn` au premier tick et sont déclenchés immédiatement. Le 2ème tour fonctionne bien car `n=1` ajoute `lenSec` au temps.
+
+**Fix :** Dans `startLooper()`, reculer `audioStart` d'un tour complet et ajouter un petit lookahead de 50ms, de façon que le premier déclenchement réel arrive proprement sur le beat 1 :
+
+```js
+const startLooper = () => {
+  engine.init();
+  const L = loopRef.current;
+  L.lengthMs = (60000 / Math.max(30, R.bpm)) * 4 * loopBars;
+  const ahead = 0.05; // 50ms
+  L.audioStart = engine.ctx.currentTime - L.lengthMs / 1000 + ahead;
+  L.perfStart = performance.now() + (L.lengthMs - ahead * 1000);
+  L.scheduled = new Set();
+  loopSchedFn();
+  // ... reste inchangé
+};
+```
+
+---
+
+## Bug 2 — Le tout premier coup tapé n'est jamais enregistré
+
+**Cause :** Dans `trigPad`, le coup n'est enregistré que si `R.loopRec === true` ET `loopRef.current.perfStart !== null`. Or quand l'utilisateur tape le pad pour armer + jouer en même temps (premier tap sur REC), `trigPad` s'exécute **avant** `startLooper()` : `R.loopRec` est encore `false` et `perfStart` est encore `null`. Le coup est joué mais non capturé.
+
+**Fix en deux parties :**
+
+1. Dans `startLooper()`, initialiser `L.perfStart` **en tout premier**, avant `audioStart` (avec le même décalage que le fix du bug 1) :
+
+```js
+L.perfStart = performance.now() + (L.lengthMs - ahead * 1000);
+L.audioStart = engine.ctx.currentTime - L.lengthMs / 1000 + ahead;
+```
+
+2. Dans `toggleLoopRec()`, mettre à jour la ref `R.loopRec` de façon **synchrone** avant d'appeler `startLooper()`, pour que `trigPad` le voie immédiatement sans attendre le cycle React :
+
+```js
+if (!loopPlaying) {
+  const L = loopRef.current;
+  L.passId++;
+  L.events = [];
+  R.loopRec = true;      // sync, visible par trigPad dans le même tick
+  setLoopDisp([]);
+  setLoopRec(true);      // async, pour l'UI
+  startLooper();
+}
+```
+
+---
+
+N'applique **que** ces deux corrections. Ne touche à rien d'autre dans le code.
