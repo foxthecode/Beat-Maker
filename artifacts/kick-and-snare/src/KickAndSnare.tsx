@@ -226,9 +226,26 @@ class Eng{
   }
   init(){
     if(this.ctx)return;
+    // TOUJOURS 'interactive' — drum machine = instrument temps-réel.
+    // 'playback' donnait 100–300ms de latence hardware sur Android (buffer 4096+ samples).
+    // Le pre-rendering (renderShape) + voice throttle (20) évitent les glitches sans
+    // avoir besoin d'un grand buffer. sampleRate:44100 fixé sur tous devices
+    // pour éviter la pénalité de resampling (si le hardware est en 48kHz, Chrome gère).
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(
-      this._isMobile?{latencyHint:'playback',sampleRate:44100}:{latencyHint:'interactive'}
+      {latencyHint:'interactive',sampleRate:44100}
     );
+    // Diagnostic — à lire dans la console mobile pour vérifier la latence réelle obtenue
+    if(this._isMobile){
+      const diagFn=()=>{
+        console.info(
+          `[Audio] latencyHint:interactive | base:${(this.ctx.baseLatency*1000).toFixed(1)}ms`+
+          ` | output:${(this.ctx.outputLatency*1000).toFixed(1)}ms`+
+          ` | total:${((this.ctx.baseLatency+this.ctx.outputLatency)*1000).toFixed(1)}ms`
+        );
+      };
+      // Loguer après le premier resume (outputLatency est 0 avant ça sur certains Chrome)
+      this.ctx.addEventListener('statechange',()=>{if(this.ctx.state==='running')diagFn();},{once:true});
+    }
     // ── Master input gain ──
     this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
     // ── Drive (WaveShaper) ──
