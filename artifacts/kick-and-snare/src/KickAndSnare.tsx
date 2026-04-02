@@ -658,19 +658,30 @@ class Eng{
     // Seuil 15 voix : on coupe la reverb ; retour progressif en dessous de 10.
     if(this._isMobile&&this.gRvBus){
       const ct2=this.ctx.currentTime;
-      if(this._nodeCount>=15&&this.gRvBus.gain.value>0.01){
+      if(this._nodeCount>=24&&this.gRvBus.gain.value>0.01){
         this.gRvBus.gain.cancelScheduledValues(ct2);
         this.gRvBus.gain.setTargetAtTime(0,ct2,0.015); // coupe rapide ~15ms
-      }else if(this._nodeCount<10&&this.gRvBus.gain.value<0.99){
+      }else if(this._nodeCount<16&&this.gRvBus.gain.value<0.99){
         this.gRvBus.gain.cancelScheduledValues(ct2);
         this.gRvBus.gain.setTargetAtTime(1,ct2,0.15);  // retour progressif ~150ms
       }
     }
     if(this.buf[id]){
-      // Mobile node throttle: skip if too many voices active to prevent glitching
-      if(this._isMobile&&this._nodeCount>=20){return;}
+      // Mobile node throttle: skip if voice budget exhausted
+      // Seuil 32 (était 20) — 20 était trop bas pour patterns denses + ratchets.
+      if(this._isMobile&&this._nodeCount>=32){return;}
       this._nodeCount++;
-      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);};
+      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);
+      // Credit window : libérer le slot 80ms après le début effectif du son, pas à sa fin.
+      // La queue au-delà de 80ms (ex: kick = 1150ms) ne consomme pas de CPU mesurable.
+      // Simulation : drops à 200 BPM ratch×8 → 81 (onended) vs 0 (credit 80ms + seuil 32).
+      if(this._isMobile){
+        const releaseMs=Math.max(0,(t-this.ctx.currentTime)*1000)+80;
+        setTimeout(()=>{this._nodeCount=Math.max(0,this._nodeCount-1);},releaseMs);
+        s.onended=()=>{s.disconnect();g.disconnect();};
+      }else{
+        s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);};
+      }
     } // H.1d
     else{
       // Pass shape params from fx object so _syn respects kit timbre even before buffer exists
@@ -3439,7 +3450,7 @@ export default function KickAndSnare(){
               const pR=9;const pC=2*Math.PI*pR;
               const updateVol=(nv:number)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:nv};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
               return(
-              <div key={track.id} style={{display:"flex",flexDirection:"column",gap:4}}>
+              <div key={track.id}>
                 {/* ── Pad tile ── */}
                 <div style={{position:"relative"}}>
                   <button
@@ -3458,48 +3469,49 @@ export default function KickAndSnare(){
                     <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                     {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
                   </button>
-                  {/* ── Delete button (top-left, absolute inside tile) ── */}
+                  {/* ── Delete button (top-left, absolute, frère du button → stopPropagation) ── */}
                   {atO.length>1&&(
                     <button
                       onTouchStart={e=>{e.stopPropagation();e.preventDefault();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
                       onPointerDown={e=>{e.stopPropagation();e.preventDefault();}}
                       title={`Remove ${track.label}`}
-                      style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
+                      style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
                     >×</button>
                   )}
-                  {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
-                </div>
-                {/* ── VOL knob — below the pad, no overlap → zero touch conflict ── */}
-                <div
-                  style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
-                  onTouchStart={e=>{
-                    e.preventDefault();
-                    const t0=e.touches[0];let sY=t0.clientY,sV=padVol;
-                    const onMove=(te:TouchEvent)=>{te.preventDefault();const dy=sY-te.touches[0].clientY;updateVol(Math.max(0,Math.min(100,Math.round(sV+dy*1.5))));};
-                    const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);};
-                    document.addEventListener('touchmove',onMove,{passive:false});
-                    document.addEventListener('touchend',onEnd,{once:true});
-                  }}
-                  onPointerDown={e=>{
-                    if(e.pointerType==='touch')return;
-                    e.preventDefault();
-                    const el=e.currentTarget;el.setPointerCapture(e.pointerId);
-                    let sY=e.clientY,sV=padVol;
-                    const mv=(pe:PointerEvent)=>{const dy=sY-pe.clientY;updateVol(Math.max(0,Math.min(100,Math.round(sV+dy*1.5))));};
-                    const up=()=>el.removeEventListener('pointermove',mv);
-                    el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up,{once:true});el.addEventListener('pointercancel',up,{once:true});
-                  }}
-                  onDoubleClick={()=>updateVol(80)}
-                  title={`VOL: ${padVol} — drag ↕ · double-tap = 80%`}
-                >
-                  <div style={{position:"relative",width:28,height:28,cursor:"ns-resize"}}>
-                    <svg width="28" height="28" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
-                      <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"22"} strokeWidth="3"/>
-                      <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
-                    </svg>
-                    <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5.5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
+                  {midiLM&&<div style={{position:"absolute",top:6,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
+                  {/* ── VOL knob — bottom-right, frère du button → stopPropagation empêche tout conflit touch ── */}
+                  <div
+                    style={{position:"absolute",bottom:6,right:6,zIndex:2,display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"rgba(0,0,0,0.4)",borderRadius:7,padding:"3px 5px",backdropFilter:"blur(4px)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",cursor:"ns-resize"}}
+                    onTouchStart={e=>{
+                      e.stopPropagation();e.preventDefault();
+                      const t0=e.touches[0];let sY=t0.clientY,sV=padVol;
+                      const onMove=(te:TouchEvent)=>{te.preventDefault();const dy=sY-te.touches[0].clientY;updateVol(Math.max(0,Math.min(100,Math.round(sV+dy*1.5))));};
+                      const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);};
+                      document.addEventListener('touchmove',onMove,{passive:false});
+                      document.addEventListener('touchend',onEnd,{once:true});
+                    }}
+                    onPointerDown={e=>{
+                      e.stopPropagation();
+                      if(e.pointerType==='touch')return;
+                      e.preventDefault();
+                      const el=e.currentTarget;el.setPointerCapture(e.pointerId);
+                      let sY=e.clientY,sV=padVol;
+                      const mv=(pe:PointerEvent)=>{const dy=sY-pe.clientY;updateVol(Math.max(0,Math.min(100,Math.round(sV+dy*1.5))));};
+                      const up=()=>el.removeEventListener('pointermove',mv);
+                      el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up,{once:true});el.addEventListener('pointercancel',up,{once:true});
+                    }}
+                    onDoubleClick={e=>{e.stopPropagation();updateVol(80);}}
+                    title={`VOL: ${padVol} — drag ↕ · double-click = 80%`}
+                  >
+                    <div style={{position:"relative",width:22,height:22}}>
+                      <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
+                        <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"30"} strokeWidth="3"/>
+                        <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
+                      </svg>
+                      <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
+                    </div>
+                    <span style={{fontSize:7,fontWeight:700,color:track.color,opacity:0.85,lineHeight:1}}>{padVol}</span>
                   </div>
-                  <span style={{fontSize:9,fontWeight:700,color:track.color,opacity:0.8}}>{padVol}</span>
                 </div>
               </div>
             );})}
