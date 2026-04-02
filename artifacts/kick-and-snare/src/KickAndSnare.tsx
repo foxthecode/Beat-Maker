@@ -3075,8 +3075,8 @@ export default function KickAndSnare(){
           {tSig.groupOptions&&(<div style={{marginBottom:8}}><div style={{fontSize:8,color:th.dim,marginBottom:4}}>BEAT GROUPING</div><div style={{display:"flex",gap:4}}>{tSig.groupOptions.map((o,i)=>(<button key={i} onClick={()=>setGrpIdx(i)} style={{padding:"5px 12px",borderRadius:5,border:`1px solid ${grpIdx===i?"rgba(48,209,88,0.4)":th.sBorder}`,background:grpIdx===i?"rgba(48,209,88,0.1)":"transparent",color:grpIdx===i?"#30D158":th.dim,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{o[o.length-1]}</button>))}</div></div>)}
         </div>)}
 
-        {/* ── Keyboard Shortcut Cheat Sheet ── */}
-        {showK&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
+        {/* ── Keyboard Shortcut Cheat Sheet — desktop only ── */}
+        {showK&&!isPortrait&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
           <div style={{fontSize:9,fontWeight:700,color:"#FFD60A",marginBottom:8,letterSpacing:"0.1em"}}>KEYBOARD SHORTCUTS</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6,marginBottom:10,fontSize:8}}>
             {[["Space","Play / Stop"],["Alt","Toggle Record"],["T","Tap Tempo"],["? ","Show / Hide This"],["← →","BPM ±1"],["↑ ↓","BPM ±5"],["Pad keys","Trigger / record drums"]].map(([k,v])=>(
@@ -3379,7 +3379,7 @@ export default function KickAndSnare(){
                   style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
                   <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
-                  <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
+                  {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
                 </button>
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
               </div>
@@ -3837,7 +3837,7 @@ export default function KickAndSnare(){
                 {key:"↺ / ↻",desc:"Undo (Ctrl+Z) / Redo (Ctrl+Y) — up to 50 history steps on patterns."},
                 {key:"? (this panel)",desc:"Displays this user guide. Click outside to close."},
                 {key:"THEME",desc:"Toggle between dark and light theme. Purely visual preference."},
-                {key:"LIVE PADS",desc:"Switch to Live Pads view: 8 colored pads playable by touch or keyboard for real-time performance."},
+                {key:"LIVE PADS",desc:"Switch to Live Pads view: 8 colored pads playable by touch for real-time performance."},
                 {key:"SEQUENCER",desc:"Main view: TR-808 step sequencer. Place sounds on a 16 or 32-step grid."},
                 {key:"⬡ EUCLIDIAN",desc:"Algorithmic Euclidean sequencer: distributes N hits across M steps with mathematical regularity (African rhythms, polymeters)."},
               ]},
@@ -3850,7 +3850,6 @@ export default function KickAndSnare(){
                 {key:"METRO",desc:"Enable the audio metronome. Adjust volume and subdivision in the transport bar."},
                 {key:"VOL",desc:"Global master volume. Drag vertically to adjust."},
                 {key:"CLEAR",desc:"Clear all steps from all tracks in the current pattern."},
-                {key:"KEYS",desc:"Show keyboard mappings: each track has an assigned key for live play."},
                 {key:"MIDI",desc:"Configure MIDI notes per track and enable MIDI Learn. Connect a controller to trigger tracks."},
                 {key:"SHARE / WAV",desc:"SHARE copies a URL encoding the full pattern. WAV exports audio as a 16-bit PCM file."},
               ]},
@@ -3915,7 +3914,7 @@ export default function KickAndSnare(){
               ]},
               {title:"Live Pads",color:"#5E5CE6",icon:"⊞",items:[
                 {key:"Colored pads",desc:"Play each track in real time. Velocity-sensitive (longer hold = louder on release)."},
-                {key:"Keyboard shortcuts",desc:"Each track has an assigned key (Q, S, D, F, G, H, J, K by default — see KEYS)."},
+                {key:"Velocity",desc:"Hold longer on a pad for a harder hit during live recording."},
                 {key:"REC + pads",desc:"Enable REC to capture your hits into the sequencer or looper."},
               ]},
             ] as {title:string,color:string,icon:string,items:{key:string,desc:string}[]}[]).map(section=>(

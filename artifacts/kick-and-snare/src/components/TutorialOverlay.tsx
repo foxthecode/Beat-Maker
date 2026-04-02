@@ -261,7 +261,7 @@ const STEPS = [
     tips:[
       {icon:"◆", text:"TR-808 step sequencer with velocity and probability"},
       {icon:"⬡", text:"Algorithmic Euclidean rhythms for complex polymeters"},
-      {icon:"▣",  text:"Live Pads — 8 pads playable in real time from keyboard"},
+      {icon:"▣",  text:"Live Pads — 8 pads playable in real time by touch"},
       {icon:"⚙", text:"Global FX Rack: Reverb, Delay, Chorus, Comp, Drive…"},
     ],
     Illu: IlluWelcome,
@@ -271,11 +271,10 @@ const STEPS = [
     color: COLORS.transport,
     desc:"The transport bar controls everything: tempo, playback, recording and global tools.",
     tips:[
-      {icon:"▶", text:"Space = Play / Stop  ·  tempo displayed in BPM at the center"},
-      {icon:"◉", text:"REC (●) = live recording mode — tap a pad during playback to inscribe that sound in the grid at the current step  ·  Alt = shortcut"},
+      {icon:"▶", text:"Tap Play / Stop to start or stop the sequencer"},
+      {icon:"◉", text:"REC (●) = live recording mode — tap a pad during playback to inscribe that sound in the grid at the current step"},
       {icon:"♩", text:"TAP: tap 4× in rhythm to auto-detect BPM"},
       {icon:"↕", text:"VOL MASTER: drag ↕ on the button  ·  double-tap = 80%"},
-      {icon:"⌨", text:"KEYS: assign a keyboard key to each track in the grid"},
       {icon:"M", text:"MIDI LEARN: assign MIDI notes to tracks and buttons"},
     ],
     Illu: IlluTransport,
@@ -311,10 +310,9 @@ const STEPS = [
   {
     id:"pads", icon:"▣", title:"Live Pads", subtitle:"Real-time performance",
     color: COLORS.pads,
-    desc:"8 pads playable in real time — by touch, mouse, or assigned keyboard keys.",
+    desc:"8 pads playable in real time — touch to trigger instantly.",
     tips:[
-      {icon:"●", text:"Touch / click a pad = trigger the sound immediately"},
-      {icon:"A", text:"Each pad responds to its assigned keyboard key (via KEYS)"},
+      {icon:"●", text:"Touch / tap a pad = trigger the sound immediately"},
       {icon:"◉", text:"Enable REC while playing to record into the Looper"},
       {icon:"M", text:"MIDI compatible: play pads from an external controller"},
       {icon:"↕", text:"Velocity depends on the vertical position of the touch on the pad"},
@@ -340,7 +338,7 @@ const STEPS = [
     color: COLORS.looper,
     desc:"Record real-time performances on a visual timeline. Hits can be repositioned by dragging.",
     tips:[
-      {icon:"◉", text:"REC: start free recording (pad, keyboard or MIDI)"},
+      {icon:"◉", text:"REC: start free recording (pad or MIDI)"},
       {icon:"O", text:"OVERDUB: layer sounds on top without erasing the loop"},
       {icon:"Q", text:"QUANT + APPLY: snap all hits to 1/16, 1/8, 1/4…"},
       {icon:"↔", text:"Drag bars horizontally to reposition a hit"},
@@ -349,12 +347,11 @@ const STEPS = [
     Illu: IlluLooper,
   },
   {
-    id:"shortcuts", icon:"⌨", title:"Shortcuts & Sharing", subtitle:"Go faster",
+    id:"shortcuts", icon:"⚡", title:"MIDI & Sharing", subtitle:"Connect and collaborate",
     color: COLORS.shortcuts,
-    desc:"Keyboard, MIDI, Ableton LINK, and URL sharing to speed up creation and performance.",
+    desc:"MIDI, Ableton LINK, and URL sharing to speed up creation and performance.",
     tips:[
-      {icon:"Z", text:"Ctrl+Z / Ctrl+Y = Undo / Redo up to 50 steps"},
-      {icon:"←", text:"Arrow keys = BPM −/+ 1 during playback"},
+      {icon:"↺", text:"↺ / ↻ = Undo / Redo up to 50 steps"},
       {icon:"L", text:"LINK: sync BPM with Ableton or other network apps"},
       {icon:"↑", text:"SHARE: encodes the full pattern in a URL for instant sharing"},
       {icon:"↓", text:"WAV: renders 1 / 2 / 4 bars as 16-bit stereo PCM"},

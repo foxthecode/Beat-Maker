@@ -274,7 +274,6 @@ export default function TransportBar({
           {!isPads && ClearBtn}
         </div>
         <div style={{ ...rowStyle }}>
-          {KeybBtn}
           {MidiBtn}
           {LinkBtn}
           {ExportBtn}
@@ -295,7 +294,7 @@ export default function TransportBar({
       {MetroBtn}
       {SubBtn}
       {!isPads && ClearBtn}
-      {KeybBtn}
+      {!isPortrait && KeybBtn}
       {MidiBtn}
       {LinkBtn}
       {ExportBtn}
