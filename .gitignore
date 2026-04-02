@@ -3,6 +3,10 @@
 # compiled output
 # dist
 tmp
+
+# Un-ignore kick-and-snare production build so it can be served from GitHub
+!artifacts/kick-and-snare/dist/
+!artifacts/kick-and-snare/dist/**
 out-tsc
 *.tsbuildinfo
 .expo
