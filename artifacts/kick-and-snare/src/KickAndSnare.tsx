@@ -3179,7 +3179,14 @@ export default function KickAndSnare(){
               {loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#FF2D55",animation:"rb 0.8s infinite"}}>● REC</span>}
               {loopPlaying&&!loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#30D158"}}>▶ PLAY</span>}
               {recCountdown&&<span style={{fontSize:7,fontWeight:800,color:"#FF9500",animation:"rb 0.5s infinite"}}>COUNTDOWN…</span>}
-              {/* ── CAPTURE button — always in header, visible folded & unfolded ── */}
+              {/* ── CAPTURE + RESET — always in header, visible folded & unfolded ── */}
+              {freeCaptureCount>0&&(
+                <button
+                  onClick={e=>{e.stopPropagation();clearFreeCapture();}}
+                  title="Recommencer — efface les hits enregistrés et repart de zéro"
+                  style={{marginLeft:4,flexShrink:0,padding:"3px 7px",borderRadius:5,border:"1px solid rgba(255,55,95,0.3)",background:"rgba(255,55,95,0.08)",color:"rgba(255,55,95,0.7)",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.15s",lineHeight:1}}
+                >✕</button>
+              )}
               {(()=>{
                 const ready=freeCaptureCount>=4;
                 const listening=freeCaptureCount>0&&freeCaptureCount<4;
@@ -3187,7 +3194,7 @@ export default function KickAndSnare(){
                   <button
                     onClick={e=>{e.stopPropagation();if(ready)captureFromFreePlay();}}
                     title={ready?`${freeCaptureCount} hits · ${freeBpm??'?'} BPM détecté — cliquer pour capturer`:listening?`${freeCaptureCount}/4 hits — continue à jouer`:"Joue des pads pour activer le mode capture"}
-                    style={{marginLeft:4,flexShrink:0,padding:"3px 8px",borderRadius:5,border:ready?"none":`1px solid rgba(48,209,88,${listening?"0.3":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":listening?"rgba(48,209,88,0.08)":"rgba(48,209,88,0.02)",color:ready?"#fff":listening?"rgba(48,209,88,0.65)":"rgba(48,209,88,0.22)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.06em",boxShadow:ready?"0 0 10px rgba(48,209,88,0.3)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.2s",whiteSpace:"nowrap"}}
+                    style={{marginLeft:listening||ready?2:4,flexShrink:0,padding:"3px 8px",borderRadius:5,border:ready?"none":`1px solid rgba(48,209,88,${listening?"0.3":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":listening?"rgba(48,209,88,0.08)":"rgba(48,209,88,0.02)",color:ready?"#fff":listening?"rgba(48,209,88,0.65)":"rgba(48,209,88,0.22)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.06em",boxShadow:ready?"0 0 10px rgba(48,209,88,0.3)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.2s",whiteSpace:"nowrap"}}
                   >
                     {ready?`⚡ ${freeBpm??'?'} BPM`:listening?`⚡ ${freeCaptureCount}/4`:"⚡ CAPTURE"}
                   </button>
