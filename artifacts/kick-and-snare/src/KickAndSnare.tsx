@@ -2912,7 +2912,7 @@ export default function KickAndSnare(){
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(true);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(false);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
