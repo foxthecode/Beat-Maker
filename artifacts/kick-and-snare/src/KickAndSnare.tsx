@@ -2118,6 +2118,11 @@ export default function KickAndSnare(){
   const loopSchedFn=()=>{
     const L=loopRef.current;const ctx=engine.ctx;
     if(!ctx||L.audioStart===null)return;
+    if(ctx.state==='suspended'){
+      ctx.resume().catch(()=>{});
+      L.schTimer=setTimeout(loopSchedFn,100);
+      return;
+    }
     const now=ctx.currentTime;const ahead=0.12;
     const lenSec=L.lengthMs/1000;
     const elapsed=now-L.audioStart;
@@ -2206,6 +2211,9 @@ export default function KickAndSnare(){
       R.loopRec=true;
     }
     await engine.ensureRunning();
+    if(engine.ctx&&engine.ctx.state==='suspended'){
+      try{await engine.ctx.resume();}catch{/* fail silently */}
+    }
     // Fallback: ctx was suspended on click — set audioStart now (first-use only)
     if(!R.loopRec){
       L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx!.currentTime;
