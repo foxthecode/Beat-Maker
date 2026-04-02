@@ -112,12 +112,15 @@ function TrackRow({
         {/* ── Left: two sub-columns side by side ── */}
         <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "row", gap: 3, alignItems: "flex-start" }}>
 
-          {/* Sub-col A: Row1 = icon+label+VOL+PAN  |  Row2 = ◀BUS▶ + SND knob */}
+          {/* Sub-col A: Row1 = icon+label  |  Row2 = VOL+PAN */}
           <div style={{ width: 92, flexShrink: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-            {/* Row 1: icon · label · VOL · PAN */}
+            {/* Row 1: icon · label */}
             <div style={{ display: "flex", alignItems: "center", gap: 2, overflow: "hidden" }}>
               <DrumSVG id={track.id} color={track.color} hit={flash} />
               <span data-hint={`Track ${track.label} · Drag steps to program · Icon = hit animation · Color = unique identifier`} style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
+            </div>
+            {/* Row 2: VOL · PAN */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {/* VOL */}
               <div style={{ flexShrink: 0 }}>
                 <div data-hint={`VOL track ${track.label} · Value: ${vol}% · Drag ↕ to adjust · Double-click to reset to 80%`} onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
@@ -140,22 +143,6 @@ function TrackRow({
                   <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>PAN</span>
                 </div>
                 <MidiTag id={`pan_${track.id}`} />
-              </div>
-            </div>
-            {/* Row 2: ◀ BUS ▶ · SND knob */}
-            <div data-hint={`SEND FX · Send this track to an effect (${fxLabel}) · ◀ ▶ to switch effect · Knob = send level`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(-1); }} style={arrowBtnSt}>◀</button>
-              <span style={{ fontSize: 5.5, fontWeight: 900, letterSpacing: "0.06em", width: 22, textAlign: "center", lineHeight: 1, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", textShadow: sendAmt > 0 ? `0 0 5px ${fxColor}` : "none", transition: "color 0.15s,text-shadow 0.15s" }}>{fxLabel}</span>
-              <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(1); }} style={arrowBtnSt}>▶</button>
-              <div style={{ flexShrink: 0 }}>
-                <div onPointerDown={sendOnPD} onDoubleClick={() => onSendAmtChange?.(0)} title={`SEND→${fxLabel}: ${sendAmt}% — drag ↕ · dbl-click=0`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                  <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={(sendAmt > 0 ? fxColor : "#ffffff") + "18"} strokeWidth="2.5" />
-                    {sendAmt > 0 && <circle cx="11" cy="11" r={r} fill="none" stroke={fxColor} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * sendAmt / 100} ${circ}`} style={{ filter: `drop-shadow(0 0 3px ${fxColor})` }} />}
-                  </svg>
-                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", pointerEvents: "none" }}>SND</span>
-                </div>
-                <MidiTag id={`snd_${track.id}`} />
               </div>
             </div>
           </div>
