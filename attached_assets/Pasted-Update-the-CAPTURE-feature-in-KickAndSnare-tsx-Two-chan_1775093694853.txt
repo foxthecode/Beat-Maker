@@ -1,0 +1,90 @@
+Update the CAPTURE feature in KickAndSnare.tsx.
+Two changes vs the previous implementation:
+
+1. Multi-bar detection: CAPTURE takes everything played (2-4 bars),
+   not just 1 bar. Pattern length = first→last hit rounded up to
+   nearest complete bar at detected BPM. No maximum bar limit.
+
+2. CAPTURE button moves: it now sits on the same line as COUNTDOWN,
+   to its right. Remove the full-width CAPTURE button that was placed
+   above the looper banner.
+
+════════════════════════════════════════════════════════
+FIX 1 — Multi-bar capture in captureToSequencer
+════════════════════════════════════════════════════════
+
+The existing captureToSequencer already rounds up to nearest bar —
+but it caps totalSteps at 32 when choosing the target time signature.
+Replace that cap with a dynamic lookup that supports 1, 2, and 4 bars:
+
+FIND (in captureToSequencer):
+  const targetSig =
+    totalSteps === 32
+      ? TIME_SIGS.find(s => s.steps === 32) ?? TIME_SIGS[0]
+      : TIME_SIGS.find(s => s.label === '4/4') ?? TIME_SIGS[0];
+
+REPLACE WITH:
+  // Pick the best matching time sig for the detected step count.
+  // Prefer an exact match, fall back to 4/4 and let the sequencer
+  // show the correct number of steps via the _steps override.
+  const targetSig =
+    TIME_SIGS.find(s => s.steps === totalSteps) ??
+    TIME_SIGS.find(s => s.label === '4/4 ×2') ??
+    TIME_SIGS.find(s => s.label === '4/4') ??
+    TIME_SIGS[0];
+
+Also remove any hardcoded cap on numBars — the existing
+  const numBars = Math.max(1, Math.ceil(totalDurationMs / barMs));
+is correct as-is and already supports any number of bars.
+
+════════════════════════════════════════════════════════
+FIX 2 — Move CAPTURE button next to COUNTDOWN
+════════════════════════════════════════════════════════
+
+--- 2a. Remove the standalone full-width CAPTURE button ---
+
+Remove the entire IIFE block that renders the full-width CAPTURE button
+above the looper banner (the block starting with {(() => { const ready =
+captureHasHits && captureBufferRef.current.length >= 4 ... })()}).
+
+--- 2b. Add CAPTURE inline with COUNTDOWN ---
+
+In LooperPanel.jsx, the COUNTDOWN button is rendered as:
+
+  {!loopPlaying && !loopRec && setLoopMetro && (
+    <button
+      onClick={() => setLoopMetro(p => !p)}
+      ...
+    >
+      {loopMetro ? "COUNTDOWN ON" : "COUNTDOWN"}
+    </button>
+  )}
+
+This button is inside the Controls section of LooperPanel.
+LooperPanel does not have access to captureToSequencer or captureHasHits
+— so do NOT modify LooperPanel.jsx.
+
+Instead, in KickAndSnare.tsx, find where LooperPanel is rendered
+inside the Live Pads view and replace it with a wrapper that adds
+the CAPTURE button on the same line as COUNTDOWN.
+
+The COUNTDOWN button is rendered inside LooperPanel and cannot be
+extracted — so render CAPTURE as a sibling that visually aligns with it
+by placing it in a flex row immediately below the LooperPanel, but
+use a negative margin to visually pull it up alongside COUNTDOWN.
+
+More precisely: wrap the LooperPanel in a relative div, then render
+the CAPTURE button as an absolutely-or-flexibly positioned element.
+
+The simplest correct approach: add a flex row just ABOVE the LooperPanel
+that contains only the CAPTURE button aligned right, then inside
+LooperPanel the COUNTDOWN button appears on its own line. This keeps
+the two visually close without modifying LooperPanel internals.
+
+FIND (in the Live Pads view, the looper banner content div):
+  <div style={{padding:"0 12px 12px"}}>
+    {recCountdown && ( ... )}
+    <LooperPanel ... />
+  </div>
+
+REPLACE WIT
