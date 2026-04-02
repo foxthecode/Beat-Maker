@@ -1487,7 +1487,7 @@ export default function KickAndSnare(){
   const [loopPlaying,setLoopPlaying]=useState(false);
   const [loopDisp,setLoopDisp]=useState([]); // [{tid,tOff,vel}] for display only
   const [loopPlayhead,setLoopPlayhead]=useState(0); // 0..1
-  const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0});
+  const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0,loopBpm:0});
   const loopPhRef=useRef(null);
   const wakeLockRef=useRef<any>(null); // Screen Wake Lock — prevents screen sleep during playback
   const [captureReady,setCaptureReady]=useState(false); // true after first full loop bar recorded
@@ -2216,6 +2216,7 @@ export default function KickAndSnare(){
     if(!L.lengthMs||L.lengthMs<=0){
       L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
     }
+    L.loopBpm=R.bpm; // anchor — used by BPM-rescale effect
     // Always anchor audioStart to now (or forcedStart for countdown).
     // The minToff trick (shifting audioStart back so the first hit fires immediately)
     // caused the playhead to start mid-loop on pass 1 — pass 2 felt like "beat 1"
@@ -2251,6 +2252,33 @@ export default function KickAndSnare(){
     captureReadyRef.current=false;captureBarRef.current=0;setCaptureReady(false);
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
+
+  // ── BPM → looper speed: rescale events + length + re-anchor phase on every BPM change ──
+  // Mirrors how Ableton stretches a loop when the project tempo changes.
+  // ratio = oldBpm/newBpm  →  slower BPM = longer loop, tOff values scale up proportionally.
+  useEffect(()=>{
+    const L=loopRef.current;
+    if(!loopPlaying||!L.loopBpm||L.audioStart===null||!engine.ctx)return;
+    const oldBpm=L.loopBpm;
+    const newBpm=bpm;
+    if(oldBpm===newBpm)return;
+    const ratio=oldBpm/newBpm; // <1 = faster playback, >1 = slower
+    const now=engine.ctx.currentTime;
+    // Preserve phase: find where we are in the current loop, scale to new loop length
+    const oldLenSec=L.lengthMs/1000;
+    const oldPhase=(now-L.audioStart)%oldLenSec;
+    const newPhase=oldPhase*ratio;
+    // Rescale all event offsets and loop length
+    L.events=L.events.map(ev=>({...ev,tOff:ev.tOff*ratio}));
+    L.lengthMs=L.lengthMs*ratio;
+    // Re-anchor so the current beat position is preserved (no audible jump)
+    L.audioStart=now-newPhase;
+    L.loopBpm=newBpm;
+    // Clear already-scheduled keys so loopSchedFn re-fires with new timings
+    L.scheduled=new Set();
+    setLoopDisp([...L.events]);
+  },[bpm]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const _armLoopRec=async(forcedStart?:number)=>{
     pushLoopSnapshot(); // snapshot before wiping events so REC start is undoable
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
