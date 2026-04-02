@@ -1,17 +1,17 @@
 export const THEMES={
   daylight:{
-    bg:"linear-gradient(170deg,#1C1A24 0%,#131118 50%,#1A1420 100%)",
-    surface:"rgba(208,196,172,0.96)",
-    sBorder:"rgba(0,0,0,0.22)",
-    text:"#0E0E18",
-    dim:"#2E2E3A",
-    faint:"#52525E",
-    stepOff:"rgba(0,0,0,0.12)",
-    stepAlt:"rgba(0,0,0,0.21)",
-    cursor:"rgba(255,130,0,0.36)",
-    btn:"rgba(0,0,0,0.12)",
-    btnH:"rgba(0,0,0,0.22)",
-    mascot:"#1C1A1F"
+    bg:"linear-gradient(170deg,#E8E0D0 0%,#DDD4BE 50%,#E4DAC8 100%)",
+    surface:"rgba(90,84,76,0.88)",
+    sBorder:"rgba(0,0,0,0.18)",
+    text:"#F0EDE8",
+    dim:"#C8C0B0",
+    faint:"#9A9080",
+    stepOff:"rgba(255,255,255,0.07)",
+    stepAlt:"rgba(255,255,255,0.12)",
+    cursor:"rgba(255,130,0,0.38)",
+    btn:"rgba(255,255,255,0.10)",
+    btnH:"rgba(255,255,255,0.20)",
+    mascot:"#E8E0D0"
   },
   dark:{
     bg:"linear-gradient(170deg,#0D0D1A 0%,#1A0A0F 50%,#0A0F1A 100%)",
