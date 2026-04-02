@@ -1,0 +1,103 @@
+Update the CAPTURE feature in KickAndSnare.tsx.
+
+One behavioral change only vs the previous implementation:
+instead of switching to the Sequencer view after capture,
+the hits are injected directly into the looper and played immediately.
+The view stays in Live Pads. No other logic changes.
+
+════════════════════════════════════════════════════════
+REPLACE the end of captureToSequencer with this new version
+════════════════════════════════════════════════════════
+
+Remove everything in captureToSequencer after the hits.forEach() block
+(i.e. remove pushHistory, setBpm, chSig, setPBank, setStVel, setAct,
+switchView, setTimeout — everything that wrote to the sequencer).
+
+Replace with:
+
+    // Detected BPM → update global BPM so looper length is correct
+    const finalBpm = Math.max(40, Math.min(240, captureDetectedBpm ?? bpm));
+    setBpm(finalBpm);
+
+    // Compute loop duration from detected bars at detected BPM
+    const beatMs = 60000 / finalBpm;
+    const barMs = beatMs * sig.beats;
+    const totalDurationMs = hits[hits.length - 1].tMs;
+    const numBars = Math.max(1, Math.ceil(totalDurationMs / barMs));
+    const loopDurMs = numBars * barMs;
+
+    // Stop any running looper cleanly first
+    clearLooper();
+
+    // Build looper events from the quantized hits
+    // Re-use the newPat / newVel already computed above to get
+    // the snapped tOff in ms for each active step
+    const stepMs = loopDurMs / totalSteps;
+    const looperEvents = [];
+    ALL_TRACKS.forEach(t => {
+      newPat[t.id].forEach((on, stepIdx) => {
+        if (!on) return;
+        looperEvents.push({
+          id: `cap_${t.id}_${stepIdx}_${Date.now()}`,
+          tid: t.id,
+          tOff: stepIdx * stepMs,
+          vel: (newVel[t.id][stepIdx] ?? 100) / 100,
+          pass: 0,
+        });
+      });
+    });
+
+    // Inject events into the looper ref
+    const L = loopRef.current;
+    L.events = looperEvents;
+    L.lengthMs = loopDurMs;
+    L.passId = 1;
+    L.scheduled = new Set();
+
+    // Update loopBars state to match detected bars
+    setLoopBars(numBars);
+
+    // Update display timeline
+    setLoopDisp(looperEvents.map(ev => ({
+      tid: ev.tid,
+      tOff: ev.tOff,
+      vel: ev.vel,
+    })));
+
+    // Reset capture buffer
+    captureBufferRef.current = [];
+    captureStartRef.current = null;
+    setCaptureHasHits(false);
+    setCaptureDetectedBpm(null);
+
+    // Start looper playback immediately
+    await startLooper(false);
+
+Note: captureToSequencer must be declared as async since it calls
+await startLooper(). Update its declaration:
+  const captureToSequencer = async () => {
+
+════════════════════════════════════════════════════════
+BEHAVIOR SUMMARY
+════════════════════════════════════════════════════════
+- User plays pads freely in Live Pads view
+- After 4+ hits: CAPTURE button activates, shows detected BPM
+- Click CAPTURE:
+    · BPM detected from inter-hit intervals → replaces global BPM
+    · hits smart-quantized (nearest of 1/4, 1/8, 1/16, 1/32)
+    · quantized hits injected as looper events with correct tOff in ms
+    · looper timeline updates to show all hits
+    · looper starts playing immediately — view stays in Live Pads
+    · loopBars updates to match the detected number of bars
+- User can then overdub, undo, or clear from the looper as usual
+
+════════════════════════════════════════════════════════
+CONSTRAINTS
+════════════════════════════════════════════════════════
+- Do not switch view — stay in Live Pads after capture
+- Do not write to pBank or the sequencer pattern
+- Do not modify LooperPanel.jsx
+- Do not add new files
+- All other CAPTURE logic (buffer recording in trigPad,
+  BPM detection, button UI, button placement next to COUNTDOWN)
+  remains exactly as previously implemented
