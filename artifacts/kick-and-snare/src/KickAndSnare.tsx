@@ -37,7 +37,6 @@ type Theme = typeof THEMES.dark;
 
 const TIME_SIGS=[
   {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0],stepDiv:4},
-  {label:"4/4 ×2",beats:8,steps:32,groups:[4,4,4,4,4,4,4,4],accents:[0,4],stepDiv:4},
   {label:"3/4",beats:3,steps:12,groups:[4,4,4],accents:[0],stepDiv:4},
   {label:"6/8",beats:2,steps:12,groups:[6,6],accents:[0],stepDiv:4,subDiv:2},
   {label:"12/8",beats:4,steps:24,groups:[6,6,6,6],accents:[0],stepDiv:4,subDiv:2},
@@ -1957,12 +1956,13 @@ export default function KickAndSnare(){
         if(nextPat!==R.cp){R.cp=nextPat;setCPat(nextPat);}
       }
       const st=nxtRef.current;schSt(R.step,st);
-      if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);const sd=cs.subDiv||1;if(gs.y)playClk(st,gs.f?"accent":"beat");else if(R.step%sd===0)playClk(st,"sub");}
+      if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);const sd=cs.subDiv||0;if(gs.y)playClk(st,gs.f?"accent":"beat");else if(sd>0&&R.step%sd===0)playClk(st,"sub");}
       const bd=cs.stepDiv?(60/R.bpm)/cs.stepDiv:(60/R.bpm)*cs.beats/cs.steps;
       // Swing: AND notes arrive late (shuffle feel). Range ×0.5 so 67%≈triplet, 100%=dotted.
       const sw=bd*(R.sw/100)*0.5;nxtRef.current+=R.step%2===0?(bd+sw):(bd-sw);
+      // Sync visual cursor to audio: fire setCStep at the actual scheduled time (not lookahead)
+      {const sn=R.step;const ahead=Math.max(0,Math.round((st-ct)*1000)-4);setTimeout(()=>setCStep(sn),ahead);}
     }
-    setCStep(R.step);
     {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
   },[schSt]);
 

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef, useEffect } from "react";
 import { THEMES } from "../theme.js";
 import { DrumSVG } from "../drumSVG.tsx";
 
@@ -27,6 +27,12 @@ function TrackRow({
   const nextTs = tsOpts[(tsIdx + 1) % tsOpts.length];
 
   const leftW = isPortrait ? 160 : (typeof window !== "undefined" && window.innerWidth < 600 ? 160 : 220);
+
+  const scrollRef = useRef(null);
+  // Scroll back to beat 1 when the sequencer loops (cStep resets to 0)
+  useEffect(() => {
+    if (cStep === 0 && scrollRef.current) scrollRef.current.scrollLeft = 0;
+  }, [cStep]);
 
   const btnSt = {
     height: 28, minWidth: 0, border: "none", borderRadius: 4,
@@ -180,7 +186,7 @@ function TrackRow({
         </div>
 
         {/* ── Steps grid (grows to fill, never pushes siblings) ── */}
-        <div style={isPortrait ? {
+        <div ref={scrollRef} style={isPortrait ? {
           width: "100%", overflowX: "auto", display: "flex",
           scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch",
           gap: 2, touchAction: "manipulation", paddingBottom: 2,
