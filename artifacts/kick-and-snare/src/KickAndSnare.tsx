@@ -2074,8 +2074,10 @@ export default function KickAndSnare(){
         }
       }
       if(document.visibilityState==='hidden'){
-        if(R.playing){clearTimeout(schRef.current);schRef.current=null;}
-        if(loopRef.current.audioStart!==null){
+        // Never stop schedulers while looper is recording — a brief hide (OS notification,
+        // iframe blur, etc.) must not kill an in-progress recording pass.
+        if(R.playing&&!R.loopRec){clearTimeout(schRef.current);schRef.current=null;}
+        if(loopRef.current.audioStart!==null&&!R.loopRec){
           clearTimeout(loopRef.current.schTimer);loopRef.current.schTimer=null;
         }
       }
