@@ -216,10 +216,14 @@ function euclidRhythm(hits,steps){
 
 // ═══ Audio Engine ═══
 class Eng{
-  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};}
+  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};
+    this._isMobile=/Android|iPhone|iPad/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
+  }
   init(){
     if(this.ctx)return;
-    this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    this.ctx=new(window.AudioContext||window.webkitAudioContext)(
+      this._isMobile?{latencyHint:'playback',sampleRate:44100}:{}
+    );
     // ── Master input gain ──
     this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
     // ── Drive (WaveShaper) ──
@@ -238,6 +242,12 @@ class Eng{
     // ── Master output ──
     this.gOut=this.ctx.createGain();this.gOut.gain.value=1;
     this.gOut.connect(this.ctx.destination);
+    // ── Resume context when tab becomes visible again (Android/iOS) ──
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible'&&this.ctx?.state==='suspended'){
+        this.ctx.resume();
+      }
+    });
     // ── Filter LFO ──
     this.gFltLfo=this.ctx.createOscillator();this.gFltLfo.type='sine';this.gFltLfo.frequency.value=1.0;
     this.gFltLfoDepth=this.ctx.createGain();this.gFltLfoDepth.gain.value=0;
@@ -549,8 +559,9 @@ class Eng{
   uFx(id,f,noteTime?:number){
     const c=this.ch[id];if(!c||!this.ctx)return;const ct=this.ctx.currentTime;
     // vol/pan: apply at current time (persistent settings)
-    c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,0.005);
-    if(c.pan?.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,0.005);
+    const transTime=this._isMobile?0.08:0.02;
+    c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,transTime);
+    if(c.pan?.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
     // Transient shaper: per-note envelope anchored at the note's scheduled time
     if(c.tsAtk){
       // nt = the moment the note starts (or now for immediate pads)
@@ -3637,7 +3648,7 @@ export default function KickAndSnare(){
           <>
             <div style={{position:"fixed",inset:0,zIndex:9998}} onPointerDown={()=>setProbPopover(null)}/>
             <div style={{position:"fixed",left:x,top:y,zIndex:9999,background:th.surface,border:`1px solid ${col}55`,borderRadius:10,padding:"12px 14px",boxShadow:`0 8px 32px rgba(0,0,0,0.6),0 0 0 1px ${col}22`,minWidth:155,userSelect:"none"}}>
-              <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>STEP {step+1} — PROBABILITÉ</div>
+              <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>STEP {step+1} — PROBABILITY</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:4,marginBottom:10}}>
                 {[100,75,50,25].map(v=>(
                   <button key={v} onPointerDown={e=>{e.stopPropagation();applyProb(v);}}
@@ -3645,7 +3656,7 @@ export default function KickAndSnare(){
                 ))}
               </div>
               <button onPointerDown={e=>{e.stopPropagation();setProbPopover(null);}}
-                style={{width:"100%",padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ ANNULER</button>
+                style={{width:"100%",padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ CANCEL</button>
             </div>
           </>
         );
@@ -3666,7 +3677,7 @@ export default function KickAndSnare(){
           <>
             <div style={{position:"fixed",inset:0,zIndex:9998}} onPointerDown={()=>setVelPicker(null)}/>
             <div style={{position:"fixed",left:x,top:y,zIndex:9999,background:th.surface,border:`1px solid ${col}55`,borderRadius:10,padding:"10px 12px",boxShadow:`0 8px 32px rgba(0,0,0,0.6),0 0 0 1px ${col}22`,minWidth:150,userSelect:"none"}}>
-              <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",textAlign:"center",marginBottom:4}}>STEP {step+1} — VÉLOCITÉ</div>
+              <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",textAlign:"center",marginBottom:4}}>STEP {step+1} — VELOCITY</div>
               <div style={{fontSize:28,fontWeight:800,color:col,textAlign:"center",marginBottom:8,lineHeight:1}}>{cur}<span style={{fontSize:12,fontWeight:600,color:th.faint}}>%</span></div>
               {/* Horizontal slider */}
               <div style={{position:"relative",height:16,borderRadius:8,background:th.sBorder,cursor:"pointer",marginBottom:10,touchAction:"none"}}
@@ -3682,7 +3693,7 @@ export default function KickAndSnare(){
               </div>
               {/* Probability row */}
               <div style={{borderTop:`1px solid ${th.sBorder}`,paddingTop:8,marginBottom:8}}>
-                <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",marginBottom:5}}>PROBABILITÉ</div>
+                <div style={{fontSize:6.5,color:th.faint,fontWeight:700,letterSpacing:"0.1em",marginBottom:5}}>PROBABILITY</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:3}}>
                   {[100,75,50,25].map(v=>(
                     <button key={v} onPointerDown={e=>{e.stopPropagation();setVelPicker(p=>({...p,probPct:v}));}} style={{padding:"5px 0",borderRadius:5,border:`1px solid ${curProb===v?"#FF9500":th.sBorder}`,background:curProb===v?"rgba(255,149,0,0.2)":"transparent",color:curProb===v?"#FF9500":th.dim,fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>{v}%</button>
@@ -3691,7 +3702,7 @@ export default function KickAndSnare(){
               </div>
               {/* OK / Cancel */}
               <div style={{display:"flex",gap:4}}>
-                <button onPointerDown={e=>{e.stopPropagation();setVelPicker(null);}} style={{flex:1,padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ ANNULER</button>
+                <button onPointerDown={e=>{e.stopPropagation();setVelPicker(null);}} style={{flex:1,padding:"5px 0",borderRadius:6,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.faint,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✕ CANCEL</button>
                 <button onPointerDown={e=>{e.stopPropagation();apply(cur);}} style={{flex:1,padding:"5px 0",borderRadius:6,border:"none",background:col,color:"#000",fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>✓ OK</button>
               </div>
             </div>
@@ -3757,93 +3768,93 @@ export default function KickAndSnare(){
           {/* Sections */}
           <div style={{padding:"16px 20px",display:"flex",flexDirection:"column",gap:18}}>
             {([
-              {title:"En-tête",color:"#FF9500",icon:"🎸",items:[
-                {key:"K (logo)",desc:"Icône qui pulse à chaque temps fort — indique que l'audio est actif."},
-                {key:"◀ Kit ▶",desc:"Navigue entre les kits de sons : 808 Classic, CR-78 Vintage, Kit 3, Kit 8. Chaque kit recolore les sons de toutes les pistes."},
-                {key:"Mascotte",desc:"Batteur animé qui frappe les fûts correspondant aux pistes actives. La vitesse de bob et l'halo suivent le BPM en temps réel."},
-                {key:"↺ / ↻",desc:"Annuler (Ctrl+Z) / Refaire (Ctrl+Y) — jusqu'à 50 étapes d'historique sur les patterns."},
-                {key:"? (ce panneau)",desc:"Affiche ce guide d'utilisation. Clique en dehors pour fermer."},
-                {key:"THEME",desc:"Bascule entre le thème sombre et le thème diurne. Préférence purement visuelle."},
-                {key:"LIVE PADS",desc:"Active la vue Pads en direct : 8 pads colorés jouables au toucher ou clavier pour performer en temps réel."},
-                {key:"SEQUENCER",desc:"Vue principale : séquenceur pas-à-pas TR-808. Place des sons sur une grille de 16 ou 32 pas."},
-                {key:"⬡ EUCLIDIAN",desc:"Séquenceur euclidien algorithmique : distribue N frappes sur M pas avec une régularité mathématique (rythmes africains, polymètre)."},
+              {title:"Header",color:"#FF9500",icon:"🎸",items:[
+                {key:"K (logo)",desc:"Icon that pulses on every downbeat — shows that audio is active."},
+                {key:"◀ Kit ▶",desc:"Switch between sound kits: 808 Classic, CR-78 Vintage, Kit 3, Kit 8. Each kit recolors all track sounds."},
+                {key:"Mascot",desc:"Animated drummer that hits the drums matching active tracks. Bob speed and glow halo follow the BPM in real time."},
+                {key:"↺ / ↻",desc:"Undo (Ctrl+Z) / Redo (Ctrl+Y) — up to 50 history steps on patterns."},
+                {key:"? (this panel)",desc:"Displays this user guide. Click outside to close."},
+                {key:"THEME",desc:"Toggle between dark and light theme. Purely visual preference."},
+                {key:"LIVE PADS",desc:"Switch to Live Pads view: 8 colored pads playable by touch or keyboard for real-time performance."},
+                {key:"SEQUENCER",desc:"Main view: TR-808 step sequencer. Place sounds on a 16 or 32-step grid."},
+                {key:"⬡ EUCLIDIAN",desc:"Algorithmic Euclidean sequencer: distributes N hits across M steps with mathematical regularity (African rhythms, polymeters)."},
               ]},
               {title:"Transport",color:"#30D158",icon:"▶",items:[
-                {key:"▶ / ■ (Espace)",desc:"Lance ou arrête la lecture. Le bouton vert pulse à chaque temps."},
-                {key:"BPM — ‹ › ou drag",desc:"Tempo en battements par minute (20–280). Clique sur les flèches ou glisse verticalement sur la valeur."},
-                {key:"TAP",desc:"Tape plusieurs fois en rythme pour définir le BPM automatiquement (TAP TEMPO)."},
-                {key:"SWING",desc:"Décale les pas pairs pour donner un groove shufflé (0 = rigide, 100% = swing maximal)."},
-                {key:"4/4 (signature)",desc:"Choisit la métrique : 4/4, 3/4, 6/8, 5/4, 7/8, etc. Regroupe les pas en mesures correspondantes."},
-                {key:"METRO",desc:"Active le métronome audio. Ajuste le volume et le sous-temps dans la barre de transport."},
-                {key:"VOL",desc:"Volume master global. Glisse verticalement pour ajuster."},
-                {key:"CLEAR",desc:"Efface tous les pas de toutes les pistes du pattern courant."},
-                {key:"KEYS",desc:"Affiche la mappings clavier : chaque piste a une touche assignée pour jouer en live."},
-                {key:"MIDI",desc:"Configure les notes MIDI par piste et active le MIDI Learn. Brancher un contrôleur pour piloter les pistes."},
-                {key:"SHARE / WAV",desc:"SHARE copie un lien URL encodant tout le pattern. WAV exporte l'audio en fichier PCM 16-bit."},
+                {key:"▶ / ■ (Space)",desc:"Start or stop playback. The green button pulses on every beat."},
+                {key:"BPM — ‹ › or drag",desc:"Tempo in beats per minute (20–280). Click the arrows or drag vertically on the value."},
+                {key:"TAP",desc:"Tap several times in rhythm to set the BPM automatically (TAP TEMPO)."},
+                {key:"SWING",desc:"Shifts even steps to create a shuffled groove (0 = rigid, 100% = maximum swing)."},
+                {key:"4/4 (time sig)",desc:"Choose the time signature: 4/4, 3/4, 6/8, 5/4, 7/8, etc. Groups steps into corresponding bars."},
+                {key:"METRO",desc:"Enable the audio metronome. Adjust volume and subdivision in the transport bar."},
+                {key:"VOL",desc:"Global master volume. Drag vertically to adjust."},
+                {key:"CLEAR",desc:"Clear all steps from all tracks in the current pattern."},
+                {key:"KEYS",desc:"Show keyboard mappings: each track has an assigned key for live play."},
+                {key:"MIDI",desc:"Configure MIDI notes per track and enable MIDI Learn. Connect a controller to trigger tracks."},
+                {key:"SHARE / WAV",desc:"SHARE copies a URL encoding the full pattern. WAV exports audio as a 16-bit PCM file."},
               ]},
-              {title:"Pistes — Séquenceur",color:"#FF2D55",icon:"◆",items:[
-                {key:"Pas (step) — clic/tap",desc:"Active ou désactive un son à cette position. La grille avance de gauche à droite."},
-                {key:"Pas — drag ↕",desc:"Ajuste la vélocité du step (volume d'impact). Vers le haut = plus fort, vers le bas = plus doux."},
-                {key:"Pas — drag ↔",desc:"Nudge : décale le hit légèrement en avance ou en retard (swing fin indépendant par step)."},
-                {key:"Pas — long-press",desc:"Ouvre le réglage de probabilité (0–100%). Le son se déclenche aléatoirement selon ce pourcentage."},
-                {key:"Pas — double-clic",desc:"Remet le pas à ses valeurs par défaut (vélocité 100, nudge 0, probabilité 100%)."},
-                {key:"M (mute)",desc:"Coupe silencieusement la piste sans effacer les pas. Utile pour les arrangements live."},
-                {key:"S (solo)",desc:"Isole la piste : toutes les autres sont mutées. Reclique pour revenir."},
-                {key:"CLR",desc:"Efface tous les pas de cette piste uniquement."},
-                {key:"J (Jump)",desc:"Décale tous les pas d'un cran à droite (rotation du pattern)."},
-                {key:"16st / 32st",desc:"Longueur individuelle de la piste (peut différer des autres — polymètre)."},
-                {key:"VOL / PAN / PITCH",desc:"Contrôles par piste : volume, panoramique stéréo, transposition en demi-tons."},
-                {key:"REV send",desc:"Envoie la piste vers la réverb globale (FX Rack)."},
-                {key:"+ ADD TRACK",desc:"Crée une piste personnalisée supplémentaire avec un sample chargeable."},
+              {title:"Tracks — Sequencer",color:"#FF2D55",icon:"◆",items:[
+                {key:"Step — click/tap",desc:"Toggle a sound on or off at that position. The grid plays left to right."},
+                {key:"Step — drag ↕",desc:"Adjust step velocity (hit volume). Up = louder, down = softer."},
+                {key:"Step — drag ↔",desc:"Nudge: shift the hit slightly early or late (independent micro-swing per step)."},
+                {key:"Step — long-press",desc:"Open the probability setting (0–100%). The sound fires randomly at that percentage."},
+                {key:"Step — double-tap",desc:"Reset step to default values (velocity 100, nudge 0, probability 100%)."},
+                {key:"M (mute)",desc:"Silently mute the track without clearing steps. Useful for live arrangements."},
+                {key:"S (solo)",desc:"Isolate the track: all others are muted. Click again to return."},
+                {key:"CLR",desc:"Clear all steps from this track only."},
+                {key:"J (Jump)",desc:"Shift all steps one position to the right (pattern rotation)."},
+                {key:"16st / 32st",desc:"Individual track length (can differ from others — polymetric)."},
+                {key:"VOL / PAN / PITCH",desc:"Per-track controls: volume, stereo pan, pitch in semitones."},
+                {key:"REV send",desc:"Send the track to the global reverb (FX Rack)."},
+                {key:"+ ADD TRACK",desc:"Create an extra custom track with a loadable sample."},
               ]},
               {title:"FX Rack global",color:"#BF5AF2",icon:"⚙",items:[
-                {key:"PRESETS",desc:"Charge un preset de genre (Trap, Boom Bap, Techno, Lo-Fi, Afro…) qui configure tous les FX d'un coup."},
-                {key:"CHAIN (drag / ←→)",desc:"Réordonne la chaîne série Master Bus : Drive → Comp → Filter dans l'ordre voulu."},
-                {key:"PRE / POST",desc:"Choisit si le send FX (reverb, delay…) reçoit le signal avant ou après la chaîne série."},
-                {key:"REVERB",desc:"Réverb algorithmique (Plate/Room/Hall). Decay = durée de la queue, Size = taille de la salle. SendRow = pistes envoyées."},
-                {key:"DELAY",desc:"Écho stéréo. Sync BPM ou temps libre. Feedback = nb de répétitions."},
-                {key:"CHORUS",desc:"Dédoublement de timbre par modulation légère. Rate = vitesse de modulation, Depth = amplitude."},
-                {key:"FLANGER",desc:"Effet de phasage métallique. Rate, Depth, Feedback. S'envoie sur les pistes sélectionnées."},
-                {key:"PING-PONG",desc:"Délai qui rebondit gauche↔droite. Sync BPM disponible."},
-                {key:"FILTER",desc:"Filtre LP/HP/BP master. LFO optionnel (sine/triangle/carré) pour un effet wah automatique."},
-                {key:"COMP + GR",desc:"Compresseur master. La jauge GR affiche la réduction de gain en temps réel."},
-                {key:"DRIVE",desc:"Saturation master (4 modes : tube/tape/triangle/bit-crush)."},
-                {key:"TRANSIENT",desc:"Shaper ATK/SUS par piste : renforce ou atténue l'attaque et le corps du son indépendamment."},
+                {key:"PRESETS",desc:"Load a genre preset (Trap, Boom Bap, Techno, Lo-Fi, Afro…) that configures all FX at once."},
+                {key:"CHAIN (drag / ←→)",desc:"Reorder the Master Bus series chain: Drive → Comp → Filter in any order."},
+                {key:"PRE / POST",desc:"Choose whether the send FX (reverb, delay…) receives the signal before or after the series chain."},
+                {key:"REVERB",desc:"Algorithmic reverb (Plate/Room/Hall). Decay = tail length, Size = room size. SendRow = tracks sent."},
+                {key:"DELAY",desc:"Stereo echo. BPM-synced or free time. Feedback = number of repeats."},
+                {key:"CHORUS",desc:"Timbre doubling via light modulation. Rate = speed, Depth = amount."},
+                {key:"FLANGER",desc:"Metallic phasing effect. Rate, Depth, Feedback. Sent per selected track."},
+                {key:"PING-PONG",desc:"Delay that bounces left↔right. BPM sync available."},
+                {key:"FILTER",desc:"Master LP/HP/BP filter. Optional LFO (sine/triangle/square) for auto-wah."},
+                {key:"COMP + GR",desc:"Master compressor. GR meter shows gain reduction in real time."},
+                {key:"DRIVE",desc:"Master saturation (4 modes: tube/tape/triangle/bit-crush)."},
+                {key:"TRANSIENT",desc:"Per-track ATK/SUS shaper: boost or cut attack and body independently."},
               ]},
               {title:"Pattern Bank",color:"#64D2FF",icon:"◧",items:[
-                {key:"PAT 1–8",desc:"Slots de patterns. Clique pour basculer. Long-press pour renommer."},
-                {key:"16 / 32 pas",desc:"Change la longueur globale du pattern courant (affecte toutes les pistes)."},
-                {key:"TEMPLATES",desc:"Charge un pattern préfait : 808, Trap, Jazz Brushes, Afrobeat, etc. Insère dans le slot courant."},
-                {key:"DUP",desc:"Duplique le pattern courant dans le slot suivant disponible."},
+                {key:"PAT 1–8",desc:"Pattern slots. Tap to switch. Long-press to rename."},
+                {key:"16 / 32 steps",desc:"Change the global step count for the current pattern (affects all tracks)."},
+                {key:"TEMPLATES",desc:"Load a preset pattern: 808, Trap, Jazz Brushes, Afrobeat, etc. Inserts into the current slot."},
+                {key:"DUP",desc:"Duplicate the current pattern into the next available slot."},
               ]},
               {title:"Song Arranger",color:"#FF9500",icon:"♪",items:[
-                {key:"Ajouter un pattern",desc:"Sélectionne un slot de pattern et clique + pour l'ajouter à la chaîne de lecture."},
-                {key:"Réordonner",desc:"Drag les blocs de la chaîne pour changer l'ordre des sections du morceau."},
-                {key:"Mode SONG",desc:"Active la lecture de la chaîne complète dans l'ordre — pour composer un morceau entier."},
+                {key:"Add a pattern",desc:"Select a pattern slot and click + to add it to the playback chain."},
+                {key:"Reorder",desc:"Drag chain blocks to rearrange song sections."},
+                {key:"SONG mode",desc:"Plays the full chain in order — for composing a complete song."},
               ]},
               {title:"Looper",color:"#BF5AF2",icon:"⊙",items:[
-                {key:"⏺ REC",desc:"Démarre l'enregistrement de jeu libre (clavier, MIDI, pads). Tout ce que tu joues est capturé."},
-                {key:"▶ PLAY / ■ STOP",desc:"Relit ou arrête la boucle enregistrée en continu."},
-                {key:"OVERDUB",desc:"Enregistre par-dessus la boucle en cours sans l'effacer."},
-                {key:"BARS (1/2/4)",desc:"Durée de la boucle en mesures. À définir avant d'enregistrer."},
-                {key:"QUANT + APPLY",desc:"Sélectionne une subdivision (1/4, 1/8, 1/16, 1/32) puis clique APPLY pour snapper tous les hits."},
-                {key:"AUTO-Q",desc:"Quantise automatiquement chaque hit au moment de l'enregistrement."},
-                {key:"Drag les barres",desc:"Déplace un hit enregistré horizontalement sur la timeline. Snap 1/16 automatique."},
-                {key:"↺ UNDO",desc:"Annule la dernière passe d'enregistrement."},
-                {key:"✕ CLEAR",desc:"Efface toute la boucle."},
-                {key:"⬇ WAV",desc:"Exporte la boucle en fichier WAV. Choisis 1×, 2× ou 4× répétitions."},
+                {key:"⏺ REC",desc:"Start recording free play (keyboard, MIDI, pads). Everything you play is captured."},
+                {key:"▶ PLAY / ■ STOP",desc:"Play or stop the recorded loop continuously."},
+                {key:"OVERDUB",desc:"Record over the current loop without erasing it."},
+                {key:"BARS (1/2/4)",desc:"Loop duration in bars. Set before recording."},
+                {key:"QUANT + APPLY",desc:"Select a subdivision (1/4, 1/8, 1/16, 1/32) then click APPLY to snap all hits."},
+                {key:"AUTO-Q",desc:"Auto-quantizes each hit at the moment of recording."},
+                {key:"Drag bars",desc:"Move a recorded hit horizontally on the timeline. Auto-snaps to 1/16."},
+                {key:"↺ UNDO",desc:"Undo the last recording pass."},
+                {key:"✕ CLEAR",desc:"Clear the entire loop."},
+                {key:"⬇ WAV",desc:"Export the loop as a WAV file. Choose 1×, 2× or 4× repetitions."},
               ]},
-              {title:"Séquenceur Euclidian",color:"#FFD60A",icon:"⬡",items:[
-                {key:"N (frappes)",desc:"Nombre de sons à distribuer dans le cycle."},
-                {key:"M (pas)",desc:"Longueur du cycle (nombre de subdivisions)."},
-                {key:"Offset",desc:"Décale le point de départ du motif euclidien (rotation)."},
-                {key:"Presets polyrhythme",desc:"12 motifs préfaits issus de traditions musicales du monde entier (Clave, Bembé, Tresillo…)."},
-                {key:"EDIT (vue détail)",desc:"Affiche le pattern euclidien généré et permet de l'éditer manuellement step par step."},
+              {title:"Euclidean Sequencer",color:"#FFD60A",icon:"⬡",items:[
+                {key:"N (hits)",desc:"Number of sounds to distribute across the cycle."},
+                {key:"M (steps)",desc:"Cycle length (number of subdivisions)."},
+                {key:"Offset",desc:"Shifts the starting point of the Euclidean pattern (rotation)."},
+                {key:"Polyrhythm presets",desc:"12 presets from musical traditions worldwide (Clave, Bembé, Tresillo…)."},
+                {key:"EDIT (detail view)",desc:"Shows the generated Euclidean pattern and allows manual step-by-step editing."},
               ]},
               {title:"Live Pads",color:"#5E5CE6",icon:"⊞",items:[
-                {key:"Pads colorés",desc:"Joue chaque piste en temps réel. Sensibles à la vélocité (hold plus long = plus fort au relâcher)."},
-                {key:"Raccourcis clavier",desc:"Chaque piste a une touche assignée (Q, S, D, F, G, H, J, K par défaut — voir KEYS)."},
-                {key:"REC + pads",desc:"Active le REC pour capturer tes frappes dans le séquenceur ou le looper."},
+                {key:"Colored pads",desc:"Play each track in real time. Velocity-sensitive (longer hold = louder on release)."},
+                {key:"Keyboard shortcuts",desc:"Each track has an assigned key (Q, S, D, F, G, H, J, K by default — see KEYS)."},
+                {key:"REC + pads",desc:"Enable REC to capture your hits into the sequencer or looper."},
               ]},
             ] as {title:string,color:string,icon:string,items:{key:string,desc:string}[]}[]).map(section=>(
               <div key={section.title}>
@@ -3864,7 +3875,7 @@ export default function KickAndSnare(){
                 </div>
               </div>
             ))}
-            <div style={{textAlign:"center",fontSize:7,color:th.faint,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.06)"}}>Clique en dehors de ce panneau pour fermer · Kick & Snare v9.0 — DRUM EXPERIENCE</div>
+            <div style={{textAlign:"center",fontSize:7,color:th.faint,paddingTop:6,borderTop:"1px solid rgba(255,255,255,0.06)"}}>Click outside to close · Kick & Snare v9.0 — DRUM EXPERIENCE</div>
           </div>
         </div>
       </div>
@@ -3880,16 +3891,16 @@ export default function KickAndSnare(){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 18px"}}>
             {[
-              ["Espace","Lecture / Stop"],
-              ["Tap","Activer un step"],
-              ["Drag ↕ step","Vélocité"],
+              ["Space","Play / Stop"],
+              ["Tap","Toggle step on/off"],
+              ["Drag ↕ step","Set velocity"],
               ["Drag ↔ step","Nudge timing"],
-              ["Long-press step","Probabilité"],
+              ["Long-press step","Set probability"],
               ["Double-tap step","Reset"],
               ["Swipe ← / →","Undo / Redo"],
-              ["Long-press PAT","Nommer le pattern"],
-              ["Vue EUCLIDIAN → EDIT","Placer les sons visuellement"],
-              ["VOL MASTER","Drag ↕ en jaune (transport)"],
+              ["Long-press PAT","Rename pattern"],
+              ["EUCLIDIAN → EDIT","Place hits visually"],
+              ["VOL MASTER","Drag ↕ yellow bar (transport)"],
             ].map(([k,v])=>(
               <div key={k} style={{display:"flex",flexDirection:"column",padding:"4px 0",borderBottom:`1px solid ${th.sBorder}`}}>
                 <span style={{fontSize:8,fontWeight:800,color:"#FF9500"}}>{k}</span>

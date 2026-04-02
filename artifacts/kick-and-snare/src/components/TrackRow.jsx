@@ -111,10 +111,10 @@ function TrackRow({
             {/* Row 1: icon · label · VOL · PAN */}
             <div style={{ display: "flex", alignItems: "center", gap: 2, overflow: "hidden" }}>
               <DrumSVG id={track.id} color={track.color} hit={flash} />
-              <span data-hint={`Piste ${track.label} · Drag les steps pour programmer · Icon = animation sur hit · Couleur = identifiant unique`} style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
+              <span data-hint={`Track ${track.label} · Drag steps to program · Icon = hit animation · Color = unique identifier`} style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
               {/* VOL */}
               <div style={{ flexShrink: 0 }}>
-                <div data-hint={`VOL piste ${track.label} · Valeur: ${vol}% · Drag ↕ pour ajuster · Double-clic pour revenir à 80%`} onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                <div data-hint={`VOL track ${track.label} · Value: ${vol}% · Drag ↕ to adjust · Double-click to reset to 80%`} onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
                   <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
                     <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
                     <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * vol / 100} ${circ}`} />
@@ -125,7 +125,7 @@ function TrackRow({
               </div>
               {/* PAN */}
               <div style={{ flexShrink: 0 }}>
-                <div data-hint={`PAN piste ${track.label} · Valeur: ${pan === 0 ? "Centre" : pan < 0 ? `Gauche ${Math.abs(pan)}%` : `Droite ${pan}%`} · Drag ↕ pour déplacer dans le champ stéréo · Double-clic = centre`} onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
+                <div data-hint={`PAN track ${track.label} · Value: ${pan === 0 ? "Center" : pan < 0 ? `Left ${Math.abs(pan)}%` : `Right ${pan}%`} · Drag ↕ to move in stereo field · Double-click = center`} onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
                   <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
                     <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
                     {panArc && <path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" />}
@@ -137,7 +137,7 @@ function TrackRow({
               </div>
             </div>
             {/* Row 2: ◀ BUS ▶ · SND knob */}
-            <div data-hint={`SEND FX · Envoie cette piste vers un effet (${fxLabel}) · ◀ ▶ pour changer d'effet · Knob = niveau d'envoi`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <div data-hint={`SEND FX · Send this track to an effect (${fxLabel}) · ◀ ▶ to switch effect · Knob = send level`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
               <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(-1); }} style={arrowBtnSt}>◀</button>
               <span style={{ fontSize: 5.5, fontWeight: 900, letterSpacing: "0.06em", width: 22, textAlign: "center", lineHeight: 1, color: sendAmt > 0 ? fxColor : "rgba(255,255,255,0.22)", textShadow: sendAmt > 0 ? `0 0 5px ${fxColor}` : "none", transition: "color 0.15s,text-shadow 0.15s" }}>{fxLabel}</span>
               <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onSendCursorChange?.(1); }} style={arrowBtnSt}>▶</button>
@@ -159,16 +159,16 @@ function TrackRow({
             {/* Row 1: MidiTag · M · S · CLR · ♪ · × */}
             <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "nowrap" }}>
               <MidiTag id={track.id} />
-              <button data-hint={isMuted ? `MUTE actif · La piste ${track.label} est silencieuse · Clic pour réactiver` : `MUTE · Coupe silencieusement la piste ${track.label} sans effacer les pas`} onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
-              <button data-hint={isSoloed ? `SOLO actif · Seule la piste ${track.label} est audible · Clic pour désactiver` : `SOLO · Isole la piste ${track.label} — toutes les autres sont mutées`} onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
-              <button data-hint={`CLR · Efface tous les pas de la piste ${track.label} uniquement`} onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
-              <button data-hint={smpN ? `Sample chargé : ${smpN} · Clic pour changer de fichier audio` : `Charger un sample · Importe un fichier audio (MP3, WAV, OGG) pour cette piste`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
-              {actLength > 1 && <button data-hint={`Supprimer la piste ${track.label} de la vue active (non supprimée définitivement)`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
+              <button data-hint={isMuted ? `MUTE active · Track ${track.label} is silent · Click to re-enable` : `MUTE · Silently mute track ${track.label} without clearing steps`} onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
+              <button data-hint={isSoloed ? `SOLO active · Only track ${track.label} is audible · Click to disable` : `SOLO · Isolate track ${track.label} — all others are muted`} onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
+              <button data-hint={`CLR · Clear all steps on track ${track.label} only`} onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
+              <button data-hint={smpN ? `Sample loaded: ${smpN} · Click to change audio file` : `Load a sample · Import an audio file (MP3, WAV, OGG) for this track`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
+              {actLength > 1 && <button data-hint={`Remove track ${track.label} from the active view (not permanently deleted)`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
             {/* Row 2: step count */}
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
-                data-hint={`Longueur de piste ${track.label} : ${tSteps} pas · Clic = basculer vers ${nextTs} pas · Peut différer des autres pistes (polymètre)`}
+                data-hint={`Track ${track.label} length: ${tSteps} steps · Click = switch to ${nextTs} steps · Can differ from other tracks (polymetric)`}
                 title={`${tSteps}st → ${nextTs}st`}
                 onClick={() => onStepCountChange(nextTs)}
                 style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}

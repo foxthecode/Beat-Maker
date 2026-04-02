@@ -1,0 +1,123 @@
+Dans KickAndSnare.jsx, applique ces corrections dans l'ordre exact.
+Ne touche pas au scheduler euclid, aux states de pattern, ni aux vues.
+
+━━━ CORRECTION 1 — Grésillements audio Android ━━━
+
+Dans la classe Eng, ajoute dans le constructor :
+this._isMobile = /Android|iPhone|iPad/i.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : '');
+
+Dans engine.init(), remplace :
+this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+Par :
+this.ctx = new (window.AudioContext||window.webkitAudioContext)(
+  this._isMobile ? { latencyHint:'playback', sampleRate:44100 } : {}
+);
+
+Après this.gOut.connect(this.ctx.destination), ajoute :
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' &&
+      this.ctx?.state === 'suspended') {
+    this.ctx.resume();
+  }
+});
+
+Dans engine.play(), après la ligne s.start(t), ajoute :
+s.onended = () => {
+  try { s.disconnect(); g.disconnect(); } catch(e) {}
+};
+
+━━━ CORRECTION 2 — Grésillements au changement de volume ━━━
+
+Dans engine.uFx(id, f), remplace :
+c.vol.gain.setTargetAtTime((f?.vol ?? 80)/100, t, 0.02);
+Par :
+const targetVol = (f?.vol ?? 80) / 100;
+const transTime = this._isMobile ? 0.08 : 0.02;
+c.vol.gain.setTargetAtTime(targetVol, t, transTime);
+
+Et remplace :
+if (c.pan?.pan)
+  c.pan.pan.setTargetAtTime((f?.pan ?? 0)/100, t, 0.02);
+Par :
+if (c.pan?.pan)
+  c.pan.pan.setTargetAtTime(
+    (f?.pan ?? 0)/100, t, transTime);
+
+━━━ CORRECTION 3 — Look-ahead adaptatif ━━━
+
+Dans schLoop, remplace les deux occurrences de :
+schRef.current = setTimeout(schLoop, 25);
+Par :
+schRef.current = setTimeout(schLoop,
+  engine._isMobile ? 50 : 25);
+
+Remplace la première occurrence de :
+while(nxtRef.current < ct + 0.1)
+Par :
+while(nxtRef.current < ct + (engine._isMobile ? 0.2 : 0.1))
+
+Remplace la première occurrence de :
+while(ec.nextTime < ct + 0.1)
+Par :
+while(ec.nextTime < ct + (engine._isMobile ? 0.2 : 0.1))
+
+━━━ CORRECTION 4 — Textes en anglais ━━━
+
+Dans le footer tout en bas du composant, remplace :
+"KICK & SNARE v8 — Drag ↔ nudge · Drag ↕ velocity ·
+Double-tap reset · Right-click ratchet ·
+Shift+click probability"
+Par :
+"KICK & SNARE — Drag ↔ nudge timing ·
+Drag ↕ set velocity · Double-tap reset ·
+Right-click ratchet · Shift+click probability"
+
+Dans le texte d'accueil de l'app, remplace :
+"ton séquenceur..."
+Par :
+"A drumming experience that lets you create grooves,
+capture live performances, create loops
+and explore polyrhythms."
+
+Cherche tous les autres textes en français dans le fichier
+et traduis-les en anglais :
+- "✕ ANNULER" → "✕ CANCEL"
+- "✓ OK" → "✓ OK" (inchangé)
+- "STEP X — VÉLOCITÉ" → "STEP X — VELOCITY"
+- "Charger sample" → "Load sample"
+- "Effacer track" → "Clear track"
+- "+ PISTE CUSTOM" → "+ CUSTOM TRACK"
+- "✕ annuler" → "✕ cancel"
+- "Ajouter" → "ADD"
+- "Nom de la piste…" → "Track name…"
+- Dans le Song Arranger :
+  "Le séquenceur avance automatiquement..." →
+  "The sequencer automatically advances
+  through the pattern chain each cycle"
+- Dans les tooltips MIDI :
+  "Cliquer pour mapper" → "Click to map"
+- "Jouer une note..." →
+  "Play a note / move a knob on your device…"
+- "Cliquer sur un contrôle..." →
+  "Click any highlighted control to map it"
+
+━━━ APRÈS LES CORRECTIONS ━━━
+
+Lance le build et crée l'archive :
+cd artifacts/kick-and-snare && pnpm run build
+cd ../..
+tar -czf ~/Desktop/dist-kick-and-snare.tar.gz \
+  -C artifacts/kick-and-snare dist/public
+
+━━━ CHECKPOINT ━━━
+□ Grésillements pendant lecture : disparus sur tablette
+□ Grésillements au changement de volume : disparus
+□ Pas de régression audio sur navigateur desktop
+□ Tous les textes visibles sont en anglais
+□ "A drumming experience..." visible au bon endroit
+□ Velocity picker affiche "VELOCITY" pas "VÉLOCITÉ"
+□ Song Arranger texte en anglais
+□ Archive dist générée sur le Bureau Mac
+
+COMMIT : "fix: Android audio glitches + full EN translation"
