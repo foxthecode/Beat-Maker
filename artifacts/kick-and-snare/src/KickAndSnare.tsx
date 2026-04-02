@@ -2133,17 +2133,24 @@ export default function KickAndSnare(){
   };
   const _armLoopRec=async(forcedStart?:number)=>{
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
-    // Guarantee engine.ctx exists BEFORE opening the capture gate.
-    // Without this, two races exist:
-    //  1) ctx===null on first use → eager audioStart can't be set → gate opens blind
-    //  2) startLooper's ensureRunning yields AFTER R.loopRec=true → audioStart set too late
-    // By awaiting ensureRunning() first, ctx is always valid when we set audioStart,
-    // and R.loopRec=true is only raised when both audioStart AND lengthMs are ready.
-    await engine.ensureRunning();
     L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
-    L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx!.currentTime;
-    R.loopRec=true;
-    setLoopRec(true);await startLooper(true,forcedStart);
+    // Open the capture gate SYNCHRONOUSLY if ctx is already live, so we never
+    // miss beat 1 (which arrives during the ensureRunning microtask tick).
+    // If ctx is not yet created or still suspended we fall back to the safe path below.
+    const ctxReady=engine.ctx&&engine.ctx.state==='running';
+    if(ctxReady){
+      L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx!.currentTime;
+      R.loopRec=true;
+    }
+    await engine.ensureRunning();
+    // Fallback: ctx was suspended on click — set audioStart now (first-use only)
+    if(!R.loopRec){
+      L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx!.currentTime;
+      R.loopRec=true;
+    }
+    setLoopRec(true);
+    // Pass L.audioStart as forcedStart so startLooper never overrides it
+    await startLooper(true,L.audioStart);
   };
   const toggleLoopRec=()=>{
     if(!loopPlaying){
@@ -2162,7 +2169,7 @@ export default function KickAndSnare(){
           setRecCountdown(true);
           // JS timer fires slightly after recStart; we pass the pre-calculated audio anchor
           setTimeout(()=>{setRecCountdown(false);_armLoopRec(recStart);},
-            (recStart-ctx.currentTime)*1000+60);
+            (recStart-ctx.currentTime)*1000+8);
         });
       }else{
         _armLoopRec();
