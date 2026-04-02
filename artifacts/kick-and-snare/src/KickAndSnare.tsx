@@ -1714,25 +1714,28 @@ export default function KickAndSnare(){
       setLoopDisp(d=>[...d,{tid,tOff,vel}]);
     }
     // Free-capture — records timestamps WITHOUT activating REC, for BPM detection
-    if(R.view==='pads'&&!R.loopRec){
-      const now=performance.now();
+    // Uses audio clock (ctx.currentTime) to stay in the same time domain as the scheduler
+    if(R.view==='pads'&&!R.loopRec&&engine.ctx){
+      const now=engine.ctx.currentTime;
       if(freeCaptureStartRef.current===null){
         freeCaptureStartRef.current=now;
         freeCaptureRef.current=[{tid,t:0,vel}];
       }else{
-        freeCaptureRef.current.push({tid,t:now-freeCaptureStartRef.current,vel});
+        freeCaptureRef.current.push({tid,t:(now-freeCaptureStartRef.current)*1000,vel});
       }
       const buf=freeCaptureRef.current;
       setFreeCaptureCount(buf.length);
       if(buf.length>=4){
-        const times=buf.map(h=>h.t);
-        const intervals=times.slice(1).map((t,i)=>t-times[i]).filter(d=>d>50&&d<2000);
-        if(intervals.length>=2){
-          const sorted=[...intervals].sort((a,b)=>a-b);
-          const med=sorted[Math.floor(sorted.length/2)];
-          const det=Math.round(60000/med);
-          if(det>=40&&det<=240)setFreeBpm(det);
-        }
+        const intervals:number[]=[];
+        for(let i=1;i<buf.length;i++) intervals.push(buf[i].t-buf[i-1].t);
+        // Trimmed mean (remove outer 20%) — more robust than plain median
+        const sorted=[...intervals].sort((a,b)=>a-b);
+        const trim=Math.max(1,Math.floor(sorted.length*0.2));
+        const trimmed=sorted.slice(trim,sorted.length-trim);
+        const avg=trimmed.reduce((a,b)=>a+b,0)/trimmed.length;
+        // Try normal / half-time / quarter-time
+        const detected=[avg,avg*2,avg*4].map(ms=>Math.round(60000/ms)).find(b=>b>=40&&b<=240)??null;
+        if(detected!==null)setFreeBpm(detected);
       }
     }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
@@ -1761,6 +1764,11 @@ export default function KickAndSnare(){
   const ssRef=useRef(null);const playRef=useRef(false);
   R.ss=ssRef;R.setRec=setRec;
   useEffect(()=>{playRef.current=playing;},[playing]);
+  // Reset free-capture buffer whenever the user leaves Live Pads
+  useEffect(()=>{
+    freeCaptureRef.current=[];freeCaptureStartRef.current=null;
+    setFreeCaptureCount(0);setFreeBpm(null);
+  },[view]);
   useEffect(()=>{
     const down=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();R.undo?.();return;}
@@ -2199,7 +2207,11 @@ export default function KickAndSnare(){
     await engine.ensureRunning();
     const L=loopRef.current;
     // Use actual time-sig beats so loop length matches metro period exactly (prevents drift)
-    L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
+    // Guard: if captureFromFreePlay pre-set L.lengthMs, honour it
+    // (startLooper is called immediately after — React hasn't batched setBpm/setLoopBars yet)
+    if(!L.lengthMs||L.lengthMs<=0){
+      L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
+    }
     // Always anchor audioStart to now (or forcedStart for countdown).
     // The minToff trick (shifting audioStart back so the first hit fires immediately)
     // caused the playhead to start mid-loop on pass 1 — pass 2 felt like "beat 1"
@@ -2378,6 +2390,7 @@ export default function KickAndSnare(){
     if(buf.length<2)return;
     const finalBpm=Math.max(40,Math.min(240,freeBpm??bpm));
     setBpm(finalBpm);
+    R.bpm=finalBpm; // sync ref immediately — React batching means startLooper would otherwise read old bpm
     const beatMs=60000/finalBpm;
     const barMs=beatMs*sig.beats;
     const totalMs=buf[buf.length-1].t;
