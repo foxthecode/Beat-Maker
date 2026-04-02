@@ -2068,14 +2068,14 @@ export default function KickAndSnare(){
         const key=`${ev.id}:${n}`;
         if(evTime>=now-0.01&&evTime<=now+ahead&&!L.scheduled.has(key)){
           L.scheduled.add(key);
-          const delay=Math.max(0,evTime-now);
-          engine.play(ev.tid,ev.vel,delay,R.fx[ev.tid]||{...DEFAULT_FX});
+          engine.play(ev.tid,ev.vel,0,R.fx[ev.tid]||{...DEFAULT_FX},evTime);
           // Flash mascot/UI at the audio-scheduled moment (not capture time)
+          const flashDelay=Math.max(0,evTime-now);
           setTimeout(()=>{
             setFlashing(s=>{const n=new Set(s);n.add(ev.tid);return n;});
             setTimeout(()=>setFlashing(s=>{const nn=new Set(s);nn.delete(ev.tid);return nn;}),120);
-          },Math.max(0,delay*1000-10));
-          setTimeout(()=>L.scheduled.delete(key),(delay+1)*1000);
+          },Math.max(0,flashDelay*1000-10));
+          setTimeout(()=>L.scheduled.delete(key),(flashDelay+1)*1000);
         }
       }
     });
