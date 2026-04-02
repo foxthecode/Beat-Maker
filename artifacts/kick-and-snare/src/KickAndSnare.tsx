@@ -1297,7 +1297,12 @@ export default function KickAndSnare(){
   const [loopExportState,setLoopExportState]=useState<"idle"|"rendering">("idle");
   const [loopExportReps,setLoopExportReps]=useState<1|2|4>(1);
   // ── H.1a: Mobile detection ──
-  const isMobile=useMemo(()=>/Android|iPhone|iPad/i.test(navigator.userAgent)||window.innerWidth<768,[]);
+  const isMobile=useMemo(()=>
+    /Android|iPhone|iPad/i.test(navigator.userAgent)||
+    window.innerWidth<768||
+    (navigator.maxTouchPoints>1&&/Mac/i.test(navigator.userAgent))|| // iPadOS 13+ reports as Mac
+    (navigator.maxTouchPoints>0&&window.innerWidth<1200) // Android tablets in landscape
+  ,[]);
   const isMobileRef=useRef(isMobile);
   // ── H.2a: Portrait detection ──
   const [isPortrait,setIsPortrait]=useState(()=>window.innerHeight>window.innerWidth);
@@ -1484,6 +1489,7 @@ export default function KickAndSnare(){
   const [loopPlayhead,setLoopPlayhead]=useState(0); // 0..1
   const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0});
   const loopPhRef=useRef(null);
+  const wakeLockRef=useRef<any>(null); // Screen Wake Lock — prevents screen sleep during playback
   const [autoQ,setAutoQ]=useState(false);
   // Undo / redo for looper — snapshot-based (covers rec passes, overdub, add, move, remove, quantize)
   const loopHistRef=useRef<{past:any[][];future:any[][]}>({past:[],future:[]});
@@ -2044,6 +2050,55 @@ export default function KickAndSnare(){
     },barMs);
   };
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
+
+  // FIX 4 — visibilitychange: resume AudioContext + restart schedulers on foreground return
+  // Note: loopSchedFn reads only from refs so any captured version works — [] deps is intentional
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(()=>{
+    const onVis=async()=>{
+      if(document.visibilityState==='visible'&&engine.ctx){
+        if(engine.ctx.state==='suspended'){
+          try{await engine.ctx.resume();setCtxSuspended(false);}
+          catch{setCtxSuspended(true);}
+        }
+        if(R.playing&&!schRef.current){
+          nxtRef.current=engine.ctx.currentTime+0.05;
+          schLoop();
+        }
+        if(loopRef.current.audioStart!==null&&!loopRef.current.schTimer){
+          loopSchedFn();
+        }
+        if('wakeLock' in navigator&&(R.playing||loopRef.current.audioStart!==null)){
+          try{wakeLockRef.current=await (navigator as any).wakeLock.request('screen');}
+          catch{/* denied or unsupported — fail silently */}
+        }
+      }
+      if(document.visibilityState==='hidden'){
+        if(R.playing){clearTimeout(schRef.current);schRef.current=null;}
+        if(loopRef.current.audioStart!==null){
+          clearTimeout(loopRef.current.schTimer);loopRef.current.schTimer=null;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange',onVis);
+    return()=>document.removeEventListener('visibilitychange',onVis);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[schLoop]);
+
+  // FIX 5 — Wake Lock: keep screen on during playback (fails silently on Safari)
+  useEffect(()=>{
+    const acquire=async()=>{
+      if('wakeLock' in navigator&&(playing||loopPlaying)){
+        try{wakeLockRef.current=await (navigator as any).wakeLock.request('screen');}
+        catch{/* not available or denied */}
+      }else if(wakeLockRef.current){
+        try{await wakeLockRef.current.release();}catch{}
+        wakeLockRef.current=null;
+      }
+    };
+    acquire();
+  },[playing,loopPlaying]);
+
   // Probe Ableton Link WebSocket — hide button if localhost refuses immediately (Android WebView)
   useEffect(()=>{
     if(typeof WebSocket==='undefined'){setHasLinkApi(false);return;}
@@ -2163,7 +2218,8 @@ export default function KickAndSnare(){
       if(loopMetro){
         // Pre-schedule ALL countdown beats as precise WebAudio events (no JS-timer jitter)
         // Check engine.ctx AFTER ensureRunning so it works even on first use (ctx null before first gesture)
-        engine.ensureRunning().then(()=>{
+        (async()=>{
+          await engine.ensureRunning();
           const ctx=engine.ctx;if(!ctx)return;
           const beatSec=60/Math.max(30,R.bpm);
           const t0=ctx.currentTime+0.05; // tiny look-ahead before first click
@@ -2176,7 +2232,7 @@ export default function KickAndSnare(){
           // JS timer fires slightly after recStart; we pass the pre-calculated audio anchor
           setTimeout(()=>{setRecCountdown(false);_armLoopRec(recStart);},
             (recStart-ctx.currentTime)*1000+8);
-        });
+        })();
       }else{
         _armLoopRec();
       }
