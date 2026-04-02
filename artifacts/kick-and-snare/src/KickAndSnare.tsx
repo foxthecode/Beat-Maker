@@ -217,6 +217,8 @@ function euclidRhythm(hits,steps){
 class Eng{
   constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};
     this._isMobile=/Android|iPhone|iPad/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
+    // Android séparé : glitches sous 'interactive' (buffer 128 samples = 3ms budget trop court)
+    this._isAndroid=/Android/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
     this._rInProg=new Set(); // tracks with an OfflineAudioContext render in progress
     this._rQueue=[];         // serialised render queue (mobile)
     this._rRunning=false;    // queue worker active
@@ -226,24 +228,27 @@ class Eng{
   }
   init(){
     if(this.ctx)return;
-    // TOUJOURS 'interactive' — drum machine = instrument temps-réel.
-    // 'playback' donnait 100–300ms de latence hardware sur Android (buffer 4096+ samples).
-    // Le pre-rendering (renderShape) + voice throttle (20) évitent les glitches sans
-    // avoir besoin d'un grand buffer. sampleRate:44100 fixé sur tous devices
-    // pour éviter la pénalité de resampling (si le hardware est en 48kHz, Chrome gère).
+    // ── latencyHint strategy ────────────────────────────────────────────────────
+    // Android Chrome : 'interactive' = buffer 128 samples = 3ms budget JS par frame.
+    //   React re-renders + _syn() dépassent ce budget → buffer underrun → craquements.
+    //   Fix : valeur numérique 0.02 (20ms). Budget JS suffisant pour absorber les spikes
+    //   (GC, layout, _syn() hihat 4 oscillateurs). Latence perçue ~20-30ms : imperceptible.
+    // iOS Safari   : CoreAudio priorise l'audio thread nativement → 'interactive' OK (<10ms).
+    // Desktop      : CPU puissant → 'interactive' sans risque.
+    const latHint=this._isAndroid?0.02:'interactive';
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(
-      {latencyHint:'interactive',sampleRate:44100}
+      {latencyHint:latHint,sampleRate:44100}
     );
-    // Diagnostic — à lire dans la console mobile pour vérifier la latence réelle obtenue
+    // Diagnostic — ouvrir DevTools mobile pour vérifier les valeurs réelles
     if(this._isMobile){
       const diagFn=()=>{
+        const hint=this._isAndroid?'0.02 (Android)':'interactive';
         console.info(
-          `[Audio] latencyHint:interactive | base:${(this.ctx.baseLatency*1000).toFixed(1)}ms`+
+          `[Audio] latencyHint:${hint} | base:${(this.ctx.baseLatency*1000).toFixed(1)}ms`+
           ` | output:${(this.ctx.outputLatency*1000).toFixed(1)}ms`+
           ` | total:${((this.ctx.baseLatency+this.ctx.outputLatency)*1000).toFixed(1)}ms`
         );
       };
-      // Loguer après le premier resume (outputLatency est 0 avant ça sur certains Chrome)
       this.ctx.addEventListener('statechange',()=>{if(this.ctx.state==='running')diagFn();},{once:true});
     }
     // ── Master input gain ──
