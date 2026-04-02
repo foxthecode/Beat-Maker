@@ -228,25 +228,38 @@ class Eng{
   }
   init(){
     if(this.ctx)return;
-    // ── latencyHint strategy ────────────────────────────────────────────────────
+    // ── A. latencyHint strategy ─────────────────────────────────────────────
     // Android Chrome : 'interactive' = buffer 128 samples = 3ms budget JS par frame.
     //   React re-renders + _syn() dépassent ce budget → buffer underrun → craquements.
-    //   Fix : valeur numérique 0.02 (20ms). Budget JS suffisant pour absorber les spikes
-    //   (GC, layout, _syn() hihat 4 oscillateurs). Latence perçue ~20-30ms : imperceptible.
-    // iOS Safari   : CoreAudio priorise l'audio thread nativement → 'interactive' OK (<10ms).
+    //   Fix : valeur numérique 0.02 (20ms). Budget JS suffisant pour absorber les spikes.
+    //   Latence perçue ~20-30ms : imperceptible (seuil perception humaine = 20ms).
+    // iOS Safari   : CoreAudio priorise l'audio thread nativement → 'interactive' OK.
     // Desktop      : CPU puissant → 'interactive' sans risque.
     const latHint=this._isAndroid?0.02:'interactive';
-    this.ctx=new(window.AudioContext||window.webkitAudioContext)(
-      {latencyHint:latHint,sampleRate:44100}
-    );
-    // Diagnostic — ouvrir DevTools mobile pour vérifier les valeurs réelles
+    // ── B. Sample rate natif ────────────────────────────────────────────────
+    // Android hardware tourne souvent en 48000 Hz nativement. Forcer 44100 Hz oblige
+    // Chrome à resample en continu → overhead CPU permanent (~5%).
+    // Fix : on laisse le navigateur utiliser son taux natif sur mobile.
+    // NB : OfflineAudioContext de renderShape utilise engine.ctx.sampleRate → cohérent.
+    const ctxOpts=this._isMobile?{latencyHint:latHint}:{latencyHint:latHint,sampleRate:44100};
+    this.ctx=new(window.AudioContext||window.webkitAudioContext)(ctxOpts);
+    // ── Diagnostic ─────────────────────────────────────────────────────────
     if(this._isMobile){
       const diagFn=()=>{
         const hint=this._isAndroid?'0.02 (Android)':'interactive';
+        const ol=this.ctx.outputLatency??0;
+        // C. outputLatency-aware lookAhead : si Bluetooth (ol > 50ms), augmenter la marge
+        // pour que les notes schedulées arrivent toujours à temps malgré le buffer BT.
+        if(ol>0.05){
+          this._lookAhead=Math.max(this._lookAhead,ol+0.08);
+          this._schedInterval=Math.max(this._schedInterval,Math.round(ol*1000*0.6));
+          console.info(`[Audio] Bluetooth detected — lookAhead→${(this._lookAhead*1000).toFixed(0)}ms, schInterval→${this._schedInterval}ms`);
+        }
         console.info(
-          `[Audio] latencyHint:${hint} | base:${(this.ctx.baseLatency*1000).toFixed(1)}ms`+
-          ` | output:${(this.ctx.outputLatency*1000).toFixed(1)}ms`+
-          ` | total:${((this.ctx.baseLatency+this.ctx.outputLatency)*1000).toFixed(1)}ms`
+          `[Audio] latencyHint:${hint} | sampleRate:${this.ctx.sampleRate}Hz`+
+          ` | base:${(this.ctx.baseLatency*1000).toFixed(1)}ms`+
+          ` | output:${(ol*1000).toFixed(1)}ms`+
+          ` | total:${((this.ctx.baseLatency+ol)*1000).toFixed(1)}ms`
         );
       };
       this.ctx.addEventListener('statechange',()=>{if(this.ctx.state==='running')diagFn();},{once:true});
@@ -640,6 +653,19 @@ class Eng{
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     // H.1c: mobile — if no buffer yet, start async render but still play via _syn immediately (no silent first tap)
     if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
+    // B. Reverb bypass sous pression de voix (mobile) — ConvolverNode est le nœud le + coûteux.
+    // Chrome optimise les entrées silencieuses sur un ConvolverNode → muter gRvBus ≈ bypass gratuit.
+    // Seuil 15 voix : on coupe la reverb ; retour progressif en dessous de 10.
+    if(this._isMobile&&this.gRvBus){
+      const ct2=this.ctx.currentTime;
+      if(this._nodeCount>=15&&this.gRvBus.gain.value>0.01){
+        this.gRvBus.gain.cancelScheduledValues(ct2);
+        this.gRvBus.gain.setTargetAtTime(0,ct2,0.015); // coupe rapide ~15ms
+      }else if(this._nodeCount<10&&this.gRvBus.gain.value<0.99){
+        this.gRvBus.gain.cancelScheduledValues(ct2);
+        this.gRvBus.gain.setTargetAtTime(1,ct2,0.15);  // retour progressif ~150ms
+      }
+    }
     if(this.buf[id]){
       // Mobile node throttle: skip if too many voices active to prevent glitching
       if(this._isMobile&&this._nodeCount>=20){return;}
