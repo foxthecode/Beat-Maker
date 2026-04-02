@@ -599,7 +599,7 @@ class Eng{
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     // H.1c: mobile — if no buffer yet, trigger async render then bail
-    if(this.isMobile&&!this.buf[id]){this.renderShape(id,f).catch(()=>{});return;}
+    if(this._isMobile&&!this.buf[id]){this.renderShape(id,f).catch(()=>{});return;}
     if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();};} // H.1d
     else{
       // Pass shape params from fx object so _syn respects kit timbre even before buffer exists
@@ -2141,6 +2141,11 @@ export default function KickAndSnare(){
     // before the user's finger reaches a pad (avoids ctx.resume() delay in trigPad)
     const onFirstTouch=()=>{
       if(engine.ctx&&engine.ctx.state==='suspended')engine.ctx.resume().catch(()=>{});
+      // Pre-warm all active track buffers on mobile so first tap is never silent
+      if(engine._isMobile){
+        const ids=R.at||[];
+        ids.forEach((id:string)=>{if(!engine.buf?.[id])engine.renderShape(id,R.fx?.[id]||null,true).catch(()=>{});});
+      }
       document.removeEventListener('touchstart',onFirstTouch,true);
       document.removeEventListener('pointerdown',onFirstTouch,true);
     };
@@ -3324,12 +3329,17 @@ export default function KickAndSnare(){
             {atO.map((track)=>(
               <div key={track.id} style={{position:"relative"}}>
                 <button
+                  onTouchStart={e=>{
+                    e.preventDefault(); // block subsequent pointerdown on mobile
+                    trigPad(track.id,110/127);
+                  }}
                   onPointerDown={e=>{
+                    if(e.pointerType==="touch")return; // already handled by onTouchStart
                     e.preventDefault();
                     e.currentTarget.setPointerCapture(e.pointerId);
-                    trigPad(track.id,e.pointerType==="mouse"?1:110/127);
+                    trigPad(track.id,1);
                   }}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none"}}>
+                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
                   <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   <span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>
