@@ -1492,6 +1492,7 @@ export default function KickAndSnare(){
   const wakeLockRef=useRef<any>(null); // Screen Wake Lock — prevents screen sleep during playback
   const [captureReady,setCaptureReady]=useState(false); // true after first full loop bar recorded
   const captureReadyRef=useRef(false); // ref mirror — safe to read inside RAF closure
+  const captureBarRef=useRef(0); // last loopN at which QUANTISE was triggered (prevents instant re-show)
   const [autoQ,setAutoQ]=useState(false);
   // Undo / redo for looper — snapshot-based (covers rec passes, overdub, add, move, remove, quantize)
   const loopHistRef=useRef<{past:any[][];future:any[][]}>({past:[],future:[]});
@@ -2187,8 +2188,9 @@ export default function KickAndSnare(){
       const el=engine.ctx.currentTime-LL.audioStart;
       const lenS=LL.lengthMs/1000;
       setLoopPlayhead((el%lenS)/lenS);
-      // Detect first full bar via ref (not state) to avoid stale-closure false-alarm
-      if(!captureReadyRef.current&&el>=lenS){
+      // Show QUANTISE after each new full bar (tracks which bar QUANTISE was last shown)
+      const loopN=Math.floor(el/lenS);
+      if(!captureReadyRef.current&&loopN>captureBarRef.current){
         captureReadyRef.current=true;
         setCaptureReady(true);
       }
@@ -2203,7 +2205,7 @@ export default function KickAndSnare(){
     cancelAnimationFrame(loopPhRef.current);
     loopRef.current.audioStart=null;
     R.loopRec=false; // immediate ref — stop capturing before next render
-    captureReadyRef.current=false;setCaptureReady(false);
+    captureReadyRef.current=false;captureBarRef.current=0;setCaptureReady(false);
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
   const _armLoopRec=async(forcedStart?:number)=>{
@@ -2330,7 +2332,12 @@ export default function KickAndSnare(){
     L.scheduled=new Set();
     // Update display
     setLoopDisp([...L.events]);
-    // Hide capture button — user can record again to get a fresh session
+    // Hide QUANTISE — reappears automatically after the next full bar
+    const ctx=engine.ctx;
+    const curLoopN=ctx&&loopRef.current.audioStart!==null
+      ?Math.floor((ctx.currentTime-loopRef.current.audioStart)/(loopRef.current.lengthMs/1000))
+      :captureBarRef.current;
+    captureBarRef.current=curLoopN;
     captureReadyRef.current=false;setCaptureReady(false);
   };
 
@@ -2816,7 +2823,7 @@ export default function KickAndSnare(){
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");if(!R.loopRec){_armLoopRec();}}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
