@@ -120,9 +120,9 @@ function TrackRow({
               <span data-hint={`Track ${track.label} · Drag steps to program · Icon = hit animation · Color = unique identifier`} style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
             </div>
             {/* Row 2: VOL · PAN */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
               {/* VOL */}
-              <div style={{ flexShrink: 0 }}>
+              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <div data-hint={`VOL track ${track.label} · Value: ${vol}% · Drag ↕ to adjust · Double-click to reset to 80%`} onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
                   <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
                     <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
@@ -130,10 +130,11 @@ function TrackRow({
                   </svg>
                   <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>VOL</span>
                 </div>
+                <span style={{ fontSize: 6, fontWeight: 700, color: track.color, opacity: 0.75, lineHeight: 1 }}>{vol}</span>
                 <MidiTag id={`vol_${track.id}`} />
               </div>
               {/* PAN */}
-              <div style={{ flexShrink: 0 }}>
+              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <div data-hint={`PAN track ${track.label} · Value: ${pan === 0 ? "Center" : pan < 0 ? `Left ${Math.abs(pan)}%` : `Right ${pan}%`} · Drag ↕ to move in stereo field · Double-click = center`} onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
                   <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
                     <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
@@ -142,6 +143,7 @@ function TrackRow({
                   </svg>
                   <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>PAN</span>
                 </div>
+                <span style={{ fontSize: 6, fontWeight: 700, color: track.color, opacity: 0.75, lineHeight: 1 }}>{pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`}</span>
                 <MidiTag id={`pan_${track.id}`} />
               </div>
             </div>
