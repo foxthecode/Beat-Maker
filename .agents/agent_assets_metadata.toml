@@ -18,3 +18,9 @@ id = "JtQCmqgBbpsRfFYKzMKgY"
 uri = "file://dist-kick-and-snare.tar.gz"
 type = "unspecified"
 title = "dist-kick-and-snare.tar.gz (anti-glitch mobile)"
+
+[[outputs]]
+id = "-qMNw5qPaZvxI910lARNW"
+uri = "file://kick-and-snare-src.tar.gz"
+type = "unspecified"
+title = "kick-and-snare-src.tar.gz (source code v9.0)"
