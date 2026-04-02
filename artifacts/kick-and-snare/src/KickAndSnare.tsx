@@ -2232,6 +2232,7 @@ export default function KickAndSnare(){
     await startLooper(true,L.audioStart);
   };
   const toggleLoopRec=()=>{
+    setShowLooper(true); // auto-open looper panel so user can see timeline + CAPTURE button
     if(!loopPlaying){
       if(loopMetro){
         // Pre-schedule ALL countdown beats as precise WebAudio events (no JS-timer jitter)
@@ -3137,26 +3138,26 @@ export default function KickAndSnare(){
                   }}
                   autoQ={autoQ} setAutoQ={setAutoQ}
                 />
-                {/* CAPTURE button — appears after first full bar is recorded */}
-                {captureReady&&loopDisp&&loopDisp.length>0&&(
-                  <div style={{padding:"8px 0 4px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:8,color:"rgba(48,209,88,0.7)",letterSpacing:"0.08em",animation:"rb 1.2s infinite"}}>
-                      {loopDisp.length} hit{loopDisp.length>1?"s":""} prêts à capturer
-                    </span>
-                    <button
-                      onClick={captureToSequencer}
-                      style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#30D158,#34C759)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",boxShadow:"0 0 24px rgba(48,209,88,0.45)",animation:"pulse 1.4s ease-in-out infinite"}}
-                    >
-                      ⬇ CAPTURE → SÉQUENCEUR
-                    </button>
-                    <span style={{fontSize:7,color:"rgba(255,255,255,0.3)",letterSpacing:"0.06em",textAlign:"center"}}>
-                      Quantise intelligemment · Remplace le pattern courant · Ctrl+Z pour annuler
-                    </span>
-                  </div>
-                )}
               </div>
             )}
           </div>
+          {/* CAPTURE button — outside looper panel so it's visible even when panel is collapsed */}
+          {captureReady&&loopDisp&&loopDisp.length>0&&(
+            <div style={{marginBottom:10,padding:"10px 0 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+              <span style={{fontSize:8,color:"rgba(48,209,88,0.7)",letterSpacing:"0.08em",animation:"rb 1.2s infinite"}}>
+                {loopDisp.length} hit{loopDisp.length>1?"s":""} prêts à capturer
+              </span>
+              <button
+                onClick={captureToSequencer}
+                style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#30D158,#34C759)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",boxShadow:"0 0 24px rgba(48,209,88,0.45)",animation:"pulse 1.4s ease-in-out infinite"}}
+              >
+                ⬇ CAPTURE → SÉQUENCEUR
+              </button>
+              <span style={{fontSize:7,color:"rgba(255,255,255,0.3)",letterSpacing:"0.06em",textAlign:"center"}}>
+                Quantise intelligemment · Remplace le pattern courant · Ctrl+Z pour annuler
+              </span>
+            </div>
+          )}
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12,touchAction:"none"}}>
             {atO.map((track)=>(
