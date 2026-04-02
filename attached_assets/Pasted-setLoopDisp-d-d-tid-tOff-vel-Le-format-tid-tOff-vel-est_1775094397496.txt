@@ -1,0 +1,318 @@
+setLoopDisp(d => [...d, {tid, tOff, vel}]);
+```
+Le format `{tid, tOff, vel}` est bien celui attendu par `LooperPanel`.
+
+### ⚠️ `numBars` et `loopDurMs` recalculés deux fois
+Dans le prompt 2, `beatMs`, `barMs`, `numBars`, `loopDurMs` sont recalculés alors qu'ils ont déjà été calculés dans la partie quantization du prompt 1. Il faut déduplication pour éviter les incohérences si `finalBpm` diffère de `detectedBpm`.
+
+---
+
+## Prompt Replit consolidé et corrigé
+```
+Add a passive CAPTURE feature to the Live Pads view in KickAndSnare.tsx.
+This is a complete self-contained implementation — do not mix with any
+previous CAPTURE prompt. Replace any existing CAPTURE code entirely.
+
+════════════════════════════════════════════════════════
+STEP 1 — Refs and state (add near other refs/state)
+════════════════════════════════════════════════════════
+
+  const captureBufferRef = useRef<{tid:string,tMs:number,vel:number}[]>([]);
+  const captureStartRef = useRef<number|null>(null);
+  const [captureHasHits, setCaptureHasHits] = useState(false);
+  const [captureDetectedBpm, setCaptureDetectedBpm] = useState<number|null>(null);
+
+════════════════════════════════════════════════════════
+STEP 2 — Reset buffer on view change (add useEffect)
+════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    captureBufferRef.current = [];
+    captureStartRef.current = null;
+    setCaptureHasHits(false);
+    setCaptureDetectedBpm(null);
+  }, [view]);
+
+════════════════════════════════════════════════════════
+STEP 3 — Record hits in trigPad
+════════════════════════════════════════════════════════
+
+In trigPad, after the existing engine.play() call and before the
+looper recording block, add:
+
+  if (R.view === 'pads' && engine.ctx) {
+    if (captureStartRef.current === null) {
+      captureStartRef.current = engine.ctx.currentTime;
+    }
+    const tMs = (engine.ctx.currentTime - captureStartRef.current) * 1000;
+    captureBufferRef.current.push({ tid, tMs, vel });
+    setCaptureHasHits(true);
+
+    // Live BPM detection — minimum 4 hits
+    const buf = captureBufferRef.current;
+    if (buf.length >= 4) {
+      const intervals: number[] = [];
+      for (let i = 1; i < buf.length; i++) {
+        intervals.push(buf[i].tMs - buf[i - 1].tMs);
+      }
+      const sorted = [...intervals].sort((a, b) => a - b);
+      const trim = Math.max(1, Math.floor(sorted.length * 0.2));
+      const trimmed = sorted.slice(trim, sorted.length - trim);
+      const avgInterval =
+        trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+      const candidates = [avgInterval, avgInterval*2, avgInterval*4]
+        .map(ms => Math.round(60000 / ms));
+      const detected = candidates.find(b => b >= 40 && b <= 240) ?? null;
+      if (detected) setCaptureDetectedBpm(detected);
+    }
+  }
+
+════════════════════════════════════════════════════════
+STEP 4 — captureToSequencer function
+════════════════════════════════════════════════════════
+
+Add this async function near toggleLoopRec and clearLooper:
+
+  const captureToSequencer = async () => {
+    const hits = captureBufferRef.current;
+    if (!hits || hits.length < 4) return;
+
+    // 1. Finalize BPM — update ref immediately so startLooper reads it
+    const finalBpm = Math.max(40, Math.min(240,
+      captureDetectedBpm ?? bpm));
+    setBpm(finalBpm);
+    R.bpm = finalBpm; // sync ref immediately — don't wait for React cycle
+
+    // 2. Compute pattern geometry from detected BPM
+    const beatMs = 60000 / finalBpm;
+    const barMs = beatMs * sig.beats;
+    const totalDurationMs = hits[hits.length - 1].tMs;
+    const numBars = Math.max(1, Math.ceil(totalDurationMs / barMs));
+    const loopDurMs = numBars * barMs;
+    const totalSteps = numBars * sig.beats * 4; // 1/16 base grid
+    const stepMs = loopDurMs / totalSteps;
+
+    // 3. Smart quantization
+    const subdivMs = [beatMs, beatMs/2, beatMs/4, beatMs/8];
+    const newPat = Object.fromEntries(
+      ALL_TRACKS.map(t => [t.id, Array(totalSteps).fill(0)])
+    );
+    const newVel = Object.fromEntries(
+      ALL_TRACKS.map(t => [t.id, Array(totalSteps).fill(100)])
+    );
+
+    hits.forEach(({ tid, tMs, vel }) => {
+      if (!newPat[tid]) return;
+      let bestSnapMs = stepMs;
+      let bestDist = Infinity;
+      subdivMs.forEach(sub => {
+        const snapped = Math.round(tMs / sub) * sub;
+        const dist = Math.abs(tMs - snapped);
+        if (dist < bestDist) { bestDist = dist; bestSnapMs = sub; }
+      });
+      const snappedMs = Math.round(tMs / bestSnapMs) * bestSnapMs;
+      const stepIdx = Math.round(snappedMs / stepMs) % totalSteps;
+      newPat[tid][stepIdx] = 1;
+      const velPct = Math.max(1, Math.round(vel * 100));
+      newVel[tid][stepIdx] = Math.max(newVel[tid][stepIdx], velPct);
+    });
+
+    // 4. Build looper events from quantized steps
+    const looperEvents: typeof loopRef.current.events = [];
+    ALL_TRACKS.forEach(t => {
+      newPat[t.id].forEach((on, stepIdx) => {
+        if (!on) return;
+        looperEvents.push({
+          id: `cap_${t.id}_${stepIdx}_${Date.now()}`,
+          tid: t.id,
+          tOff: stepIdx * stepMs,
+          vel: (newVel[t.id][stepIdx] ?? 100) / 100,
+          pass: 0,
+        });
+      });
+    });
+
+    // 5. Stop looper, inject events, set length BEFORE startLooper
+    //    so startLooper does not overwrite L.lengthMs
+    clearLooper();
+    const L = loopRef.current;
+    L.events = looperEvents;
+    L.passId = 1;
+    L.scheduled = new Set();
+    // Force lengthMs now — startLooper will reuse it via forcedLength
+    L.lengthMs = loopDurMs;
+
+    // 6. Update loopBars so the UI matches
+    setLoopBars(numBars);
+
+    // 7. Update looper timeline display
+    setLoopDisp(looperEvents.map(ev => ({
+      tid: ev.tid,
+      tOff: ev.tOff,
+      vel: ev.vel,
+    })));
+
+    // 8. Reset capture buffer
+    captureBufferRef.current = [];
+    captureStartRef.current = null;
+    setCaptureHasHits(false);
+    setCaptureDetectedBpm(null);
+
+    // 9. Start looper — pass forcedStart to anchor audioStart precisely.
+    //    Also patch startLooper to NOT recalculate L.lengthMs if it is
+    //    already set (see STEP 5 below).
+    await startLooper(false);
+  };
+
+════════════════════════════════════════════════════════
+STEP 5 — Patch startLooper to respect pre-set L.lengthMs
+════════════════════════════════════════════════════════
+
+In startLooper, the first line currently always overwrites L.lengthMs:
+  L.lengthMs = (60000 / Math.max(30, R.bpm)) * R.sig.beats * loopBars;
+
+REPLACE WITH:
+  // Only recalculate if not already set by captureToSequencer
+  if (!L.lengthMs || L.lengthMs <= 0) {
+    L.lengthMs = (60000 / Math.max(30, R.bpm)) * R.sig.beats * loopBars;
+  }
+  // Always clear after use so next normal recording recalculates
+  const capturedLength = L.lengthMs;
+
+Then at the end of startLooper, after setLoopPlaying(true), add:
+  L.lengthMs = capturedLength; // restore in case React batched setBpm
+
+════════════════════════════════════════════════════════
+STEP 6 — CAPTURE button next to COUNTDOWN in Live Pads
+════════════════════════════════════════════════════════
+
+In the Live Pads view, find the looper banner content div:
+  <div style={{padding:"0 12px 12px"}}>
+    {recCountdown && ( ... )}
+    <LooperPanel ... />
+  </div>
+
+REPLACE WITH:
+  <div style={{padding:"0 12px 12px"}}>
+    {recCountdown && ( ... )}
+    <div style={{display:'flex', alignItems:'flex-end', gap:6}}>
+      <div style={{flex:1, minWidth:0}}>
+        <LooperPanel
+          loopBars={loopBars} setLoopBars={setLoopBars}
+          loopRec={loopRec} loopPlaying={loopPlaying}
+          loopPlayhead={loopPlayhead} loopDisp={loopDisp}
+          loopMetro={loopMetro} setLoopMetro={setLoopMetro}
+          onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper}
+          onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)}
+          onUndo={undoLoopPass} onClear={clearLooper}
+          themeName={themeName} isPortrait={isPortrait}
+          bpm={bpm} tracks={atO}
+          onMoveHit={(idx,newTOff)=>{
+            const L=loopRef.current;
+            if(!L.events[idx])return;
+            L.events[idx]={...L.events[idx],tOff:Math.max(0,newTOff)};
+            setLoopDisp([...L.events]);
+          }}
+          onAddHit={(tid,tOff)=>{
+            const L=loopRef.current;
+            const dur=L.lengthMs>0?L.lengthMs:
+              loopBars*sig.beats*(60000/Math.max(30,bpm));
+            const ev={id:`m_${Date.now()}`,tid,
+              tOff:Math.max(0,Math.min(dur-1,tOff)),vel:1,pass:L.passId};
+            L.events.push(ev);
+            L.events.sort((a,b)=>a.tOff-b.tOff);
+            setLoopDisp([...L.events]);
+          }}
+          onRemoveHit={(idx)=>{
+            const L=loopRef.current;
+            if(idx<0||idx>=L.events.length)return;
+            L.events.splice(idx,1);
+            setLoopDisp([...L.events]);
+          }}
+          onQuantize={(div)=>{
+            const L=loopRef.current;
+            if(!L.events||!L.events.length)return;
+            const dur=L.lengthMs>0?L.lengthMs:
+              loopBars*sig.beats*(60000/Math.max(30,bpm));
+            const snapMs=dur/(loopBars*div);
+            L.events=L.events.map(ev=>({
+              ...ev,
+              tOff:Math.max(0,Math.min(dur-snapMs,
+                Math.round(ev.tOff/snapMs)*snapMs)),
+            }));
+            setLoopDisp([...L.events]);
+          }}
+          autoQ={autoQ} setAutoQ={setAutoQ}
+        />
+      </div>
+      {/* ── CAPTURE button aligned with COUNTDOWN ── */}
+      {(()=>{
+        const count = captureBufferRef.current.length;
+        const ready = captureHasHits && count >= 4;
+        const waiting = captureHasHits && count < 4;
+        const remaining = Math.max(0, 4 - count);
+        return (
+          <button
+            onClick={ready ? captureToSequencer : undefined}
+            title={
+              ready
+                ? `${count} hits · ${captureDetectedBpm??'?'} BPM`
+                : waiting
+                ? `Encore ${remaining} hit${remaining>1?'s':''}`
+                : 'Joue des pads pour activer'
+            }
+            style={{
+              flexShrink:0,
+              alignSelf:'flex-end',
+              marginBottom:6,
+              padding:'5px 12px',
+              borderRadius:6,
+              border: ready
+                ? 'none'
+                : `1px solid rgba(48,209,88,0.2)`,
+              background: ready
+                ? 'linear-gradient(90deg,#30D158,#34C759)'
+                : waiting
+                ? 'rgba(48,209,88,0.08)'
+                : 'rgba(48,209,88,0.03)',
+              color: ready?'#fff'
+                : waiting?'rgba(48,209,88,0.6)'
+                : 'rgba(48,209,88,0.2)',
+              fontSize:8,
+              fontWeight:800,
+              cursor: ready?'pointer':'default',
+              fontFamily:'inherit',
+              letterSpacing:'0.07em',
+              boxShadow: ready?'0 0 14px rgba(48,209,88,0.35)':'none',
+              animation: ready?'pulse 1.4s ease-in-out infinite':'none',
+              transition:'all 0.2s',
+              display:'flex',
+              flexDirection:'column',
+              alignItems:'center',
+              gap:2,
+              minWidth:72,
+            }}
+          >
+            <span>⬇ CAPTURE</span>
+            <span style={{fontSize:7,fontWeight:700,opacity:0.85}}>
+              {ready && captureDetectedBpm
+                ? `${captureDetectedBpm} BPM`
+                : waiting
+                ? `+${remaining} hits`
+                : ''}
+            </span>
+          </button>
+        );
+      })()}
+    </div>
+  </div>
+
+════════════════════════════════════════════════════════
+CONSTRAINTS
+════════════════════════════════════════════════════════
+- Do not switch view — stay in Live Pads after capture
+- Do not write to pBank or the sequencer pattern
+- Do not modify LooperPanel.jsx
+- Do not add new files — all changes in KickAndSnare.tsx only
+- Buffer must not interfere with REC mode or existing looper recording
+- CAPTURE works with or without metronome running
