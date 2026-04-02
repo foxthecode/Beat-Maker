@@ -218,6 +218,10 @@ function euclidRhythm(hits,steps){
 class Eng{
   constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};
     this._isMobile=/Android|iPhone|iPad/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
+    this._rInProg=new Set(); // tracks with an OfflineAudioContext render in progress
+    this._rQueue=[];         // serialised render queue (mobile)
+    this._rRunning=false;    // queue worker active
+    this._nodeCount=0;       // live AudioNode pairs counter (mobile throttle)
   }
   init(){
     if(this.ctx)return;
@@ -600,7 +604,12 @@ class Eng{
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     // H.1c: mobile — if no buffer yet, start async render but still play via _syn immediately (no silent first tap)
     if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
-    if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();};} // H.1d
+    if(this.buf[id]){
+      // Mobile node throttle: skip if too many voices active to prevent glitching
+      if(this._isMobile&&this._nodeCount>=12){return;}
+      this._nodeCount++;
+      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);};
+    } // H.1d
     else{
       // Pass shape params from fx object so _syn respects kit timbre even before buffer exists
       const sh=f?{sDec:f.sDec??1,sTune:f.sTune??1,sPunch:f.sPunch??1,sSnap:f.sSnap??1,sBody:f.sBody??1,sTone:f.sTone??1}:undefined;
@@ -658,6 +667,29 @@ class Eng{
   }
   async renderShape(id,fxObj,silent=false){
     if(!this.ctx)return;
+    // Guard: skip if a render for this track is already in flight
+    if(this._rInProg.has(id))return;
+    if(this._isMobile){
+      // Mobile: serialize all OfflineAudioContext renders via a queue to prevent CPU overload
+      return new Promise(res=>{
+        this._rQueue.push({id,fxObj,silent,res});
+        if(!this._rRunning)this._drainRQ();
+      });
+    }
+    await this._doRender(id,fxObj,silent);
+  }
+  async _drainRQ(){
+    this._rRunning=true;
+    while(this._rQueue.length){
+      const {id,fxObj,silent,res}=this._rQueue.shift();
+      await this._doRender(id,fxObj,silent);
+      res();
+    }
+    this._rRunning=false;
+  }
+  async _doRender(id,fxObj,silent){
+    if(!this.ctx||this._rInProg.has(id))return;
+    this._rInProg.add(id);
     const sh={sDec:fxObj?.sDec??1,sTune:fxObj?.sTune??1,sPunch:fxObj?.sPunch??1,sSnap:fxObj?.sSnap??1,sBody:fxObj?.sBody??1,sTone:fxObj?.sTone??1};
     const baseDur={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
     const dur=Math.min(6,(baseDur[id]||0.65)*Math.max(0.25,sh.sDec));
@@ -668,6 +700,7 @@ class Eng{
       this.buf[id]=await oCtx.startRendering();
       if(!silent)this.play(id,0.7,0,fxObj);
     }catch(e){console.warn("renderShape failed",id,e);}
+    finally{this._rInProg.delete(id);}
   }
 }
 const engine=new Eng();
