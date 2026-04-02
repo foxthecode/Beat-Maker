@@ -3391,6 +3391,36 @@ export default function KickAndSnare(){
                     style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
                   >×</button>
                 )}
+                {/* ── VOL knob (bottom-right) ── */}
+                {(()=>{
+                  const padVol=fx[track.id]?.vol??80;
+                  const pR=9;const pC=2*Math.PI*pR;
+                  return(
+                    <div
+                      style={{position:"absolute",bottom:8,right:8,display:"flex",flexDirection:"column",alignItems:"center",gap:1,zIndex:2}}
+                      onTouchStart={e=>e.stopPropagation()}
+                      onPointerDown={e=>{
+                        e.stopPropagation();e.preventDefault();
+                        const el=e.currentTarget;el.setPointerCapture(e.pointerId);
+                        let sY=e.clientY,sV=padVol;
+                        const mv=pe=>{const dy=sY-pe.clientY;const nv=Math.max(0,Math.min(100,Math.round(sV+dy*1.5)));setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:nv};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
+                        const up=()=>el.removeEventListener("pointermove",mv);
+                        el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});
+                      }}
+                      onDoubleClick={e=>{e.stopPropagation();setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:80};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
+                      title={`VOL: ${padVol} — drag ↕ · double-tap = 80%`}
+                    >
+                      <div style={{position:"relative",width:28,height:28,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
+                        <svg width="28" height="28" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
+                          <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"22"} strokeWidth="3"/>
+                          <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
+                        </svg>
+                        <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5.5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
+                      </div>
+                      <span style={{fontSize:7,fontWeight:700,color:track.color,opacity:0.8,lineHeight:1}}>{padVol}</span>
+                    </div>
+                  );
+                })()}
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
               </div>
             ))}
