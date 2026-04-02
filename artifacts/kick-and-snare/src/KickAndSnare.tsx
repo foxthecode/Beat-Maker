@@ -598,8 +598,8 @@ class Eng{
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
-    // H.1c: mobile — if no buffer yet, trigger async render then bail
-    if(this._isMobile&&!this.buf[id]){this.renderShape(id,f).catch(()=>{});return;}
+    // H.1c: mobile — if no buffer yet, start async render but still play via _syn immediately (no silent first tap)
+    if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
     if(this.buf[id]){const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);s.onended=()=>{s.disconnect();g.disconnect();};} // H.1d
     else{
       // Pass shape params from fx object so _syn respects kit timbre even before buffer exists
