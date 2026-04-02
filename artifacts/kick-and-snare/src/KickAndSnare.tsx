@@ -3381,6 +3381,16 @@ export default function KickAndSnare(){
                   <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                   {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
                 </button>
+                {/* ── Delete pad button ── */}
+                {atO.length>1&&(
+                  <button
+                    onTouchStart={e=>e.stopPropagation()}
+                    onPointerDown={e=>e.stopPropagation()}
+                    onClick={e=>{e.stopPropagation();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                    title={`Remove ${track.label}`}
+                    style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
+                  >×</button>
+                )}
                 {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
               </div>
             ))}
