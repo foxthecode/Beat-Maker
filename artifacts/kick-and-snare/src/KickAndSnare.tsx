@@ -2936,7 +2936,13 @@ export default function KickAndSnare(){
                   onMoveHit={(idx,newTOff)=>{
                     const L=loopRef.current;
                     if(!L.events[idx])return;
-                    L.events[idx]={...L.events[idx],tOff:Math.max(0,newTOff)};
+                    const ev=L.events[idx];
+                    // Clear this event's scheduled keys so the scheduler immediately
+                    // re-picks it at the new tOff on the next 25ms tick (during playback).
+                    const toDelete:string[]=[];
+                    L.scheduled.forEach((k:string)=>{if(k.startsWith(ev.id+':'))toDelete.push(k);});
+                    toDelete.forEach((k:string)=>L.scheduled.delete(k));
+                    L.events[idx]={...ev,tOff:Math.max(0,newTOff)};
                     setLoopDisp([...L.events]);
                   }}
                   onAddHit={(tid,tOff)=>{
