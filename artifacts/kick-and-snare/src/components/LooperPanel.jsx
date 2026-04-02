@@ -6,9 +6,11 @@ export default function LooperPanel({
   loopRec, loopPlaying, loopPlayhead,
   loopDisp,
   loopMetro, setLoopMetro,
-  onToggleRec, onFreshRec, onTogglePlay, onUndo, onClear,
+  onToggleRec, onFreshRec, onTogglePlay, onUndo, onRedo, onClear,
+  loopCanUndo, loopCanRedo,
   themeName, isPortrait,
   bpm, tracks,
+  onBeforeEdit,
   onMoveHit,
   onAddHit,
   onRemoveHit,
@@ -288,6 +290,7 @@ export default function LooperPanel({
                   } : undefined}
                   onPointerDown={canDrag ? e => {
                     e.preventDefault(); e.stopPropagation();
+                    onBeforeEdit?.(); // snapshot before drag so the full move is undoable
                     setDragIdx(i);
                     const gridEl = e.currentTarget.parentElement;
                     const rect = gridEl.getBoundingClientRect();
@@ -381,8 +384,11 @@ export default function LooperPanel({
         {!loopPlaying && loopDisp && loopDisp.length > 0 && (
           <button onClick={onTogglePlay} style={pill(false, "#30D158")}>▶ PLAY</button>
         )}
-        {loopDisp && loopDisp.length > 0 && (
+        {loopCanUndo && (
           <button onClick={onUndo} style={pill(false, "#5E5CE6")}>↺ UNDO</button>
+        )}
+        {loopCanRedo && (
+          <button onClick={onRedo} style={pill(false, "#5E5CE6")}>↻ REDO</button>
         )}
         {(loopPlaying || (loopDisp && loopDisp.length > 0)) && (
           <button onClick={onClear} style={pill(false, "#636366")}>✕ CLEAR</button>

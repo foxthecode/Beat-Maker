@@ -1485,6 +1485,10 @@ export default function KickAndSnare(){
   const loopRef=useRef({events:[],lengthMs:2000,perfStart:null,audioStart:null,schTimer:null,scheduled:new Set(),passId:0});
   const loopPhRef=useRef(null);
   const [autoQ,setAutoQ]=useState(false);
+  // Undo / redo for looper — snapshot-based (covers rec passes, overdub, add, move, remove, quantize)
+  const loopHistRef=useRef<{past:any[][];future:any[][]}>({past:[],future:[]});
+  const [loopCanUndo,setLoopCanUndo]=useState(false);
+  const [loopCanRedo,setLoopCanRedo]=useState(false);
   const autoQRef=useRef(false);
   useEffect(()=>{autoQRef.current=autoQ;},[autoQ]);
 
@@ -2133,6 +2137,7 @@ export default function KickAndSnare(){
     setLoopPlaying(false);setLoopRec(false);setLoopPlayhead(0);
   };
   const _armLoopRec=async(forcedStart?:number)=>{
+    pushLoopSnapshot(); // snapshot before wiping events so REC start is undoable
     const L=loopRef.current;L.passId++;L.events=[];setLoopDisp([]);
     L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
     // Open the capture gate SYNCHRONOUSLY if ctx is already live, so we never
@@ -2177,6 +2182,7 @@ export default function KickAndSnare(){
       }
     }else if(!loopRec){
       // Playing but not recording → overdub: add new pass over existing loop
+      pushLoopSnapshot(); // snapshot before overdub so it's undoable
       loopRef.current.passId++;R.loopRec=true;setLoopRec(true);
     }else{
       // Stop recording, keep playing
@@ -2185,17 +2191,35 @@ export default function KickAndSnare(){
     }
   };
   R.toggleLoopRec=toggleLoopRec;
-  const undoLoopPass=()=>{
-    const L=loopRef.current;
-    if(!L.passId)return;
-    L.events=L.events.filter(e=>e.pass<L.passId);
-    L.passId=Math.max(0,L.passId-1);
+  // Push a deep snapshot of L.events before any mutation (rec, overdub, add, move-start, remove, quantize)
+  const pushLoopSnapshot=()=>{
+    const H=loopHistRef.current;
+    H.past.push(loopRef.current.events.map(e=>({...e})));
+    if(H.past.length>60)H.past.shift();
+    H.future=[];
+    setLoopCanUndo(true);setLoopCanRedo(false);
+  };
+  const undoLoop=()=>{
+    const L=loopRef.current;const H=loopHistRef.current;
+    if(!H.past.length)return;
+    H.future.push(L.events.map(e=>({...e})));
+    L.events=H.past.pop()!;
     setLoopDisp([...L.events]);
+    setLoopCanUndo(H.past.length>0);setLoopCanRedo(true);
+  };
+  const redoLoop=()=>{
+    const L=loopRef.current;const H=loopHistRef.current;
+    if(!H.future.length)return;
+    H.past.push(L.events.map(e=>({...e})));
+    L.events=H.future.pop()!;
+    setLoopDisp([...L.events]);
+    setLoopCanUndo(true);setLoopCanRedo(H.future.length>0);
   };
   const clearLooper=()=>{
     stopLooper();
     loopRef.current.events=[];loopRef.current.passId=0;
-    setLoopDisp([]);
+    loopHistRef.current={past:[],future:[]};
+    setLoopDisp([]);setLoopCanUndo(false);setLoopCanRedo(false);
   };
   const freshRecLooper=async()=>{
     // Stop playback + wipe events, then immediately arm a fresh recording
@@ -2930,9 +2954,11 @@ export default function KickAndSnare(){
                   loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
                   loopDisp={loopDisp}
                   loopMetro={loopMetro} setLoopMetro={setLoopMetro}
-                  onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoopPass} onClear={clearLooper}
+                  onToggleRec={toggleLoopRec} onFreshRec={freshRecLooper} onTogglePlay={loopPlaying?stopLooper:()=>startLooper(false)} onUndo={undoLoop} onRedo={redoLoop} onClear={clearLooper}
+                  loopCanUndo={loopCanUndo} loopCanRedo={loopCanRedo}
                   themeName={themeName} isPortrait={isPortrait}
                   bpm={bpm} tracks={atO}
+                  onBeforeEdit={pushLoopSnapshot}
                   onMoveHit={(idx,newTOff)=>{
                     const L=loopRef.current;
                     if(!L.events[idx])return;
@@ -2946,6 +2972,7 @@ export default function KickAndSnare(){
                     setLoopDisp([...L.events]);
                   }}
                   onAddHit={(tid,tOff)=>{
+                    pushLoopSnapshot();
                     const L=loopRef.current;
                     const dur=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
                     const ev={id:`m_${Date.now()}`,tid,tOff:Math.max(0,Math.min(dur-1,tOff)),vel:1,pass:L.passId};
@@ -2954,12 +2981,14 @@ export default function KickAndSnare(){
                     setLoopDisp([...L.events]);
                   }}
                   onRemoveHit={(idx)=>{
+                    pushLoopSnapshot();
                     const L=loopRef.current;
                     if(idx<0||idx>=L.events.length)return;
                     L.events.splice(idx,1);
                     setLoopDisp([...L.events]);
                   }}
                   onQuantize={(div)=>{
+                    pushLoopSnapshot();
                     const L=loopRef.current;
                     if(!L.events||!L.events.length)return;
                     const loopDurMs=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
