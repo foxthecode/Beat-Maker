@@ -3363,66 +3363,75 @@ export default function KickAndSnare(){
           </div>
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12,touchAction:"none"}}>
-            {atO.map((track)=>(
-              <div key={track.id} style={{position:"relative"}}>
-                <button
+            {atO.map((track)=>{
+              const padVol=fx[track.id]?.vol??80;
+              const pR=9;const pC=2*Math.PI*pR;
+              const updateVol=(nv:number)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:nv};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
+              return(
+              <div key={track.id} style={{display:"flex",flexDirection:"column",gap:4}}>
+                {/* ── Pad tile ── */}
+                <div style={{position:"relative"}}>
+                  <button
+                    onTouchStart={e=>{
+                      e.preventDefault(); // block subsequent pointerdown on mobile
+                      trigPad(track.id,110/127);
+                    }}
+                    onPointerDown={e=>{
+                      if(e.pointerType==="touch")return; // already handled by onTouchStart
+                      e.preventDefault();
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      trigPad(track.id,1);
+                    }}
+                    style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
+                    <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
+                    <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
+                    {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
+                  </button>
+                  {/* ── Delete button (top-left, absolute inside tile) ── */}
+                  {atO.length>1&&(
+                    <button
+                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                      onPointerDown={e=>{e.stopPropagation();e.preventDefault();}}
+                      title={`Remove ${track.label}`}
+                      style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
+                    >×</button>
+                  )}
+                  {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
+                </div>
+                {/* ── VOL knob — below the pad, no overlap → zero touch conflict ── */}
+                <div
+                  style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
                   onTouchStart={e=>{
-                    e.preventDefault(); // block subsequent pointerdown on mobile
-                    trigPad(track.id,110/127);
+                    e.preventDefault();
+                    const t0=e.touches[0];let sY=t0.clientY,sV=padVol;
+                    const onMove=(te:TouchEvent)=>{te.preventDefault();const dy=sY-te.touches[0].clientY;updateVol(Math.max(0,Math.min(100,Math.round(sV+dy*1.5))));};
+                    const onEnd=()=>{document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);};
+                    document.addEventListener('touchmove',onMove,{passive:false});
+                    document.addEventListener('touchend',onEnd,{once:true});
                   }}
                   onPointerDown={e=>{
-                    if(e.pointerType==="touch")return; // already handled by onTouchStart
+                    if(e.pointerType==='touch')return;
                     e.preventDefault();
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    trigPad(track.id,1);
+                    const el=e.currentTarget;el.setPointerCapture(e.pointerId);
+                    let sY=e.clientY,sV=padVol;
+                    const mv=(pe:PointerEvent)=>{const dy=sY-pe.clientY;updateVol(Math.max(0,Math.min(100,Math.round(sV+dy*1.5))));};
+                    const up=()=>el.removeEventListener('pointermove',mv);
+                    el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up,{once:true});el.addEventListener('pointercancel',up,{once:true});
                   }}
-                  style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
-                  <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
-                  <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
-                  {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
-                </button>
-                {/* ── Delete pad button ── */}
-                {atO.length>1&&(
-                  <button
-                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
-                    onPointerDown={e=>{e.stopPropagation();e.preventDefault();}}
-                    title={`Remove ${track.label}`}
-                    style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
-                  >×</button>
-                )}
-                {/* ── VOL knob (bottom-right) ── */}
-                {(()=>{
-                  const padVol=fx[track.id]?.vol??80;
-                  const pR=9;const pC=2*Math.PI*pR;
-                  return(
-                    <div
-                      style={{position:"absolute",bottom:8,right:8,display:"flex",flexDirection:"column",alignItems:"center",gap:1,zIndex:2,touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
-                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();}}
-                      onPointerDown={e=>{
-                        e.stopPropagation();e.preventDefault();
-                        const el=e.currentTarget;el.setPointerCapture(e.pointerId);
-                        let sY=e.clientY,sV=padVol;
-                        const mv=pe=>{const dy=sY-pe.clientY;const nv=Math.max(0,Math.min(100,Math.round(sV+dy*1.5)));setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:nv};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
-                        const up=()=>el.removeEventListener("pointermove",mv);
-                        el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});
-                      }}
-                      onDoubleClick={e=>{e.stopPropagation();setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:80};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
-                      title={`VOL: ${padVol} — drag ↕ · double-tap = 80%`}
-                    >
-                      <div style={{position:"relative",width:28,height:28,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
-                        <svg width="28" height="28" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
-                          <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"22"} strokeWidth="3"/>
-                          <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
-                        </svg>
-                        <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5.5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
-                      </div>
-                      <span style={{fontSize:7,fontWeight:700,color:track.color,opacity:0.8,lineHeight:1}}>{padVol}</span>
-                    </div>
-                  );
-                })()}
-                {midiLM&&<div style={{position:"absolute",top:6,right:6}}><MidiTag id={track.id}/></div>}
+                  onDoubleClick={()=>updateVol(80)}
+                  title={`VOL: ${padVol} — drag ↕ · double-tap = 80%`}
+                >
+                  <div style={{position:"relative",width:28,height:28,cursor:"ns-resize"}}>
+                    <svg width="28" height="28" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
+                      <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"22"} strokeWidth="3"/>
+                      <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
+                    </svg>
+                    <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5.5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
+                  </div>
+                  <span style={{fontSize:9,fontWeight:700,color:track.color,opacity:0.8}}>{padVol}</span>
+                </div>
               </div>
-            ))}
+            );})}
           </div>
           <div style={{marginTop:10}}>
             {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
