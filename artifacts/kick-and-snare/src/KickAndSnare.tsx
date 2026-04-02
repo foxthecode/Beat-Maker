@@ -222,11 +222,13 @@ class Eng{
     this._rQueue=[];         // serialised render queue (mobile)
     this._rRunning=false;    // queue worker active
     this._nodeCount=0;       // live AudioNode pairs counter (mobile throttle)
+    this._lookAhead=this._isMobile?0.25:0.1;    // scheduler look-ahead in seconds
+    this._schedInterval=this._isMobile?50:25;   // scheduler tick interval in ms
   }
   init(){
     if(this.ctx)return;
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(
-      this._isMobile?{latencyHint:'interactive',sampleRate:44100}:{latencyHint:'interactive'}
+      this._isMobile?{latencyHint:'playback',sampleRate:44100}:{latencyHint:'interactive'}
     );
     // ── Master input gain ──
     this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
@@ -324,16 +326,16 @@ class Eng{
     this.rebuildChain(this._chainOrder,this._sendPositions);
   }
   async _loadDefaults(){
-    // Pre-render all 808 sounds into AudioBuffers for playback-quality output
+    // Pre-render all 808 sounds in parallel for faster startup
     const durs={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
-    for(const [id,dur] of Object.entries(durs)){
+    await Promise.all(Object.entries(durs).map(async([id,dur])=>{
       try{
         const sr=this.ctx.sampleRate;
         const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
         this._syn(id,0,1,oCtx.destination,oCtx);
         this.buf[id]=await oCtx.startRendering();
       }catch(e){console.warn("808 prerender failed:",id,e);}
-    }
+    }));
     this.onReady?.();
   }
   async ensureRunning(){
@@ -563,7 +565,7 @@ class Eng{
   uFx(id,f,noteTime?:number){
     const c=this.ch[id];if(!c||!this.ctx)return;const ct=this.ctx.currentTime;
     // vol/pan: apply at current time (persistent settings)
-    const transTime=this._isMobile?0.08:0.02;
+    const transTime=this._isMobile?0.08:0.005;
     c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,transTime);
     if(c.pan?.pan)c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
     // Transient shaper: per-note envelope anchored at the note's scheduled time
@@ -635,11 +637,13 @@ class Eng{
       },
       hihat:()=>{
         const decay=0.045*sDec;const mg=gain(1);mg.connect(d);
-        [80,119,167,219,273,329].map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.06);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(og);og.connect(mg);o.start(t);o.stop(t+decay+0.001);});
+        const freqs=this._isMobile?[80,167,273,329]:[80,119,167,219,273,329];
+        freqs.map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.06);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(og);og.connect(mg);o.start(t);o.stop(t+decay+0.001);});
         const ns=noise(decay);const hp=filt("highpass",8000*sTone);const ng=gain(v*0.18*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+decay);ns.connect(hp);hp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+decay+0.001);
       },
       clap:()=>{
-        [0,0.009,0.018,0.028].map(off=>off*sSnap).forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55*sPunch);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55*sPunch,t+Math.max(0.0001,off));g.gain.exponentialRampToValueAtTime(0.001,t+Math.max(0.001,off)+0.012);ns.connect(bp);bp.connect(g);g.connect(d);ns.start(t+Math.max(0,off));ns.stop(t+Math.max(0,off)+0.015);});
+        const offsets=this._isMobile?[0,0.018]:[0,0.009,0.018,0.028];
+        offsets.map(off=>off*sSnap).forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55*sPunch);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55*sPunch,t+Math.max(0.0001,off));g.gain.exponentialRampToValueAtTime(0.001,t+Math.max(0.001,off)+0.012);ns.connect(bp);bp.connect(g);g.connect(d);ns.start(t+Math.max(0,off));ns.stop(t+Math.max(0,off)+0.015);});
         const tailDur=0.2*sDec;const tail=noise(tailDur);const bp2=filt("bandpass",1000,0.8);const tg=gain(v*0.45*sBody);tg.gain.setValueAtTime(0,t);tg.gain.setValueAtTime(v*0.45*sBody,t+0.04);tg.gain.exponentialRampToValueAtTime(0.001,t+tailDur);tail.connect(bp2);bp2.connect(tg);tg.connect(d);tail.start(t+0.04);tail.stop(t+tailDur+0.01);
       },
       tom:()=>{
@@ -1895,9 +1899,9 @@ export default function KickAndSnare(){
 
   const schLoop=useCallback(()=>{
     if(!engine.ctx)return;const ct=engine.ctx.currentTime;
-    // H.1a: adaptive look-ahead + tick interval for mobile
-    const LA=engine.isMobile?0.18:0.1;
-    const schDelay=engine.isMobile?20:25;
+    // H.1a: adaptive look-ahead + tick interval for mobile (from engine properties)
+    const LA=engine._lookAhead;
+    const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
       // ── Euclid: independent per-track polyrhythm clock ──
       // Fixed step = 1/16th note — each track's cycle duration is N × (1/16th).
@@ -1932,7 +1936,7 @@ export default function KickAndSnare(){
         const sxt=(60/R.bpm)/4; // sixteenth note
         const em=euclidMetroR.current;
         if(!em.nextTime||em.nextTime<ct-0.5){em.nextTime=ct+0.05;em.beat=0;}
-        while(em.nextTime<ct+0.1){
+        while(em.nextTime<ct+LA){
           playClk(em.nextTime,em.beat===0?"accent":em.beat%2===0?"beat":"sub");
           em.beat=(em.beat+1)%4;em.nextTime+=sxt;
         }

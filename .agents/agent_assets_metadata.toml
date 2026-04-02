@@ -17,10 +17,10 @@ title = "Kick & Snare v9.0 — Export code complet"
 id = "JtQCmqgBbpsRfFYKzMKgY"
 uri = "file://dist-kick-and-snare.tar.gz"
 type = "unspecified"
-title = "dist-kick-and-snare.tar.gz (anti-glitch mobile)"
+title = "dist-kick-and-snare.tar.gz (Android audio optimizations)"
 
 [[outputs]]
 id = "-qMNw5qPaZvxI910lARNW"
 uri = "file://kick-and-snare-src.tar.gz"
 type = "unspecified"
-title = "kick-and-snare-src.tar.gz (source code v9.0)"
+title = "kick-and-snare-src.tar.gz (source complet)"
