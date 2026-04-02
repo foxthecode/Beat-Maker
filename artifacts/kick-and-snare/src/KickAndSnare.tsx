@@ -2104,11 +2104,12 @@ export default function KickAndSnare(){
     const L=loopRef.current;
     // Use actual time-sig beats so loop length matches metro period exactly (prevents drift)
     L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
-    // Fix silence: when replaying existing events, shift audioStart back so first event fires immediately
-    const minToff=(!isRec&&L.events.length>0)?Math.min(...L.events.map(e=>e.tOff)):0;
-    // forcedStart = pre-calculated audio time from precise countdown (eliminates JS-timer jitter)
-    L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx.currentTime-minToff/1000;
-    L.perfStart=performance.now()-minToff;
+    // Always anchor audioStart to now (or forcedStart for countdown).
+    // The minToff trick (shifting audioStart back so the first hit fires immediately)
+    // caused the playhead to start mid-loop on pass 1 — pass 2 felt like "beat 1"
+    // but pass 1 did not. Now every pass starts at position 0 (beat 1).
+    L.audioStart=forcedStart!==undefined?forcedStart:engine.ctx.currentTime;
+    L.perfStart=performance.now();
     L.scheduled=new Set();
     loopSchedFn();
     // RAF playhead
