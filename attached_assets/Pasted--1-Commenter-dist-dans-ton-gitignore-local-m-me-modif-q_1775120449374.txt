@@ -1,0 +1,66 @@
+% # 1. Commenter dist dans ton .gitignore local (même modif que Replit)
+sed -i '' 's/^dist$/# dist/' .gitignore
+
+# 2. Builder le dist localement
+PORT=3000 BASE_PATH=/ pnpm --filter @workspace/kick-and-snare run build
+
+# 3. Commiter et pusher
+git add .gitignore artifacts/kick-and-snare/dist/
+git commit -m "build: dist compilé + unlock dist in gitignore"
+git push origin main
+zsh: number expected
+zsh: command not found: #
+
+> @workspace/kick-and-snare@0.0.0 build /Users/foxstation/Projects/Beat-Maker/artifacts/kick-and-snare
+> vite build --config vite.config.ts
+
+You are using Node.js 18.20.4. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.
+/Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:115
+		throw new Error(
+		      ^
+
+Error: Cannot find module @rollup/rollup-darwin-x64. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    at requireWithFriendlyError (/Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:115:9)
+    at Object.<anonymous> (/Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:124:76)
+    ... 3 lines matching cause stack trace ...
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:203:29)
+    at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+    at async CAC.<anonymous> (file:///Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:626:28) {
+  [cause]: Error: Cannot find module '@rollup/rollup-darwin-x64'
+  Require stack:
+  - /Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1140:15)
+      at Module._load (node:internal/modules/cjs/loader:981:27)
+      at Module.require (node:internal/modules/cjs/loader:1231:19)
+      at require (node:internal/modules/helpers:177:18)
+      at requireWithFriendlyError (/Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:97:10)
+      at Object.<anonymous> (/Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js:124:76)
+      at Module._compile (node:internal/modules/cjs/loader:1364:14)
+      at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+      at Module.load (node:internal/modules/cjs/loader:1203:32)
+      at Module._load (node:internal/modules/cjs/loader:1019:12) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/Users/foxstation/Projects/Beat-Maker/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/native.js'
+    ]
+  }
+}
+
+Node.js v18.20.4
+/Users/foxstation/Projects/Beat-Maker/artifacts/kick-and-snare:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/kick-and-snare@0.0.0 build: `vite build --config vite.config.ts`
+Exit status 1
+zsh: command not found: #
+fatal: pathspec 'artifacts/kick-and-snare/dist/' did not match any files
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .gitignore
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Everything up-to-date
