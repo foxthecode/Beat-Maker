@@ -11,7 +11,7 @@ export default function TransportBar({
   MidiTag,
   view, sig, showTS, setShowTS, showK, setShowK,
   hasMidiApi, hasLinkApi, midiNotes, setMidiNotes, initMidi, midiLearnTrack, setMidiLearnTrack,
-  isPortrait, isAudioReady,
+  isPortrait, isAudioReady, isMobile,
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
@@ -294,7 +294,7 @@ export default function TransportBar({
       {MetroBtn}
       {SubBtn}
       {!isPads && ClearBtn}
-      {!isPortrait && KeybBtn}
+      {!isPortrait && !isMobile && KeybBtn}
       {MidiBtn}
       {LinkBtn}
       {ExportBtn}

@@ -113,7 +113,7 @@ function TrackRow({
         <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "row", gap: 3, alignItems: "flex-start" }}>
 
           {/* Sub-col A: Row1 = icon+label  |  Row2 = VOL+PAN */}
-          <div style={{ width: 92, flexShrink: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 2, minWidth: 60 }}>
             {/* Row 1: icon · label */}
             <div style={{ display: "flex", alignItems: "center", gap: 2, overflow: "hidden" }}>
               <DrumSVG id={track.id} color={track.color} hit={flash} />

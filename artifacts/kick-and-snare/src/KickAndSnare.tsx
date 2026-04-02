@@ -36,13 +36,13 @@ type Theme = typeof THEMES.dark;
 // ────────────────────────────────────────────────────────────────────────────
 
 const TIME_SIGS=[
-  {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0],stepDiv:4},
-  {label:"3/4",beats:3,steps:12,groups:[4,4,4],accents:[0],stepDiv:4},
+  {label:"4/4",beats:4,steps:16,groups:[4,4,4,4],accents:[0],stepDiv:4,subDiv:2},
+  {label:"3/4",beats:3,steps:12,groups:[4,4,4],accents:[0],stepDiv:4,subDiv:2},
   {label:"6/8",beats:2,steps:12,groups:[6,6],accents:[0],stepDiv:4,subDiv:2},
   {label:"12/8",beats:4,steps:24,groups:[6,6,6,6],accents:[0],stepDiv:4,subDiv:2},
-  {label:"5/4",beats:5,steps:20,groups:[4,4,4,4,4],accents:[0,3],stepDiv:4},
-  {label:"5/8",beats:2,steps:10,groups:[6,4],groupOptions:[[6,4,"3+2"],[4,6,"2+3"]],accents:[0],stepDiv:4},
-  {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4},
+  {label:"5/4",beats:5,steps:20,groups:[4,4,4,4,4],accents:[0,3],stepDiv:4,subDiv:2},
+  {label:"5/8",beats:2,steps:10,groups:[6,4],groupOptions:[[6,4,"3+2"],[4,6,"2+3"]],accents:[0],stepDiv:4,subDiv:2},
+  {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
 const ALL_TRACKS=[
@@ -3060,7 +3060,7 @@ export default function KickAndSnare(){
           hasMidiApi={hasMidiApi} hasLinkApi={hasLinkApi}
           midiNotes={midiNotes} setMidiNotes={setMidiNotes} initMidi={initMidi}
           midiLearnTrack={midiLearnTrack} setMidiLearnTrack={setMidiLearnTrack}
-          isPortrait={isPortrait} isAudioReady={isAudioReady}
+          isPortrait={isPortrait} isAudioReady={isAudioReady} isMobile={isMobileRef.current}
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
