@@ -1494,6 +1494,11 @@ export default function KickAndSnare(){
   const captureReadyRef=useRef(false); // ref mirror — safe to read inside RAF closure
   const captureBarRef=useRef(0); // last loopN at which QUANTISE was triggered (prevents instant re-show)
   const [autoQ,setAutoQ]=useState(false);
+  // Free-play capture buffer — accumulates hits WITHOUT activating REC
+  const freeCaptureRef=useRef<{tid:string;t:number;vel:number}[]>([]);
+  const freeCaptureStartRef=useRef<number|null>(null);
+  const [freeCaptureCount,setFreeCaptureCount]=useState(0);
+  const [freeBpm,setFreeBpm]=useState<number|null>(null);
   // Undo / redo for looper — snapshot-based (covers rec passes, overdub, add, move, remove, quantize)
   const loopHistRef=useRef<{past:any[][];future:any[][]}>({past:[],future:[]});
   const [loopCanUndo,setLoopCanUndo]=useState(false);
@@ -1707,6 +1712,28 @@ export default function KickAndSnare(){
       const ev={id:evId,tid,tOff,vel,pass:L.passId};
       L.events.push(ev);
       setLoopDisp(d=>[...d,{tid,tOff,vel}]);
+    }
+    // Free-capture — records timestamps WITHOUT activating REC, for BPM detection
+    if(R.view==='pads'&&!R.loopRec){
+      const now=performance.now();
+      if(freeCaptureStartRef.current===null){
+        freeCaptureStartRef.current=now;
+        freeCaptureRef.current=[{tid,t:0,vel}];
+      }else{
+        freeCaptureRef.current.push({tid,t:now-freeCaptureStartRef.current,vel});
+      }
+      const buf=freeCaptureRef.current;
+      setFreeCaptureCount(buf.length);
+      if(buf.length>=4){
+        const times=buf.map(h=>h.t);
+        const intervals=times.slice(1).map((t,i)=>t-times[i]).filter(d=>d>50&&d<2000);
+        if(intervals.length>=2){
+          const sorted=[...intervals].sort((a,b)=>a-b);
+          const med=sorted[Math.floor(sorted.length/2)];
+          const det=Math.round(60000/med);
+          if(det>=40&&det<=240)setFreeBpm(det);
+        }
+      }
     }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
     if(R.rec&&R.step>=0&&engine.ctx){
@@ -2341,6 +2368,54 @@ export default function KickAndSnare(){
     captureReadyRef.current=false;setCaptureReady(false);
   };
 
+  const clearFreeCapture=()=>{
+    freeCaptureRef.current=[];freeCaptureStartRef.current=null;
+    setFreeCaptureCount(0);setFreeBpm(null);
+  };
+
+  const captureFromFreePlay=async()=>{
+    const buf=freeCaptureRef.current;
+    if(buf.length<2)return;
+    const finalBpm=Math.max(40,Math.min(240,freeBpm??bpm));
+    setBpm(finalBpm);
+    const beatMs=60000/finalBpm;
+    const barMs=beatMs*sig.beats;
+    const totalMs=buf[buf.length-1].t;
+    const numBars=Math.max(1,Math.ceil(totalMs/barMs));
+    const loopDurMs=numBars*barMs;
+    // Quantize each hit to nearest of 1/4·1/8·1/16·1/32
+    const snapHit=(tMs:number)=>{
+      let best=tMs,bestDist=Infinity;
+      [4,8,16,32].forEach(sub=>{
+        const sMs=loopDurMs/sub;
+        const snapped=Math.round(tMs/sMs)*sMs;
+        const d=Math.abs(tMs-snapped);
+        if(d<bestDist){bestDist=d;best=Math.max(0,Math.min(loopDurMs-sMs,snapped));}
+      });
+      return best;
+    };
+    const looperEvents=buf.map((h,i)=>({
+      id:`fcp_${h.tid}_${i}_${Date.now()}`,
+      tid:h.tid,tOff:snapHit(h.t),vel:h.vel,pass:1,
+    }));
+    // Dedup same-track same-tOff (keep loudest)
+    const seen=new Map<string,typeof looperEvents[0]>();
+    looperEvents.forEach(ev=>{
+      const k=`${ev.tid}:${ev.tOff}`;
+      if(!seen.has(k)||ev.vel>(seen.get(k)!.vel||0))seen.set(k,ev);
+    });
+    const finalEvents=[...seen.values()].sort((a,b)=>a.tOff-b.tOff);
+    stopLooper();
+    pushLoopSnapshot();
+    const L=loopRef.current;
+    L.events=finalEvents;L.lengthMs=loopDurMs;L.passId=1;L.scheduled=new Set();
+    setLoopBars(numBars);
+    setLoopDisp(finalEvents.map(ev=>({tid:ev.tid,tOff:ev.tOff,vel:ev.vel})));
+    clearFreeCapture();
+    setShowLooper(true);
+    await startLooper(false);
+  };
+
   const freshRecLooper=async()=>{
     // Stop playback + wipe events, then immediately arm a fresh recording
     clearLooper();
@@ -2823,7 +2898,7 @@ export default function KickAndSnare(){
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(true);if(!R.loopRec){_armLoopRec();}}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 pads colorés jouables en temps réel au toucher ou clavier · Idéal pour performer" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(true);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
@@ -3125,19 +3200,19 @@ export default function KickAndSnare(){
                   autoQ={autoQ} setAutoQ={setAutoQ}
                 />
                 </div>{/* end LooperPanel flex wrapper */}
-                {/* CAPTURE button — always visible, 3 states: empty / waiting / ready */}
+                {/* CAPTURE button — 3 states: idle / listening (1-3 hits) / ready (4+ hits + BPM) */}
                 {(()=>{
-                  const ready=captureReady&&loopDisp.length>0;
-                  const waiting=!captureReady&&loopDisp.length>0;
+                  const ready=freeCaptureCount>=4;
+                  const listening=freeCaptureCount>0&&freeCaptureCount<4;
                   return(
                     <button
-                      onClick={ready?captureToLooper:undefined}
-                      title={ready?`Quantiser ${loopDisp.length} hit${loopDisp.length>1?"s":""}`:waiting?"Attends 1 bar complet…":"Joue des pads pour activer"}
-                      style={{flexShrink:0,alignSelf:"flex-end",marginBottom:6,padding:"5px 10px",borderRadius:6,border:ready?"none":`1px solid rgba(48,209,88,${waiting?"0.25":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":waiting?"rgba(48,209,88,0.07)":"rgba(48,209,88,0.02)",color:ready?"#fff":waiting?"rgba(48,209,88,0.55)":"rgba(48,209,88,0.2)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.07em",boxShadow:ready?"0 0 14px rgba(48,209,88,0.35)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.25s",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:68}}
+                      onClick={ready?captureFromFreePlay:undefined}
+                      title={ready?`Capturer ${freeCaptureCount} hits · BPM détecté: ${freeBpm??'…'}`:listening?`${freeCaptureCount}/4 hits — continue à jouer`:"Joue des pads pour activer"}
+                      style={{flexShrink:0,alignSelf:"flex-end",marginBottom:6,padding:"5px 10px",borderRadius:6,border:ready?"none":`1px solid rgba(48,209,88,${listening?"0.3":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":listening?"rgba(48,209,88,0.07)":"rgba(48,209,88,0.02)",color:ready?"#fff":listening?"rgba(48,209,88,0.6)":"rgba(48,209,88,0.2)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.07em",boxShadow:ready?"0 0 14px rgba(48,209,88,0.35)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.25s",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:72}}
                     >
                       <span>⚡ CAPTURE</span>
-                      <span style={{fontSize:7,fontWeight:700,opacity:0.8}}>
-                        {loopDisp.length>0?`${loopDisp.length} hit${loopDisp.length>1?"s":""}${ready?"":waiting?"…":""}`:"\u00a0"}
+                      <span style={{fontSize:7,fontWeight:700,opacity:0.85}}>
+                        {ready&&freeBpm?`${freeBpm} BPM · ${freeCaptureCount} hits`:listening?`${freeCaptureCount}/4…`:"\u00a0"}
                       </span>
                     </button>
                   );
