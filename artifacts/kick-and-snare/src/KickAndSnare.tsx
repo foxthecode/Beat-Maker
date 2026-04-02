@@ -2397,15 +2397,16 @@ export default function KickAndSnare(){
     // Snap to nearest power-of-2 bar count (2, 4, 8, 16…) — standard looper behaviour
     const rawBars=Math.round((totalMs+barMs*0.125)/barMs);
     const numBars=Math.pow(2,Math.max(1,Math.round(Math.log2(Math.max(1,rawBars)))));
+    const rawDurMs=rawBars*barMs;
     const loopDurMs=numBars*barMs;
-    // Quantize each hit to nearest of 1/4·1/8·1/16·1/32
+    // Quantize hits to nearest note subdivision (grid based on BPM, not loop length)
+    // 1/4=beatMs, 1/8=beatMs/2, 1/16=beatMs/4, 1/32=beatMs/8
     const snapHit=(tMs:number)=>{
       let best=tMs,bestDist=Infinity;
-      [4,8,16,32].forEach(sub=>{
-        const sMs=loopDurMs/sub;
+      [beatMs,beatMs/2,beatMs/4,beatMs/8].forEach(sMs=>{
         const snapped=Math.round(tMs/sMs)*sMs;
         const d=Math.abs(tMs-snapped);
-        if(d<bestDist){bestDist=d;best=Math.max(0,Math.min(loopDurMs-sMs,snapped));}
+        if(d<bestDist){bestDist=d;best=Math.max(0,Math.min(rawDurMs-sMs,snapped));}
       });
       return best;
     };
@@ -2413,13 +2414,28 @@ export default function KickAndSnare(){
       id:`fcp_${h.tid}_${i}_${Date.now()}`,
       tid:h.tid,tOff:snapHit(h.t),vel:h.vel,pass:1,
     }));
-    // Dedup same-track same-tOff (keep loudest)
+    // Dedup same-track same-tOff within raw content (keep loudest)
     const seen=new Map<string,typeof looperEvents[0]>();
     looperEvents.forEach(ev=>{
       const k=`${ev.tid}:${ev.tOff}`;
       if(!seen.has(k)||ev.vel>(seen.get(k)!.vel||0))seen.set(k,ev);
     });
-    const finalEvents=[...seen.values()].sort((a,b)=>a.tOff-b.tOff);
+    const baseEvents=[...seen.values()].sort((a,b)=>a.tOff-b.tOff);
+    // Tile base pattern to fill the power-of-2 extended duration
+    // e.g. rawBars=1 → numBars=2: copy bar 1 into bar 2
+    // e.g. rawBars=3 → numBars=4: tile bars 1-3 cyclically to fill bar 4
+    const finalEvents=[...baseEvents];
+    if(numBars>rawBars){
+      let offset=rawDurMs;
+      while(offset<loopDurMs){
+        baseEvents.forEach((ev,i)=>{
+          const newTOff=ev.tOff+offset;
+          if(newTOff<loopDurMs)finalEvents.push({...ev,id:`${ev.id}_t${i}_${offset}`,tOff:newTOff});
+        });
+        offset+=rawDurMs;
+      }
+      finalEvents.sort((a,b)=>a.tOff-b.tOff);
+    }
     stopLooper();
     pushLoopSnapshot();
     const L=loopRef.current;
