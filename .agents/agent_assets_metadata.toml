@@ -12,3 +12,9 @@ id = "EPBMxWjkcyW7o_U5BCapf"
 uri = "file://artifacts/kick-and-snare/kick_snare_v9_export.txt"
 type = "text"
 title = "Kick & Snare v9.0 — Export code complet"
+
+[[outputs]]
+id = "JtQCmqgBbpsRfFYKzMKgY"
+uri = "file://dist-kick-and-snare.tar.gz"
+type = "unspecified"
+title = "dist-kick-and-snare.tar.gz — production build"
