@@ -2394,7 +2394,8 @@ export default function KickAndSnare(){
     const beatMs=60000/finalBpm;
     const barMs=beatMs*sig.beats;
     const totalMs=buf[buf.length-1].t;
-    const numBars=Math.max(1,Math.ceil(totalMs/barMs));
+    // Math.round + 1/8 bar lookahead so "last hit before bar end" stays in the same bar
+    const numBars=Math.max(1,Math.round((totalMs+barMs*0.125)/barMs));
     const loopDurMs=numBars*barMs;
     // Quantize each hit to nearest of 1/4·1/8·1/16·1/32
     const snapHit=(tMs:number)=>{
@@ -3141,14 +3142,29 @@ export default function KickAndSnare(){
           <TipBadge id="pads_tap" text="Joue en live ! Appuie sur un pad pour déclencher un son · REC pour enregistrer un loop" color="#5E5CE6"/>
           {/* ── Looper banner (foldable) ── */}
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
-            <button onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+            {/* Header band — div (not button) so we can embed CAPTURE button without invalid nesting */}
+            <div onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",cursor:"pointer",userSelect:"none"}}>
               <span style={{fontSize:10,color:"#BF5AF2"}}>⊙</span>
               <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.08em"}}>LOOPER</span>
               {loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#FF2D55",animation:"rb 0.8s infinite"}}>● REC</span>}
               {loopPlaying&&!loopRec&&<span style={{fontSize:7,fontWeight:800,color:"#30D158"}}>▶ PLAY</span>}
               {recCountdown&&<span style={{fontSize:7,fontWeight:800,color:"#FF9500",animation:"rb 0.5s infinite"}}>COUNTDOWN…</span>}
+              {/* ── CAPTURE button — always in header, visible folded & unfolded ── */}
+              {(()=>{
+                const ready=freeCaptureCount>=4;
+                const listening=freeCaptureCount>0&&freeCaptureCount<4;
+                return(
+                  <button
+                    onClick={e=>{e.stopPropagation();if(ready)captureFromFreePlay();}}
+                    title={ready?`${freeCaptureCount} hits · ${freeBpm??'?'} BPM détecté — cliquer pour capturer`:listening?`${freeCaptureCount}/4 hits — continue à jouer`:"Joue des pads pour activer le mode capture"}
+                    style={{marginLeft:4,flexShrink:0,padding:"3px 8px",borderRadius:5,border:ready?"none":`1px solid rgba(48,209,88,${listening?"0.3":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":listening?"rgba(48,209,88,0.08)":"rgba(48,209,88,0.02)",color:ready?"#fff":listening?"rgba(48,209,88,0.65)":"rgba(48,209,88,0.22)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.06em",boxShadow:ready?"0 0 10px rgba(48,209,88,0.3)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.2s",whiteSpace:"nowrap"}}
+                  >
+                    {ready?`⚡ ${freeBpm??'?'} BPM`:listening?`⚡ ${freeCaptureCount}/4`:"⚡ CAPTURE"}
+                  </button>
+                );
+              })()}
               <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showLooper?"▲":"▼"}</span>
-            </button>
+            </div>
             {showLooper&&(
               <div style={{padding:"0 12px 12px"}}>
                 {recCountdown&&(
@@ -3157,9 +3173,6 @@ export default function KickAndSnare(){
                     <span style={{position:"relative",fontSize:8,fontWeight:800,color:"#FF9500",letterSpacing:"0.08em"}}>🎵 COUNTDOWN — REC in 1 bar…</span>
                   </div>
                 )}
-                {/* Flex row: LooperPanel left (full width), CAPTURE button anchored bottom-right */}
-                <div style={{display:"flex",alignItems:"flex-end",gap:6}}>
-                <div style={{flex:1,minWidth:0}}>
                 <LooperPanel
                   loopBars={loopBars} setLoopBars={setLoopBars}
                   loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
@@ -3212,25 +3225,6 @@ export default function KickAndSnare(){
                   }}
                   autoQ={autoQ} setAutoQ={setAutoQ}
                 />
-                </div>{/* end LooperPanel flex wrapper */}
-                {/* CAPTURE button — 3 states: idle / listening (1-3 hits) / ready (4+ hits + BPM) */}
-                {(()=>{
-                  const ready=freeCaptureCount>=4;
-                  const listening=freeCaptureCount>0&&freeCaptureCount<4;
-                  return(
-                    <button
-                      onClick={ready?captureFromFreePlay:undefined}
-                      title={ready?`Capturer ${freeCaptureCount} hits · BPM détecté: ${freeBpm??'…'}`:listening?`${freeCaptureCount}/4 hits — continue à jouer`:"Joue des pads pour activer"}
-                      style={{flexShrink:0,alignSelf:"flex-end",marginBottom:6,padding:"5px 10px",borderRadius:6,border:ready?"none":`1px solid rgba(48,209,88,${listening?"0.3":"0.1"})`,background:ready?"linear-gradient(90deg,#30D158,#34C759)":listening?"rgba(48,209,88,0.07)":"rgba(48,209,88,0.02)",color:ready?"#fff":listening?"rgba(48,209,88,0.6)":"rgba(48,209,88,0.2)",fontSize:8,fontWeight:800,cursor:ready?"pointer":"default",fontFamily:"inherit",letterSpacing:"0.07em",boxShadow:ready?"0 0 14px rgba(48,209,88,0.35)":"none",animation:ready?"pulse 1.4s ease-in-out infinite":"none",transition:"all 0.25s",display:"flex",flexDirection:"column",alignItems:"center",gap:2,minWidth:72}}
-                    >
-                      <span>⚡ CAPTURE</span>
-                      <span style={{fontSize:7,fontWeight:700,opacity:0.85}}>
-                        {ready&&freeBpm?`${freeBpm} BPM · ${freeCaptureCount} hits`:listening?`${freeCaptureCount}/4…`:"\u00a0"}
-                      </span>
-                    </button>
-                  );
-                })()}
-                </div>{/* end outer flex row */}
               </div>
             )}
           </div>
