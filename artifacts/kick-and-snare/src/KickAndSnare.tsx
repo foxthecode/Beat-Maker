@@ -2018,6 +2018,23 @@ export default function KickAndSnare(){
         }
       });
       if(dirty){const cur={};ALL_TRACKS.forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
+      // Song mode cycle tracking — runs always, independent of metro
+      // Advances the song chain every bar (gSt × sixteenth notes)
+      {
+        const em2=euclidMetroR.current;
+        if(!em2.songNextTime||em2.songNextTime<ct-0.5){em2.songNextTime=ct+0.05;em2.songGlobalStep=0;}
+        const barSteps=R.sig?.steps||16;
+        while(em2.songNextTime<ct+LA){
+          const prev=em2.songGlobalStep??0;
+          em2.songGlobalStep=((prev+1))%barSteps;
+          if(em2.songGlobalStep===0&&prev>=0&&R.songMode&&R.songChain?.length>0){
+            songPosRef.current=(songPosRef.current+1)%R.songChain.length;
+            const nextPat=R.songChain[songPosRef.current];
+            if(nextPat!==R.cp){R.cp=nextPat;setCPat(nextPat);}
+          }
+          em2.songNextTime+=sixteenth;
+        }
+      }
       // Metro in Euclid: 1/16th-note pulse (the Euclid grid step), accent every 4th (quarter note)
       if(R.metro){
         const sxt=(60/R.bpm)/4; // sixteenth note
