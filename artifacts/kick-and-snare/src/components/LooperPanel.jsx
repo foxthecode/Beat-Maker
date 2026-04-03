@@ -16,6 +16,8 @@ export default function LooperPanel({
   onRemoveHit,
   onQuantize,
   autoQ, setAutoQ,
+  loopDurMs: loopDurMsProp,
+  onVelChange,
   onExportLoop, loopExportState, loopExportReps, setLoopExportReps,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
@@ -23,7 +25,6 @@ export default function LooperPanel({
   const [dragIdx, setDragIdx] = useState(null);
   const [addTid, setAddTid] = useState(() => (tracks && tracks[0]?.id) || null);
 
-  // keep addTid valid if tracks change
   const validTids = (tracks || []).map(t => t.id);
   const effectiveAddTid = validTids.includes(addTid) ? addTid : (validTids[0] || null);
 
@@ -54,9 +55,11 @@ export default function LooperPanel({
   const QUANT_LABELS = { 4: "1/4", 8: "1/8", 12: "1/8T", 16: "1/16", 24: "1/16T", 32: "1/32" };
   const QUANT_TRIPLET = new Set([12, 24]);
 
-  const recLabel = loopRec ? "■ STOP REC" : "⏺ REC";
+  // Use the passed loopDurMs (frozen to L.lengthMs) — fallback to BPM formula when no events yet
+  const loopDurMs = (loopDurMsProp && loopDurMsProp > 0)
+    ? loopDurMsProp
+    : loopBars * 4 * (60000 / Math.max(30, bpm || 120));
 
-  const loopDurMs = loopBars * 4 * (60000 / Math.max(30, bpm || 120));
   const totalSteps = loopBars * 16;
 
   return (
@@ -92,7 +95,7 @@ export default function LooperPanel({
         ))}
       </div>
 
-      {/* ── QUANTIZE toolbar (shown when there are events or always) ── */}
+      {/* ── QUANTIZE toolbar ── */}
       <div style={{
         display: "flex", alignItems: "center", gap: 4,
         marginBottom: 8,
@@ -123,7 +126,6 @@ export default function LooperPanel({
             >{QUANT_LABELS[d]}</button>
           );
         })}
-        {/* Apply quantize button */}
         <button
           onClick={() => onQuantize && onQuantize(quantDiv)}
           disabled={!loopDisp || loopDisp.length === 0}
@@ -138,7 +140,6 @@ export default function LooperPanel({
           }}
         >⟨ APPLY</button>
         <div style={{ marginLeft: "auto" }}/>
-        {/* AUTO-Q toggle */}
         {setAutoQ && (
           <button
             onClick={() => setAutoQ(p => !p)}
@@ -164,7 +165,7 @@ export default function LooperPanel({
         )}
       </div>
 
-      {/* ── Track selector (outside IIFE to avoid Fragment issues) ── */}
+      {/* ── Track selector ── */}
       {canEdit && tracks && tracks.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
           <span style={{ fontSize: 6, color: th.dim, letterSpacing: "0.08em", flexShrink: 0 }}>+ TRACK</span>
@@ -212,9 +213,21 @@ export default function LooperPanel({
 
         return (
           <div
-            style={{ position: "relative", height: 44, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 6, overflow: "hidden", border: `1px solid ${canEdit ? "rgba(191,90,242,0.18)" : "rgba(255,255,255,0.07)"}`, cursor: canEdit ? "crosshair" : "default" }}
+            style={{ position: "relative", height: 52, marginBottom: 10, background: "rgba(255,255,255,0.03)", borderRadius: 6, overflow: "hidden", border: `1px solid ${canEdit ? "rgba(191,90,242,0.18)" : "rgba(255,255,255,0.07)"}`, cursor: canEdit ? "crosshair" : "default" }}
             onClick={handleTimelineClick}
           >
+            {/* Alternating measure background bands */}
+            {Array.from({ length: loopBars }, (_, bar) => (
+              <div key={`mb${bar}`} style={{
+                position: "absolute",
+                left: `${(bar / loopBars) * 100}%`,
+                width: `${(1 / loopBars) * 100}%`,
+                top: 0, bottom: 0,
+                background: bar % 2 === 0 ? "rgba(255,255,255,0.0)" : "rgba(255,255,255,0.025)",
+                pointerEvents: "none",
+              }} />
+            ))}
+
             {/* Step grid lines */}
             {Array.from({ length: totalSteps + 1 }, (_, i) => {
               const pct = (i / totalSteps) * 100;
@@ -224,13 +237,13 @@ export default function LooperPanel({
                 <div key={`g${i}`} style={{
                   position: "absolute", left: `${pct}%`, top: 0, bottom: 0,
                   width: 1,
-                  background: isBar ? "rgba(255,255,255,0.22)" : isBeat ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
+                  background: isBar ? "rgba(255,255,255,0.28)" : isBeat ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
                   pointerEvents: "none",
                 }} />
               );
             })}
 
-            {/* Quantize snap lines (show when quantDiv ≠ 16) */}
+            {/* Quantize snap lines */}
             {quantDiv !== 16 && Array.from({ length: loopBars * quantDiv + 1 }, (_, i) => {
               const pct = (i / (loopBars * quantDiv)) * 100;
               return (
@@ -241,20 +254,40 @@ export default function LooperPanel({
               );
             })}
 
-            {/* Beat labels */}
-            {Array.from({ length: loopBars * 4 }, (_, i) => (
-              <div key={`b${i}`} style={{
+            {/* Bar number labels — one per measure, enlarged */}
+            {Array.from({ length: loopBars }, (_, bar) => (
+              <div key={`bn${bar}`} style={{
                 position: "absolute",
-                left: `${(i / (loopBars * 4)) * 100 + 0.4}%`,
-                bottom: 2, fontSize: 5, lineHeight: 1,
-                color: i % 4 === 0 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.15)",
-                fontFamily: "monospace", pointerEvents: "none", userSelect: "none",
+                left: `${(bar / loopBars) * 100 + 0.5}%`,
+                bottom: 3,
+                fontSize: 8,
+                lineHeight: 1,
+                fontWeight: 800,
+                color: bar % 2 === 0 ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.35)",
+                fontFamily: "monospace",
+                pointerEvents: "none",
+                userSelect: "none",
+                letterSpacing: "0.04em",
               }}>
-                {i % 4 === 0 ? `${Math.floor(i / 4) + 1}` : "·"}
+                {bar + 1}
               </div>
             ))}
 
-            {/* Recorded hits — draggable + removable on dbl-click */}
+            {/* Beat dots within each measure (2 3 4) */}
+            {Array.from({ length: loopBars * 4 }, (_, i) => {
+              if (i % 4 === 0) return null; // bar number already shown
+              return (
+                <div key={`bd${i}`} style={{
+                  position: "absolute",
+                  left: `${(i / (loopBars * 4)) * 100 + 0.4}%`,
+                  bottom: 4, fontSize: 5, lineHeight: 1,
+                  color: "rgba(255,255,255,0.15)",
+                  fontFamily: "monospace", pointerEvents: "none", userSelect: "none",
+                }}>·</div>
+              );
+            })}
+
+            {/* Recorded hits — draggable, velocity-scrollable, removable on dbl-click */}
             {hasEvents && loopDisp.map((ev, i) => {
               const pct = Math.min(99.5, (ev.tOff / loopDurMs) * 100);
               const color = trackColorMap[ev.tid] || "#BF5AF2";
@@ -262,18 +295,21 @@ export default function LooperPanel({
               const canRemove = canEdit && !!onRemoveHit;
               const isDragging = dragIdx === i;
               const label = (tracks||[]).find(t=>t.id===ev.tid)?.label || ev.tid;
+              const vel = ev.vel ?? 0.8;
 
               return (
                 <div
                   key={`h${i}`}
-                  title={canRemove ? `${label} — drag to move · double-click to delete` : canDrag ? `${label} — drag to move` : undefined}
+                  title={canRemove
+                    ? `${label} vel:${Math.round(vel*100)}% — scroll↕ vel · drag→ move · dbl-click delete`
+                    : canDrag ? `${label} — drag to move` : undefined}
                   style={{
                     position: "absolute",
                     left: `${pct}%`,
                     top: 0,
                     bottom: 0,
-                    width: (canDrag || canRemove) ? 16 : 3,
-                    transform: (canDrag || canRemove) ? "translateX(-8px)" : "none",
+                    width: (canDrag || canRemove) ? 18 : 4,
+                    transform: (canDrag || canRemove) ? "translateX(-9px)" : "none",
                     display: "flex",
                     alignItems: "stretch",
                     justifyContent: "center",
@@ -288,18 +324,23 @@ export default function LooperPanel({
                     e.stopPropagation();
                     onRemoveHit(i);
                   } : undefined}
+                  onWheel={onVelChange ? e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const delta = -e.deltaY / 300;
+                    const newVel = Math.max(0.05, Math.min(1, vel + delta));
+                    onVelChange(i, newVel);
+                  } : undefined}
                   onPointerDown={canDrag ? e => {
                     e.preventDefault(); e.stopPropagation();
-                    onBeforeEdit?.(); // snapshot before drag so the full move is undoable
+                    onBeforeEdit?.();
                     setDragIdx(i);
                     const gridEl = e.currentTarget.parentElement;
                     const rect = gridEl.getBoundingClientRect();
                     const startX = e.clientX;
                     const startTOff = ev.tOff;
                     const snapMs = loopDurMs / (loopBars * 32);
-                    let moved = false;
                     const mv = me => {
-                      if (Math.abs(me.clientX - startX) > 3) moved = true;
                       const dx = me.clientX - startX;
                       const dMs = (dx / rect.width) * loopDurMs;
                       const raw = startTOff + dMs;
@@ -315,16 +356,19 @@ export default function LooperPanel({
                     window.addEventListener("pointerup", up);
                   } : undefined}
                 >
-                  {/* Hit bar */}
+                  {/* Hit bar — width 3px, height driven by velocity */}
                   <div style={{
-                    width: 2, height: "100%",
+                    width: 3,
+                    alignSelf: "flex-end",
+                    height: `${Math.round(30 + vel * 70)}%`,
                     background: color,
-                    opacity: isDragging ? 1 : (0.5 + (ev.vel || 0.8) * 0.5),
-                    borderRadius: 1,
+                    opacity: isDragging ? 1 : (0.45 + vel * 0.55),
+                    borderRadius: "1px 1px 0 0",
                     flexShrink: 0,
-                    boxShadow: isDragging ? `0 0 6px ${color}` : `0 0 2px ${color}44`,
+                    boxShadow: isDragging ? `0 0 6px ${color}` : `0 0 3px ${color}55`,
+                    transition: "height 0.08s, opacity 0.08s",
                   }} />
-                  {/* Handle indicator */}
+                  {/* Drag handle */}
                   {(canDrag || canRemove) && (
                     <div style={{
                       position: "absolute", top: 2,
@@ -368,25 +412,22 @@ export default function LooperPanel({
             <button onClick={onToggleRec} style={{ ...pill(true, "#FF2D55"), animation: "rb 0.8s infinite" }}>■ STOP REC</button>
           );
           if (loopPlaying && hasEvents) return (
-            <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <span style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", fontSize: 6, fontWeight: 800, color: "#5E5CE6", whiteSpace: "nowrap", letterSpacing: "0.05em" }}>OVERDUB</span>
-              <button onClick={onToggleRec} style={{ ...pill(false, "#5E5CE6"), border: "1px solid #5E5CE655", background: "rgba(94,92,230,0.15)", color: "#5E5CE6" }}>⊕ OVERDUB</button>
-            </div>
+            <button onClick={onToggleRec} style={{ ...pill(false, "#5E5CE6"), border: "1px solid #5E5CE655", background: "rgba(94,92,230,0.15)", color: "#5E5CE6" }}>⊕ OVERDUB</button>
           );
           return <button onClick={onToggleRec} style={pill(false, "#FF2D55")}>⏺ REC</button>;
         })()}
-        {/* COUNT DOWN — visible when not playing/recording */}
+        {/* COUNT DOWN */}
         {!loopPlaying && !loopRec && setLoopMetro && (
           <button onClick={() => setLoopMetro(p => !p)}
             style={{ ...pill(loopMetro, "#FF9500"), padding: "5px 9px" }}>
             {loopMetro ? "COUNT DOWN ON" : "COUNT DOWN"}
           </button>
         )}
-        {/* UNDO REDO CLEAR — always visible */}
+        {/* UNDO REDO CLEAR */}
         <button onClick={onUndo} disabled={!loopCanUndo} style={{ ...pill(false, "#5E5CE6"), opacity: loopCanUndo ? 1 : 0.35 }}>↺ UNDO</button>
         <button onClick={onRedo} disabled={!loopCanRedo} style={{ ...pill(false, "#5E5CE6"), opacity: loopCanRedo ? 1 : 0.35 }}>↻ REDO</button>
         <button onClick={onClear} style={pill(false, "#636366")}>✕ CLEAR</button>
-        {/* WAV Export — hidden by default; restored by passing onExportLoop */}
+        {/* WAV Export */}
         {onExportLoop && loopDisp && loopDisp.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: "auto" }}>
             {[1, 2, 4].map(n => (
@@ -407,9 +448,9 @@ export default function LooperPanel({
       {!loopRec && (
         <div style={{ marginTop: 6, fontSize: 6.5, color: th.faint, letterSpacing: "0.04em", textAlign: "center" }}>
           {canEdit
-            ? "Clic = ajouter · Drag = déplacer · Double-clic = supprimer · APPLY pour snapper"
+            ? "Clic = ajouter · Drag = déplacer · Scroll↕ = vélocité · Double-clic = supprimer"
             : loopDisp && loopDisp.length > 0
-              ? "Drag les barres pour repositionner · APPLY pour snapper tout"
+              ? "Drag = repositionner · Scroll↕ sur une note = vélocité · APPLY pour snapper"
               : null}
         </div>
       )}

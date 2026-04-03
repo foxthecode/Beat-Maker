@@ -46,7 +46,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.5";
+const APP_VERSION="9.0.6";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -1861,10 +1861,9 @@ export default function KickAndSnare(){
       const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
       const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
       let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
-      // Near-boundary wrap: snap to beat 0 if hit lands within 400ms of loop end.
-      // 400ms covers: pre-arm window (countdown path), slow JS timers, and human
-      // anticipation of the downbeat. Capped to 40% of loop to stay safe on short loops.
-      const snapThresh=Math.min(400,L.lengthMs*0.4);
+      // Snap to beat-0 only when hit lands within a tiny window of the loop boundary.
+      // Kept small (120ms max, 4%) so late-overdub hits aren't silently pulled to bar 1.
+      const snapThresh=Math.min(120,L.lengthMs*0.04);
       if(tOff>L.lengthMs-snapThresh)tOff=0;
       // AUTO-Q: snap to nearest subdivision on capture
       if(autoQRef.current&&L.lengthMs>0){
@@ -2124,6 +2123,12 @@ export default function KickAndSnare(){
     if(engine.ctx.state==='suspended'){
       engine.ctx.onstatechange=()=>{if(engine.ctx.state==='running')setCtxSuspended(false);};
       setCtxSuspended(true);
+      return;
+    }
+    // Live Pads view: PLAY targets the looper when there are recorded events
+    if(R.uiView==='pads'&&loopRef.current.events.length>0){
+      if(loopRef.current.audioStart!==null){stopLooper();}
+      else{await startLooper(false);}
       return;
     }
     if(playing){
@@ -2472,26 +2477,25 @@ export default function KickAndSnare(){
   // ── BPM → looper speed: rescale events + length + re-anchor phase on every BPM change ──
   // Mirrors how Ableton stretches a loop when the project tempo changes.
   // ratio = oldBpm/newBpm  →  slower BPM = longer loop, tOff values scale up proportionally.
+  // Runs for both playing AND stopped loops (fixes visual BPM-drift on manual notes).
   useEffect(()=>{
     const L=loopRef.current;
-    if(!loopPlaying||!L.loopBpm||L.audioStart===null||!engine.ctx)return;
+    if(!L.loopBpm||!L.events.length)return;
     const oldBpm=L.loopBpm;
     const newBpm=bpm;
     if(oldBpm===newBpm)return;
-    const ratio=oldBpm/newBpm; // <1 = faster playback, >1 = slower
-    const now=engine.ctx.currentTime;
-    // Preserve phase: find where we are in the current loop, scale to new loop length
-    const oldLenSec=L.lengthMs/1000;
-    const oldPhase=(now-L.audioStart)%oldLenSec;
-    const newPhase=oldPhase*ratio;
+    const ratio=oldBpm/newBpm;
     // Rescale all event offsets and loop length
     L.events=L.events.map(ev=>({...ev,tOff:ev.tOff*ratio}));
     L.lengthMs=L.lengthMs*ratio;
-    // Re-anchor so the current beat position is preserved (no audible jump)
-    L.audioStart=now-newPhase;
     L.loopBpm=newBpm;
-    // Clear already-scheduled keys so loopSchedFn re-fires with new timings
-    L.scheduled=new Set();
+    if(loopPlaying&&L.audioStart!==null&&engine.ctx){
+      // Preserve phase so there is no audible jump during live playback
+      const now=engine.ctx.currentTime;
+      const oldPhase=(now-L.audioStart)%(L.lengthMs/ratio/1000);
+      L.audioStart=now-oldPhase*ratio;
+      L.scheduled=new Set();
+    }
     setLoopDisp([...L.events]);
   },[bpm]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2571,10 +2575,10 @@ export default function KickAndSnare(){
     }
   };
   R.toggleLoopRec=toggleLoopRec;
-  // Push a deep snapshot of L.events before any mutation (rec, overdub, add, move-start, remove, quantize)
+  // Push a deep snapshot of L.events+lengthMs before any mutation (rec, overdub, add, move-start, remove, quantize)
   const pushLoopSnapshot=()=>{
     const H=loopHistRef.current;
-    H.past.push(loopRef.current.events.map(e=>({...e})));
+    H.past.push({events:loopRef.current.events.map(e=>({...e})),lengthMs:loopRef.current.lengthMs});
     if(H.past.length>60)H.past.shift();
     H.future=[];
     setLoopCanUndo(true);setLoopCanRedo(false);
@@ -2582,16 +2586,20 @@ export default function KickAndSnare(){
   const undoLoop=()=>{
     const L=loopRef.current;const H=loopHistRef.current;
     if(!H.past.length)return;
-    H.future.push(L.events.map(e=>({...e})));
-    L.events=H.past.pop()!;
+    H.future.push({events:L.events.map(e=>({...e})),lengthMs:L.lengthMs});
+    const snap=H.past.pop()!;
+    L.events=snap.events;L.lengthMs=snap.lengthMs;
+    L.loopBpm=bpm; // re-anchor rescale reference after restore
     setLoopDisp([...L.events]);
     setLoopCanUndo(H.past.length>0);setLoopCanRedo(true);
   };
   const redoLoop=()=>{
     const L=loopRef.current;const H=loopHistRef.current;
     if(!H.future.length)return;
-    H.past.push(L.events.map(e=>({...e})));
-    L.events=H.future.pop()!;
+    H.past.push({events:L.events.map(e=>({...e})),lengthMs:L.lengthMs});
+    const snap=H.future.pop()!;
+    L.events=snap.events;L.lengthMs=snap.lengthMs;
+    L.loopBpm=bpm;
     setLoopDisp([...L.events]);
     setLoopCanUndo(true);setLoopCanRedo(H.future.length>0);
   };
@@ -2922,7 +2930,7 @@ export default function KickAndSnare(){
 
 
   const fileRef=useRef(null);const ldRef=useRef(null);
-  const ldFile=(tid:string)=>{setSampleModalTrack(tid);setSampleModalOpen(true);};
+  const ldFile=(tid:string)=>{setTimeout(()=>{setSampleModalTrack(tid);setSampleModalOpen(true);},60);};
   const ldFileLocal=(tid:string)=>{ldRef.current=tid;if(fileRef.current){(fileRef.current as HTMLInputElement).value="";(fileRef.current as HTMLInputElement).click();}};
   const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});}ldRef.current=null;};
   const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});};
@@ -3525,6 +3533,9 @@ export default function KickAndSnare(){
                     pushLoopSnapshot();
                     const L=loopRef.current;
                     const dur=L.lengthMs>0?L.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm));
+                    // Freeze lengthMs and anchor loopBpm so BPM changes scale notes correctly
+                    if(!L.lengthMs||L.lengthMs<=0){L.lengthMs=dur;}
+                    if(!L.loopBpm){L.loopBpm=bpm;}
                     const ev={id:`m_${Date.now()}`,tid,tOff:Math.max(0,Math.min(dur-1,tOff)),vel:1,pass:L.passId};
                     L.events.push(ev);
                     L.events.sort((a,b)=>a.tOff-b.tOff);
@@ -3550,6 +3561,13 @@ export default function KickAndSnare(){
                     setLoopDisp([...L.events]);
                   }}
                   autoQ={autoQ} setAutoQ={setAutoQ}
+                  loopDurMs={loopRef.current.lengthMs>0?loopRef.current.lengthMs:loopBars*sig.beats*(60000/Math.max(30,bpm))}
+                  onVelChange={(idx:number,vel:number)=>{
+                    const L=loopRef.current;
+                    if(!L.events[idx])return;
+                    L.events[idx]={...L.events[idx],vel};
+                    setLoopDisp([...L.events]);
+                  }}
                 />
               </div>
             )}
