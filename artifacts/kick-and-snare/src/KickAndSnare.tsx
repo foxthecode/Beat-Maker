@@ -46,7 +46,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.1.0";
+const APP_VERSION="9.2.0";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -925,7 +925,7 @@ const FX_CHAIN_DEF:{sec:string,label:string,color:string,type:"serial"|"send"}[]
 
 function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag=()=>null,isPortrait=false,fxChainOrder=[],setFxChainOrder=(_o:string[])=>{},onChainOrderChange=(_o:string[])=>{},fxSendPos={reverb:'post',delay:'post',chorus:'post',flanger:'post',pingpong:'post'},setFxSendPos=(_p:any)=>{},trackFx={},onTrackFxChange=(_id:string,_k:string,_v:any)=>{}}){
   const th=THEMES[themeName]||THEMES.dark;
-  const [open,setOpen]=useState(false);
+  const [open,setOpen]=useState(true);
   const [showPresets,setShowPresets]=useState(false);
   const [dragIdx,setDragIdx]=useState<number|null>(null);
   const [dragOverIdx,setDragOverIdx]=useState<number|null>(null);
@@ -1081,43 +1081,36 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
   const chain=fxChainOrder.length?fxChainOrder:['drive','comp','filter'];
   const activeCount=['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'].filter(s=>gfx[s]?.on).length;
   return(
-    <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid ${open?'rgba(191,90,242,0.3)':th.sBorder}`,overflow:'hidden'}}>
-      {/* Header */}
-      <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 14px',userSelect:'none'}}>
-        <div data-hint="FX Rack · Reverb, Delay, Chorus, Flanger, Ping-Pong, Filter, Compressor, Drive · Configurable Master Bus chain" onClick={()=>setOpen(p=>!p)} style={{display:'flex',alignItems:'center',gap:6,flex:1,cursor:'pointer'}}>
-          <span style={{fontSize:8,fontWeight:800,color:'#BF5AF2',letterSpacing:'0.14em'}}>🎚 MASTER FX</span>
-          <span style={{fontSize:9,color:th.dim}}>{open?'▲':'▼'}</span>
-          {activeCount>0&&<span style={{fontSize:7,padding:'1px 6px',borderRadius:3,background:'rgba(191,90,242,0.12)',color:'#BF5AF2',fontWeight:700}}>{activeCount} active</span>}
-          {(['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'] as const).filter(s=>gfx[s]?.on).map(s=>{
-            const cols:Record<string,string>={reverb:'#64D2FF',delay:'#30D158',filter:'#FF9500',comp:'#5E5CE6',drive:'#FF6B35',chorus:'#5E5CE6',flanger:'#FF375F',pingpong:'#FFD60A'};
-            const c=cols[s]||'#fff';
-            return<span key={s} style={{fontSize:7,padding:'1px 5px',borderRadius:3,background:c+'1a',color:c,fontWeight:700,letterSpacing:'0.08em'}}>{s==='pingpong'?'P-P':s.slice(0,3).toUpperCase()}</span>;
-          })}
-        </div>
-        {/* Spectrum analyser mini */}
-        {open&&<svg ref={specRef} width={80} height={20} style={{flexShrink:0,borderRadius:3,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}/>}
-        {/* BYPASS ALL — one-click mute of every global FX */}
-        <button data-hint={activeCount===0?"BYPASS · All global effects are disabled · Click to restore last preset":"BYPASS ALL · Disable all global effects in one click · Useful for comparing dry/wet"}
+    <div style={{marginBottom:8,borderRadius:10,background:th.surface,border:`1px solid rgba(191,90,242,0.2)`,overflow:'hidden'}}>
+      {/* Compact header — no toggle, always open */}
+      <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',userSelect:'none',borderBottom:`1px solid ${th.sBorder}`}}>
+        <svg ref={specRef} width={60} height={16} style={{flexShrink:0,borderRadius:3,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}/>
+        {(['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'] as const).filter(s=>gfx[s]?.on).map(s=>{
+          const cols:Record<string,string>={reverb:'#64D2FF',delay:'#30D158',filter:'#FF9500',comp:'#5E5CE6',drive:'#FF6B35',chorus:'#5E5CE6',flanger:'#FF375F',pingpong:'#FFD60A'};
+          const c=cols[s]||'#fff';
+          return<span key={s} style={{fontSize:7,padding:'1px 5px',borderRadius:3,background:c+'1a',color:c,fontWeight:700,letterSpacing:'0.08em'}}>{s==='pingpong'?'P-P':s.slice(0,3).toUpperCase()}</span>;
+        })}
+        <div style={{flex:1}}/>
+        <button data-hint={activeCount===0?"BYPASS · All global effects are disabled":"BYPASS ALL · Disable all global effects in one click · Useful for comparing dry/wet"}
           onClick={e=>{
             e.stopPropagation();
             setGfx(p=>{
-              // If any FX is active: bypass all (store snapshot for future restore via DRY preset)
               const anyOn=['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'].some(k=>p[k]?.on);
-              if(!anyOn)return p; // already bypassed
+              if(!anyOn)return p;
               const ng=JSON.parse(JSON.stringify(p));
               ['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'].forEach(k=>{if(ng[k])ng[k].on=false;});
               return ng;
             });
           }}
-          style={{padding:'2px 8px',borderRadius:5,border:`1px solid ${activeCount>0?'rgba(255,45,85,0.4)':th.sBorder}`,
-            background:activeCount>0?'rgba(255,45,85,0.08)':'transparent',
+          style={{padding:'2px 7px',borderRadius:4,border:`1px solid ${activeCount>0?'rgba(255,45,85,0.35)':th.sBorder}`,
+            background:activeCount>0?'rgba(255,45,85,0.07)':'transparent',
             color:activeCount>0?'#FF2D55':th.faint,
             fontSize:7,fontWeight:activeCount>0?800:400,cursor:activeCount>0?'pointer':'default',
-            fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0,opacity:activeCount>0?1:0.4}}>
+            fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0,opacity:activeCount>0?1:0.35}}>
           BYPASS
         </button>
-        <button data-hint={showPresets?"Close FX presets · Select a preset to reconfigure the entire FX Rack in one click":"PRESETS FX · Load a complete effects configuration in one click: DRY, Trap, Lo-Fi, Techno, Afro, Stadium…"} onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
-          style={{padding:'2px 8px',borderRadius:5,border:`1px solid ${showPresets?'#BF5AF255':th.sBorder}`,background:showPresets?'rgba(191,90,242,0.12)':'transparent',color:showPresets?'#BF5AF2':th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0}}>
+        <button data-hint={showPresets?"Close FX presets":"PRESETS · Load a complete effects configuration"} onClick={e=>{e.stopPropagation();setShowPresets(p=>!p);}}
+          style={{padding:'2px 7px',borderRadius:4,border:`1px solid ${showPresets?'#BF5AF255':th.sBorder}`,background:showPresets?'rgba(191,90,242,0.12)':'transparent',color:showPresets?'#BF5AF2':th.dim,fontSize:7,fontWeight:showPresets?800:400,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.08em',flexShrink:0}}>
           PRESETS
         </button>
       </div>
@@ -1134,7 +1127,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
         </div>
       )}
 
-      {open&&(<>
+      <>
         {/* Chain order + Send PRE/POST */}
         <div style={{padding:'6px 14px 8px',borderBottom:`1px solid ${th.sBorder}`,display:'flex',flexDirection:'column',gap:6}}>
           <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
@@ -1403,7 +1396,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
           </div>
 
         </div>
-      </>)}
+      </>
     </div>
   );
 }
@@ -1790,6 +1783,24 @@ export default function KickAndSnare(){
       // ── Vol/Pan per track CC ──
       if(mapped?.startsWith('vol_')){const tid=mapped.slice(4);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{vol:80,pan:0}),vol:Math.round(byte2/127*100)}}));return;}
       if(mapped?.startsWith('pan_')){const tid=mapped.slice(4);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{vol:80,pan:0}),pan:Math.round(byte2/127*200-100)}}));return;}
+      // ── Per-track FX CC (prefix fx_*_tid) ──
+      if(mapped?.startsWith('fx_pitch_on_')){const tid=mapped.slice(12);if(byte2>0)R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),onPitch:!(p[tid]?.onPitch??false)}}));return;}
+      if(mapped?.startsWith('fx_pitch_')){const tid=mapped.slice(9);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),pitch:Math.round(byte2/127*24-12)}}));return;}
+      if(mapped?.startsWith('fx_flt_on_')){const tid=mapped.slice(10);if(byte2>0)R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),onFilter:!(p[tid]?.onFilter??false)}}));return;}
+      if(mapped?.startsWith('fx_cut_')){const tid=mapped.slice(7);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),cut:Math.round(80+Math.pow(byte2/127,2)*19920)}}));return;}
+      if(mapped?.startsWith('fx_res_')){const tid=mapped.slice(7);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),res:+(byte2/127*20).toFixed(1)}}));return;}
+      if(mapped?.startsWith('fx_drv_on_')){const tid=mapped.slice(10);if(byte2>0)R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),onDrive:!(p[tid]?.onDrive??false)}}));return;}
+      if(mapped?.startsWith('fx_drv_')){const tid=mapped.slice(7);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),drive:Math.round(byte2/127*100)}}));return;}
+      if(mapped?.startsWith('fx_rev_on_')){const tid=mapped.slice(10);if(byte2>0)R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),onReverb:!(p[tid]?.onReverb??false)}}));return;}
+      if(mapped?.startsWith('fx_rmix_')){const tid=mapped.slice(8);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),rMix:Math.round(byte2/127*100)}}));return;}
+      if(mapped?.startsWith('fx_rdec_')){const tid=mapped.slice(8);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),rDecay:+(0.1+byte2/127*5.9).toFixed(2)}}));return;}
+      if(mapped?.startsWith('fx_rsz_')){const tid=mapped.slice(7);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),rSize:+(byte2/127).toFixed(3)}}));return;}
+      if(mapped?.startsWith('fx_dly_on_')){const tid=mapped.slice(10);if(byte2>0)R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),onDelay:!(p[tid]?.onDelay??false)}}));return;}
+      if(mapped?.startsWith('fx_dmix_')){const tid=mapped.slice(8);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dMix:Math.round(byte2/127*100)}}));return;}
+      if(mapped?.startsWith('fx_dtime_')){const tid=mapped.slice(9);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dTime:+(0.01+byte2/127*1.89).toFixed(3)}}));return;}
+      if(mapped?.startsWith('fx_dfdbk_')){const tid=mapped.slice(9);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dFdbk:Math.round(byte2/127*95)}}));return;}
+      if(mapped?.startsWith('fx_revsend_')){const tid=mapped.slice(11);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),rev:Math.round(byte2/127*100)}}));return;}
+      if(mapped?.startsWith('fx_dlysend_')){const tid=mapped.slice(11);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dly:Math.round(byte2/127*100)}}));return;}
       return;
     }
     // Note messages (pads, keys)
@@ -4167,67 +4178,190 @@ export default function KickAndSnare(){
         </div>
       );
       const sec={marginBottom:14,paddingBottom:14,borderBottom:"1px solid rgba(255,255,255,0.06)"};
+      const DEFAULT_FX_VALS={onPitch:false,pitch:0,onFilter:false,fType:"lowpass",cut:5000,res:0,onDrive:false,driveMode:"tape",drive:0,vol:80,pan:0,rev:0,dly:0,onReverb:false,rMix:0,rDecay:1.5,rSize:0.5,rType:"room",onDelay:false,dMix:0,dTime:0.25,dFdbk:35,dSync:false,dDiv:"1/4"};
+      const resetAllFx=()=>updFx({...DEFAULT_FX_VALS});
+      const SYNC_DIVS_LIST=["1/1","1/2","1/4","1/8","1/16","1/4.","1/8.","1/4t","1/8t"];
+      const syncDivToTime=(div:string)=>{const map:Record<string,number>={"1/1":4,"1/2":2,"1/4":1,"1/8":0.5,"1/16":0.25,"1/4.":1.5,"1/8.":0.75,"1/4t":2/3,"1/8t":1/3};return Math.min(1.9,(map[div]||1)*(60/Math.max(30,bpm)));};
       return(
         <>
           <div onClick={()=>setPadFxTrack(null)} style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.55)"}}/>
-          <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1201,background:"#1c1c1e",borderRadius:"16px 16px 0 0",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",padding:"0 0 env(safe-area-inset-bottom,16px)",maxHeight:"80vh",overflowY:"auto"}}>
+          <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1201,background:"#1c1c1e",borderRadius:"16px 16px 0 0",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",padding:"0 0 env(safe-area-inset-bottom,16px)",maxHeight:"85vh",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"center",paddingTop:8,paddingBottom:4}}>
               <div style={{width:36,height:4,borderRadius:2,background:"rgba(255,255,255,0.2)"}}/>
             </div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 16px 12px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 16px 10px"}}>
               <span style={{fontSize:11,fontWeight:800,color:tr.color,letterSpacing:"0.08em"}}>🎛 {tr.icon} {tr.label} — SAMPLE FX</span>
-              <button onClick={()=>setPadFxTrack(null)} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:16,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",flexShrink:0}}>×</button>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <button onClick={resetAllFx} style={{padding:"3px 10px",borderRadius:5,border:"1px solid rgba(255,45,85,0.35)",background:"rgba(255,45,85,0.07)",color:"#FF2D55",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",touchAction:"manipulation"}}>RESET ALL</button>
+                <button onClick={()=>setPadFxTrack(null)} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:16,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",flexShrink:0}}>×</button>
+              </div>
             </div>
-            <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:0}}>
+            <div style={{padding:"0 16px 24px",display:"flex",flexDirection:"column",gap:0}}>
+
+              {/* PITCH */}
               <div style={sec}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>PITCH</span>
                   <ToggleBtn on={f.onPitch??false} label={f.onPitch?"ON":"OFF"} color={tr.color} onClick={()=>updFx({onPitch:!(f.onPitch??false)})}/>
+                  <MidiTag id={`fx_pitch_on_${tr.id}`}/>
                 </div>
-                <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} disabled={!(f.onPitch??false)}/>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} disabled={!(f.onPitch??false)}/>
+                  <MidiTag id={`fx_pitch_${tr.id}`}/>
+                </div>
               </div>
+
+              {/* FILTER */}
               <div style={sec}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                   <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>FILTER</span>
                   <ToggleBtn on={f.onFilter??false} label={f.onFilter?"ON":"OFF"} color="#64D2FF" onClick={()=>updFx({onFilter:!(f.onFilter??false)})}/>
+                  <MidiTag id={`fx_flt_on_${tr.id}`}/>
                   <div style={{marginLeft:"auto"}}>
                     <PillGroup val={f.fType||"lowpass"} color="#64D2FF" onSel={k=>updFx({fType:k,onFilter:true})} opts={[{k:"lowpass",l:"LP"},{k:"highpass",l:"HP"},{k:"bandpass",l:"BP"},{k:"notch",l:"NOTCH"}]}/>
                   </div>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} disabled={!(f.onFilter??false)}/>
-                  <SlRow label="Resonance" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} disabled={!(f.onFilter??false)}/>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} disabled={!(f.onFilter??false)}/>
+                    <MidiTag id={`fx_cut_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Resonance" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} disabled={!(f.onFilter??false)}/>
+                    <MidiTag id={`fx_res_${tr.id}`}/>
+                  </div>
                 </div>
               </div>
+
+              {/* DRIVE */}
               <div style={sec}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                   <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DRIVE</span>
                   <ToggleBtn on={f.onDrive??false} label={f.onDrive?"ON":"OFF"} color="#FF9500" onClick={()=>updFx({onDrive:!(f.onDrive??false)})}/>
+                  <MidiTag id={`fx_drv_on_${tr.id}`}/>
                   <div style={{marginLeft:"auto"}}>
                     <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
                   </div>
                 </div>
-                <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} disabled={!(f.onDrive??false)}/>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} disabled={!(f.onDrive??false)}/>
+                  <MidiTag id={`fx_drv_${tr.id}`}/>
+                </div>
               </div>
+
+              {/* REVERB */}
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>REVERB</span>
+                  <ToggleBtn on={f.onReverb??false} label={f.onReverb?"ON":"OFF"} color="#64D2FF" onClick={()=>updFx({onReverb:!(f.onReverb??false)})}/>
+                  <MidiTag id={`fx_rev_on_${tr.id}`}/>
+                  <div style={{marginLeft:"auto"}}>
+                    <PillGroup val={(f as any).rType||"room"} color="#64D2FF" onSel={k=>updFx({rType:k,onReverb:true})} opts={[{k:"room",l:"ROOM"},{k:"plate",l:"PLATE"},{k:"hall",l:"HALL"},{k:"spring",l:"SPRING"}]}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,opacity:(f.onReverb??false)?1:0.35,pointerEvents:(f.onReverb??false)?'auto':'none'}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Mix" keyName="rMix" min={0} max={100} step={1} val={(f as any).rMix??0} color="#64D2FF" fmt={v=>v+"%"} disabled={!(f.onReverb??false)}/>
+                    <MidiTag id={`fx_rmix_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Decay" keyName="rDecay" min={0.1} max={6} step={0.1} val={(f as any).rDecay??1.5} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"s"} disabled={!(f.onReverb??false)}/>
+                    <MidiTag id={`fx_rdec_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                    <span style={{fontSize:7.5,fontWeight:800,color:(f.onReverb??false)?"rgba(255,255,255,0.45)":"rgba(255,255,255,0.2)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>Size</span>
+                    <input type="range" min={0} max={100} step={1} value={Math.round(((f as any).rSize??0.5)*100)} disabled={!(f.onReverb??false)}
+                      onChange={e=>updFx({rSize:Number(e.target.value)/100})}
+                      onTouchStart={ev=>ev.stopPropagation()}
+                      style={{flex:1,accentColor:"#64D2FF",minWidth:0,opacity:(f.onReverb??false)?1:0.25,cursor:(f.onReverb??false)?"pointer":"not-allowed",touchAction:"none"}}/>
+                    <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:(f.onReverb??false)?"#64D2FF":"rgba(255,255,255,0.2)",width:46,flexShrink:0,textAlign:"left"}}>{Math.round(((f as any).rSize??0.5)*100)}%</span>
+                    <MidiTag id={`fx_rsz_${tr.id}`}/>
+                  </div>
+                </div>
+              </div>
+
+              {/* DELAY */}
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DELAY</span>
+                  <ToggleBtn on={f.onDelay??false} label={f.onDelay?"ON":"OFF"} color="#30D158" onClick={()=>updFx({onDelay:!(f.onDelay??false)})}/>
+                  <MidiTag id={`fx_dly_on_${tr.id}`}/>
+                  <button onClick={()=>updFx({dSync:!((f as any).dSync??false)})} style={{padding:"3px 8px",borderRadius:4,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation",border:`1px solid ${(f as any).dSync?'#30D158':'rgba(48,209,88,0.3)'}`,background:(f as any).dSync?'rgba(48,209,88,0.15)':'transparent',color:(f as any).dSync?'#30D158':'rgba(48,209,88,0.5)',marginLeft:"auto"}}>SYNC</button>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,opacity:(f.onDelay??false)?1:0.35,pointerEvents:(f.onDelay??false)?'auto':'none'}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Mix" keyName="dMix" min={0} max={100} step={1} val={(f as any).dMix??0} color="#30D158" fmt={v=>v+"%"} disabled={!(f.onDelay??false)}/>
+                    <MidiTag id={`fx_dmix_${tr.id}`}/>
+                  </div>
+                  {(f as any).dSync?(
+                    <div>
+                      <span style={{fontSize:7,color:"rgba(255,255,255,0.4)",display:"block",marginBottom:5,letterSpacing:"0.06em"}}>SYNC TIME</span>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {SYNC_DIVS_LIST.map(d=>(
+                          <button key={d} onClick={()=>updFx({dDiv:d,dTime:syncDivToTime(d)})}
+                            style={{padding:"2px 6px",borderRadius:3,fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",touchAction:"manipulation",border:`1px solid ${(f as any).dDiv===d?'#30D158':'rgba(48,209,88,0.2)'}`,background:(f as any).dDiv===d?'rgba(48,209,88,0.15)':'transparent',color:(f as any).dDiv===d?'#30D158':"rgba(255,255,255,0.4)"}}>{d}</button>
+                        ))}
+                      </div>
+                      <span style={{fontSize:7,color:"#30D158",fontWeight:700,marginTop:4,display:"block"}}>{((f as any).dTime??0.25).toFixed(3)}s</span>
+                    </div>
+                  ):(
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <SlRow label="Time" keyName="dTime" min={0.01} max={1.9} step={0.01} val={(f as any).dTime??0.25} color="#30D158" fmt={v=>Number(v).toFixed(2)+"s"} disabled={!(f.onDelay??false)}/>
+                      <MidiTag id={`fx_dtime_${tr.id}`}/>
+                    </div>
+                  )}
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Feedback" keyName="dFdbk" min={0} max={95} step={1} val={(f as any).dFdbk??35} color="#30D158" fmt={v=>v+"%"} disabled={!(f.onDelay??false)}/>
+                    <MidiTag id={`fx_dfdbk_${tr.id}`}/>
+                  </div>
+                </div>
+              </div>
+
+              {/* OUTPUT */}
               <div style={sec}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>OUTPUT</span>
                 </div>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <SlRow label="Volume" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
-                  <SlRow label="Pan" keyName="pan" min={-100} max={100} step={1} val={f.pan??0} color="#8E8E93" fmt={v=>v===0?"C":v>0?`R${v}`:`L${Math.abs(v)}`}/>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Volume" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
+                    <MidiTag id={`vol_${tr.id}`}/>
+                  </div>
+                  {/* Pan slider with center marker */}
+                  <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                    <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>Pan</span>
+                    <div style={{flex:1,display:"flex",flexDirection:"column",gap:2,minWidth:0,position:"relative"}}>
+                      <input type="range" min={-100} max={100} step={1} value={f.pan??0}
+                        onChange={e=>updFx({pan:Number(e.target.value)})}
+                        onTouchStart={e=>e.stopPropagation()}
+                        style={{flex:1,accentColor:"#8E8E93",width:"100%",cursor:"pointer",touchAction:"none"}}/>
+                      {/* Center tick */}
+                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,2px)",width:2,height:6,background:"rgba(255,255,255,0.3)",borderRadius:1,pointerEvents:"none"}}/>
+                    </div>
+                    <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:"#8E8E93",width:46,flexShrink:0,textAlign:"left"}}>{(f.pan??0)===0?"C":(f.pan??0)>0?`R${f.pan??0}`:`L${Math.abs(f.pan??0)}`}</span>
+                    <MidiTag id={`pan_${tr.id}`}/>
+                  </div>
                 </div>
               </div>
+
+              {/* SENDS */}
               <div style={{marginBottom:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>SENDS</span>
-                  <span style={{fontSize:6,color:"rgba(255,255,255,0.2)",letterSpacing:"0.04em"}}>via Master FX</span>
+                  <span style={{fontSize:6,color:"rgba(255,255,255,0.2)",letterSpacing:"0.04em"}}>to Master FX</span>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <SlRow label="Reverb" keyName="rev" min={0} max={100} step={1} val={f.rev??0} color="#64D2FF" fmt={v=>v+"%"}/>
-                  <SlRow label="Delay" keyName="dly" min={0} max={100} step={1} val={f.dly??0} color="#30D158" fmt={v=>v+"%"}/>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Reverb" keyName="rev" min={0} max={100} step={1} val={f.rev??0} color="#64D2FF" fmt={v=>v+"%"}/>
+                    <MidiTag id={`fx_revsend_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Delay" keyName="dly" min={0} max={100} step={1} val={f.dly??0} color="#30D158" fmt={v=>v+"%"}/>
+                    <MidiTag id={`fx_dlysend_${tr.id}`}/>
+                  </div>
                 </div>
               </div>
+
             </div>
           </div>
         </>

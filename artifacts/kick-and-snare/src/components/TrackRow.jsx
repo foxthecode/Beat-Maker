@@ -22,10 +22,6 @@ function TrackRow({
   const vol = f.vol ?? 80;
   const pan = f.pan ?? 0;
 
-  const isCustomTs = tSteps !== STEPS;
-  const tsOpts = [STEPS, STEPS * 2];
-  const tsIdx = tsOpts.indexOf(tSteps);
-  const nextTs = tsOpts[(tsIdx + 1) % tsOpts.length];
 
   const leftW = isPortrait ? 160 : (typeof window !== "undefined" && window.innerWidth < 600 ? 160 : 220);
 
@@ -161,14 +157,8 @@ function TrackRow({
               <button data-hint={smpN ? `Sample loaded: ${smpN} · Click to change audio file` : `Load a sample · Import an audio file (MP3, WAV, OGG) for this track`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
               {actLength > 1 && <button data-hint={`Remove track ${track.label} from the active view (not permanently deleted)`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
-            {/* Row 2: step count + FX */}
+            {/* Row 2: FX button */}
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <button
-                data-hint={`Track ${track.label} length: ${tSteps} steps · Click = switch to ${nextTs} steps · Can differ from other tracks (polymetric)`}
-                title={`${tSteps}st → ${nextTs}st`}
-                onClick={() => onStepCountChange(nextTs)}
-                style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}
-              >{tSteps}st</button>
               <button
                 data-hint={`FX · Open per-track effects for ${track.label} · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay sends`}
                 title="Track FX"

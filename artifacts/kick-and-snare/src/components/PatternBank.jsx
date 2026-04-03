@@ -258,26 +258,6 @@ export default function PatternBank({
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           <span data-hint={`PAT · ${pBank.length} pattern${pBank.length > 1 ? "s" : ""} available · Active pattern: ${cPat + 1} · Click a slot to switch`} style={{ fontSize: 8, color: th.dim }}>PAT</span>
 
-          {/* 16 / 32 step toggle — always visible, sequencer only */}
-          {!isEuclid && (
-            <div style={{ display: "flex", gap: 2 }}>
-              {["16", "32"].map(v => (
-                <button
-                  key={v}
-                  data-hint={`${v}-step variant · Filters compatible ${v}-step templates · Current pattern keeps its own per-track length`}
-                  onClick={() => setVariant(v)}
-                  style={{
-                    padding: "1px 7px", borderRadius: 4, cursor: "pointer",
-                    fontFamily: "inherit", fontSize: 7.5, fontWeight: 700,
-                    border: `1px solid ${variant === v ? "#5E5CE688" : th.sBorder}`,
-                    background: variant === v ? "#5E5CE622" : "transparent",
-                    color: variant === v ? "#5E5CE6" : th.dim,
-                    letterSpacing: "0.06em",
-                  }}
-                >{v}</button>
-              ))}
-            </div>
-          )}
 
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", position: "relative", zIndex: 10 }}>
             <TemplateDropdown
