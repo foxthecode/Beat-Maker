@@ -75,7 +75,7 @@ const mkR=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(1)]));
 
 const DEFAULT_FX = Object.freeze({
   pitch:0,fType:"lowpass",cut:5000,res:0,drive:0,driveMode:"tape",crush:0,cThr:-24,cRat:1,
-  rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,rev:0,dly:0,
+  rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,
   onPitch:false,onFilter:false,onDrive:false,onComp:true,onReverb:false,onDelay:false,
   // SHAPE — synthesis timbre params (multipliers around 1.0)
   sDec:1.0,  // decay length ×
@@ -558,21 +558,17 @@ class Eng{
       this.gPpFbLR.gain.setTargetAtTime(fb,t,0.01);this.gPpFbRL.gain.setTargetAtTime(fb,t,0.01);
     }
     if(this.gPpLpf)this.gPpLpf.frequency.setTargetAtTime(ppOn?5000:20000,t,0.01);
-    // ── Sends per track ──
+    // ── Sends per track (chorus/flanger/pingpong only — reverb & delay are per-track via uFx) ──
     Object.keys(this.ch).forEach(id=>{
       const c=this.ch[id];if(!c)return;
-      const rvOn=gfx.reverb?.on&&!!gfx.reverb?.sends?.[id];
-      const dlOn=gfx.delay?.on&&!!gfx.delay?.sends?.[id];
       const ppS=ppOn&&!!gfx.pingpong?.sends?.[id];
       const choS=choOn&&!!gfx.chorus?.sends?.[id];
       const flaS=flaOn&&!!gfx.flanger?.sends?.[id];
-      if(c.rvSend)c.rvSend.gain.setTargetAtTime(rvOn?0.85:0,t,0.01);
-      if(c.dlSend)c.dlSend.gain.setTargetAtTime(dlOn?0.85:0,t,0.01);
       if(c.choSend)c.choSend.gain.setTargetAtTime(choS?0.85:0,t,0.01);
       if(c.flaSend)c.flaSend.gain.setTargetAtTime(flaS?0.85:0,t,0.01);
       if(c.ppSend)c.ppSend.gain.setTargetAtTime(ppS?0.70:0,t,0.01);
-      const anySend=rvOn||dlOn||choS||flaS||ppS;
-      const manySend=[rvOn,dlOn,choS,flaS,ppS].filter(Boolean).length>1;
+      const anySend=choS||flaS||ppS;
+      const manySend=[choS,flaS,ppS].filter(Boolean).length>1;
       if(c.dry)c.dry.gain.setTargetAtTime(manySend?0.3:anySend?0.6:1,t,0.3);
     });
   }
@@ -644,15 +640,26 @@ class Eng{
       const dMode=f?.driveMode||'tape';
       c.drv.curve=this._buildCurve(dMode,dAmt);
     }
-    // Per-track reverb send
+    // Per-track reverb send — on/off toggle + Mix controls rvSend gain
     if(c.rvSend){
+      const rvOn=f?.onReverb??false;
+      const rvAmt=rvOn?Math.max(0,Math.min(1,(f?.rMix??0)/100)):0;
       c.rvSend.gain.cancelScheduledValues(ct);
-      c.rvSend.gain.setTargetAtTime(Math.max(0,Math.min(1,(f?.rev??0)/100)),ct,0.02);
+      c.rvSend.gain.setTargetAtTime(rvAmt,ct,0.02);
+      // Propagate per-track reverb params to the global bus
+      if(rvOn)this.updateReverb(f?.rDecay??1.5,f?.rSize??0.5,f?.rType??'room');
     }
-    // Per-track delay send
+    // Per-track delay send — on/off toggle + Mix controls dlSend gain
     if(c.dlSend){
+      const dlOn=f?.onDelay??false;
+      const dlAmt=dlOn?Math.max(0,Math.min(1,(f?.dMix??0)/100)):0;
       c.dlSend.gain.cancelScheduledValues(ct);
-      c.dlSend.gain.setTargetAtTime(Math.max(0,Math.min(1,(f?.dly??0)/100)),ct,0.02);
+      c.dlSend.gain.setTargetAtTime(dlAmt,ct,0.02);
+      // Propagate per-track delay params to the global bus
+      if(dlOn&&this.gDl){
+        this.gDl.delayTime.setTargetAtTime(Math.min(1.9,f?.dTime??0.25),ct,0.02);
+        if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.95,(f?.dFdbk??35)/100),ct,0.02);
+      }
     }
     // Transient shaper: per-note envelope anchored at the note's scheduled time
     if(c.tsAtk){
@@ -1799,8 +1806,6 @@ export default function KickAndSnare(){
       if(mapped?.startsWith('fx_dmix_')){const tid=mapped.slice(8);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dMix:Math.round(byte2/127*100)}}));return;}
       if(mapped?.startsWith('fx_dtime_')){const tid=mapped.slice(9);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dTime:+(0.01+byte2/127*1.89).toFixed(3)}}));return;}
       if(mapped?.startsWith('fx_dfdbk_')){const tid=mapped.slice(9);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dFdbk:Math.round(byte2/127*95)}}));return;}
-      if(mapped?.startsWith('fx_revsend_')){const tid=mapped.slice(11);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),rev:Math.round(byte2/127*100)}}));return;}
-      if(mapped?.startsWith('fx_dlysend_')){const tid=mapped.slice(11);R.sFx?.(p=>({...p,[tid]:{...(p[tid]||{}),dly:Math.round(byte2/127*100)}}));return;}
       return;
     }
     // Note messages (pads, keys)
@@ -4169,7 +4174,7 @@ export default function KickAndSnare(){
         </div>
       );
       const sec={marginBottom:14,paddingBottom:14,borderBottom:"1px solid rgba(255,255,255,0.06)"};
-      const DEFAULT_FX_VALS={onPitch:false,pitch:0,onFilter:false,fType:"lowpass",cut:5000,res:0,onDrive:false,driveMode:"tape",drive:0,vol:80,pan:0,rev:0,dly:0,onReverb:false,rMix:0,rDecay:1.5,rSize:0.5,rType:"room",onDelay:false,dMix:0,dTime:0.25,dFdbk:35,dSync:false,dDiv:"1/4"};
+      const DEFAULT_FX_VALS={onPitch:false,pitch:0,onFilter:false,fType:"lowpass",cut:5000,res:0,onDrive:false,driveMode:"tape",drive:0,vol:80,pan:0,onReverb:false,rMix:0,rDecay:1.5,rSize:0.5,rType:"room",onDelay:false,dMix:0,dTime:0.25,dFdbk:35,dSync:false,dDiv:"1/4"};
       const resetAllFx=()=>updFx({...DEFAULT_FX_VALS});
       const SYNC_DIVS_LIST=["1/1","1/2","1/4","1/8","1/16","1/4.","1/8.","1/4t","1/8t"];
       const syncDivToTime=(div:string)=>{const map:Record<string,number>={"1/1":4,"1/2":2,"1/4":1,"1/8":0.5,"1/16":0.25,"1/4.":1.5,"1/8.":0.75,"1/4t":2/3,"1/8t":1/3};return Math.min(1.9,(map[div]||1)*(60/Math.max(30,bpm)));};
@@ -4335,23 +4340,6 @@ export default function KickAndSnare(){
                 </div>
               </div>
 
-              {/* SENDS */}
-              <div style={{marginBottom:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>SENDS</span>
-                  <span style={{fontSize:6,color:"rgba(255,255,255,0.2)",letterSpacing:"0.04em"}}>to Master FX</span>
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <SlRow label="Reverb" keyName="rev" min={0} max={100} step={1} val={f.rev??0} color="#64D2FF" fmt={v=>v+"%"}/>
-                    <MidiTag id={`fx_revsend_${tr.id}`}/>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <SlRow label="Delay" keyName="dly" min={0} max={100} step={1} val={f.dly??0} color="#30D158" fmt={v=>v+"%"}/>
-                    <MidiTag id={`fx_dlysend_${tr.id}`}/>
-                  </div>
-                </div>
-              </div>
 
             </div>
           </div>
