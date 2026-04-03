@@ -45,6 +45,8 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
+const APP_VERSION="9.0.1";
+
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
   {id:"snare",label:"SNARE",color:"#FF9500",icon:"◼"},
@@ -3016,7 +3018,7 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-            <div data-hint="Logo · Pulse sur chaque temps fort — indique que l'audio Web est actif" style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#fff",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:"0 0 20px rgba(255,45,85,0.3)",flexShrink:0}}>K</div>
+            <div data-hint={`Logo · Pulse sur chaque temps fort — indique que l'audio Web est actif · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#fff",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:"0 0 20px rgba(255,45,85,0.3)",flexShrink:0,cursor:"pointer"}}>K</div>
             <div style={{flexShrink:0}}>
               <div className="gradientShift" style={{fontSize:20,fontWeight:900,letterSpacing:"0.08em",whiteSpace:"nowrap",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
               <div className="subtitleAnim" style={{fontSize:8,letterSpacing:"0.4em",color:th.dim,whiteSpace:"nowrap"}}>DRUM EXPERIENCE</div>
@@ -4043,7 +4045,7 @@ export default function KickAndSnare(){
               <div style={{width:26,height:26,borderRadius:8,background:"rgba(191,90,242,0.2)",border:"1px solid rgba(191,90,242,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:"#BF5AF2",fontStyle:"italic"}}>?</div>
               <div>
                 <div style={{fontSize:11,fontWeight:900,color:"#BF5AF2",letterSpacing:"0.12em"}}>USER GUIDE</div>
-                <div style={{fontSize:8,color:th.faint,letterSpacing:"0.06em"}}>Kick & Snare — Drum Experience</div>
+                <div style={{fontSize:8,color:th.faint,letterSpacing:"0.06em"}}>Kick & Snare — Drum Experience · <span style={{color:"#FF9500",fontWeight:700}}>v{APP_VERSION}</span></div>
               </div>
             </div>
             <button onClick={()=>setShowInfo(false)} style={{width:28,height:28,border:"1px solid rgba(255,255,255,0.12)",borderRadius:6,background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
