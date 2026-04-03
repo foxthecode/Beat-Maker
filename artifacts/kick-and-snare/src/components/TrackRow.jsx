@@ -15,6 +15,7 @@ function TrackRow({
   onMuteToggle, onSoloToggle, onLoadSample, onRemove, onFxChange,
   onStepCountChange, onClear,
   onSendCursorChange, onSendAmtChange,
+  onFxOpen,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const f = fx || { vol: 80, pan: 0 };
@@ -160,7 +161,7 @@ function TrackRow({
               <button data-hint={smpN ? `Sample loaded: ${smpN} · Click to change audio file` : `Load a sample · Import an audio file (MP3, WAV, OGG) for this track`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
               {actLength > 1 && <button data-hint={`Remove track ${track.label} from the active view (not permanently deleted)`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
-            {/* Row 2: step count */}
+            {/* Row 2: step count + FX */}
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
                 data-hint={`Track ${track.label} length: ${tSteps} steps · Click = switch to ${nextTs} steps · Can differ from other tracks (polymetric)`}
@@ -168,7 +169,13 @@ function TrackRow({
                 onClick={() => onStepCountChange(nextTs)}
                 style={{ ...btnSt, height: 22, padding: "0 3px", cursor: "pointer", border: `1px solid ${isCustomTs ? track.color + "44" : th.sBorder}`, background: isCustomTs ? track.color + "11" : "transparent", color: isCustomTs ? track.color : th.dim }}
               >{tSteps}st</button>
-              {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{smpN.substring(0, 20)}</span>}
+              <button
+                data-hint={`FX · Open per-track effects for ${track.label} · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay sends`}
+                title="Track FX"
+                onClick={() => onFxOpen?.()}
+                style={{ ...btnSt, height: 22, padding: "0 5px", cursor: "pointer", border: "1px solid rgba(191,90,242,0.3)", background: "rgba(191,90,242,0.06)", color: "rgba(191,90,242,0.75)", fontSize: 8 }}
+              >🎛</button>
+              {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{smpN.substring(0, 14)}</span>}
             </div>
           </div>
 

@@ -46,7 +46,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.9";
+const APP_VERSION="9.1.0";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -1085,7 +1085,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
       {/* Header */}
       <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 14px',userSelect:'none'}}>
         <div data-hint="FX Rack · Reverb, Delay, Chorus, Flanger, Ping-Pong, Filter, Compressor, Drive · Configurable Master Bus chain" onClick={()=>setOpen(p=>!p)} style={{display:'flex',alignItems:'center',gap:6,flex:1,cursor:'pointer'}}>
-          <span style={{fontSize:8,fontWeight:800,color:'#BF5AF2',letterSpacing:'0.14em'}}>FX RACK</span>
+          <span style={{fontSize:8,fontWeight:800,color:'#BF5AF2',letterSpacing:'0.14em'}}>🎚 MASTER FX</span>
           <span style={{fontSize:9,color:th.dim}}>{open?'▲':'▼'}</span>
           {activeCount>0&&<span style={{fontSize:7,padding:'1px 6px',borderRadius:3,background:'rgba(191,90,242,0.12)',color:'#BF5AF2',fontWeight:700}}>{activeCount} active</span>}
           {(['reverb','delay','filter','comp','drive','chorus','flanger','pingpong'] as const).filter(s=>gfx[s]?.on).map(s=>{
@@ -2735,7 +2735,7 @@ export default function KickAndSnare(){
       const halfBpm=Math.round(gridBpm/2);
       if(halfBpm>=40){
         const halfScore=scoreForBpm(halfBpm);
-        if(halfScore<=gridBest*1.25){gridBpm=halfBpm;}
+        if(halfScore<=Math.max(gridBest,0.03)*1.25){gridBpm=halfBpm;}
       }
     }
     const finalBpm=Math.max(40,Math.min(240,gridBpm??freeBpm??bpm));
@@ -3114,7 +3114,17 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-            <div data-hint={`Logo · Pulse sur chaque temps fort — indique que l'audio Web est actif · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#FF2D55,#FF9500)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#fff",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:"0 0 20px rgba(255,45,85,0.3)",flexShrink:0,cursor:"pointer"}}>K</div>
+            <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,background:"linear-gradient(135deg,#FF2D55 0%,#FF9500 100%)",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s"}}>
+              <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
+                <ellipse cx="14" cy="17" rx="9" ry="6" stroke="#fff" strokeWidth="1.6" fill="rgba(255,255,255,0.12)"/>
+                <ellipse cx="14" cy="17" rx="5" ry="3.2" stroke="rgba(255,255,255,0.5)" strokeWidth="0.8"/>
+                <ellipse cx="14" cy="11" rx="9" ry="6" stroke="#fff" strokeWidth="1.4" fill="rgba(255,255,255,0.18)"/>
+                <line x1="5.5" y1="6" x2="5.5" y2="14" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/>
+                <ellipse cx="5.5" cy="6" rx="3.5" ry="1.2" stroke="rgba(255,255,255,0.7)" strokeWidth="1" fill="rgba(255,255,255,0.1)"/>
+                <line x1="22.5" y1="6" x2="22.5" y2="14" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="round"/>
+                <ellipse cx="22.5" cy="6" rx="3" ry="1" stroke="rgba(255,255,255,0.5)" strokeWidth="0.8" fill="rgba(255,255,255,0.08)"/>
+              </svg>
+            </div>
             <div style={{flexShrink:0}}>
               <div className="gradientShift" style={{fontSize:20,fontWeight:900,letterSpacing:"0.08em",whiteSpace:"nowrap",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
               <div className="subtitleAnim" style={{fontSize:8,letterSpacing:"0.4em",color:th.dim,whiteSpace:"nowrap"}}>DRUM EXPERIENCE</div>
@@ -3519,6 +3529,7 @@ export default function KickAndSnare(){
                   onSendAmtChange={(amt)=>{const idx=trackSendCursor[track.id]??0;const sec=FX_SECS[idx].sec;upSend(sec,track.id,amt);}}
                   onStepCountChange={(nt)=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nt}};cp[track.id]=remap(cp[track.id],tSteps,nt);n[cPat]=cp;return n;});}}
                   onClear={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}}
+                  onFxOpen={()=>setPadFxTrack(p=>p===track.id?null:track.id)}
                 />
               );
             })}
@@ -3731,119 +3742,6 @@ export default function KickAndSnare(){
               </div>
             );})}
           </div>
-          {/* ── Sample FX bottom sheet ── */}
-          {padFxTrack&&(()=>{
-            const tr=atO.find(t=>t.id===padFxTrack);
-            if(!tr) return null;
-            const f:any={...DEFAULT_FX,...(fx[tr.id]||{})};
-            const updFx=(updates:Record<string,unknown>)=>{
-              setFx((prev:any)=>{
-                const nf={...DEFAULT_FX,...(prev[tr.id]||{}), ...updates};
-                engine.uFx(tr.id,nf);
-                return{...prev,[tr.id]:nf};
-              });
-            };
-            const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
-            const SlRow=({label,keyName,min,max,step,val,color,fmt,disabled=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;disabled?:boolean})=>(
-              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-                <span style={{fontSize:7.5,fontWeight:800,color:disabled?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
-                <input type="range" min={min} max={max} step={step} value={val} disabled={disabled}
-                  onChange={e=>updFx({[keyName]:Number(e.target.value)})}
-                  onTouchStart={e=>e.stopPropagation()}
-                  style={{flex:1,accentColor:color,minWidth:0,opacity:disabled?0.25:1,cursor:disabled?"not-allowed":"pointer",touchAction:"none"}}/>
-                <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:disabled?"rgba(255,255,255,0.2)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
-              </div>
-            );
-            const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
-              <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s",touchAction:"manipulation"}}>
-                {label}
-              </button>
-            );
-            const PillGroup=({opts,val,color,onSel}:{opts:{k:string;l:string}[];val:string;color:string;onSel:(k:string)=>void})=>(
-              <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                {opts.map(o=>(
-                  <button key={o.k} onClick={()=>onSel(o.k)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${val===o.k?color+"88":"rgba(255,255,255,0.1)"}`,background:val===o.k?color+"20":"transparent",color:val===o.k?color:"rgba(255,255,255,0.4)",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",touchAction:"manipulation"}}>
-                    {o.l}
-                  </button>
-                ))}
-              </div>
-            );
-            const sec={marginBottom:14,paddingBottom:14,borderBottom:"1px solid rgba(255,255,255,0.06)"};
-            return(
-              <>
-                {/* Backdrop */}
-                <div onClick={()=>setPadFxTrack(null)} style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.55)"}}/>
-                {/* Sheet */}
-                <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1201,background:"#1c1c1e",borderRadius:"16px 16px 0 0",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",padding:"0 0 env(safe-area-inset-bottom,16px)",maxHeight:"80vh",overflowY:"auto"}}>
-                  {/* Handle */}
-                  <div style={{display:"flex",justifyContent:"center",paddingTop:8,paddingBottom:4}}>
-                    <div style={{width:36,height:4,borderRadius:2,background:"rgba(255,255,255,0.2)"}}/>
-                  </div>
-                  {/* Header */}
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 16px 12px"}}>
-                    <span style={{fontSize:11,fontWeight:800,color:tr.color,letterSpacing:"0.08em"}}>🎛 {tr.icon} {tr.label} — SAMPLE FX</span>
-                    <button onClick={()=>setPadFxTrack(null)} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:16,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",flexShrink:0}}>×</button>
-                  </div>
-                  <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:0}}>
-                    {/* PITCH */}
-                    <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>PITCH</span>
-                        <ToggleBtn on={f.onPitch??false} label={f.onPitch?"ON":"OFF"} color={tr.color} onClick={()=>updFx({onPitch:!(f.onPitch??false)})}/>
-                      </div>
-                      <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} disabled={!(f.onPitch??false)}/>
-                    </div>
-                    {/* FILTER */}
-                    <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>FILTER</span>
-                        <ToggleBtn on={f.onFilter??false} label={f.onFilter?"ON":"OFF"} color="#64D2FF" onClick={()=>updFx({onFilter:!(f.onFilter??false)})}/>
-                        <div style={{marginLeft:"auto"}}>
-                          <PillGroup val={f.fType||"lowpass"} color="#64D2FF" onSel={k=>updFx({fType:k,onFilter:true})} opts={[{k:"lowpass",l:"LP"},{k:"highpass",l:"HP"},{k:"bandpass",l:"BP"},{k:"notch",l:"NOTCH"}]}/>
-                        </div>
-                      </div>
-                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} disabled={!(f.onFilter??false)}/>
-                        <SlRow label="Resonance" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} disabled={!(f.onFilter??false)}/>
-                      </div>
-                    </div>
-                    {/* DRIVE */}
-                    <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DRIVE</span>
-                        <ToggleBtn on={f.onDrive??false} label={f.onDrive?"ON":"OFF"} color="#FF9500" onClick={()=>updFx({onDrive:!(f.onDrive??false)})}/>
-                        <div style={{marginLeft:"auto"}}>
-                          <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
-                        </div>
-                      </div>
-                      <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} disabled={!(f.onDrive??false)}/>
-                    </div>
-                    {/* VOL + PAN */}
-                    <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>OUTPUT</span>
-                      </div>
-                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        <SlRow label="Volume" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
-                        <SlRow label="Pan" keyName="pan" min={-100} max={100} step={1} val={f.pan??0} color="#8E8E93" fmt={v=>v===0?"C":v>0?`R${v}`:`L${Math.abs(v)}`}/>
-                      </div>
-                    </div>
-                    {/* REVERB + DELAY SENDS */}
-                    <div style={{marginBottom:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>SENDS</span>
-                        <span style={{fontSize:6,color:"rgba(255,255,255,0.2)",letterSpacing:"0.04em"}}>via FX Rack</span>
-                      </div>
-                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        <SlRow label="Reverb" keyName="rev" min={0} max={100} step={1} val={f.rev??0} color="#64D2FF" fmt={v=>v+"%"}/>
-                        <SlRow label="Delay" keyName="dly" min={0} max={100} step={1} val={f.dly??0} color="#30D158" fmt={v=>v+"%"}/>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            );
-          })()}
           <div style={{marginTop:10}}>
             {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -4231,6 +4129,111 @@ export default function KickAndSnare(){
         );
       })()}
     </div>
+    {/* ── Global Track FX bottom sheet (works from any view — sequencer, pads, euclid) ── */}
+    {padFxTrack&&(()=>{
+      const tr=atO.find(t=>t.id===padFxTrack);
+      if(!tr) return null;
+      const f:any={...DEFAULT_FX,...(fx[tr.id]||{})};
+      const updFx=(updates:Record<string,unknown>)=>{
+        setFx((prev:any)=>{
+          const nf={...DEFAULT_FX,...(prev[tr.id]||{}), ...updates};
+          engine.uFx(tr.id,nf);
+          return{...prev,[tr.id]:nf};
+        });
+      };
+      const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
+      const SlRow=({label,keyName,min,max,step,val,color,fmt,disabled=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;disabled?:boolean})=>(
+        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+          <span style={{fontSize:7.5,fontWeight:800,color:disabled?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
+          <input type="range" min={min} max={max} step={step} value={val} disabled={disabled}
+            onChange={e=>updFx({[keyName]:Number(e.target.value)})}
+            onTouchStart={e=>e.stopPropagation()}
+            style={{flex:1,accentColor:color,minWidth:0,opacity:disabled?0.25:1,cursor:disabled?"not-allowed":"pointer",touchAction:"none"}}/>
+          <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:disabled?"rgba(255,255,255,0.2)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
+        </div>
+      );
+      const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
+        <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s",touchAction:"manipulation"}}>
+          {label}
+        </button>
+      );
+      const PillGroup=({opts,val,color,onSel}:{opts:{k:string;l:string}[];val:string;color:string;onSel:(k:string)=>void})=>(
+        <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+          {opts.map(o=>(
+            <button key={o.k} onClick={()=>onSel(o.k)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${val===o.k?color+"88":"rgba(255,255,255,0.1)"}`,background:val===o.k?color+"20":"transparent",color:val===o.k?color:"rgba(255,255,255,0.4)",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",touchAction:"manipulation"}}>
+              {o.l}
+            </button>
+          ))}
+        </div>
+      );
+      const sec={marginBottom:14,paddingBottom:14,borderBottom:"1px solid rgba(255,255,255,0.06)"};
+      return(
+        <>
+          <div onClick={()=>setPadFxTrack(null)} style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.55)"}}/>
+          <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1201,background:"#1c1c1e",borderRadius:"16px 16px 0 0",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",padding:"0 0 env(safe-area-inset-bottom,16px)",maxHeight:"80vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"center",paddingTop:8,paddingBottom:4}}>
+              <div style={{width:36,height:4,borderRadius:2,background:"rgba(255,255,255,0.2)"}}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 16px 12px"}}>
+              <span style={{fontSize:11,fontWeight:800,color:tr.color,letterSpacing:"0.08em"}}>🎛 {tr.icon} {tr.label} — SAMPLE FX</span>
+              <button onClick={()=>setPadFxTrack(null)} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:16,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",flexShrink:0}}>×</button>
+            </div>
+            <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:0}}>
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>PITCH</span>
+                  <ToggleBtn on={f.onPitch??false} label={f.onPitch?"ON":"OFF"} color={tr.color} onClick={()=>updFx({onPitch:!(f.onPitch??false)})}/>
+                </div>
+                <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} disabled={!(f.onPitch??false)}/>
+              </div>
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>FILTER</span>
+                  <ToggleBtn on={f.onFilter??false} label={f.onFilter?"ON":"OFF"} color="#64D2FF" onClick={()=>updFx({onFilter:!(f.onFilter??false)})}/>
+                  <div style={{marginLeft:"auto"}}>
+                    <PillGroup val={f.fType||"lowpass"} color="#64D2FF" onSel={k=>updFx({fType:k,onFilter:true})} opts={[{k:"lowpass",l:"LP"},{k:"highpass",l:"HP"},{k:"bandpass",l:"BP"},{k:"notch",l:"NOTCH"}]}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} disabled={!(f.onFilter??false)}/>
+                  <SlRow label="Resonance" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} disabled={!(f.onFilter??false)}/>
+                </div>
+              </div>
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DRIVE</span>
+                  <ToggleBtn on={f.onDrive??false} label={f.onDrive?"ON":"OFF"} color="#FF9500" onClick={()=>updFx({onDrive:!(f.onDrive??false)})}/>
+                  <div style={{marginLeft:"auto"}}>
+                    <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
+                  </div>
+                </div>
+                <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} disabled={!(f.onDrive??false)}/>
+              </div>
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>OUTPUT</span>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <SlRow label="Volume" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
+                  <SlRow label="Pan" keyName="pan" min={-100} max={100} step={1} val={f.pan??0} color="#8E8E93" fmt={v=>v===0?"C":v>0?`R${v}`:`L${Math.abs(v)}`}/>
+                </div>
+              </div>
+              <div style={{marginBottom:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>SENDS</span>
+                  <span style={{fontSize:6,color:"rgba(255,255,255,0.2)",letterSpacing:"0.04em"}}>via Master FX</span>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <SlRow label="Reverb" keyName="rev" min={0} max={100} step={1} val={f.rev??0} color="#64D2FF" fmt={v=>v+"%"}/>
+                  <SlRow label="Delay" keyName="dly" min={0} max={100} step={1} val={f.dly??0} color="#30D158" fmt={v=>v+"%"}/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    })()}
+
     {/* Fix 1: AudioContext suspended overlay (Android WebView autoplay policy) */}
     {ctxSuspended&&(
       <div onClick={async()=>{await engine.ctx?.resume();setCtxSuspended(false);}} style={{position:"fixed",inset:0,zIndex:10000,background:"rgba(0,0,0,0.85)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,cursor:"pointer",userSelect:"none"}}>
@@ -4244,27 +4247,50 @@ export default function KickAndSnare(){
 
     {/* ── CP-E: Onboarding Overlay ── */}
     {overlayVisible&&(
-      <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,transition:"opacity 0.3s",opacity:overlayVisible?1:0}}>
-        <div style={{maxWidth:460,width:"100%",borderRadius:18,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",padding:"36px 28px",display:"flex",flexDirection:"column",alignItems:"center",gap:20,backdropFilter:"blur(20px)"}}>
-          <div style={{fontSize:28,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite",textAlign:"center"}}>KICK &amp; SNARE</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.3em",textAlign:"center",marginTop:-12}}>DRUM EXPERIENCE</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",textAlign:"center",lineHeight:1.6,fontWeight:500}}>Your TR-808 drum sequencer in the browser. Build grooves, record loops, explore Euclidean rhythms.</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,width:"100%"}}>
+      <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(12px)"}}>
+        <div style={{maxWidth:440,width:"100%",borderRadius:20,background:"rgba(18,18,20,0.95)",border:"1px solid rgba(255,255,255,0.1)",padding:"32px 28px",display:"flex",flexDirection:"column",alignItems:"center",gap:18,boxShadow:"0 24px 80px rgba(0,0,0,0.8)"}}>
+          {/* Drum kit mascot SVG */}
+          <svg viewBox="0 0 140 70" width="140" height="70" fill="none" style={{overflow:"visible",filter:"drop-shadow(0 0 16px rgba(255,45,85,0.6))"}}>
+            <ellipse cx="70" cy="58" rx="28" ry="9" stroke="#FF2D55" strokeWidth="1.4" fill="rgba(255,45,85,0.08)"/>
+            <ellipse cx="70" cy="58" rx="14" ry="4.5" stroke="rgba(255,45,85,0.4)" strokeWidth="0.8"/>
+            <ellipse cx="70" cy="49" rx="28" ry="9" stroke="#FF2D55" strokeWidth="1.4" fill="rgba(255,45,85,0.12)"/>
+            <line x1="43" y1="58" x2="43" y2="48" stroke="rgba(255,149,0,0.6)" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="97" y1="58" x2="97" y2="48" stroke="rgba(255,149,0,0.6)" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="28" y1="22" x2="28" y2="50" stroke="#8E8E93" strokeWidth="0.8"/>
+            <ellipse cx="28" cy="22" rx="10" ry="2.5" stroke="#FF9500" strokeWidth="1.2" fill="rgba(255,149,0,0.1)"/>
+            <line x1="112" y1="18" x2="112" y2="50" stroke="#8E8E93" strokeWidth="0.8"/>
+            <ellipse cx="112" cy="18" rx="13" ry="3" stroke="#FFD60A" strokeWidth="1.2" fill="rgba(255,214,10,0.1)"/>
+            <ellipse cx="50" cy="42" rx="9" ry="5.5" stroke="#FF9500" strokeWidth="1" fill="rgba(255,149,0,0.08)"/>
+            <ellipse cx="90" cy="40" rx="7" ry="5" stroke="#BF5AF2" strokeWidth="1" fill="rgba(191,90,242,0.08)"/>
+            <style>{`@keyframes wob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}} .dmwob{animation:wob 0.8s ease-in-out infinite;transform-origin:70px 58px}`}</style>
+            <g className="dmwob">
+              <line x1="50" y1="42" x2="30" y2="28" stroke="#30D158" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="30" cy="28" r="3" fill="#30D158" opacity="0.9"/>
+              <line x1="90" y1="40" x2="110" y2="25" stroke="#5E5CE6" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="110" cy="25" r="3" fill="#5E5CE6" opacity="0.9"/>
+            </g>
+          </svg>
+          <div style={{fontSize:26,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite",textAlign:"center",lineHeight:1}}>KICK &amp; SNARE</div>
+          <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",letterSpacing:"0.35em",textAlign:"center",marginTop:-10}}>DRUM EXPERIENCE</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",textAlign:"center",lineHeight:1.65,fontWeight:400,maxWidth:340}}>Your TR-808 drum sequencer in the browser. Build grooves, record loops, and explore Euclidean rhythms.</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,width:"100%"}}>
             {[
-              {icon:"◆",label:"Sequencer",desc:"Place sounds\nstep by step",col:"#FF2D55"},
-              {icon:"⬡",label:"Euclidean",desc:"Algorithmic\nrhythms",col:"#FFD60A"},
-              {icon:"⊙",label:"Looper",desc:"Record\nlive",col:"#BF5AF2"},
-              {icon:"⊞",label:"Live Pads",desc:"Play\nin real time",col:"#5E5CE6"},
+              {icon:"◆",label:"Sequencer",desc:"Program beats step by step",col:"#FF2D55"},
+              {icon:"⬡",label:"Euclidean",desc:"Algorithmic polyrhythms",col:"#FFD60A"},
+              {icon:"⊙",label:"Looper",desc:"Record & overdub live",col:"#BF5AF2"},
+              {icon:"⊞",label:"Live Pads",desc:"Perform in real time",col:"#5E5CE6"},
             ].map(({icon,label,desc,col})=>(
-              <div key={label} style={{padding:"12px 10px",borderRadius:10,background:`${col}0A`,border:`1px solid ${col}33`,display:"flex",flexDirection:"column",gap:4}}>
-                <div style={{fontSize:18,color:col}}>{icon}</div>
-                <div style={{fontSize:10,fontWeight:800,color:col,letterSpacing:"0.06em"}}>{label}</div>
-                <div style={{fontSize:8,color:"rgba(255,255,255,0.45)",whiteSpace:"pre-line",lineHeight:1.5}}>{desc}</div>
+              <div key={label} style={{padding:"10px 12px",borderRadius:10,background:`${col}0A`,border:`1px solid ${col}28`,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{fontSize:20,color:col,flexShrink:0}}>{icon}</div>
+                <div>
+                  <div style={{fontSize:9,fontWeight:800,color:col,letterSpacing:"0.06em"}}>{label}</div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.4)",lineHeight:1.4,marginTop:2}}>{desc}</div>
+                </div>
               </div>
             ))}
           </div>
-          <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#FF2D55,#FF9500)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>Let&apos;s go!</button>
-          <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.35)",fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>Already know it →</button>
+          <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{width:"100%",padding:"13px 0",borderRadius:12,border:"none",background:"linear-gradient(90deg,#FF2D55,#FF9500)",color:"#fff",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",boxShadow:"0 4px 20px rgba(255,45,85,0.4)"}}>START DRUMMING</button>
+          <button onClick={()=>{setLaunched();setOverlayVisible(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.3)",fontSize:9,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.04em"}}>Skip intro →</button>
         </div>
       </div>
     )}

@@ -357,7 +357,7 @@ export default function LooperPanel({
                         const snapped = Math.max(0, Math.min(loopDurMs - snapMs, Math.round(raw / snapMs) * snapMs));
                         onMoveHit && onMoveHit(i, snapped);
                       } else if (mode === 'vel' && onVelChange) {
-                        const newVel = Math.max(0.05, Math.min(1, startVel + dy / 80));
+                        const newVel = Math.max(0.05, Math.min(1, startVel + dy / 120));
                         onVelChange(i, newVel);
                       }
                     };

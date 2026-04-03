@@ -177,18 +177,24 @@ export default function SampleLoaderModal({
 
       if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError') {
         setRecError(
-          "🎤 Accès micro refusé.\n\n" +
-          "Chrome : icône 🔒 dans la barre d'adresse → Micro → Autoriser\n" +
-          "macOS : Préférences Système → Confidentialité → Micro → coche Chrome\n\n" +
-          "Si le problème persiste, utilise le lien ↗ ci-dessous pour ouvrir l'app\n" +
-          "dans un nouvel onglet — Chrome y demandera la permission directement."
+          "🎤 Microphone access denied.\n\n" +
+          "Chrome: click the 🔒 icon in the address bar → Microphone → Allow\n" +
+          "macOS: System Settings → Privacy → Microphone → enable Chrome\n\n" +
+          "If recording still fails in the embedded preview, open the app in a\n" +
+          "new tab (↗ button below) — the browser will ask for permission directly."
         );
       } else if (e?.name === 'NotFoundError' || e?.name === 'DevicesNotFoundError') {
-        setRecError("🎤 Aucun microphone détecté.\nBranche un micro ou vérifie tes réglages audio.");
+        setRecError("🎤 No microphone found.\nPlug in a mic or check your audio settings.");
       } else if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
-        setRecError("🎤 Micro occupé par une autre app.\nFerme les autres onglets/apps qui utilisent le micro.");
+        setRecError("🎤 Microphone in use by another app.\nClose other tabs or apps that are using the mic.");
+      } else if (e?.name === 'SecurityError') {
+        setRecError(
+          "🎤 Microphone blocked by browser security.\n\n" +
+          "This can happen in embedded previews. Open the app in a new tab\n" +
+          "(↗ button below) to allow microphone access directly."
+        );
       } else {
-        setRecError("🎤 Micro non accessible : " + (e?.message || e?.name || String(e)));
+        setRecError("🎤 Microphone unavailable: " + (e?.message || e?.name || String(e)));
       }
     }
   };
