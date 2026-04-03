@@ -43,7 +43,7 @@ export default function TransportBar({
       if (Math.abs(dy) > 5) { moved = true; setMetroVol(Math.max(0, Math.min(100, Math.round(startVol - dy * 0.8)))); }
     };
     const up = () => {
-      if (!moved) setMetro(p => !p);
+      if (!moved) { setMetro(p => !p); if (!metro) setMetroSub("off"); }
       window.removeEventListener("mousemove", mv);
       window.removeEventListener("mouseup", up);
       window.removeEventListener("touchmove", mv);
