@@ -3437,15 +3437,6 @@ export default function KickAndSnare(){
           </div>
         </div>)}
 
-        {/* ── Global FX Rack ── */}
-        <FXRack
-          gfx={gfx} setGfx={setGfx} tracks={atO} themeName={themeName} bpm={bpm}
-          midiLM={midiLM} MidiTag={MidiTag} isPortrait={isPortrait}
-          fxChainOrder={fxChainOrder} setFxChainOrder={setFxChainOrder}
-          onChainOrderChange={(o:string[])=>{if(engine.rebuildChain)engine.rebuildChain(o,fxSendPos);else if(engine.setSerialOrder)engine.setSerialOrder(o);}}
-          fxSendPos={fxSendPos} setFxSendPos={setFxSendPos}
-          trackFx={trackFx} onTrackFxChange={onTrackFxChange}
-        />
 
         {/* ── Pattern Bank + Song Arranger ── */}
         {view!=="pads"&&<PatternBank
