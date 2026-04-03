@@ -1508,26 +1508,43 @@ export default function KickAndSnare(){
   });
 
   const switchView=(nextView:string)=>{
-    if(view===nextView)return; // already there — noop
+    if(view===nextView)return;
     const fromPads=view==="pads";
-    // Stop only when both views are non-pads (seq↔euclid); keep playing when coming from or going to pads
-    if(!fromPads&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
-    // Disable metro on view change when not playing
-    if(!R.playing)setMetro(false);
+    const toPads=nextView==="pads";
 
-    if(nextView==="euclid"){
-      if(!fromPads){
-        // seq→euclid: reset to a fresh pattern
-        const fresh=[mkE(16)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
+    // ── Stop ONLY on direct seq↔euclid; never when pads is involved (either side) ──
+    if(!fromPads&&!toPads&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
+    // ── Metro: disable only on seq↔euclid when not playing ──
+    if(!fromPads&&!toPads&&!R.playing)setMetro(false);
+
+    if(toPads){
+      // ── Save current view's state before entering pads ──
+      if(view==="sequencer") seqSnap.current={pBank,cPat,songChain,songMode};
+      else if(view==="euclid") euclidSnap.current={pBank,cPat};
+      // Expand all 8 pads for live performance (pBank unchanged)
+      const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];
+      setAct(a=>{const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+    } else if(fromPads){
+      // ── Restore the target view's saved state ──
+      if(nextView==="euclid"){
+        const snap=euclidSnap.current;
+        setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(16);
+        setSongMode(false);setSongChain([0]);songPosRef.current=0;
+        const euclidDefault=["kick","snare","hihat","clap"];
+        setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+      } else if(nextView==="sequencer"){
+        const snap=seqSnap.current;
+        setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(STEPS);
+        setSongMode(snap.songMode);setSongChain(snap.songChain);songPosRef.current=0;
       }
-      // Euclid has no song arranger
-      setSongMode(false);setSongChain([0]);songPosRef.current=0;
-      // Ensure at least 4 tracks active for Euclidian view
-      const euclidDefault=["kick","snare","hihat","clap"];
-      setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
-    } else if(nextView==="sequencer"){
-      if(!fromPads){
-        // euclid→seq: reset to a fresh pattern
+    } else {
+      // ── Direct seq↔euclid: reset to fresh (no continuity) ──
+      if(nextView==="euclid"){
+        const fresh=[mkE(16)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
+        setSongMode(false);setSongChain([0]);songPosRef.current=0;
+        const euclidDefault=["kick","snare","hihat","clap"];
+        setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+      } else if(nextView==="sequencer"){
         const fresh=[mkE(STEPS)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
         setSongMode(false);setSongChain([0]);songPosRef.current=0;
       }
@@ -3158,7 +3175,7 @@ export default function KickAndSnare(){
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing" onClick={()=>{if(!R.playing)setMetro(false);setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(false);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing" onClick={()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 

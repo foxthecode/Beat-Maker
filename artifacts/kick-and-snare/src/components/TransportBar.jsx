@@ -101,28 +101,35 @@ export default function TransportBar({
   );
 
   const isPads = view === "pads";
-  const loopIsOn = isPads && loopPlaying;
+  // Looper is "active" when it is playing or recording (includes countdown)
+  const looperActive = isPads && (loopPlaying || loopRec);
+  // In pads: if looper active → control looper; otherwise → control main sequencer
+  const padsPlayAction = looperActive ? toggleLoopPlay : startStop;
+  // Visual state: show active (red/stop) when relevant engine is running
+  const playIsActive = isPads ? (looperActive ? loopPlaying : playing) : playing;
   const PlayBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         data-hint={isPads
-          ? (loopPlaying ? "STOP LOOPER · Arrête la séquence du looper" : "PLAY LOOPER · Lance la séquence du looper")
+          ? (looperActive
+              ? (loopPlaying ? "STOP LOOPER · Arrête le looper" : "LOOPER EN COURS · Enregistrement en attente")
+              : (playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace"))
           : (playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace")}
-        onClick={isPads ? toggleLoopPlay : startStop}
+        onClick={isPads ? padsPlayAction : startStop}
         style={{
           width: 44, height: 44, borderRadius: "50%", border: "none",
-          background: (isPads ? loopIsOn : playing)
+          background: playIsActive
             ? "linear-gradient(135deg,#FF2D55,#FF375F)"
             : "linear-gradient(135deg,#30D158,#34C759)",
           color: "#fff", fontSize: 16, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: (isPads ? loopIsOn : playing)
+          boxShadow: playIsActive
             ? "0 0 20px rgba(255,45,85,0.4)"
             : "0 0 20px rgba(48,209,88,0.4)",
           transition: "all 0.15s",
         }}
       >
-        {(isPads ? loopIsOn : playing) ? "■" : "▶"}
+        {playIsActive ? "■" : "▶"}
       </button>
       <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__play__" /></div>
     </div>
