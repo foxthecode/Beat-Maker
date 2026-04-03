@@ -100,23 +100,29 @@ export default function TransportBar({
     </div>
   );
 
+  const isPads = view === "pads";
+  const loopIsOn = isPads && loopPlaying;
   const PlayBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
-        data-hint={playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace"}
-        onClick={startStop}
+        data-hint={isPads
+          ? (loopPlaying ? "STOP LOOPER · Arrête la séquence du looper" : "PLAY LOOPER · Lance la séquence du looper")
+          : (playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace")}
+        onClick={isPads ? toggleLoopPlay : startStop}
         style={{
           width: 44, height: 44, borderRadius: "50%", border: "none",
-          background: playing
+          background: (isPads ? loopIsOn : playing)
             ? "linear-gradient(135deg,#FF2D55,#FF375F)"
             : "linear-gradient(135deg,#30D158,#34C759)",
           color: "#fff", fontSize: 16, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: playing ? "0 0 20px rgba(255,45,85,0.4)" : "0 0 20px rgba(48,209,88,0.4)",
+          boxShadow: (isPads ? loopIsOn : playing)
+            ? "0 0 20px rgba(255,45,85,0.4)"
+            : "0 0 20px rgba(48,209,88,0.4)",
           transition: "all 0.15s",
         }}
       >
-        {playing ? "■" : "▶"}
+        {(isPads ? loopIsOn : playing) ? "■" : "▶"}
       </button>
       <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__play__" /></div>
     </div>
@@ -259,8 +265,6 @@ export default function TransportBar({
   );
 
   const rowStyle = { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" };
-
-  const isPads = view === "pads";
 
   if (isPortrait) {
     return (
