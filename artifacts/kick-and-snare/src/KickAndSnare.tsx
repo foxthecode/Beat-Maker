@@ -1877,13 +1877,17 @@ export default function KickAndSnare(){
       const gSt=R.sig?.steps||16;
       const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);
       const ratio=Math.max(1,Math.round(tSt/gSt));
-      // F.1b: quantization snap — swing-corrected step duration
+      // F.1b: lookahead-aware quantization — accounts for scheduler running ahead of audio time
       const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
       const sw=bd*(R.sw||0)/100*0.5;
       const curStepDur=R.step%2===0?(bd+sw):(bd-sw);
-      const elapsed=engine.ctx.currentTime-(nxtRef.current-curStepDur);
-      const snapRatio=Math.max(0,Math.min(1,elapsed/bd));
-      const qStep=snapRatio>0.6?(R.step+1)%gSt:R.step; // bias toward current step (0.6 threshold)
+      const stepStart=nxtRef.current-curStepDur; // scheduled audio-time when R.step plays
+      const offsetFromStart=engine.ctx.currentTime-stepStart; // <0 = still in lookahead buffer
+      const stepsFromNow=Math.round(offsetFromStart/bd); // -1 at 90bpm, -2 at 180bpm, etc.
+      const qStep=((R.step+stepsFromNow)%gSt+gSt)%gSt;
+      // visual feedback: normalized offset within the actual nearest step
+      const relOffset=(offsetFromStart%bd+bd)%bd;
+      const snapRatio=relOffset/bd;
       const targetStep=ratio>1?qStep*ratio:qStep%tSt;
       // F.1c: timing feedback color
       const fbColor=snapRatio>=0.35&&snapRatio<=0.65?"#30D158":snapRatio>=0.2&&snapRatio<=0.8?"#FF9500":"#FF2D55";

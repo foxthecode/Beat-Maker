@@ -350,11 +350,39 @@ export default function LooperPanel({
         );
       })()}
 
-      {/* Controls — UNDO / REDO / CLEAR, always visible */}
+      {/* Controls */}
       <div style={{
         display: "flex", gap: 5, flexWrap: "wrap",
         flexDirection: isPortrait ? "column" : "row",
       }}>
+        {/* PLAY / STOP */}
+        {loopPlaying ? (
+          <button onClick={onTogglePlay} style={pill(true, "#FF9500")}>■ STOP</button>
+        ) : (loopDisp && loopDisp.length > 0) ? (
+          <button onClick={onTogglePlay} style={pill(false, "#30D158")}>▶ PLAY</button>
+        ) : null}
+        {/* REC / OVERDUB / STOP REC */}
+        {(() => {
+          const hasEvents = loopDisp && loopDisp.length > 0;
+          if (loopRec) return (
+            <button onClick={onToggleRec} style={{ ...pill(true, "#FF2D55"), animation: "rb 0.8s infinite" }}>■ STOP REC</button>
+          );
+          if (loopPlaying && hasEvents) return (
+            <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <span style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", fontSize: 6, fontWeight: 800, color: "#5E5CE6", whiteSpace: "nowrap", letterSpacing: "0.05em" }}>OVERDUB</span>
+              <button onClick={onToggleRec} style={{ ...pill(false, "#5E5CE6"), border: "1px solid #5E5CE655", background: "rgba(94,92,230,0.15)", color: "#5E5CE6" }}>⊕ OVERDUB</button>
+            </div>
+          );
+          return <button onClick={onToggleRec} style={pill(false, "#FF2D55")}>⏺ REC</button>;
+        })()}
+        {/* COUNT DOWN — visible when not playing/recording */}
+        {!loopPlaying && !loopRec && setLoopMetro && (
+          <button onClick={() => setLoopMetro(p => !p)}
+            style={{ ...pill(loopMetro, "#FF9500"), padding: "5px 9px" }}>
+            {loopMetro ? "COUNT DOWN ON" : "COUNT DOWN"}
+          </button>
+        )}
+        {/* UNDO REDO CLEAR — always visible */}
         <button onClick={onUndo} disabled={!loopCanUndo} style={{ ...pill(false, "#5E5CE6"), opacity: loopCanUndo ? 1 : 0.35 }}>↺ UNDO</button>
         <button onClick={onRedo} disabled={!loopCanRedo} style={{ ...pill(false, "#5E5CE6"), opacity: loopCanRedo ? 1 : 0.35 }}>↻ REDO</button>
         <button onClick={onClear} style={pill(false, "#636366")}>✕ CLEAR</button>
