@@ -1516,25 +1516,21 @@ export default function KickAndSnare(){
     if(!R.playing)setMetro(false);
 
     if(nextView==="euclid"){
-      // Save sequencer state
-      seqSnap.current={pBank,cPat,songChain,songMode};
-      // Restore euclid state
-      setPBank(euclidSnap.current.pBank);
-      setCPat(euclidSnap.current.cPat);
+      if(!fromPads){
+        // seq→euclid: reset to a fresh pattern
+        const fresh=[mkE(16)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
+      }
       // Euclid has no song arranger
       setSongMode(false);setSongChain([0]);songPosRef.current=0;
       // Ensure at least 4 tracks active for Euclidian view
       const euclidDefault=["kick","snare","hihat","clap"];
       setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     } else if(nextView==="sequencer"){
-      // Save euclid state
-      euclidSnap.current={pBank,cPat};
-      // Restore sequencer state
-      setPBank(seqSnap.current.pBank);
-      setCPat(seqSnap.current.cPat);
-      setSongMode(seqSnap.current.songMode);
-      setSongChain(seqSnap.current.songChain);
-      songPosRef.current=0;
+      if(!fromPads){
+        // euclid→seq: reset to a fresh pattern
+        const fresh=[mkE(STEPS)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
+        setSongMode(false);setSongChain([0]);songPosRef.current=0;
+      }
     }
     setView(nextView);
   };
