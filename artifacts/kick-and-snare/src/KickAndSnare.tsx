@@ -1996,6 +1996,7 @@ export default function KickAndSnare(){
 
   const nxtRef=useRef(0);const schRef=useRef(null);
   const schSt=useCallback((sn,time)=>{
+    const ct=engine.ctx?.currentTime||0;
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
     const prob=R.prob,ratch=R.ratch,cs=R.sig;
     const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
