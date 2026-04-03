@@ -93,62 +93,46 @@ export default function SampleLoaderModal({
 
   const startRecording = async () => {
     setRecError(null);
-    // Clean up any leftover stream from a previous attempt
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    let stream: MediaStream | null = null;
     try {
-      // Try simple constraint first — complex constraints are rejected in some sandboxed iframes
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        });
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      streamRef.current = stream;
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', '']
+        .find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      chunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        try {
+          const ctx = initAudioCtx();
+          if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
+          if (ctx.state === 'suspended') await ctx.resume();
+          const ab = await blob.arrayBuffer();
+          const decoded = await ctx.decodeAudioData(ab);
+          setBuffer(decoded);
+          setStartPct(0);
+          setEndPct(1);
+          setStep('trim');
+        } catch (e) {
+          console.error('[SampleLoaderModal] decodeAudioData failed', e);
+          setRecError('Décodage audio échoué. Essayez un autre navigateur.');
+        }
+      };
+      recRef.current = recorder;
+      recorder.start(100);
+      setIsRecording(true);
+      setRecSeconds(0);
+      timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
     } catch (e: any) {
       console.error('[SampleLoaderModal] getUserMedia failed', e);
-      if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError') {
-        setRecError('SANDBOX');
-      } else if (e?.name === 'NotFoundError') {
-        setRecError('Aucun micro détecté sur cet appareil.');
-      } else {
-        setRecError('Micro non accessible : ' + (e?.message || String(e)));
-      }
-      return;
+      if (e?.name === 'NotAllowedError') setRecError('Accès au micro refusé. Autorisez Chrome dans les paramètres.');
+      else if (e?.name === 'NotFoundError') setRecError('Aucun micro détecté.');
+      else setRecError('Micro non accessible : ' + (e?.message || e));
     }
-    streamRef.current = stream;
-    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', '']
-      .find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-    chunksRef.current = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    recorder.onstop = async () => {
-      stream!.getTracks().forEach(t => t.stop());
-      if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-      try {
-        const ctx = initAudioCtx();
-        if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
-        if (ctx.state === 'suspended') await ctx.resume();
-        const ab = await blob.arrayBuffer();
-        const decoded = await ctx.decodeAudioData(ab);
-        setBuffer(decoded);
-        setStartPct(0);
-        setEndPct(1);
-        setStep('trim');
-      } catch (e) {
-        console.error('[SampleLoaderModal] decodeAudioData failed', e);
-        setRecError('Décodage audio échoué. Essayez de recharger la page.');
-      }
-    };
-    recRef.current = recorder;
-    recorder.start(100);
-    setIsRecording(true);
-    setRecSeconds(0);
-    timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
   };
 
   const stopRecording = () => {
@@ -254,22 +238,9 @@ export default function SampleLoaderModal({
         </div>
 
         {/* Error banner */}
-        {recError && recError !== 'SANDBOX' && (
+        {recError && (
           <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,45,85,0.12)', border: '1px solid rgba(255,45,85,0.3)', color: '#FF2D55', fontSize: 10 }}>
             ⚠ {recError}
-          </div>
-        )}
-        {recError === 'SANDBOX' && (
-          <div style={{ marginBottom: 12, padding: '12px', borderRadius: 10, background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.3)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 10, color: '#FF9500', fontWeight: 700 }}>🔒 Micro bloqué par l'iframe</div>
-            <div style={{ fontSize: 9, color: dim, lineHeight: 1.5 }}>
-              L'aperçu Replit s'exécute dans un iframe sécurisé qui bloque l'accès au micro.<br/>
-              Ouvre l'app directement dans un nouvel onglet pour utiliser le micro.
-            </div>
-            <button
-              onClick={() => window.open(window.location.href, '_blank', 'noopener')}
-              style={{ padding: '8px 14px', borderRadius: 7, border: '1px solid rgba(255,149,0,0.4)', background: 'rgba(255,149,0,0.15)', color: '#FF9500', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em', alignSelf: 'flex-start' }}
-            >↗ OUVRIR DANS UN NOUVEL ONGLET</button>
           </div>
         )}
 
@@ -296,16 +267,6 @@ export default function SampleLoaderModal({
         {/* ── RECORDING ── */}
         {step === 'recording' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: '8px 0' }}>
-            {/* Iframe sandbox hint — shown only in embedded context */}
-            {window.self !== window.top && !isRecording && !recError && (
-              <div style={{ width: '100%', padding: '8px 10px', borderRadius: 8, background: 'rgba(94,92,230,0.08)', border: '1px solid rgba(94,92,230,0.2)', fontSize: 9, color: 'rgba(94,92,230,0.9)', lineHeight: 1.5, textAlign: 'center' }}>
-                Tu es dans un aperçu iframe. Si le micro est bloqué,&nbsp;
-                <button
-                  onClick={() => window.open(window.location.href, '_blank', 'noopener')}
-                  style={{ background: 'none', border: 'none', color: 'rgba(94,92,230,1)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 9, padding: 0, textDecoration: 'underline' }}
-                >ouvre dans un nouvel onglet ↗</button>
-              </div>
-            )}
             <div style={{ fontSize: 40, fontWeight: 900, fontFamily: 'monospace', color: isRecording ? '#FF2D55' : dim }}>
               {fmt(recSeconds)}
             </div>
