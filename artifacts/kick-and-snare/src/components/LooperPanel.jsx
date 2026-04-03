@@ -301,19 +301,19 @@ export default function LooperPanel({
                 <div
                   key={`h${i}`}
                   title={canRemove
-                    ? `${label} vel:${Math.round(vel*100)}% — scroll↕ vel · drag→ move · dbl-click delete`
-                    : canDrag ? `${label} — drag to move` : undefined}
+                    ? `${label} vel:${Math.round(vel*100)}% — drag↕ vel · drag→ move · dbl-click delete`
+                    : canDrag ? `${label} — drag → move · drag ↕ vel` : undefined}
                   style={{
                     position: "absolute",
                     left: `${pct}%`,
                     top: 0,
                     bottom: 0,
-                    width: (canDrag || canRemove) ? 18 : 4,
-                    transform: (canDrag || canRemove) ? "translateX(-9px)" : "none",
+                    width: (canDrag || canRemove) ? 26 : 5,
+                    transform: (canDrag || canRemove) ? "translateX(-13px)" : "none",
                     display: "flex",
                     alignItems: "stretch",
                     justifyContent: "center",
-                    cursor: canDrag ? "ew-resize" : canRemove ? "pointer" : "default",
+                    cursor: canDrag ? "grab" : canRemove ? "pointer" : "default",
                     pointerEvents: (canDrag || canRemove) ? "auto" : "none",
                     touchAction: "none",
                     zIndex: isDragging ? 10 : 2,
@@ -331,21 +331,34 @@ export default function LooperPanel({
                     const newVel = Math.max(0.05, Math.min(1, vel + delta));
                     onVelChange(i, newVel);
                   } : undefined}
-                  onPointerDown={canDrag ? e => {
+                  onPointerDown={(canDrag || (canRemove && onVelChange)) ? e => {
                     e.preventDefault(); e.stopPropagation();
                     onBeforeEdit?.();
-                    setDragIdx(i);
                     const gridEl = e.currentTarget.parentElement;
                     const rect = gridEl.getBoundingClientRect();
                     const startX = e.clientX;
+                    const startY = e.clientY;
                     const startTOff = ev.tOff;
+                    const startVel = vel;
                     const snapMs = loopDurMs / (loopBars * 32);
+                    let mode = null; // 'move' | 'vel'
                     const mv = me => {
                       const dx = me.clientX - startX;
-                      const dMs = (dx / rect.width) * loopDurMs;
-                      const raw = startTOff + dMs;
-                      const snapped = Math.max(0, Math.min(loopDurMs - snapMs, Math.round(raw / snapMs) * snapMs));
-                      onMoveHit && onMoveHit(i, snapped);
+                      const dy = startY - me.clientY; // positive = drag up = louder
+                      if (!mode) {
+                        if (Math.abs(dx) > 6) mode = 'move';
+                        else if (Math.abs(dy) > 6) mode = 'vel';
+                      }
+                      if (mode === 'move' && canDrag) {
+                        setDragIdx(i);
+                        const dMs = (dx / rect.width) * loopDurMs;
+                        const raw = startTOff + dMs;
+                        const snapped = Math.max(0, Math.min(loopDurMs - snapMs, Math.round(raw / snapMs) * snapMs));
+                        onMoveHit && onMoveHit(i, snapped);
+                      } else if (mode === 'vel' && onVelChange) {
+                        const newVel = Math.max(0.05, Math.min(1, startVel + dy / 80));
+                        onVelChange(i, newVel);
+                      }
                     };
                     const up = () => {
                       setDragIdx(null);
@@ -356,9 +369,9 @@ export default function LooperPanel({
                     window.addEventListener("pointerup", up);
                   } : undefined}
                 >
-                  {/* Hit bar — width 3px, height driven by velocity */}
+                  {/* Hit bar — width 4px, height driven by velocity */}
                   <div style={{
-                    width: 3,
+                    width: 4,
                     alignSelf: "flex-end",
                     height: `${Math.round(30 + vel * 70)}%`,
                     background: color,

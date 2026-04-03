@@ -45,7 +45,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.7";
+const APP_VERSION="9.0.8";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -2686,13 +2686,28 @@ export default function KickAndSnare(){
     const buf=freeCaptureRef.current;
     if(buf.length<2)return;
     // Re-run grid-alignment BPM detection on the full buffer for maximum accuracy
-    const ts=buf.map(h=>h.t);
-    let gridBpm:number|null=null,gridBest=Infinity;
-    for(let cBpm=40;cBpm<=240;cBpm++){
+    // Step 1: deduplicate timestamps within 50ms (simultaneous kick+snare/hihat shouldn't count as 2 beats)
+    const allTs=buf.map(h=>h.t).sort((a,b)=>a-b);
+    const deduped:number[]=[allTs[0]];
+    for(let i=1;i<allTs.length;i++){if(allTs[i]-deduped[deduped.length-1]>50)deduped.push(allTs[i]);}
+    const ts=deduped;
+    const scoreForBpm=(cBpm:number)=>{
       const bMs=60000/cBpm;
       let err=0;ts.forEach(t=>{const ph=t%bMs;err+=Math.min(ph,bMs-ph);});
-      const score=(err/ts.length)/bMs;
+      return(err/ts.length)/bMs;
+    };
+    let gridBpm:number|null=null,gridBest=Infinity;
+    for(let cBpm=40;cBpm<=240;cBpm++){
+      const score=scoreForBpm(cBpm);
       if(score<gridBest){gridBest=score;gridBpm=cBpm;}
+    }
+    // Anti-doubling: if half-BPM fits nearly as well, prefer it (avoids 180→90 ambiguity)
+    if(gridBpm&&gridBpm>80){
+      const halfBpm=Math.round(gridBpm/2);
+      if(halfBpm>=40){
+        const halfScore=scoreForBpm(halfBpm);
+        if(halfScore<=gridBest*1.25){gridBpm=halfBpm;}
+      }
     }
     const finalBpm=Math.max(40,Math.min(240,gridBpm??freeBpm??bpm));
     setBpm(finalBpm);
@@ -3700,48 +3715,15 @@ export default function KickAndSnare(){
               });
             };
             const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
-            // Knob: drag vertical to change value
-            const Knob=({label,val,min,max,step=1,color,fmt,onUpdate,logScale=false}:{label:string;val:number;min:number;max:number;step?:number;color:string;fmt:(v:number)=>string;onUpdate:(v:number)=>void;logScale?:boolean})=>{
-              const norm=logScale
-                ?Math.log(Math.max(min,val)/min)/Math.log(max/min)
-                :(val-min)/(max-min);
-              const angle=-135+Math.max(0,Math.min(1,norm))*270;
-              const r=16,cx=22,cy=22;
-              const toXY=(a:number)=>[cx+r*Math.cos((a-90)*Math.PI/180),cy+r*Math.sin((a-90)*Math.PI/180)];
-              const [sx,sy]=toXY(-135);const [ex,ey]=toXY(angle);
-              const largeArc=(angle-(-135))>180?1:0;
-              const handlePD=(e:React.PointerEvent)=>{
-                e.preventDefault();
-                const el=e.currentTarget as HTMLElement;
-                el.setPointerCapture(e.pointerId);
-                let sY=e.clientY,sV=val;
-                const range=max-min;
-                const sensitivity=logScale?(Math.log(max/min)/150):(range/150);
-                const mv=(pe:PointerEvent)=>{
-                  const dy=sY-pe.clientY;
-                  let nv:number;
-                  if(logScale){nv=sV*Math.exp(sensitivity*dy);}
-                  else{nv=sV+dy*sensitivity;}
-                  nv=Math.max(min,Math.min(max,step<1?Math.round(nv/step)*step:Math.round(nv/step)*step));
-                  onUpdate(nv);
-                };
-                const up=()=>{el.removeEventListener("pointermove",mv);};
-                el.addEventListener("pointermove",mv);
-                el.addEventListener("pointerup",up,{once:true});
-                el.addEventListener("pointercancel",up,{once:true});
-              };
-              return(
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,userSelect:"none",WebkitUserSelect:"none"}}>
-                  <svg width={44} height={44} viewBox="0 0 44 44" onPointerDown={handlePD} onDoubleClick={()=>onUpdate(min+(max-min)*0.5)} style={{cursor:"ns-resize",touchAction:"none",display:"block"}}>
-                    <circle cx={22} cy={22} r={16} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3}/>
-                    <path d={`M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`} fill="none" stroke={color} strokeWidth={3} strokeLinecap="round"/>
-                    <circle cx={ex} cy={ey} r={2.5} fill={color}/>
-                  </svg>
-                  <span style={{fontSize:7,color,fontWeight:800,fontFamily:"monospace",lineHeight:1}}>{fmt(val)}</span>
-                  <span style={{fontSize:5.5,color:"rgba(255,255,255,0.3)",letterSpacing:"0.09em",fontWeight:700,textTransform:"uppercase",lineHeight:1}}>{label}</span>
-                </div>
-              );
-            };
+            const SlRow=({label,keyName,min,max,step,val,color,fmt,disabled=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;disabled?:boolean})=>(
+              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                <span style={{fontSize:7.5,fontWeight:800,color:disabled?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
+                <input type="range" min={min} max={max} step={step} value={val} disabled={disabled}
+                  onChange={e=>updFx({[keyName]:Number(e.target.value)})}
+                  style={{flex:1,accentColor:color,minWidth:0,opacity:disabled?0.25:1,cursor:disabled?"not-allowed":"pointer"}}/>
+                <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:disabled?"rgba(255,255,255,0.2)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
+              </div>
+            );
             const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
               <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s"}}>
                 {label}
@@ -3775,49 +3757,43 @@ export default function KickAndSnare(){
                   <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:0}}>
                     {/* PITCH */}
                     <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>PITCH</span>
                         <ToggleBtn on={f.onPitch??false} label={f.onPitch?"ON":"OFF"} color={tr.color} onClick={()=>updFx({onPitch:!(f.onPitch??false)})}/>
                       </div>
-                      <div style={{display:"flex",justifyContent:"center"}}>
-                        <Knob label="SEMITONES" val={f.pitch??0} min={-12} max={12} step={1} color={f.onPitch?tr.color:"rgba(255,255,255,0.2)"} fmt={v=>(v>0?"+":"")+v+"st"} onUpdate={v=>updFx({pitch:v,onPitch:v!==0})}/>
-                      </div>
+                      <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} disabled={!(f.onPitch??false)}/>
                     </div>
                     {/* FILTER */}
                     <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                         <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>FILTER</span>
                         <ToggleBtn on={f.onFilter??false} label={f.onFilter?"ON":"OFF"} color="#64D2FF" onClick={()=>updFx({onFilter:!(f.onFilter??false)})}/>
                         <div style={{marginLeft:"auto"}}>
                           <PillGroup val={f.fType||"lowpass"} color="#64D2FF" onSel={k=>updFx({fType:k,onFilter:true})} opts={[{k:"lowpass",l:"LP"},{k:"highpass",l:"HP"},{k:"bandpass",l:"BP"},{k:"notch",l:"NOTCH"}]}/>
                         </div>
                       </div>
-                      <div style={{display:"flex",justifyContent:"space-around"}}>
-                        <Knob label="CUTOFF" val={f.cut??5000} min={80} max={20000} step={50} logScale color={f.onFilter?"#64D2FF":"rgba(255,255,255,0.2)"} fmt={v=>freqFmt(v)+"Hz"} onUpdate={v=>updFx({cut:v})}/>
-                        <Knob label="RESONANCE" val={f.res??0} min={0} max={20} step={0.5} color={f.onFilter?"#64D2FF":"rgba(255,255,255,0.2)"} fmt={v=>v.toFixed(1)+"Q"} onUpdate={v=>updFx({res:v})}/>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} disabled={!(f.onFilter??false)}/>
+                        <SlRow label="Resonance" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} disabled={!(f.onFilter??false)}/>
                       </div>
                     </div>
                     {/* DRIVE */}
                     <div style={sec}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                         <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DRIVE</span>
                         <ToggleBtn on={f.onDrive??false} label={f.onDrive?"ON":"OFF"} color="#FF9500" onClick={()=>updFx({onDrive:!(f.onDrive??false)})}/>
                         <div style={{marginLeft:"auto"}}>
                           <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
                         </div>
                       </div>
-                      <div style={{display:"flex",justifyContent:"center"}}>
-                        <Knob label="AMOUNT" val={f.drive??0} min={0} max={100} step={1} color={f.onDrive?"#FF9500":"rgba(255,255,255,0.2)"} fmt={v=>v+"%"} onUpdate={v=>updFx({drive:v})}/>
-                      </div>
+                      <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} disabled={!(f.onDrive??false)}/>
                     </div>
                     {/* VOL */}
                     <div style={{marginBottom:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>VOLUME</span>
                       </div>
-                      <div style={{display:"flex",justifyContent:"center"}}>
-                        <Knob label="VOL" val={f.vol??80} min={0} max={100} step={1} color="#8E8E93" fmt={v=>v+"%"} onUpdate={v=>updFx({vol:v})}/>
-                      </div>
+                      <SlRow label="Vol" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
                     </div>
                   </div>
                 </div>
