@@ -47,6 +47,11 @@ export default function SampleLoaderModal({
     if (open) {
       setStep('choice'); setIsRecording(false); setRecSeconds(0);
       setBuffer(null); setStartPct(0); setEndPct(1); setRecError(null);
+      // Check HTTPS — getUserMedia requires secure context
+      const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if (!isSecure) {
+        setRecError('⚠️ Enregistrement impossible en HTTP.\nAccède à l\'app via son URL https:// ou via localhost.');
+      }
     }
     return () => { stopPreviewNode(); };
   }, [open]);
@@ -91,47 +96,100 @@ export default function SampleLoaderModal({
     ctx2d.fillRect(W * ePct - 2, 0, 4, H);
   };
 
+  // Shared: wire MediaRecorder onto an already-obtained stream
+  const startRecordingWithStream = (stream: MediaStream) => {
+    streamRef.current = stream;
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', '']
+      .find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    chunksRef.current = [];
+
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+
+    recorder.onerror = () => {
+      stream.getTracks().forEach(t => t.stop());
+      setRecError("Erreur pendant l'enregistrement. Réessayez.");
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+
+    recorder.onstop = async () => {
+      // Release mic immediately
+      stream.getTracks().forEach(t => t.stop());
+      if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+      try {
+        const ctx = initAudioCtx();
+        if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
+        if (ctx.state === 'suspended') await ctx.resume();
+        const ab = await blob.arrayBuffer();
+        // CRUCIAL: clone before decodeAudioData — some browsers detach/neuter the buffer
+        const abCopy = ab.slice(0);
+        const decoded = await ctx.decodeAudioData(abCopy);
+        setBuffer(decoded);
+        setStartPct(0);
+        setEndPct(1);
+        setStep('trim');
+      } catch (e) {
+        console.error('[SampleLoaderModal] decodeAudioData failed', e);
+        setRecError("Décodage audio échoué. Réessayez ou utilisez Firefox.");
+      }
+    };
+
+    recRef.current = recorder;
+    recorder.start(100);
+    setIsRecording(true);
+    setRecSeconds(0);
+    timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+  };
+
   const startRecording = async () => {
     setRecError(null);
+
+    // Check API availability
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRecError("Votre navigateur ne supporte pas l'enregistrement audio.\nUtilisez Chrome, Firefox ou Safari récent.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: { ideal: 44100 } as any,
+          channelCount: { ideal: 1 } as any,
+        },
       });
-      streamRef.current = stream;
-      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', '']
-        .find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-      chunksRef.current = [];
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        try {
-          const ctx = initAudioCtx();
-          if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
-          if (ctx.state === 'suspended') await ctx.resume();
-          const ab = await blob.arrayBuffer();
-          const decoded = await ctx.decodeAudioData(ab);
-          setBuffer(decoded);
-          setStartPct(0);
-          setEndPct(1);
-          setStep('trim');
-        } catch (e) {
-          console.error('[SampleLoaderModal] decodeAudioData failed', e);
-          setRecError('Décodage audio échoué. Essayez un autre navigateur.');
-        }
-      };
-      recRef.current = recorder;
-      recorder.start(100);
-      setIsRecording(true);
-      setRecSeconds(0);
-      timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+      startRecordingWithStream(stream);
     } catch (e: any) {
-      console.error('[SampleLoaderModal] getUserMedia failed', e);
-      if (e?.name === 'NotAllowedError') setRecError('Micro refusé. Clique sur le lien ↗ ci-dessus pour ouvrir l\'app dans un nouvel onglet, puis autorise le micro là-bas.');
-      else if (e?.name === 'NotFoundError') setRecError('Aucun micro détecté.');
-      else setRecError('Micro non accessible : ' + (e?.message || e));
+      console.error('[SampleLoaderModal] getUserMedia error:', e.name, e.message);
+
+      if (e?.name === 'OverconstrainedError') {
+        // Retry with bare audio:true — constraints rejected by some devices/iframes
+        try {
+          const fallback = await navigator.mediaDevices.getUserMedia({ audio: true });
+          startRecordingWithStream(fallback);
+          return;
+        } catch { /* fall through to error display */ }
+      }
+
+      if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError') {
+        setRecError(
+          "🎤 Accès micro refusé.\n\n" +
+          "Chrome : icône 🔒 dans la barre d'adresse → Micro → Autoriser\n" +
+          "macOS : Préférences Système → Confidentialité → Micro → coche Chrome\n\n" +
+          "Si le problème persiste, utilise le lien ↗ ci-dessous pour ouvrir l'app\n" +
+          "dans un nouvel onglet — Chrome y demandera la permission directement."
+        );
+      } else if (e?.name === 'NotFoundError' || e?.name === 'DevicesNotFoundError') {
+        setRecError("🎤 Aucun microphone détecté.\nBranche un micro ou vérifie tes réglages audio.");
+      } else if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
+        setRecError("🎤 Micro occupé par une autre app.\nFerme les autres onglets/apps qui utilisent le micro.");
+      } else {
+        setRecError("🎤 Micro non accessible : " + (e?.message || e?.name || String(e)));
+      }
     }
   };
 
@@ -239,8 +297,8 @@ export default function SampleLoaderModal({
 
         {/* Error banner */}
         {recError && (
-          <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,45,85,0.12)', border: '1px solid rgba(255,45,85,0.3)', color: '#FF2D55', fontSize: 10 }}>
-            ⚠ {recError}
+          <div style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,45,85,0.08)', border: '1px solid rgba(255,45,85,0.3)', color: '#FF2D55', fontSize: 10, fontWeight: 600, whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+            {recError}
           </div>
         )}
 
