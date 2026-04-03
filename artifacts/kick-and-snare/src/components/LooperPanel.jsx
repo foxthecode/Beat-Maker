@@ -47,6 +47,7 @@ export default function LooperPanel({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    touchAction: "manipulation",
   });
 
   const barCount = loopDisp ? new Set(loopDisp.map(e => e.tid)).size : 0;

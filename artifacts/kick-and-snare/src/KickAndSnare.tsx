@@ -22,6 +22,7 @@ type StepMap = Record<TrackId, number[]>;
 /** Per-track FX + synthesis shape configuration object. */
 type FxConfig = {
   vol: number; pan: number; pitch: number; onPitch: boolean;
+  rev: number; dly: number;
   fType: string; cut: number; res: number; onFilter: boolean;
   drive: number; driveMode: string; onDrive: boolean;
   crush: number; cThr: number; cRat: number; onComp: boolean;
@@ -45,7 +46,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.8";
+const APP_VERSION="9.0.9";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -74,7 +75,7 @@ const mkR=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(1)]));
 
 const DEFAULT_FX = Object.freeze({
   pitch:0,fType:"lowpass",cut:5000,res:0,drive:0,driveMode:"tape",crush:0,cThr:-24,cRat:1,
-  rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,
+  rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,rev:0,dly:0,
   onPitch:false,onFilter:false,onDrive:false,onComp:true,onReverb:false,onDelay:false,
   // SHAPE — synthesis timbre params (multipliers around 1.0)
   sDec:1.0,  // decay length ×
@@ -642,6 +643,16 @@ class Eng{
       const dAmt=dOn?Math.max(0,Math.min(100,f?.drive??0))/100:0;
       const dMode=f?.driveMode||'tape';
       c.drv.curve=this._buildCurve(dMode,dAmt);
+    }
+    // Per-track reverb send
+    if(c.rvSend){
+      c.rvSend.gain.cancelScheduledValues(ct);
+      c.rvSend.gain.setTargetAtTime(Math.max(0,Math.min(1,(f?.rev??0)/100)),ct,0.02);
+    }
+    // Per-track delay send
+    if(c.dlSend){
+      c.dlSend.gain.cancelScheduledValues(ct);
+      c.dlSend.gain.setTargetAtTime(Math.max(0,Math.min(1,(f?.dly??0)/100)),ct,0.02);
     }
     // Transient shaper: per-note envelope anchored at the note's scheduled time
     if(c.tsAtk){
@@ -2628,6 +2639,24 @@ export default function KickAndSnare(){
     setLoopDisp([...L.events]);
     setLoopCanUndo(true);setLoopCanRedo(H.future.length>0);
   };
+  const onChangeBars=(newBars:number)=>{
+    const L=loopRef.current;
+    const beatMs=60000/Math.max(30,R.bpm);
+    const newDurMs=newBars*R.sig.beats*beatMs;
+    if(L.events.length>0){
+      // Trim events that fall beyond the new duration (decreasing bars)
+      // Increasing bars: events stay in place, new bars are simply empty
+      const trimmed=L.events.filter(ev=>ev.tOff<newDurMs);
+      if(trimmed.length!==L.events.length){
+        pushLoopSnapshot();
+        L.events=trimmed;
+      }
+      L.lengthMs=newDurMs;
+      setLoopDisp(trimmed.map(ev=>({tid:ev.tid,tOff:ev.tOff,vel:ev.vel})));
+    }
+    setLoopBars(newBars);
+    R.loopBars=newBars;
+  };
   const clearLooper=()=>{
     stopLooper();
     loopRef.current.events=[];loopRef.current.passId=0;
@@ -3548,7 +3577,7 @@ export default function KickAndSnare(){
                   </div>
                 )}
                 <LooperPanel
-                  loopBars={loopBars} setLoopBars={setLoopBars}
+                  loopBars={loopBars} setLoopBars={onChangeBars}
                   loopRec={loopRec} loopPlaying={loopPlaying} loopPlayhead={loopPlayhead}
                   loopDisp={loopDisp}
                   loopMetro={loopMetro} setLoopMetro={setLoopMetro}
@@ -3720,19 +3749,20 @@ export default function KickAndSnare(){
                 <span style={{fontSize:7.5,fontWeight:800,color:disabled?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
                 <input type="range" min={min} max={max} step={step} value={val} disabled={disabled}
                   onChange={e=>updFx({[keyName]:Number(e.target.value)})}
-                  style={{flex:1,accentColor:color,minWidth:0,opacity:disabled?0.25:1,cursor:disabled?"not-allowed":"pointer"}}/>
+                  onTouchStart={e=>e.stopPropagation()}
+                  style={{flex:1,accentColor:color,minWidth:0,opacity:disabled?0.25:1,cursor:disabled?"not-allowed":"pointer",touchAction:"none"}}/>
                 <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:disabled?"rgba(255,255,255,0.2)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
               </div>
             );
             const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
-              <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s"}}>
+              <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s",touchAction:"manipulation"}}>
                 {label}
               </button>
             );
             const PillGroup=({opts,val,color,onSel}:{opts:{k:string;l:string}[];val:string;color:string;onSel:(k:string)=>void})=>(
               <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                 {opts.map(o=>(
-                  <button key={o.k} onClick={()=>onSel(o.k)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${val===o.k?color+"88":"rgba(255,255,255,0.1)"}`,background:val===o.k?color+"20":"transparent",color:val===o.k?color:"rgba(255,255,255,0.4)",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>
+                  <button key={o.k} onClick={()=>onSel(o.k)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${val===o.k?color+"88":"rgba(255,255,255,0.1)"}`,background:val===o.k?color+"20":"transparent",color:val===o.k?color:"rgba(255,255,255,0.4)",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",touchAction:"manipulation"}}>
                     {o.l}
                   </button>
                 ))}
@@ -3788,12 +3818,26 @@ export default function KickAndSnare(){
                       </div>
                       <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} disabled={!(f.onDrive??false)}/>
                     </div>
-                    {/* VOL */}
+                    {/* VOL + PAN */}
+                    <div style={sec}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>OUTPUT</span>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        <SlRow label="Volume" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
+                        <SlRow label="Pan" keyName="pan" min={-100} max={100} step={1} val={f.pan??0} color="#8E8E93" fmt={v=>v===0?"C":v>0?`R${v}`:`L${Math.abs(v)}`}/>
+                      </div>
+                    </div>
+                    {/* REVERB + DELAY SENDS */}
                     <div style={{marginBottom:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>VOLUME</span>
+                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>SENDS</span>
+                        <span style={{fontSize:6,color:"rgba(255,255,255,0.2)",letterSpacing:"0.04em"}}>via FX Rack</span>
                       </div>
-                      <SlRow label="Vol" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        <SlRow label="Reverb" keyName="rev" min={0} max={100} step={1} val={f.rev??0} color="#64D2FF" fmt={v=>v+"%"}/>
+                        <SlRow label="Delay" keyName="dly" min={0} max={100} step={1} val={f.dly??0} color="#30D158" fmt={v=>v+"%"}/>
+                      </div>
                     </div>
                   </div>
                 </div>
