@@ -45,7 +45,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.2";
+const APP_VERSION="9.0.3";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -1527,9 +1527,7 @@ export default function KickAndSnare(){
       // ── Save current view's state before entering pads ──
       if(view==="sequencer") seqSnap.current={pBank,cPat,songChain,songMode};
       else if(view==="euclid") euclidSnap.current={pBank,cPat};
-      // Expand all 8 pads for live performance (pBank unchanged)
-      const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];
-      setAct(a=>{const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+      // act stays untouched — pads show exactly the same tracks as the source view
     } else if(fromPads){
       const crossView=nextView!==padSrcViewRef.current;
       if(crossView&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
@@ -1539,29 +1537,18 @@ export default function KickAndSnare(){
           const snap=euclidSnap.current;
           setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(16);
           setSongMode(false);setSongChain([0]);songPosRef.current=0;
-          const euclidDefault=["kick","snare","hihat","clap"];
-          setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
         } else if(nextView==="sequencer"){
           const snap=seqSnap.current;
           setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(STEPS);
           setSongMode(snap.songMode);setSongChain(snap.songChain);songPosRef.current=0;
         }
-      } else {
-        // ── Same source → scheduler was already running this view in background.
-        //    Don't touch pBank/cPat/R.pat (would cause a momentary pattern glitch).
-        //    Only reset track visibility if needed. ──
-        if(nextView==="euclid"){
-          const euclidDefault=["kick","snare","hihat","clap"];
-          setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
-        }
       }
+      // act stays untouched — deletions made in pads persist across all views
     } else {
       // ── Direct seq↔euclid: reset to fresh (no continuity) ──
       if(nextView==="euclid"){
         const fresh=[mkE(16)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
         setSongMode(false);setSongChain([0]);songPosRef.current=0;
-        const euclidDefault=["kick","snare","hihat","clap"];
-        setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
       } else if(nextView==="sequencer"){
         const fresh=[mkE(STEPS)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
         setSongMode(false);setSongChain([0]);songPosRef.current=0;
@@ -3578,7 +3565,8 @@ export default function KickAndSnare(){
                   {atO.length>1&&(
                     <button
                       onTouchStart={e=>{e.stopPropagation();e.preventDefault();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
-                      onPointerDown={e=>{e.stopPropagation();e.preventDefault();}}
+                      onClick={e=>{e.stopPropagation();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
+                      onPointerDown={e=>{e.stopPropagation();}}
                       title={`Remove ${track.label}`}
                       style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
                     >×</button>
