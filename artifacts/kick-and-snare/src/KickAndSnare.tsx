@@ -1506,6 +1506,8 @@ export default function KickAndSnare(){
   const euclidSnap=useRef<{pBank:any[],cPat:number}>({
     pBank:[mkE(16)], cPat:0,
   });
+  // Tracks which view was active when entering pads — keeps the scheduler in the right branch
+  const padSrcViewRef=useRef<string>("sequencer");
 
   const switchView=(nextView:string)=>{
     if(view===nextView)return;
@@ -1518,6 +1520,8 @@ export default function KickAndSnare(){
     if(!fromPads&&!toPads&&!R.playing)setMetro(false);
 
     if(toPads){
+      // ── Record which view we're coming from (scheduler needs it) ──
+      padSrcViewRef.current=view;
       // ── Save current view's state before entering pads ──
       if(view==="sequencer") seqSnap.current={pBank,cPat,songChain,songMode};
       else if(view==="euclid") euclidSnap.current={pBank,cPat};
@@ -1525,6 +1529,9 @@ export default function KickAndSnare(){
       const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];
       setAct(a=>{const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     } else if(fromPads){
+      // ── Stop when returning to a DIFFERENT view than source (context change) ──
+      const crossView=nextView!==padSrcViewRef.current;
+      if(crossView&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
       // ── Restore the target view's saved state ──
       if(nextView==="euclid"){
         const snap=euclidSnap.current;
@@ -1681,7 +1688,11 @@ export default function KickAndSnare(){
   R.mSub=metroSub;    // metronome subdivision — adds sub-beat clicks
   R.prob=stProb;      // step probability 0–100 — scheduler gates steps randomly
   R.ratch=stRatch;    // ratchet count per step — scheduler sub-divides the step
-  R.view=view;        // current view ("sequencer"|"pads"|"euclid") — REC routing
+  // R.view  = scheduler branch ("euclid" or "sequencer"). When in pads, use the source view
+  //           so the background pattern plays identically to what was running before.
+  // R.uiView = actual UI view — used for REC routing, Space key, free-capture routing.
+  R.uiView=view;
+  R.view=view==="pads"?(padSrcViewRef.current||"sequencer"):view;
   R.songMode=songMode;     // song chain active — scheduler advances pattern list
   R.songChain=songChain;   // ordered pattern indices — song mode iteration
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
@@ -1863,7 +1874,7 @@ export default function KickAndSnare(){
     }
     // Free-capture — records timestamps WITHOUT activating REC, for BPM detection
     // Uses audio clock (ctx.currentTime) to stay in the same time domain as the scheduler
-    if(R.view==='pads'&&!R.loopRec&&engine.ctx){
+    if(R.uiView==='pads'&&!R.loopRec&&engine.ctx){
       const now=engine.ctx.currentTime;
       if(freeCaptureStartRef.current===null){
         freeCaptureStartRef.current=now;
@@ -1932,7 +1943,7 @@ export default function KickAndSnare(){
     const down=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();R.undo?.();return;}
       if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();R.redo?.();return;}
-      if(e.code==="Space"){e.preventDefault();if(R.view==="pads"){R.toggleLoopRec?.();}else{ssRef.current?.();}return;}
+      if(e.code==="Space"){e.preventDefault();if(R.uiView==="pads"){R.toggleLoopRec?.();}else{ssRef.current?.();}return;}
       if(e.key==="Alt"){e.preventDefault();if(playRef.current)setRec(p=>!p);return;}
       if(e.key==="?"){setShowK(p=>!p);return;}
       if(e.key==="ArrowLeft"){e.preventDefault();setBpm(p=>Math.max(30,p-1));return;}
