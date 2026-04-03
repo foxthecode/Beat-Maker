@@ -45,7 +45,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.1";
+const APP_VERSION="9.0.2";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -1942,6 +1942,17 @@ export default function KickAndSnare(){
     }
   },[]);
   R.trigPad=trigPad;
+  // All tracks including custom (used by scheduler to iterate custom tracks)
+  R.allT=allT;
+  // Flash a pad in live-pads view at the correct audio-sync moment
+  R.flashPad=(tid:string,aheadMs:number)=>{
+    if(R.uiView!=="pads")return;
+    setTimeout(()=>{
+      if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
+      setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
+      flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},120);
+    },Math.max(0,aheadMs));
+  };
   const ssRef=useRef(null);const playRef=useRef(false);
   R.ss=ssRef;R.setRec=setRec;
   useEffect(()=>{playRef.current=playing;},[playing]);
@@ -1995,9 +2006,10 @@ export default function KickAndSnare(){
         const v=(vel[tr.id]?.[psn]??100)/100;
         const r=ratch[tr.id]?.[psn]||1;
         for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[psn]||0):0),f[tr.id]||{...DEFAULT_FX},ptime+ri*(bd/r));
+        R.flashPad?.(tr.id,Math.max(0,Math.round((ptime-ct)*1000)-4));
       }
     };
-    ALL_TRACKS.forEach(tr=>{
+    (R.allT||ALL_TRACKS).forEach(tr=>{
       if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
       const gSt=R.sig?.steps||16;
       if(R.view==="euclid"){
@@ -2038,7 +2050,7 @@ export default function KickAndSnare(){
       const sixteenth=(60/R.bpm)/4;
       const at=R.at;const m=R.mut;const s=R.sol;
       let dirty=false;
-      ALL_TRACKS.forEach(tr=>{
+      (R.allT||ALL_TRACKS).forEach(tr=>{
         if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
         const N=R.pb[R.cp]?._steps?.[tr.id]||16;
         const stepDur=sixteenth;
@@ -2053,12 +2065,13 @@ export default function KickAndSnare(){
               const r=R.ratch[tr.id]?.[si]||1;
               const nd=R.sn[tr.id]?.[si]||0;
               for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},ec.nextTime+ri*(stepDur/r));
+              R.flashPad?.(tr.id,Math.max(0,Math.round((ec.nextTime-ct)*1000)-4));
             }
           }
           ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
         }
       });
-      if(dirty){const cur={};ALL_TRACKS.forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
+      if(dirty){const cur={};(R.allT||ALL_TRACKS).forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
       // Song mode cycle tracking — runs always, independent of metro
       // Advances the song chain every bar (gSt × sixteenth notes)
       {
@@ -3352,7 +3365,7 @@ export default function KickAndSnare(){
                   <button key={tr.id}
                     onTouchStart={e=>{e.preventDefault();trigPad(tr.id,110/127);}}
                     onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();trigPad(tr.id,1);}}
-                    style={{flex:1,height:30,borderRadius:6,background:flashing.has(tr.id)?tr.color+"44":tr.color+"0d",
+                    style={{flex:1,height:40,borderRadius:6,background:flashing.has(tr.id)?tr.color+"44":tr.color+"0d",
                       border:`1.5px solid ${flashing.has(tr.id)?tr.color:tr.color+"2a"}`,
                       color:tr.color,cursor:"pointer",fontFamily:"inherit",fontSize:7,fontWeight:800,letterSpacing:"0.05em",
                       touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",
@@ -3417,7 +3430,7 @@ export default function KickAndSnare(){
                   onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
                   onSoloToggle={()=>setSoloed(p=>p===track.id?null:track.id)}
                   onLoadSample={()=>ldFile(track.id)}
-                  onRemove={()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                  onRemove={()=>{R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
                   onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
                   onSendCursorChange={(dir)=>setTrackSendCursor(p=>({...p,[track.id]:((p[track.id]??0)+dir+FX_SECS.length)%FX_SECS.length}))}
                   onSendAmtChange={(amt)=>{const idx=trackSendCursor[track.id]??0;const sec=FX_SECS[idx].sec;upSend(sec,track.id,amt);}}
@@ -3564,7 +3577,7 @@ export default function KickAndSnare(){
                   {/* ── Delete button (top-left, absolute, frère du button → stopPropagation) ── */}
                   {atO.length>1&&(
                     <button
-                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}
+                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
                       onPointerDown={e=>{e.stopPropagation();e.preventDefault();}}
                       title={`Remove ${track.label}`}
                       style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
@@ -3762,7 +3775,7 @@ export default function KickAndSnare(){
                                 {(()=>{const hasSmp=!!smpN[tr.id];return(<button data-hint={hasSmp?`Sample: ${smpN[tr.id]} · Click to change the audio file`:`Load an audio sample for track ${tr.label} (MP3, WAV, OGG)`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
                                 <MidiTag id={tr.id}/>
                                 <button data-hint={`CLR · Clear all Euclidean hits from track ${tr.label} · Resets to N=${p.N} hits=0`} onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
-                                {act.length>1&&<button data-hint={`Remove track ${tr.label} from Euclidean view`} onClick={()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                                {act.length>1&&<button data-hint={`Remove track ${tr.label} from Euclidean view`} onClick={()=>{R.at=R.at.filter(x=>x!==tr.id);setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==tr.id);setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 2: VOL knob + PAN knob + template dropdown — hidden when folded */}
                               <div style={{display:p.fold?"none":"flex",alignItems:"center",gap:6}}>
