@@ -37,6 +37,37 @@ function EuclidDots({ hits, N, rot = 0, color }) {
   );
 }
 
+function EuclidConcentric({ tracks }) {
+  const size = 38;
+  const cx = size / 2;
+  const cy = size / 2;
+  const outerR = size / 2 - 2;
+  const gap = tracks.length > 1 ? (outerR - 5) / (tracks.length - 1) : 0;
+  return (
+    <svg width={size} height={size} style={{ flexShrink: 0 }}>
+      {tracks.map((t, ti) => {
+        const r = outerR - ti * gap;
+        const dots = Array.from({ length: t.N }, (_, i) => {
+          const angle = (i / t.N) * 2 * Math.PI - Math.PI / 2;
+          const x = cx + r * Math.cos(angle);
+          const y = cy + r * Math.sin(angle);
+          const isHit = Math.floor((i + 1) * t.hits / t.N) > Math.floor(i * t.hits / t.N);
+          return { x, y, isHit };
+        });
+        return (
+          <g key={ti}>
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={t.color} strokeWidth={0.6} strokeOpacity={0.18} />
+            {dots.map((d, di) => (
+              <circle key={di} cx={d.x} cy={d.y} r={d.isHit ? 2 : 1}
+                fill={d.isHit ? t.color : "rgba(255,255,255,0.07)"} />
+            ))}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -329,11 +360,15 @@ export default function PatternBank({
                     const kHits = ks.filter(v => v > 0).length;
                     const sHits = ss.filter(v => v > 0).length;
                     const hHits = hs.filter(v => v > 0).length;
+                    const eucTracks = [
+                      kHits > 0 && { hits: kHits, N, color: col },
+                      sHits > 0 && { hits: sHits, N, color: col + "99" },
+                      hHits > 0 && { hits: hHits, N, color: col + "55" },
+                    ].filter(Boolean);
+                    if (!eucTracks.length) return null;
                     return (
-                      <div style={{ width: w, display: "flex", justifyContent: "center", gap: 3, flexWrap: "wrap" }}>
-                        {kHits > 0 && <EuclidDots hits={kHits} N={N} rot={0} color={col} />}
-                        {sHits > 0 && <EuclidDots hits={sHits} N={N} rot={0} color={col + "88"} />}
-                        {hHits > 0 && <EuclidDots hits={hHits} N={N} rot={0} color={col + "44"} />}
+                      <div style={{ width: w, display: "flex", justifyContent: "center" }}>
+                        <EuclidConcentric tracks={eucTracks} />
                       </div>
                     );
                   }

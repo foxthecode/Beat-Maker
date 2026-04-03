@@ -125,8 +125,8 @@ export default function TransportBar({
   const RecBtn = view !== "euclid" && (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
-        data-hint={rec ? "REC actif · Frappe les pads ou le clavier pour enregistrer en live · Raccourci : Alt" : "REC · Active l'enregistrement live · Lance la lecture d'abord · Raccourci : Alt"}
-        onClick={() => { if (!playing) return; onRecClick ? onRecClick() : setRec(p => !p); }}
+        data-hint={rec ? "REC actif · Frappe les pads ou le clavier pour enregistrer en live · Raccourci : Alt" : playing ? "REC · Active l'enregistrement live · Raccourci : Alt" : "REC · Lance la lecture + l'enregistrement simultanément · Raccourci : Alt"}
+        onClick={() => { onRecClick ? onRecClick() : setRec(p => !p); }}
         style={{
           width: 44, height: 44, borderRadius: "50%",
           border: rec ? "2px solid #FF2D55" : `2px solid rgba(255,45,85,0.3)`,
@@ -266,7 +266,7 @@ export default function TransportBar({
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
         <div style={{ ...rowStyle }}>
-          {!isPads && PlayBtn}
+          {PlayBtn}
           {!isPads && RecBtn}
           {BpmCtrl}
         </div>
@@ -291,7 +291,7 @@ export default function TransportBar({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}`, flexWrap: "wrap" }}>
-      {!isPads && PlayBtn}
+      {PlayBtn}
       {!isPads && RecBtn}
       {isPads && LooperControls}
       {BpmCtrl}

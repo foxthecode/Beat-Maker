@@ -1509,7 +1509,11 @@ export default function KickAndSnare(){
 
   const switchView=(nextView:string)=>{
     if(view===nextView)return; // already there — noop
-    if(R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
+    const fromPads=view==="pads";
+    // Stop only when both views are non-pads (seq↔euclid); keep playing when coming from or going to pads
+    if(!fromPads&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
+    // Disable metro on view change when not playing
+    if(!R.playing)setMetro(false);
 
     if(nextView==="euclid"){
       // Save sequencer state
@@ -1829,9 +1833,9 @@ export default function KickAndSnare(){
       const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
       const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
       let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
-      // Near-boundary wrap: if the hit lands within 60ms of loop end it's almost
-      // certainly beat 0 of the next pass (user tapped right on the downbeat).
-      if(tOff>L.lengthMs-60)tOff=0;
+      // Near-boundary wrap: if the hit lands within 200ms of loop end it's almost
+      // certainly beat 0 of the next pass (user tapped right on or just before the downbeat).
+      if(tOff>L.lengthMs-200)tOff=0;
       // AUTO-Q: snap to nearest subdivision on capture
       if(autoQRef.current&&L.lengthMs>0){
         const snapMs=L.lengthMs/(R.loopBars*16);
@@ -2216,17 +2220,14 @@ export default function KickAndSnare(){
 
   const onRecClick=()=>{
     if(playing){setRec(p=>!p);return;}
-    // Click REC while stopped → countdown 1 bar → start + rec
-    setRecCountdown(true);
-    const barMs=(60000/Math.max(30,bpm))*sig.beats;
-    setTimeout(async()=>{
-      setRecCountdown(false);
-      await engine.ensureRunning();
+    // Click REC while stopped → immediate play + rec (no countdown)
+    engine.ensureRunning().then(()=>{
+      if(engine.ctx?.state==='suspended'){setCtxSuspended(true);return;}
       R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);setRec(true);
-    },barMs);
+    });
   };
   useEffect(()=>()=>clearTimeout(schRef.current),[]);
 
@@ -3126,7 +3127,7 @@ export default function KickAndSnare(){
           </div>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing" onClick={()=>{if(R.playing&&view==="euclid"){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(false);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
+            <button data-hint="Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing" onClick={()=>{if(!R.playing)setMetro(false);setAct(a=>{const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});setView("pads");setShowLooper(false);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
             {/* ── SEQUENCER + EUCLID grouped block ── */}
             <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
 
