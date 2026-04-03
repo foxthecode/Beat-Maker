@@ -350,49 +350,14 @@ export default function LooperPanel({
         );
       })()}
 
-      {/* Controls */}
+      {/* Controls — UNDO / REDO / CLEAR, always visible */}
       <div style={{
         display: "flex", gap: 5, flexWrap: "wrap",
         flexDirection: isPortrait ? "column" : "row",
       }}>
-        {!loopRec && (
-          <button onClick={loopPlaying ? onFreshRec : onToggleRec} style={pill(false, "#FF2D55")}>
-            {recLabel}
-          </button>
-        )}
-        {!loopPlaying && !loopRec && setLoopMetro && (
-          <button
-            onClick={() => setLoopMetro(p => !p)}
-            title={loopMetro ? "Désactiver le countdown" : "Activer le countdown avant l'enregistrement"}
-            style={{
-              ...pill(loopMetro, "#FF9500"),
-              padding: "3px 9px", minHeight: "auto",
-            }}
-          >
-            {loopMetro ? "COUNTDOWN ON" : "COUNTDOWN"}
-          </button>
-        )}
-        {loopRec && (
-          <button onClick={onToggleRec} style={pill(true, "#FF2D55")}>■ STOP REC</button>
-        )}
-        {loopPlaying && !loopRec && (
-          <button onClick={onToggleRec} style={pill(false, "#BF5AF2")}>⊕ OVERDUB</button>
-        )}
-        {loopPlaying && (
-          <button onClick={onTogglePlay} style={pill(false, "#FF9500")}>■ STOP</button>
-        )}
-        {!loopPlaying && loopDisp && loopDisp.length > 0 && (
-          <button onClick={onTogglePlay} style={pill(false, "#30D158")}>▶ PLAY</button>
-        )}
-        {loopCanUndo && (
-          <button onClick={onUndo} style={pill(false, "#5E5CE6")}>↺ UNDO</button>
-        )}
-        {loopCanRedo && (
-          <button onClick={onRedo} style={pill(false, "#5E5CE6")}>↻ REDO</button>
-        )}
-        {(loopPlaying || (loopDisp && loopDisp.length > 0)) && (
-          <button onClick={onClear} style={pill(false, "#636366")}>✕ CLEAR</button>
-        )}
+        <button onClick={onUndo} disabled={!loopCanUndo} style={{ ...pill(false, "#5E5CE6"), opacity: loopCanUndo ? 1 : 0.35 }}>↺ UNDO</button>
+        <button onClick={onRedo} disabled={!loopCanRedo} style={{ ...pill(false, "#5E5CE6"), opacity: loopCanRedo ? 1 : 0.35 }}>↻ REDO</button>
+        <button onClick={onClear} style={pill(false, "#636366")}>✕ CLEAR</button>
         {/* WAV Export — hidden by default; restored by passing onExportLoop */}
         {onExportLoop && loopDisp && loopDisp.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: "auto" }}>

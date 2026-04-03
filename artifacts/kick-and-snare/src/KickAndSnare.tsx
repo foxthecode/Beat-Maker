@@ -1877,11 +1877,13 @@ export default function KickAndSnare(){
       const gSt=R.sig?.steps||16;
       const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);
       const ratio=Math.max(1,Math.round(tSt/gSt));
-      // F.1b: quantization snap
-      const stepDur=(60/R.bpm)*R.sig.beats/R.sig.steps;
-      const elapsed=engine.ctx.currentTime-(nxtRef.current-stepDur);
-      const snapRatio=Math.max(0,Math.min(1,elapsed/stepDur));
-      const qStep=snapRatio>0.5?(R.step+1)%gSt:R.step;
+      // F.1b: quantization snap — swing-corrected step duration
+      const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
+      const sw=bd*(R.sw||0)/100*0.5;
+      const curStepDur=R.step%2===0?(bd+sw):(bd-sw);
+      const elapsed=engine.ctx.currentTime-(nxtRef.current-curStepDur);
+      const snapRatio=Math.max(0,Math.min(1,elapsed/bd));
+      const qStep=snapRatio>0.6?(R.step+1)%gSt:R.step; // bias toward current step (0.6 threshold)
       const targetStep=ratio>1?qStep*ratio:qStep%tSt;
       // F.1c: timing feedback color
       const fbColor=snapRatio>=0.35&&snapRatio<=0.65?"#30D158":snapRatio>=0.2&&snapRatio<=0.8?"#FF9500":"#FF2D55";
@@ -3150,33 +3152,11 @@ export default function KickAndSnare(){
           toggleLoopRec={toggleLoopRec} toggleLoopPlay={loopPlaying?stopLooper:()=>startLooper(false)}
           loopMetro={loopMetro} setLoopMetro={setLoopMetro}
           recCountdown={recCountdown} showLooper={showLooper}
+          onLoopUndo={undoLoop} onLoopRedo={redoLoop} onLoopClear={clearLooper}
+          loopCanUndo={loopCanUndo} loopCanRedo={loopCanRedo}
+          freeCaptureCount={freeCaptureCount} freeBpm={freeBpm}
+          onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
         />
-        {/* ── Mini pads REC — apparaissent sous la transport en mode REC (séquenceur uniquement) ── */}
-        {view==="sequencer"&&rec&&(
-          <div style={{marginBottom:10,padding:"8px 12px",borderRadius:10,background:th.surface,border:"1px solid rgba(255,45,85,0.25)"}}>
-            <div style={{fontSize:8,color:"#FF2D55",fontWeight:800,letterSpacing:"0.1em",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
-              <span style={{animation:"rb 0.8s infinite"}}>●</span> REC — Tap pads to record
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:8}}>
-              {atO.map(track=>(
-                <button key={track.id}
-                  onTouchStart={e=>{e.preventDefault();trigPad(track.id,110/127);}}
-                  onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();trigPad(track.id,1);}}
-                  style={{aspectRatio:"1",borderRadius:10,background:flashing.has(track.id)?track.color+"44":`${track.color}12`,
-                    border:`2px solid ${flashing.has(track.id)?track.color:track.color+"33"}`,
-                    color:track.color,cursor:"pointer",fontFamily:"inherit",
-                    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
-                    touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",
-                    boxShadow:flashing.has(track.id)?`0 0 20px ${track.color}55`:"none",
-                    transition:"all 0.06s"}}
-                >
-                  <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={22}/>
-                  <span style={{fontSize:9,fontWeight:700}}>{track.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* ── Time Signature ── */}
         {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
@@ -3288,6 +3268,29 @@ export default function KickAndSnare(){
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
           <TipBadge id="seq_steps" text="Tap a cell to activate a sound · Double-tap to reset · Long-press = probability" color="#FF2D55"/>
+          {/* ── Mini REC pads — juste au-dessus des tracks, seulement quand rec+playing ── */}
+          {recPadsVisible&&(
+            <div style={{marginBottom:6,padding:"5px 8px",borderRadius:8,background:"rgba(255,45,85,0.05)",border:"1px solid rgba(255,45,85,0.22)",display:"flex",alignItems:"center",gap:5,opacity:rec&&playing?1:0,transition:"opacity 0.15s",pointerEvents:rec&&playing?"auto":"none"}}>
+              <span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em",animation:"rb 0.8s infinite",flexShrink:0}}>● REC</span>
+              <div style={{display:"flex",gap:4,flex:1}}>
+                {atO.map(tr=>(
+                  <button key={tr.id}
+                    onTouchStart={e=>{e.preventDefault();trigPad(tr.id,110/127);}}
+                    onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();trigPad(tr.id,1);}}
+                    style={{flex:1,height:30,borderRadius:6,background:flashing.has(tr.id)?tr.color+"44":tr.color+"0d",
+                      border:`1.5px solid ${flashing.has(tr.id)?tr.color:tr.color+"2a"}`,
+                      color:tr.color,cursor:"pointer",fontFamily:"inherit",fontSize:7,fontWeight:800,letterSpacing:"0.05em",
+                      touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",
+                      boxShadow:flashing.has(tr.id)?`0 0 12px ${tr.color}44`:"none",
+                      transition:"all 0.06s",display:"flex",alignItems:"center",justifyContent:"center",gap:3}}
+                  >
+                    <DrumSVG id={tr.id} color={tr.color} hit={flashing.has(tr.id)} sz={10}/>
+                    <span>{tr.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div style={{display:"flex",flexDirection:"column",gap:0,position:"relative"}}
             onTouchStart={e=>{touchSwipeRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY,target:e.target};}}
             onTouchEnd={e=>{
@@ -3349,22 +3352,6 @@ export default function KickAndSnare(){
               );
             })}
           </div>
-          {/* ── H.3: REC pads — appear when rec+playing in sequencer view ── */}
-          {recPadsVisible&&(<div style={{marginTop:8,borderRadius:10,background:"rgba(255,45,85,0.06)",border:"1px solid rgba(255,45,85,0.28)",padding:"8px 10px",animation:"slideDown 0.18s ease-out",opacity:rec&&playing?1:0,transition:"opacity 0.15s",pointerEvents:rec&&playing?"auto":"none"}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7,background:"rgba(255,45,85,0.12)",padding:"5px 8px",borderRadius:6,border:"1px solid #FF2D55"}}>
-              <span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.15em",animation:"rb 0.8s infinite"}}>●</span>
-              <span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em"}}>REC — Joue les pads · les hits tombent dans la grille</span>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:isPortrait?`repeat(2,1fr)`:`repeat(${Math.min(4,atO.length)},1fr)`,gap:6}}>
-              {atO.map(tr=>(
-                <button key={tr.id} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);trigPad(tr.id,e.pointerType==="mouse"?1:110/127);}}
-                  style={{height:52,borderRadius:10,background:flashing.has(tr.id)?tr.color+"44":`linear-gradient(145deg,${tr.color}1a,${tr.color}06)`,border:`1.5px solid ${flashing.has(tr.id)?tr.color:tr.color+"33"}`,color:tr.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(tr.id)?`0 0 24px ${tr.color}55`:"none",transition:"all 0.06s",transform:flashing.has(tr.id)?"scale(0.94)":"scale(1)",touchAction:"none",userSelect:"none"}}>
-                  <DrumSVG id={tr.id} color={tr.color} hit={flashing.has(tr.id)} sz={18}/>
-                  <span style={{fontSize:8,fontWeight:700,letterSpacing:"0.06em"}}>{tr.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>)}
           <div style={{marginTop:6}}>
             {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>

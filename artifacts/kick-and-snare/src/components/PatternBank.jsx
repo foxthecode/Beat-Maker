@@ -78,7 +78,7 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
           letterSpacing: "0.06em", fontFamily: "inherit",
         }}
       >
-        <span>{isEuclid ? "⬡ PRESETS" : "TEMPLATES"}</span>
+        <span>{isEuclid ? "⬡ PRESETS" : "PRESETS"}</span>
         <span style={{ fontSize: 7 }}>{open ? "▲" : "▼"}</span>
       </button>
 
@@ -316,24 +316,37 @@ export default function PatternBank({
                     {i + 1}
                   </button>
                 )}
-                {/* ── Mini step-grid preview ── */}
+                {/* ── Mini preview ── */}
                 {(() => {
                   const ks = pat.kick || [];
                   const ss = pat.snare || pat.clap || [];
                   const hs = pat.hihat || [];
-                  const n = Math.max(ks.length, ss.length, hs.length, 16);
                   const hasHits = ks.some(v => v > 0) || ss.some(v => v > 0) || hs.some(v => v > 0);
                   if (!hasHits) return null;
                   const w = isPortrait ? "100%" : 36;
+                  if (isEuclid) {
+                    const N = Math.max(ks.length, ss.length, 16);
+                    const kHits = ks.filter(v => v > 0).length;
+                    const sHits = ss.filter(v => v > 0).length;
+                    const hHits = hs.filter(v => v > 0).length;
+                    return (
+                      <div style={{ width: w, display: "flex", justifyContent: "center", gap: 3, flexWrap: "wrap" }}>
+                        {kHits > 0 && <EuclidDots hits={kHits} N={N} rot={0} color={col} />}
+                        {sHits > 0 && <EuclidDots hits={sHits} N={N} rot={0} color={col + "88"} />}
+                        {hHits > 0 && <EuclidDots hits={hHits} N={N} rot={0} color={col + "44"} />}
+                      </div>
+                    );
+                  }
+                  const n = Math.max(ks.length, ss.length, hs.length, 16);
                   return (
-                    <div style={{ width: w, overflow: "hidden", display: "flex", flexDirection: "column", gap: 1 }}>
+                    <div style={{ width: w, overflow: "hidden", display: "flex", flexDirection: "column", gap: 1.5 }}>
                       {[{ steps: ks, opacity: 1 }, { steps: ss, opacity: 0.65 }, { steps: hs, opacity: 0.35 }]
                         .filter(({ steps }) => steps.some(v => v > 0))
                         .map(({ steps, opacity }, ri) => (
                           <div key={ri} style={{ display: "flex", gap: 0.5 }}>
                             {Array(n).fill(0).map((_, si) => (
                               <div key={si} style={{
-                                flex: 1, height: ri === 0 ? 3 : 2, borderRadius: 0.5,
+                                flex: 1, height: ri === 0 ? 5 : 3, borderRadius: 0.8,
                                 background: steps[si] > 0 ? col : "rgba(255,255,255,0.07)",
                                 opacity: steps[si] > 0 ? opacity : 1,
                               }} />

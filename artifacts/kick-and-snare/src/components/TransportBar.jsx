@@ -18,6 +18,8 @@ export default function TransportBar({
   exportState, exportBars, setExportBars, onExport,
   loopRec, loopPlaying, loopEventsCount, toggleLoopRec, toggleLoopPlay,
   loopMetro, setLoopMetro, recCountdown, showLooper,
+  onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
+  freeCaptureCount, freeBpm, onLoopCapture, onClearCapture,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
@@ -139,44 +141,40 @@ export default function TransportBar({
     </div>
   );
 
-  const hasLoopEvents = (loopEventsCount ?? 0) > 0;
-  const isOverdubbing = loopPlaying && loopRec && hasLoopEvents;
-  const LooperControls = view === "pads" && (showLooper || loopPlaying || loopRec || hasLoopEvents) && (
+  const captureReady = (freeCaptureCount ?? 0) >= 4;
+  const captureListening = (freeCaptureCount ?? 0) > 0 && (freeCaptureCount ?? 0) < 4;
+  const LooperControls = view === "pads" && (
     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(191,90,242,0.35)", background: "rgba(191,90,242,0.05)", flexShrink: 0 }}>
       <span style={{ fontSize: 8, fontWeight: 900, color: "#BF5AF2", letterSpacing: "0.1em", flexShrink: 0 }}>LOOPER</span>
-      {/* Play / Stop */}
-      <button
-        onClick={toggleLoopPlay}
-        style={{ width: 44, height: 44, borderRadius: "50%", border: "none",
-          background: loopPlaying ? "linear-gradient(135deg,#FF2D55,#FF375F)" : "linear-gradient(135deg,#30D158,#34C759)",
-          color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: loopPlaying ? "0 0 20px rgba(255,45,85,0.4)" : "0 0 20px rgba(48,209,88,0.4)", transition: "all 0.15s",
-        }}
-      >{loopPlaying ? "■" : "▶"}</button>
-      {/* REC / Overdub */}
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {isOverdubbing && (
-          <span style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", fontSize: 6, fontWeight: 800, color: "#5E5CE6", whiteSpace: "nowrap", letterSpacing: "0.05em", animation: "rb 0.8s infinite" }}>OVERDUB</span>
-        )}
-        <button
-          onClick={toggleLoopRec}
-          style={{ width: 44, height: 44, borderRadius: "50%",
-            border: `2px solid ${hasLoopEvents ? "#5E5CE6" : loopRec ? "#FF2D55" : "rgba(255,45,85,0.3)"}`,
-            background: hasLoopEvents ? "rgba(94,92,230,0.15)" : loopRec ? "rgba(255,45,85,0.25)" : "rgba(255,45,85,0.06)",
-            color: hasLoopEvents ? "#5E5CE6" : loopRec ? "#FF2D55" : "rgba(255,45,85,0.45)",
-            fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            animation: loopRec ? "rb 0.8s infinite" : "none", transition: "all 0.15s",
-          }}
-        >●</button>
-      </div>
-      {/* Countdown toggle */}
-      {setLoopMetro && (
-        <button
-          onClick={() => setLoopMetro(p => !p)}
-          title="Countdown 1 bar before recording"
-          style={{ ...pill(loopMetro, "#FF9500"), fontSize: 8, padding: "4px 8px", flexShrink: 0 }}
-        >{recCountdown ? "⏱…" : loopMetro ? "CD ON" : "CD"}</button>
+      {/* CAPTURE — always visible */}
+      {captureReady && onClearCapture && (
+        <button onClick={onClearCapture} title="Restart capture" style={{ padding: "3px 5px", borderRadius: 4, border: "1px solid rgba(255,55,95,0.3)", background: "rgba(255,55,95,0.08)", color: "rgba(255,55,95,0.7)", fontSize: 8, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
       )}
+      <button
+        onClick={() => captureReady && onLoopCapture && onLoopCapture()}
+        title={captureReady ? `${freeCaptureCount} hits · ${freeBpm ?? "?"} BPM — click to capture` : captureListening ? `${freeCaptureCount}/4 hits — keep playing` : "Tap pads to activate capture"}
+        style={{
+          padding: "4px 10px", borderRadius: 6, fontFamily: "inherit", fontWeight: 800, fontSize: 8,
+          border: captureReady ? "none" : `1px solid rgba(48,209,88,${captureListening ? "0.3" : "0.15"})`,
+          background: captureReady ? "linear-gradient(90deg,#30D158,#34C759)" : captureListening ? "rgba(48,209,88,0.08)" : "rgba(48,209,88,0.03)",
+          color: captureReady ? "#fff" : captureListening ? "rgba(48,209,88,0.65)" : "rgba(48,209,88,0.28)",
+          cursor: captureReady ? "pointer" : "default",
+          boxShadow: captureReady ? "0 0 10px rgba(48,209,88,0.3)" : "none",
+          animation: captureReady ? "pulse 1.4s ease-in-out infinite" : "none",
+          transition: "all 0.2s", whiteSpace: "nowrap", letterSpacing: "0.06em",
+        }}
+      >{captureReady ? `⚡ ${freeBpm ?? "?"} BPM` : captureListening ? `⚡ ${freeCaptureCount}/4` : "⚡ CAPTURE"}</button>
+      {/* COUNT DOWN toggle */}
+      {setLoopMetro && (
+        <button onClick={() => setLoopMetro(p => !p)} title="Countdown 1 bar before recording"
+          style={{ ...pill(loopMetro, "#FF9500"), fontSize: 8, padding: "4px 8px", flexShrink: 0 }}>
+          {recCountdown ? "⏱…" : loopMetro ? "COUNT DOWN" : "COUNT DOWN"}
+        </button>
+      )}
+      {/* UNDO REDO CLEAR — always visible */}
+      <button onClick={onLoopUndo} disabled={!loopCanUndo} style={{ ...pill(!loopCanUndo ? null : false, "#5E5CE6"), opacity: loopCanUndo ? 1 : 0.35 }}>↺ UNDO</button>
+      <button onClick={onLoopRedo} disabled={!loopCanRedo} style={{ ...pill(!loopCanRedo ? null : false, "#5E5CE6"), opacity: loopCanRedo ? 1 : 0.35 }}>↻ REDO</button>
+      <button onClick={onLoopClear} style={pill(false, "#636366")}>✕ CLEAR</button>
     </div>
   );
 
