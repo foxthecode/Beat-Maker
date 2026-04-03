@@ -1529,20 +1529,29 @@ export default function KickAndSnare(){
       const all=["kick","snare","hihat","clap","tom","ride","crash","perc"];
       setAct(a=>{const next=[...a];all.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     } else if(fromPads){
-      // ── Stop when returning to a DIFFERENT view than source (context change) ──
       const crossView=nextView!==padSrcViewRef.current;
       if(crossView&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
-      // ── Restore the target view's saved state ──
-      if(nextView==="euclid"){
-        const snap=euclidSnap.current;
-        setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(16);
-        setSongMode(false);setSongChain([0]);songPosRef.current=0;
-        const euclidDefault=["kick","snare","hihat","clap"];
-        setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
-      } else if(nextView==="sequencer"){
-        const snap=seqSnap.current;
-        setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(STEPS);
-        setSongMode(snap.songMode);setSongChain(snap.songChain);songPosRef.current=0;
+      if(crossView){
+        // ── Different source → restore the target view's saved state ──
+        if(nextView==="euclid"){
+          const snap=euclidSnap.current;
+          setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(16);
+          setSongMode(false);setSongChain([0]);songPosRef.current=0;
+          const euclidDefault=["kick","snare","hihat","clap"];
+          setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+        } else if(nextView==="sequencer"){
+          const snap=seqSnap.current;
+          setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(STEPS);
+          setSongMode(snap.songMode);setSongChain(snap.songChain);songPosRef.current=0;
+        }
+      } else {
+        // ── Same source → scheduler was already running this view in background.
+        //    Don't touch pBank/cPat/R.pat (would cause a momentary pattern glitch).
+        //    Only reset track visibility if needed. ──
+        if(nextView==="euclid"){
+          const euclidDefault=["kick","snare","hihat","clap"];
+          setAct(a=>{const next=[...a];euclidDefault.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
+        }
       }
     } else {
       // ── Direct seq↔euclid: reset to fresh (no continuity) ──
