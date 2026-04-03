@@ -1829,9 +1829,11 @@ export default function KickAndSnare(){
       const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
       const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
       let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
-      // Near-boundary wrap: if the hit lands within 200ms of loop end it's almost
-      // certainly beat 0 of the next pass (user tapped right on or just before the downbeat).
-      if(tOff>L.lengthMs-200)tOff=0;
+      // Near-boundary wrap: snap to beat 0 if hit lands within 400ms of loop end.
+      // 400ms covers: pre-arm window (countdown path), slow JS timers, and human
+      // anticipation of the downbeat. Capped to 40% of loop to stay safe on short loops.
+      const snapThresh=Math.min(400,L.lengthMs*0.4);
+      if(tOff>L.lengthMs-snapThresh)tOff=0;
       // AUTO-Q: snap to nearest subdivision on capture
       if(autoQRef.current&&L.lengthMs>0){
         const snapMs=L.lengthMs/(R.loopBars*16);
@@ -2489,10 +2491,26 @@ export default function KickAndSnare(){
           const recStart=t0+sig.beats*beatSec;
           // Also pre-schedule the downbeat of RECORDING — the user must hear beat 1 of the loop
           playClk(recStart,"accent");
+          // PRE-ARM: open gate immediately so the first tap at beat 1 is never lost.
+          // JS setTimeout can fire 50-200ms late on mobile; without pre-arm, beat-1 taps
+          // arrive before the gate opens and are silently dropped.
+          // audioStart = recStart (future anchor) — any hit with rawSec < 0 will be
+          // caught by the near-boundary threshold (tOff > lengthMs - 400) and placed at 0.
+          {const L=loopRef.current;
+            pushLoopSnapshot();
+            L.passId++;L.events=[];setLoopDisp([]);
+            L.lengthMs=(60000/Math.max(30,R.bpm))*R.sig.beats*loopBars;
+            L.loopBpm=R.bpm;
+            L.audioStart=recStart;
+            R.loopRec=true;
+          }
           setRecCountdown(true);
-          // JS timer fires slightly after recStart; we pass the pre-calculated audio anchor
-          setTimeout(()=>{setRecCountdown(false);_armLoopRec(recStart);},
-            (recStart-ctx.currentTime)*1000+8);
+          // After recStart: update React state + start looper scheduler
+          setTimeout(async()=>{
+            setRecCountdown(false);
+            setLoopRec(true);
+            await startLooper(true,loopRef.current.audioStart??recStart);
+          },(recStart-ctx.currentTime)*1000+8);
         })();
       }else{
         _armLoopRec();
