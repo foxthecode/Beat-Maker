@@ -63,10 +63,19 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // FIX: allow microphone access in browser/iframe (getUserMedia requires this)
+    headers: {
+      "Permissions-Policy": "microphone=*, camera=()",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "credentialless",
+    },
   },
   preview: {
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    headers: {
+      "Permissions-Policy": "microphone=*, camera=()",
+    },
   },
 });

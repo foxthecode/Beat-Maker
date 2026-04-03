@@ -8,7 +8,6 @@ interface SampleLoaderModalProps {
   onClose: () => void;
   onFileLocal: (trackId: string) => void;
   onBufferLoaded: (trackId: string, buffer: AudioBuffer, name: string) => void;
-  // Function that ensures AudioContext is initialized and returns it
   initAudioCtx: () => AudioContext | null;
   th: any;
 }
@@ -27,6 +26,8 @@ export default function SampleLoaderModal({
   const [endPct, setEndPct] = useState(1);
   const [previewNode, setPreviewNode] = useState<AudioBufferSourceNode | null>(null);
   const [recError, setRecError] = useState<string | null>(null);
+  // NEW: permission state to show proactive guidance
+  const [permState, setPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
 
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -43,14 +44,27 @@ export default function SampleLoaderModal({
     if (previewNode) { try { previewNode.stop(); } catch {} setPreviewNode(null); }
   };
 
+  // FIX: check permission state proactively when modal opens
   useEffect(() => {
     if (open) {
       setStep('choice'); setIsRecording(false); setRecSeconds(0);
       setBuffer(null); setStartPct(0); setEndPct(1); setRecError(null);
-      // Check HTTPS — getUserMedia requires secure context
+
+      // Check HTTPS
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       if (!isSecure) {
         setRecError('⚠️ Enregistrement impossible en HTTP.\nAccède à l\'app via son URL https:// ou via localhost.');
+        return;
+      }
+
+      // FIX: proactively query mic permission state (Chrome/Edge/Firefox support this)
+      if (navigator.permissions?.query) {
+        navigator.permissions.query({ name: 'microphone' as PermissionName }).then(result => {
+          setPermState(result.state as any);
+          result.onchange = () => setPermState(result.state as any);
+        }).catch(() => {
+          setPermState('unknown'); // Safari doesn't support querying mic permission
+        });
       }
     }
     return () => { stopPreviewNode(); };
@@ -96,7 +110,6 @@ export default function SampleLoaderModal({
     ctx2d.fillRect(W * ePct - 2, 0, 4, H);
   };
 
-  // Shared: wire MediaRecorder onto an already-obtained stream
   const startRecordingWithStream = (stream: MediaStream) => {
     streamRef.current = stream;
     const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', '']
@@ -114,7 +127,6 @@ export default function SampleLoaderModal({
     };
 
     recorder.onstop = async () => {
-      // Release mic immediately
       stream.getTracks().forEach(t => t.stop());
       if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
@@ -123,7 +135,6 @@ export default function SampleLoaderModal({
         if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
         if (ctx.state === 'suspended') await ctx.resume();
         const ab = await blob.arrayBuffer();
-        // CRUCIAL: clone before decodeAudioData — some browsers detach/neuter the buffer
         const abCopy = ab.slice(0);
         const decoded = await ctx.decodeAudioData(abCopy);
         setBuffer(decoded);
@@ -143,10 +154,77 @@ export default function SampleLoaderModal({
     timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
   };
 
+  // FIX: detailed error messages per browser/OS/device
+  const buildMicErrorMessage = (err: any): string => {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isChromeiOS = isIOS && /CriOS/.test(ua);
+    const isMac = /Macintosh/.test(ua);
+    const isFirefox = /Firefox/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+
+    if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+      if (isChromeiOS) {
+        return (
+          "🎤 Accès micro refusé sur Chrome iOS.\n\n" +
+          "Réglages iOS → Chrome → Microphone → Activer\n" +
+          "Puis revenez sur l'app et réessayez.\n\n" +
+          "💡 Ou ouvrez l'app dans Safari (meilleur support iOS)."
+        );
+      }
+      if (isIOS && isSafari) {
+        return (
+          "🎤 Accès micro refusé sur Safari iOS.\n\n" +
+          "Réglages iOS → Safari → Microphone → Autoriser\n" +
+          "Ou autorisez dans la popup qui apparaît au clic REC.\n\n" +
+          "⚠️ Safari redemande la permission à chaque rechargement, c'est normal."
+        );
+      }
+      if (isMac && isSafari) {
+        return (
+          "🎤 Micro refusé (Safari macOS).\n\n" +
+          "Safari → Préférences → Sites web → Microphone → Autoriser\n" +
+          "macOS : Préférences Système → Confidentialité → Micro → cochez Safari."
+        );
+      }
+      if (isMac && isFirefox) {
+        return (
+          "🎤 Micro refusé (Firefox macOS).\n\n" +
+          "Cliquez sur l'icône 🎤 dans la barre d'adresse → Autoriser\n" +
+          "macOS : Préférences Système → Confidentialité → Micro → cochez Firefox\n" +
+          "Puis redémarrez Firefox."
+        );
+      }
+      // Chrome desktop (Windows/Linux/Mac) — most common desktop case
+      return (
+        "🎤 Accès micro refusé.\n\n" +
+        "1. Cliquez sur l'icône 🔒 (ou 🎤) dans la barre d'adresse\n" +
+        "2. Microphone → Autoriser\n" +
+        "3. Rechargez la page\n\n" +
+        (isMac ? "macOS : Préférences Système → Confidentialité → Micro → cochez Chrome\n\n" : "") +
+        "💡 Si vous êtes dans la preview Replit, ouvrez l'app dans un nouvel onglet (lien ↗ ci-dessous)."
+      );
+    }
+
+    if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+      return "🎤 Aucun microphone détecté.\nBranchez un micro ou vérifiez vos réglages audio.";
+    }
+    if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+      return "🎤 Le microphone est utilisé par une autre application.\nFermez les autres onglets ou apps qui utilisent le micro.";
+    }
+    if (err?.name === 'SecurityError') {
+      return (
+        "🎤 Micro bloqué par la sécurité du navigateur.\n\n" +
+        "Cela arrive dans les iframes. Ouvrez l'app dans un nouvel onglet\n" +
+        "(lien ↗ ci-dessous) pour autoriser le micro directement."
+      );
+    }
+    return "🎤 Micro indisponible : " + (err?.message || err?.name || String(err));
+  };
+
   const startRecording = async () => {
     setRecError(null);
 
-    // Check API availability
     if (!navigator.mediaDevices?.getUserMedia) {
       setRecError("Votre navigateur ne supporte pas l'enregistrement audio.\nUtilisez Chrome, Firefox ou Safari récent.");
       return;
@@ -162,40 +240,27 @@ export default function SampleLoaderModal({
           channelCount: { ideal: 1 } as any,
         },
       });
+      setPermState('granted');
       startRecordingWithStream(stream);
     } catch (e: any) {
       console.error('[SampleLoaderModal] getUserMedia error:', e.name, e.message);
 
       if (e?.name === 'OverconstrainedError') {
-        // Retry with bare audio:true — constraints rejected by some devices/iframes
         try {
           const fallback = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setPermState('granted');
           startRecordingWithStream(fallback);
           return;
-        } catch { /* fall through to error display */ }
+        } catch (e2: any) {
+          setRecError(buildMicErrorMessage(e2));
+          return;
+        }
       }
 
       if (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError') {
-        setRecError(
-          "🎤 Microphone access denied.\n\n" +
-          "Chrome: click the 🔒 icon in the address bar → Microphone → Allow\n" +
-          "macOS: System Settings → Privacy → Microphone → enable Chrome\n\n" +
-          "If recording still fails in the embedded preview, open the app in a\n" +
-          "new tab (↗ button below) — the browser will ask for permission directly."
-        );
-      } else if (e?.name === 'NotFoundError' || e?.name === 'DevicesNotFoundError') {
-        setRecError("🎤 No microphone found.\nPlug in a mic or check your audio settings.");
-      } else if (e?.name === 'NotReadableError' || e?.name === 'TrackStartError') {
-        setRecError("🎤 Microphone in use by another app.\nClose other tabs or apps that are using the mic.");
-      } else if (e?.name === 'SecurityError') {
-        setRecError(
-          "🎤 Microphone blocked by browser security.\n\n" +
-          "This can happen in embedded previews. Open the app in a new tab\n" +
-          "(↗ button below) to allow microphone access directly."
-        );
-      } else {
-        setRecError("🎤 Microphone unavailable: " + (e?.message || e?.name || String(e)));
+        setPermState('denied');
       }
+      setRecError(buildMicErrorMessage(e));
     }
   };
 
@@ -286,12 +351,16 @@ export default function SampleLoaderModal({
   const fmt = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
+  // Direct app URL for opening outside iframe
+  const appUrl = window.location.origin + window.location.pathname;
+
   return (
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{ background: bg, borderRadius: 16, padding: 20, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto', position: 'relative', border: `1px solid ${trackColor}33` }}>
+
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
@@ -301,10 +370,26 @@ export default function SampleLoaderModal({
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: dim, fontSize: 20, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>✕</button>
         </div>
 
-        {/* Error banner */}
+        {/* Error banner — FIX: now includes "open in new tab" button inline */}
         {recError && (
           <div style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,45,85,0.08)', border: '1px solid rgba(255,45,85,0.3)', color: '#FF2D55', fontSize: 10, fontWeight: 600, whiteSpace: 'pre-line', lineHeight: 1.6 }}>
             {recError}
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <a
+                href={appUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'inline-block', padding: '7px 12px', borderRadius: 7, background: 'rgba(100,210,255,0.12)', border: '1px solid rgba(100,210,255,0.3)', color: '#64D2FF', fontSize: 9, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.06em', cursor: 'pointer' }}
+              >
+                ↗ OUVRIR DANS UN NOUVEL ONGLET
+              </a>
+              <button
+                onClick={() => setRecError(null)}
+                style={{ padding: '7px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em' }}
+              >
+                RÉESSAYER
+              </button>
+            </div>
           </div>
         )}
 
@@ -323,7 +408,20 @@ export default function SampleLoaderModal({
               style={{ background: surface, border: `1px solid rgba(255,45,85,0.25)`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: '#FF2D55' }}
             >
               <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>🎤 Enregistrer avec le micro</div>
-              <div style={{ fontSize: 9, color: dim }}>Battements, voix, percussions live · Trimming waveform inclus</div>
+              <div style={{ fontSize: 9, color: dim }}>
+                Battements, voix, percussions live · Trimming waveform inclus
+                {/* FIX: show pre-emptive warning if permission already denied */}
+                {permState === 'denied' && (
+                  <span style={{ color: '#FF9500', display: 'block', marginTop: 4 }}>
+                    ⚠️ Permission micro refusée — autorisez-la dans les réglages du navigateur
+                  </span>
+                )}
+                {permState === 'granted' && (
+                  <span style={{ color: '#30D158', display: 'block', marginTop: 4 }}>
+                    ✓ Micro autorisé
+                  </span>
+                )}
+              </div>
             </button>
           </div>
         )}
@@ -331,21 +429,23 @@ export default function SampleLoaderModal({
         {/* ── RECORDING ── */}
         {step === 'recording' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: '8px 0' }}>
-            {/* Show direct URL so user can open app outside iframe — needed for getUserMedia in Replit preview */}
+
+            {/* FIX: always show direct URL link — useful for iframe/Replit context */}
             {!isRecording && (
               <div style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: 'rgba(30,30,40,0.6)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <div style={{ fontSize: 8, color: dim, letterSpacing: '0.08em' }}>URL DIRECTE DE L'APP (micro requis)</div>
+                <div style={{ fontSize: 8, color: dim, letterSpacing: '0.08em' }}>PROBLÈME DE MICRO ? OUVRIR L'APP DIRECTEMENT</div>
                 <a
-                  href={window.location.origin + window.location.pathname}
+                  href={appUrl}
                   target="_blank"
                   rel="noreferrer"
                   style={{ fontSize: 9, color: '#64D2FF', wordBreak: 'break-all', textDecoration: 'underline', cursor: 'pointer' }}
-                >{window.location.origin + window.location.pathname} ↗</a>
+                >{appUrl} ↗</a>
                 <div style={{ fontSize: 8, color: dim, lineHeight: 1.5 }}>
-                  Si le micro est refusé ici, ouvre ce lien dans un nouvel onglet — Chrome pourra alors autoriser le micro directement.
+                  Dans la preview Replit, le navigateur peut bloquer le micro. Ouvre ce lien dans un nouvel onglet pour un accès direct.
                 </div>
               </div>
             )}
+
             <div style={{ fontSize: 40, fontWeight: 900, fontFamily: 'monospace', color: isRecording ? '#FF2D55' : dim }}>
               {fmt(recSeconds)}
             </div>
@@ -398,14 +498,12 @@ export default function SampleLoaderModal({
               <button onClick={preview} style={{ ...btn('#64D2FF', !!previewNode), flex: 1 }}>
                 {previewNode ? '◼ Stop' : '▶ Preview'}
               </button>
-              <button
-                onClick={() => { stopPreviewNode(); setStep('recording'); setBuffer(null); }}
-                style={{ ...btn('#888', false, true), flexShrink: 0, padding: '10px 12px' }}
-              >↩</button>
-              <button onClick={validate} style={{ ...btn('#30D158', true), flex: 1 }}>✓ Valider</button>
+              <button onClick={validate} style={{ ...btn('#30D158', false), flex: 1 }}>✓ Utiliser ce sample</button>
+              <button onClick={() => { stopPreviewNode(); setStep('recording'); setBuffer(null); }} style={{ ...btn('#888', false, true), flexShrink: 0 }}>↩</button>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
