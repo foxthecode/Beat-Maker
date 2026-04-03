@@ -22,12 +22,11 @@ type StepMap = Record<TrackId, number[]>;
 /** Per-track FX + synthesis shape configuration object. */
 type FxConfig = {
   vol: number; pan: number; pitch: number; onPitch: boolean;
-  fType: string; cut: number; res: number;
-  drive: number; onDrive: boolean;
+  fType: string; cut: number; res: number; onFilter: boolean;
+  drive: number; driveMode: string; onDrive: boolean;
   crush: number; cThr: number; cRat: number; onComp: boolean;
   rMix: number; rDecay: number; onReverb: boolean;
   dMix: number; dTime: number; dSync: boolean; dDiv: string; onDelay: boolean;
-  onFilter: boolean;
   sDec: number; sTune: number; sPunch: number; sSnap: number; sBody: number; sTone: number;
   [key: string]: unknown;
 };
@@ -46,7 +45,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.6";
+const APP_VERSION="9.0.7";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -74,9 +73,9 @@ const mkR=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(1)]));
 
 
 const DEFAULT_FX = Object.freeze({
-  pitch:0,fType:"lowpass",cut:20000,res:0,drive:0,crush:0,cThr:-24,cRat:1,
+  pitch:0,fType:"lowpass",cut:5000,res:0,drive:0,driveMode:"tape",crush:0,cThr:-24,cRat:1,
   rMix:0,rDecay:1.5,dMix:0,dTime:0.25,dSync:false,dDiv:"1/4",vol:80,pan:0,
-  onPitch:true,onFilter:true,onDrive:true,onComp:true,onReverb:false,onDelay:false,
+  onPitch:false,onFilter:false,onDrive:false,onComp:true,onReverb:false,onDelay:false,
   // SHAPE — synthesis timbre params (multipliers around 1.0)
   sDec:1.0,  // decay length ×
   sTune:1.0, // body frequency ×
@@ -455,6 +454,13 @@ class Eng{
     const c={};
     c.in=this.ctx.createGain();
     c.tsAtk=this.ctx.createGain();c.tsAtk.gain.value=1;
+    // Per-track drive (WaveShaper) — identity curve = bypass
+    c.drv=this.ctx.createWaveShaper();
+    c.drv.curve=this._buildCurve('tanh',0);
+    c.drv.oversample='2x';
+    // Per-track filter (BiquadFilter) — 20 kHz LP = transparent
+    c.flt=this.ctx.createBiquadFilter();
+    c.flt.type='lowpass';c.flt.frequency.value=20000;c.flt.Q.value=0;
     c.vol=this.ctx.createGain();c.vol.gain.value=0.8;
     c.pan=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
     c.dry=this.ctx.createGain();c.dry.gain.value=1;
@@ -463,7 +469,7 @@ class Eng{
     c.choSend=this.ctx.createGain();c.choSend.gain.value=0;
     c.flaSend=this.ctx.createGain();c.flaSend.gain.value=0;
     c.ppSend=this.ctx.createGain();c.ppSend.gain.value=0;
-    c.in.connect(c.tsAtk);c.tsAtk.connect(c.vol);c.vol.connect(c.pan);
+    c.in.connect(c.tsAtk);c.tsAtk.connect(c.drv);c.drv.connect(c.flt);c.flt.connect(c.vol);c.vol.connect(c.pan);
     c.pan.connect(c.dry);c.dry.connect(this.mg);
     c.pan.connect(c.rvSend);c.rvSend.connect(this.gRvBus);
     c.pan.connect(c.dlSend);c.dlSend.connect(this.gDlBus);
@@ -617,6 +623,25 @@ class Eng{
     if(c.pan?.pan){
       c.pan.pan.cancelScheduledValues(ct);
       c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
+    }
+    // Per-track filter
+    if(c.flt){
+      const fOn=f?.onFilter??false;
+      const fType=fOn?(f?.fType||'lowpass'):'lowpass';
+      const fCut=fOn?Math.max(20,Math.min(20000,f?.cut??5000)):20000;
+      const fQ=fOn?Math.max(0,Math.min(25,f?.res??0)):0;
+      c.flt.type=fType;
+      c.flt.frequency.cancelScheduledValues(ct);
+      c.flt.frequency.setTargetAtTime(fCut,ct,0.01);
+      c.flt.Q.cancelScheduledValues(ct);
+      c.flt.Q.setTargetAtTime(fQ,ct,0.01);
+    }
+    // Per-track drive
+    if(c.drv){
+      const dOn=f?.onDrive??false;
+      const dAmt=dOn?Math.max(0,Math.min(100,f?.drive??0))/100:0;
+      const dMode=f?.driveMode||'tape';
+      c.drv.curve=this._buildCurve(dMode,dAmt);
     }
     // Transient shaper: per-note envelope anchored at the note's scheduled time
     if(c.tsAtk){
@@ -3619,7 +3644,7 @@ export default function KickAndSnare(){
                   {midiLM&&<div style={{position:"absolute",top:32,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
                   {/* ── 🎛 Sample FX — bottom-left ── */}
                   <button
-                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();setPadFxTrack(p=>p===track.id?null:track.id);}}
+                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();const tid=track.id;setTimeout(()=>setPadFxTrack(p=>p===tid?null:tid),60);}}
                     onClick={e=>{e.stopPropagation();setPadFxTrack(p=>p===track.id?null:track.id);}}
                     onPointerDown={e=>e.stopPropagation()}
                     title="Sample FX"
@@ -3662,45 +3687,141 @@ export default function KickAndSnare(){
               </div>
             );})}
           </div>
-          {/* ── Sample FX contextual panel (below grid) ── */}
-          {(()=>{
-            if(!padFxTrack) return null;
+          {/* ── Sample FX bottom sheet ── */}
+          {padFxTrack&&(()=>{
             const tr=atO.find(t=>t.id===padFxTrack);
             if(!tr) return null;
-            const f=fx[tr.id]||{...DEFAULT_FX};
-            const updFx=(key:string,value:number)=>{
+            const f:any={...DEFAULT_FX,...(fx[tr.id]||{})};
+            const updFx=(updates:Record<string,unknown>)=>{
               setFx((prev:any)=>{
-                const base=prev[tr.id]||{...DEFAULT_FX};
-                const extra:any={};
-                if(key==='pitch') extra.onPitch=(value as number)!==0;
-                const nf={...base,...extra,[key]:value};
+                const nf={...DEFAULT_FX,...(prev[tr.id]||{}), ...updates};
                 engine.uFx(tr.id,nf);
                 return{...prev,[tr.id]:nf};
               });
             };
-            const freqLabel=(f:number)=>f>=1000?((f/1000).toFixed(1)+'k'):f.toString();
-            const slRow=(label:string,keyName:string,min:number,max:number,step:number,val:number,color:string,fmt:(v:number)=>string)=>(
-              <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
-                <span style={{fontSize:7,color:th.dim,fontWeight:700,width:34,flexShrink:0,textAlign:"right",letterSpacing:"0.06em"}}>{label}</span>
-                <input type="range" min={min} max={max} step={step} value={val}
-                  onChange={e=>updFx(keyName,Number(e.target.value))}
-                  style={{flex:1,accentColor:color,minWidth:0}}/>
-                <span style={{fontSize:8,fontFamily:"monospace",color:val!=(keyName==='cut'?20000:keyName==='vol'?80:0)?color:th.dim,width:38,flexShrink:0}}>{fmt(val)}</span>
+            const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
+            // Knob: drag vertical to change value
+            const Knob=({label,val,min,max,step=1,color,fmt,onUpdate,logScale=false}:{label:string;val:number;min:number;max:number;step?:number;color:string;fmt:(v:number)=>string;onUpdate:(v:number)=>void;logScale?:boolean})=>{
+              const norm=logScale
+                ?Math.log(Math.max(min,val)/min)/Math.log(max/min)
+                :(val-min)/(max-min);
+              const angle=-135+Math.max(0,Math.min(1,norm))*270;
+              const r=16,cx=22,cy=22;
+              const toXY=(a:number)=>[cx+r*Math.cos((a-90)*Math.PI/180),cy+r*Math.sin((a-90)*Math.PI/180)];
+              const [sx,sy]=toXY(-135);const [ex,ey]=toXY(angle);
+              const largeArc=(angle-(-135))>180?1:0;
+              const handlePD=(e:React.PointerEvent)=>{
+                e.preventDefault();
+                const el=e.currentTarget as HTMLElement;
+                el.setPointerCapture(e.pointerId);
+                let sY=e.clientY,sV=val;
+                const range=max-min;
+                const sensitivity=logScale?(Math.log(max/min)/150):(range/150);
+                const mv=(pe:PointerEvent)=>{
+                  const dy=sY-pe.clientY;
+                  let nv:number;
+                  if(logScale){nv=sV*Math.exp(sensitivity*dy);}
+                  else{nv=sV+dy*sensitivity;}
+                  nv=Math.max(min,Math.min(max,step<1?Math.round(nv/step)*step:Math.round(nv/step)*step));
+                  onUpdate(nv);
+                };
+                const up=()=>{el.removeEventListener("pointermove",mv);};
+                el.addEventListener("pointermove",mv);
+                el.addEventListener("pointerup",up,{once:true});
+                el.addEventListener("pointercancel",up,{once:true});
+              };
+              return(
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,userSelect:"none",WebkitUserSelect:"none"}}>
+                  <svg width={44} height={44} viewBox="0 0 44 44" onPointerDown={handlePD} onDoubleClick={()=>onUpdate(min+(max-min)*0.5)} style={{cursor:"ns-resize",touchAction:"none",display:"block"}}>
+                    <circle cx={22} cy={22} r={16} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3}/>
+                    <path d={`M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`} fill="none" stroke={color} strokeWidth={3} strokeLinecap="round"/>
+                    <circle cx={ex} cy={ey} r={2.5} fill={color}/>
+                  </svg>
+                  <span style={{fontSize:7,color,fontWeight:800,fontFamily:"monospace",lineHeight:1}}>{fmt(val)}</span>
+                  <span style={{fontSize:5.5,color:"rgba(255,255,255,0.3)",letterSpacing:"0.09em",fontWeight:700,textTransform:"uppercase",lineHeight:1}}>{label}</span>
+                </div>
+              );
+            };
+            const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
+              <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s"}}>
+                {label}
+              </button>
+            );
+            const PillGroup=({opts,val,color,onSel}:{opts:{k:string;l:string}[];val:string;color:string;onSel:(k:string)=>void})=>(
+              <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                {opts.map(o=>(
+                  <button key={o.k} onClick={()=>onSel(o.k)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${val===o.k?color+"88":"rgba(255,255,255,0.1)"}`,background:val===o.k?color+"20":"transparent",color:val===o.k?color:"rgba(255,255,255,0.4)",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}>
+                    {o.l}
+                  </button>
+                ))}
               </div>
             );
+            const sec={marginBottom:14,paddingBottom:14,borderBottom:"1px solid rgba(255,255,255,0.06)"};
             return(
-              <div style={{margin:"8px 0 10px",padding:"10px 12px",borderRadius:10,background:th.surface,border:`1px solid ${tr.color}33`}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                  <span style={{fontSize:9,fontWeight:800,color:tr.color,letterSpacing:"0.08em"}}>🎛 SAMPLE FX — {tr.icon} {tr.label}</span>
-                  <button onClick={()=>setPadFxTrack(null)} style={{background:"none",border:"none",color:th.dim,fontSize:16,cursor:"pointer",padding:"0 2px",lineHeight:1}}>×</button>
+              <>
+                {/* Backdrop */}
+                <div onClick={()=>setPadFxTrack(null)} style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.55)"}}/>
+                {/* Sheet */}
+                <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1201,background:"#1c1c1e",borderRadius:"16px 16px 0 0",boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",padding:"0 0 env(safe-area-inset-bottom,16px)",maxHeight:"80vh",overflowY:"auto"}}>
+                  {/* Handle */}
+                  <div style={{display:"flex",justifyContent:"center",paddingTop:8,paddingBottom:4}}>
+                    <div style={{width:36,height:4,borderRadius:2,background:"rgba(255,255,255,0.2)"}}/>
+                  </div>
+                  {/* Header */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 16px 12px"}}>
+                    <span style={{fontSize:11,fontWeight:800,color:tr.color,letterSpacing:"0.08em"}}>🎛 {tr.icon} {tr.label} — SAMPLE FX</span>
+                    <button onClick={()=>setPadFxTrack(null)} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:16,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.6)",fontSize:14,cursor:"pointer",flexShrink:0}}>×</button>
+                  </div>
+                  <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:0}}>
+                    {/* PITCH */}
+                    <div style={sec}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>PITCH</span>
+                        <ToggleBtn on={f.onPitch??false} label={f.onPitch?"ON":"OFF"} color={tr.color} onClick={()=>updFx({onPitch:!(f.onPitch??false)})}/>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"center"}}>
+                        <Knob label="SEMITONES" val={f.pitch??0} min={-12} max={12} step={1} color={f.onPitch?tr.color:"rgba(255,255,255,0.2)"} fmt={v=>(v>0?"+":"")+v+"st"} onUpdate={v=>updFx({pitch:v,onPitch:v!==0})}/>
+                      </div>
+                    </div>
+                    {/* FILTER */}
+                    <div style={sec}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>FILTER</span>
+                        <ToggleBtn on={f.onFilter??false} label={f.onFilter?"ON":"OFF"} color="#64D2FF" onClick={()=>updFx({onFilter:!(f.onFilter??false)})}/>
+                        <div style={{marginLeft:"auto"}}>
+                          <PillGroup val={f.fType||"lowpass"} color="#64D2FF" onSel={k=>updFx({fType:k,onFilter:true})} opts={[{k:"lowpass",l:"LP"},{k:"highpass",l:"HP"},{k:"bandpass",l:"BP"},{k:"notch",l:"NOTCH"}]}/>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-around"}}>
+                        <Knob label="CUTOFF" val={f.cut??5000} min={80} max={20000} step={50} logScale color={f.onFilter?"#64D2FF":"rgba(255,255,255,0.2)"} fmt={v=>freqFmt(v)+"Hz"} onUpdate={v=>updFx({cut:v})}/>
+                        <Knob label="RESONANCE" val={f.res??0} min={0} max={20} step={0.5} color={f.onFilter?"#64D2FF":"rgba(255,255,255,0.2)"} fmt={v=>v.toFixed(1)+"Q"} onUpdate={v=>updFx({res:v})}/>
+                      </div>
+                    </div>
+                    {/* DRIVE */}
+                    <div style={sec}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DRIVE</span>
+                        <ToggleBtn on={f.onDrive??false} label={f.onDrive?"ON":"OFF"} color="#FF9500" onClick={()=>updFx({onDrive:!(f.onDrive??false)})}/>
+                        <div style={{marginLeft:"auto"}}>
+                          <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"center"}}>
+                        <Knob label="AMOUNT" val={f.drive??0} min={0} max={100} step={1} color={f.onDrive?"#FF9500":"rgba(255,255,255,0.2)"} fmt={v=>v+"%"} onUpdate={v=>updFx({drive:v})}/>
+                      </div>
+                    </div>
+                    {/* VOL */}
+                    <div style={{marginBottom:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                        <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>VOLUME</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"center"}}>
+                        <Knob label="VOL" val={f.vol??80} min={0} max={100} step={1} color="#8E8E93" fmt={v=>v+"%"} onUpdate={v=>updFx({vol:v})}/>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                  {slRow("PITCH","pitch",-12,12,1,f.pitch??0,tr.color,(v)=>(v>0?"+":"")+v+"st")}
-                  {slRow("FILTER","cut",80,20000,100,f.cut??20000,"#64D2FF",(v)=>freqLabel(v)+"Hz")}
-                  {slRow("DRIVE","drive",0,100,1,f.drive??0,"#FF9500",(v)=>v+"%")}
-                  {slRow("VOL","vol",0,100,1,f.vol??80,"#8E8E93",(v)=>v+"%")}
-                </div>
-              </div>
+              </>
             );
           })()}
           <div style={{marginTop:10}}>
