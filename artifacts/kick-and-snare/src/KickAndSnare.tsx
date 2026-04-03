@@ -1996,7 +1996,6 @@ export default function KickAndSnare(){
 
   const nxtRef=useRef(0);const schRef=useRef(null);
   const schSt=useCallback((sn,time)=>{
-    const ct=engine.ctx?.currentTime||0;
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
     const prob=R.prob,ratch=R.ratch,cs=R.sig;
     const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
@@ -2007,7 +2006,7 @@ export default function KickAndSnare(){
         const v=(vel[tr.id]?.[psn]??100)/100;
         const r=ratch[tr.id]?.[psn]||1;
         for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[psn]||0):0),f[tr.id]||{...DEFAULT_FX},ptime+ri*(bd/r));
-        R.flashPad?.(tr.id,Math.max(0,Math.round((ptime-ct)*1000)-4));
+        if(R.flashPad){const _now=engine.ctx?.currentTime??ptime;R.flashPad(tr.id,Math.max(0,Math.round((ptime-_now)*1000)-4));}
       }
     };
     (R.allT||ALL_TRACKS).forEach(tr=>{
