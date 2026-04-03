@@ -8,7 +8,6 @@ import TrackRow from "./components/TrackRow.jsx";
 import LooperPanel from "./components/LooperPanel.jsx";
 import TutorialOverlay from "./components/TutorialOverlay.tsx";
 import SampleLoaderModal from "./components/SampleLoaderModal.tsx";
-import QuickSampleFx from "./components/QuickSampleFx.tsx";
 import { useAppState } from "./hooks/useAppState.js";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
@@ -47,7 +46,7 @@ const TIME_SIGS=[
   {label:"7/8",beats:3,steps:14,groups:[4,4,6],groupOptions:[[4,4,6,"2+2+3"],[6,4,4,"3+2+2"],[4,6,4,"2+3+2"]],accents:[0],stepDiv:4,subDiv:2},
 ];
 
-const APP_VERSION="9.0.4";
+const APP_VERSION="9.0.5";
 
 const ALL_TRACKS=[
   {id:"kick",label:"KICK",color:"#FF2D55",icon:"◆"},
@@ -1577,11 +1576,10 @@ export default function KickAndSnare(){
   const [swipeToast,setSwipeToast]=useState<string|null>(null);
   const [masterVol,setMasterVol]=useState(()=>appState.state.masterVol??80);
   const [patNameEdit,setPatNameEdit]=useState<number|null>(null);
-  // ── Sample modal + Quick FX ──
+  // ── Sample modal + pad FX ──
   const [sampleModalOpen,setSampleModalOpen]=useState(false);
   const [sampleModalTrack,setSampleModalTrack]=useState('');
-  const [showQuickFx,setShowQuickFx]=useState(false);
-  const [pickTrackFor,setPickTrackFor]=useState<'sample'|null>(null);
+  const [padFxTrack,setPadFxTrack]=useState<string|null>(null);
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
   const [recCountdown,setRecCountdown]=useState(false);
@@ -3027,7 +3025,7 @@ export default function KickAndSnare(){
         onClose={()=>setSampleModalOpen(false)}
         onFileLocal={ldFileLocal}
         onBufferLoaded={onSampleBuffer}
-        audioCtx={engine.ctx}
+        initAudioCtx={()=>{engine.init();return engine.ctx;}}
         th={th}
       />
       {/* keyframes migrated to src/styles/animations.css (imported in App.tsx at CP-F) */}
@@ -3461,31 +3459,6 @@ export default function KickAndSnare(){
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record a loop" color="#5E5CE6"/>
-          {/* ── Sample tools bar ── */}
-          <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
-            <button
-              onClick={()=>setPickTrackFor(p=>p==='sample'?null:'sample')}
-              style={{padding:"5px 12px",borderRadius:7,border:`1px solid ${pickTrackFor==='sample'?"rgba(255,149,0,0.5)":"rgba(255,149,0,0.2)"}`,background:pickTrackFor==='sample'?"rgba(255,149,0,0.12)":"rgba(255,149,0,0.04)",color:"#FF9500",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}
-            >♪ LOAD SAMPLE</button>
-            <button
-              onClick={()=>setShowQuickFx(p=>!p)}
-              style={{padding:"5px 12px",borderRadius:7,border:`1px solid ${showQuickFx?"rgba(191,90,242,0.5)":"rgba(191,90,242,0.2)"}`,background:showQuickFx?"rgba(191,90,242,0.12)":"rgba(191,90,242,0.04)",color:"#BF5AF2",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em"}}
-            >🎛 SAMPLE FX</button>
-          </div>
-          {/* Track picker for sample load */}
-          {pickTrackFor==='sample'&&(
-            <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8,padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`}}>
-              <span style={{fontSize:8,color:th.dim,width:"100%",letterSpacing:"0.08em"}}>CHARGER SAMPLE POUR :</span>
-              {atO.map(t=>(
-                <button key={t.id} onClick={()=>{setPickTrackFor(null);ldFile(t.id);}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                  {t.icon} {t.label}
-                </button>
-              ))}
-              <button onClick={()=>setPickTrackFor(null)} style={{marginLeft:"auto",padding:"4px 8px",border:"none",borderRadius:4,background:"rgba(255,55,95,0.1)",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>✕</button>
-            </div>
-          )}
-          {/* Quick Sample FX panel */}
-          {showQuickFx&&<QuickSampleFx tracks={atO} fx={fx} setFx={setFx} engine={engine} th={th} DEFAULT_FX={DEFAULT_FX}/>}
           {/* ── Looper banner (foldable) ── */}
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
             {/* Header band — div (not button) so we can embed CAPTURE button without invalid nesting */}
@@ -3617,7 +3590,23 @@ export default function KickAndSnare(){
                       style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
                     >×</button>
                   )}
-                  {midiLM&&<div style={{position:"absolute",top:6,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
+                  {/* ── ♪ Load sample — top-right ── */}
+                  <button
+                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();ldFile(track.id);}}
+                    onClick={e=>{e.stopPropagation();ldFile(track.id);}}
+                    onPointerDown={e=>e.stopPropagation()}
+                    title="Load sample"
+                    style={{position:"absolute",top:6,right:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,149,0,0.4)",background:"rgba(255,149,0,0.12)",color:"rgba(255,149,0,0.85)",fontSize:10,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
+                  >♪</button>
+                  {midiLM&&<div style={{position:"absolute",top:32,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
+                  {/* ── 🎛 Sample FX — bottom-left ── */}
+                  <button
+                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();setPadFxTrack(p=>p===track.id?null:track.id);}}
+                    onClick={e=>{e.stopPropagation();setPadFxTrack(p=>p===track.id?null:track.id);}}
+                    onPointerDown={e=>e.stopPropagation()}
+                    title="Sample FX"
+                    style={{position:"absolute",bottom:6,left:6,width:22,height:22,borderRadius:6,border:`1px solid ${padFxTrack===track.id?"rgba(191,90,242,0.6)":"rgba(191,90,242,0.3)"}`,background:padFxTrack===track.id?"rgba(191,90,242,0.25)":"rgba(191,90,242,0.08)",color:`rgba(191,90,242,${padFxTrack===track.id?"1":"0.7"})`,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
+                  >🎛</button>
                   {/* ── VOL knob — bottom-right, frère du button → stopPropagation empêche tout conflit touch ── */}
                   <div
                     style={{position:"absolute",bottom:6,right:6,zIndex:2,display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"rgba(0,0,0,0.4)",borderRadius:7,padding:"3px 5px",backdropFilter:"blur(4px)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",cursor:"ns-resize"}}
@@ -3655,6 +3644,47 @@ export default function KickAndSnare(){
               </div>
             );})}
           </div>
+          {/* ── Sample FX contextual panel (below grid) ── */}
+          {(()=>{
+            if(!padFxTrack) return null;
+            const tr=atO.find(t=>t.id===padFxTrack);
+            if(!tr) return null;
+            const f=fx[tr.id]||{...DEFAULT_FX};
+            const updFx=(key:string,value:number)=>{
+              setFx((prev:any)=>{
+                const base=prev[tr.id]||{...DEFAULT_FX};
+                const extra:any={};
+                if(key==='pitch') extra.onPitch=(value as number)!==0;
+                const nf={...base,...extra,[key]:value};
+                engine.uFx(tr.id,nf);
+                return{...prev,[tr.id]:nf};
+              });
+            };
+            const freqLabel=(f:number)=>f>=1000?((f/1000).toFixed(1)+'k'):f.toString();
+            const slRow=(label:string,keyName:string,min:number,max:number,step:number,val:number,color:string,fmt:(v:number)=>string)=>(
+              <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+                <span style={{fontSize:7,color:th.dim,fontWeight:700,width:34,flexShrink:0,textAlign:"right",letterSpacing:"0.06em"}}>{label}</span>
+                <input type="range" min={min} max={max} step={step} value={val}
+                  onChange={e=>updFx(keyName,Number(e.target.value))}
+                  style={{flex:1,accentColor:color,minWidth:0}}/>
+                <span style={{fontSize:8,fontFamily:"monospace",color:val!=(keyName==='cut'?20000:keyName==='vol'?80:0)?color:th.dim,width:38,flexShrink:0}}>{fmt(val)}</span>
+              </div>
+            );
+            return(
+              <div style={{margin:"8px 0 10px",padding:"10px 12px",borderRadius:10,background:th.surface,border:`1px solid ${tr.color}33`}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                  <span style={{fontSize:9,fontWeight:800,color:tr.color,letterSpacing:"0.08em"}}>🎛 SAMPLE FX — {tr.icon} {tr.label}</span>
+                  <button onClick={()=>setPadFxTrack(null)} style={{background:"none",border:"none",color:th.dim,fontSize:16,cursor:"pointer",padding:"0 2px",lineHeight:1}}>×</button>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                  {slRow("PITCH","pitch",-12,12,1,f.pitch??0,tr.color,(v)=>(v>0?"+":"")+v+"st")}
+                  {slRow("FILTER","cut",80,20000,100,f.cut??20000,"#64D2FF",(v)=>freqLabel(v)+"Hz")}
+                  {slRow("DRIVE","drive",0,100,1,f.drive??0,"#FF9500",(v)=>v+"%")}
+                  {slRow("VOL","vol",0,100,1,f.vol??80,"#8E8E93",(v)=>v+"%")}
+                </div>
+              </div>
+            );
+          })()}
           <div style={{marginTop:10}}>
             {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>

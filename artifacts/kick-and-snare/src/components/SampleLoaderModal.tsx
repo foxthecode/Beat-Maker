@@ -8,7 +8,8 @@ interface SampleLoaderModalProps {
   onClose: () => void;
   onFileLocal: (trackId: string) => void;
   onBufferLoaded: (trackId: string, buffer: AudioBuffer, name: string) => void;
-  audioCtx: AudioContext | null;
+  // Function that ensures AudioContext is initialized and returns it
+  initAudioCtx: () => AudioContext | null;
   th: any;
 }
 
@@ -16,7 +17,7 @@ type Step = 'choice' | 'recording' | 'trim';
 
 export default function SampleLoaderModal({
   open, trackId, trackLabel, trackColor,
-  onClose, onFileLocal, onBufferLoaded, audioCtx, th,
+  onClose, onFileLocal, onBufferLoaded, initAudioCtx, th,
 }: SampleLoaderModalProps) {
   const [step, setStep] = useState<Step>('choice');
   const [isRecording, setIsRecording] = useState(false);
@@ -25,6 +26,7 @@ export default function SampleLoaderModal({
   const [startPct, setStartPct] = useState(0);
   const [endPct, setEndPct] = useState(1);
   const [previewNode, setPreviewNode] = useState<AudioBufferSourceNode | null>(null);
+  const [recError, setRecError] = useState<string | null>(null);
 
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -34,7 +36,6 @@ export default function SampleLoaderModal({
   const startPctRef = useRef(0);
   const endPctRef = useRef(1);
 
-  // Keep refs in sync for closure-safe access in handle drag
   startPctRef.current = startPct;
   endPctRef.current = endPct;
 
@@ -42,16 +43,14 @@ export default function SampleLoaderModal({
     if (previewNode) { try { previewNode.stop(); } catch {} setPreviewNode(null); }
   };
 
-  // Reset on open/close
   useEffect(() => {
     if (open) {
       setStep('choice'); setIsRecording(false); setRecSeconds(0);
-      setBuffer(null); setStartPct(0); setEndPct(1);
+      setBuffer(null); setStartPct(0); setEndPct(1); setRecError(null);
     }
     return () => { stopPreviewNode(); };
   }, [open]);
 
-  // Draw waveform when buffer or handles change
   useEffect(() => {
     if (buffer) drawWaveform(buffer, startPct, endPct);
   }, [buffer, startPct, endPct]);
@@ -62,49 +61,39 @@ export default function SampleLoaderModal({
     const ctx2d = canvas.getContext('2d')!;
     const W = canvas.width, H = canvas.height;
     ctx2d.clearRect(0, 0, W, H);
-
     const data = buf.getChannelData(0);
-    const step = Math.max(1, Math.ceil(data.length / W));
 
     ctx2d.fillStyle = 'rgba(0,0,0,0.6)';
     ctx2d.fillRect(0, 0, W, H);
-
-    // Highlighted selection
     ctx2d.fillStyle = trackColor + '22';
     ctx2d.fillRect(W * sPct, 0, W * (ePct - sPct), H);
 
-    // Waveform
     ctx2d.beginPath();
     ctx2d.strokeStyle = trackColor;
     ctx2d.lineWidth = 1;
     for (let x = 0; x < W; x++) {
       const base = Math.floor((x / W) * data.length);
+      const step = Math.max(1, Math.ceil(data.length / W));
       let min = 1, max = -1;
       for (let j = 0; j < step && base + j < data.length; j++) {
         const v = data[base + j];
         if (v < min) min = v;
         if (v > max) max = v;
       }
-      const yMax = ((1 - max) / 2) * H;
-      const yMin = ((1 - min) / 2) * H;
-      ctx2d.moveTo(x + 0.5, yMax);
-      ctx2d.lineTo(x + 0.5, yMin);
+      ctx2d.moveTo(x + 0.5, ((1 - max) / 2) * H);
+      ctx2d.lineTo(x + 0.5, ((1 - min) / 2) * H);
     }
     ctx2d.stroke();
 
-    // Start handle (green)
     ctx2d.fillStyle = '#30D158';
     ctx2d.fillRect(W * sPct - 2, 0, 4, H);
-    ctx2d.fillStyle = '#30D15888';
-    ctx2d.fillRect(W * sPct, 0, W * (ePct - sPct) * 0.02, H);
-
-    // End handle (red)
     ctx2d.fillStyle = '#FF2D55';
     ctx2d.fillRect(W * ePct - 2, 0, 4, H);
   };
 
   const startRecording = async () => {
-    if (!audioCtx) return;
+    setRecError(null);
+    // MediaRecorder doesn't need AudioContext — recording works independently
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
@@ -119,16 +108,23 @@ export default function SampleLoaderModal({
       recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
+        if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         try {
+          // Ensure AudioContext is initialized before decoding
+          const ctx = initAudioCtx();
+          if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
+          // Resume if suspended (browser policy)
+          if (ctx.state === 'suspended') await ctx.resume();
           const ab = await blob.arrayBuffer();
-          const decoded = await audioCtx.decodeAudioData(ab);
+          const decoded = await ctx.decodeAudioData(ab);
           setBuffer(decoded);
           setStartPct(0);
           setEndPct(1);
           setStep('trim');
         } catch (e) {
           console.error('[SampleLoaderModal] decodeAudioData failed', e);
+          setRecError('Décodage audio échoué. Essayez un autre navigateur.');
         }
       };
 
@@ -137,14 +133,17 @@ export default function SampleLoaderModal({
       setIsRecording(true);
       setRecSeconds(0);
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SampleLoaderModal] getUserMedia failed', e);
+      if (e?.name === 'NotAllowedError') setRecError('Accès au micro refusé. Autorisez Chrome dans les paramètres.');
+      else if (e?.name === 'NotFoundError') setRecError('Aucun micro détecté.');
+      else setRecError('Micro non accessible : ' + (e?.message || e));
     }
   };
 
   const stopRecording = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    recRef.current?.stop();
+    if (recRef.current?.state === 'recording') recRef.current.stop();
     setIsRecording(false);
   };
 
@@ -162,21 +161,24 @@ export default function SampleLoaderModal({
   };
 
   const preview = () => {
-    if (!buffer || !audioCtx) return;
+    const ctx = initAudioCtx();
+    if (!buffer || !ctx) return;
     stopPreviewNode();
-    const trimmed = trimBuffer(buffer, startPct, endPct, audioCtx);
-    const src = audioCtx.createBufferSource();
+    const trimmed = trimBuffer(buffer, startPct, endPct, ctx);
+    const src = ctx.createBufferSource();
     src.buffer = trimmed;
-    src.connect(audioCtx.destination);
+    src.connect(ctx.destination);
+    if (ctx.state === 'suspended') ctx.resume();
     src.start();
     src.onended = () => setPreviewNode(null);
     setPreviewNode(src);
   };
 
   const validate = () => {
-    if (!buffer || !audioCtx) return;
+    const ctx = initAudioCtx();
+    if (!buffer || !ctx) return;
     stopPreviewNode();
-    const trimmed = trimBuffer(buffer, startPct, endPct, audioCtx);
+    const trimmed = trimBuffer(buffer, startPct, endPct, ctx);
     onBufferLoaded(trackId, trimmed, `Rec: ${trackLabel}`);
   };
 
@@ -185,20 +187,13 @@ export default function SampleLoaderModal({
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     let rafId: number;
-    let pendingX = handle === 'start' ? startPctRef.current : endPctRef.current;
 
     const onMove = (ev: PointerEvent) => {
       const x = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-      pendingX = x;
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        if (handle === 'start') {
-          const clamped = Math.min(pendingX, endPctRef.current - 0.02);
-          setStartPct(clamped);
-        } else {
-          const clamped = Math.max(pendingX, startPctRef.current + 0.02);
-          setEndPct(clamped);
-        }
+        if (handle === 'start') setStartPct(Math.min(x, endPctRef.current - 0.02));
+        else setEndPct(Math.max(x, startPctRef.current + 0.02));
       });
     };
     const onUp = () => {
@@ -248,6 +243,13 @@ export default function SampleLoaderModal({
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: dim, fontSize: 20, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>✕</button>
         </div>
 
+        {/* Error banner */}
+        {recError && (
+          <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,45,85,0.12)', border: '1px solid rgba(255,45,85,0.3)', color: '#FF2D55', fontSize: 10 }}>
+            ⚠ {recError}
+          </div>
+        )}
+
         {/* ── CHOICE ── */}
         {step === 'choice' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -259,9 +261,8 @@ export default function SampleLoaderModal({
               <div style={{ fontSize: 9, color: dim }}>MP3, WAV, OGG, FLAC, M4A</div>
             </button>
             <button
-              onClick={() => setStep('recording')}
-              disabled={!audioCtx}
-              style={{ background: surface, border: `1px solid rgba(255,45,85,0.25)`, borderRadius: 10, padding: '14px 16px', cursor: audioCtx ? 'pointer' : 'not-allowed', fontFamily: 'inherit', textAlign: 'left', color: audioCtx ? '#FF2D55' : dim, opacity: audioCtx ? 1 : 0.5 }}
+              onClick={() => { setRecError(null); setStep('recording'); }}
+              style={{ background: surface, border: `1px solid rgba(255,45,85,0.25)`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: '#FF2D55' }}
             >
               <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>🎤 Enregistrer avec le micro</div>
               <div style={{ fontSize: 9, color: dim }}>Battements, voix, percussions live · Trimming waveform inclus</div>
@@ -272,23 +273,28 @@ export default function SampleLoaderModal({
         {/* ── RECORDING ── */}
         {step === 'recording' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: '8px 0' }}>
-            {/* Timer */}
-            <div style={{ fontSize: 40, fontWeight: 900, fontFamily: 'monospace', color: isRecording ? '#FF2D55' : dim, letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: 40, fontWeight: 900, fontFamily: 'monospace', color: isRecording ? '#FF2D55' : dim }}>
               {fmt(recSeconds)}
             </div>
-            {/* VU indicator */}
-            <div style={{ display: 'flex', gap: 3, alignItems: 'center', height: 16 }}>
+            <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 18 }}>
               {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} style={{ width: 6, height: 6 + i * 1.5, borderRadius: 2, background: isRecording ? (i < 5 ? '#30D158' : i < 7 ? '#FF9500' : '#FF2D55') : 'rgba(255,255,255,0.1)', transition: 'background 0.3s' }} />
+                <div key={i} style={{ width: 5, height: 4 + i * 1.8, borderRadius: 2, background: isRecording ? (i < 5 ? '#30D158' : i < 7 ? '#FF9500' : '#FF2D55') : 'rgba(255,255,255,0.1)', transition: 'background 0.3s' }} />
               ))}
             </div>
             <div style={{ fontSize: 9, letterSpacing: '0.15em', color: isRecording ? '#FF2D55' : dim }}>
               {isRecording ? '● EN COURS' : 'PRÊT À ENREGISTRER'}
             </div>
             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-              {!isRecording && <button onClick={startRecording} style={{ ...btn('#FF2D55', true), flex: 1 }}>● REC</button>}
-              {isRecording && <button onClick={stopRecording} style={{ ...btn('#FF9500', true), flex: 1 }}>■ STOP</button>}
-              <button onClick={() => { if (isRecording) stopRecording(); setStep('choice'); }} style={{ ...btn('#888', false, true), flexShrink: 0 }}>↩ Retour</button>
+              {!isRecording && (
+                <button onClick={startRecording} style={{ ...btn('#FF2D55', true), flex: 1 }}>● REC</button>
+              )}
+              {isRecording && (
+                <button onClick={stopRecording} style={{ ...btn('#FF9500', true), flex: 1 }}>■ STOP</button>
+              )}
+              <button
+                onClick={() => { if (isRecording) stopRecording(); setStep('choice'); }}
+                style={{ ...btn('#888', false, true), flexShrink: 0 }}
+              >↩</button>
             </div>
           </div>
         )}
@@ -296,18 +302,11 @@ export default function SampleLoaderModal({
         {/* ── TRIM ── */}
         {step === 'trim' && buffer && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 9, color: dim, marginBottom: 2 }}>
-              Durée totale : {buffer.duration.toFixed(2)}s · {buffer.sampleRate}Hz — Drag les curseurs vert/rouge pour trimmer
+            <div style={{ fontSize: 9, color: dim }}>
+              {buffer.duration.toFixed(2)}s · {buffer.sampleRate}Hz — Drag les curseurs vert/rouge pour trimmer
             </div>
-            {/* Waveform + drag handles */}
             <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden' }}>
-              <canvas
-                ref={canvasRef}
-                width={440}
-                height={90}
-                style={{ width: '100%', height: 90, display: 'block' }}
-              />
-              {/* Invisible drag zones over handles */}
+              <canvas ref={canvasRef} width={440} height={90} style={{ width: '100%', height: 90, display: 'block' }} />
               <div
                 onPointerDown={e => onHandleDown(e, 'start')}
                 style={{ position: 'absolute', top: 0, bottom: 0, left: `calc(${startPct * 100}% - 12px)`, width: 24, cursor: 'ew-resize', zIndex: 3, touchAction: 'none' }}
@@ -317,13 +316,11 @@ export default function SampleLoaderModal({
                 style={{ position: 'absolute', top: 0, bottom: 0, left: `calc(${endPct * 100}% - 12px)`, width: 24, cursor: 'ew-resize', zIndex: 3, touchAction: 'none' }}
               />
             </div>
-            {/* Selection info */}
             <div style={{ fontSize: 9, color: dim, fontFamily: 'monospace', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#30D158' }}>▶ {(buffer.duration * startPct).toFixed(2)}s</span>
-              <span>durée sélectionnée : {(buffer.duration * (endPct - startPct)).toFixed(2)}s</span>
+              <span>{(buffer.duration * (endPct - startPct)).toFixed(2)}s sélectionnés</span>
               <span style={{ color: '#FF2D55' }}>{(buffer.duration * endPct).toFixed(2)}s ◀</span>
             </div>
-            {/* Action buttons */}
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
               <button onClick={preview} style={{ ...btn('#64D2FF', !!previewNode), flex: 1 }}>
                 {previewNode ? '◼ Stop' : '▶ Preview'}
