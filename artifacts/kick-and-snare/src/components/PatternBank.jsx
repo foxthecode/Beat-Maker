@@ -283,7 +283,7 @@ export default function PatternBank({
             const isCur = cPat === i;
             const isEditing = patNameEdit === i;
             return (
-              <div key={i} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div key={i} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                 {isEditing ? (
                   <input
                     autoFocus
@@ -313,9 +313,36 @@ export default function PatternBank({
                     onTouchCancel={cancelLongPress}
                     title={pat._name || `Pattern ${i + 1}` + " (long-press to rename)"}
                     style={{ width: isPortrait ? "100%" : 36, height: 24, borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: pat._name ? 7 : 10, fontWeight: 800, border: `1px solid ${isCur ? col + "66" : th.sBorder}`, background: isCur ? col + "20" : "transparent", color: isCur ? col : th.dim, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", padding: "0 2px" }}>
-                    {pat._name || (i + 1)}
+                    {i + 1}
                   </button>
                 )}
+                {/* ── Mini step-grid preview ── */}
+                {(() => {
+                  const ks = pat.kick || [];
+                  const ss = pat.snare || pat.clap || [];
+                  const hs = pat.hihat || [];
+                  const n = Math.max(ks.length, ss.length, hs.length, 16);
+                  const hasHits = ks.some(v => v > 0) || ss.some(v => v > 0) || hs.some(v => v > 0);
+                  if (!hasHits) return null;
+                  const w = isPortrait ? "100%" : 36;
+                  return (
+                    <div style={{ width: w, overflow: "hidden", display: "flex", flexDirection: "column", gap: 1 }}>
+                      {[{ steps: ks, opacity: 1 }, { steps: ss, opacity: 0.65 }, { steps: hs, opacity: 0.35 }]
+                        .filter(({ steps }) => steps.some(v => v > 0))
+                        .map(({ steps, opacity }, ri) => (
+                          <div key={ri} style={{ display: "flex", gap: 0.5 }}>
+                            {Array(n).fill(0).map((_, si) => (
+                              <div key={si} style={{
+                                flex: 1, height: ri === 0 ? 3 : 2, borderRadius: 0.5,
+                                background: steps[si] > 0 ? col : "rgba(255,255,255,0.07)",
+                                opacity: steps[si] > 0 ? opacity : 1,
+                              }} />
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
@@ -329,8 +356,8 @@ export default function PatternBank({
         </div>
       </div>
 
-      {/* ── Song Arranger — sequencer only ── */}
-      {!isEuclid && (
+      {/* ── Song Arranger — sequencer + euclid ── */}
+      {(
         <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${showSong ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
             <div data-hint="Song Arranger · Chain patterns to build a song · Enable SONG mode to play the chain in order" onClick={() => setShowSong(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>

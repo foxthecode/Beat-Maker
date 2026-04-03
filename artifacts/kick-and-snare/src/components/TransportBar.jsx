@@ -16,6 +16,8 @@ export default function TransportBar({
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
   exportState, exportBars, setExportBars, onExport,
+  loopRec, loopPlaying, loopEventsCount, toggleLoopRec, toggleLoopPlay,
+  loopMetro, setLoopMetro, recCountdown, showLooper,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
@@ -118,22 +120,63 @@ export default function TransportBar({
     </div>
   );
 
-  const RecBtn = (
+  const RecBtn = view !== "euclid" && (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         data-hint={rec ? "REC actif · Frappe les pads ou le clavier pour enregistrer en live · Raccourci : Alt" : "REC · Active l'enregistrement live · Lance la lecture d'abord · Raccourci : Alt"}
         onClick={() => onRecClick ? onRecClick() : (playing && setRec(!rec))}
         style={{
-          width: 32, height: 32, borderRadius: "50%",
-          border: rec ? "2px solid #FF2D55" : `2px solid ${th.sBorder}`,
-          background: rec ? "rgba(255,45,85,0.2)" : "transparent",
-          color: rec ? "#FF2D55" : th.dim,
-          fontSize: 11, cursor: "pointer",
+          width: 44, height: 44, borderRadius: "50%",
+          border: rec ? "2px solid #FF2D55" : `2px solid rgba(255,45,85,0.3)`,
+          background: rec ? "rgba(255,45,85,0.25)" : "rgba(255,45,85,0.06)",
+          color: rec ? "#FF2D55" : "rgba(255,45,85,0.45)",
+          fontSize: 16, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          opacity: 1,
           animation: rec ? "rb 0.8s infinite" : "none",
+          transition: "all 0.15s",
         }}>●</button>
       <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__rec__" /></div>
+    </div>
+  );
+
+  const hasLoopEvents = (loopEventsCount ?? 0) > 0;
+  const isOverdubbing = loopPlaying && loopRec && hasLoopEvents;
+  const LooperControls = view === "pads" && (showLooper || loopPlaying || loopRec || hasLoopEvents) && (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(191,90,242,0.35)", background: "rgba(191,90,242,0.05)", flexShrink: 0 }}>
+      <span style={{ fontSize: 8, fontWeight: 900, color: "#BF5AF2", letterSpacing: "0.1em", flexShrink: 0 }}>LOOPER</span>
+      {/* Play / Stop */}
+      <button
+        onClick={toggleLoopPlay}
+        style={{ width: 44, height: 44, borderRadius: "50%", border: "none",
+          background: loopPlaying ? "linear-gradient(135deg,#FF2D55,#FF375F)" : "linear-gradient(135deg,#30D158,#34C759)",
+          color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: loopPlaying ? "0 0 20px rgba(255,45,85,0.4)" : "0 0 20px rgba(48,209,88,0.4)", transition: "all 0.15s",
+        }}
+      >{loopPlaying ? "■" : "▶"}</button>
+      {/* REC / Overdub */}
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {isOverdubbing && (
+          <span style={{ position: "absolute", top: -13, left: "50%", transform: "translateX(-50%)", fontSize: 6, fontWeight: 800, color: "#5E5CE6", whiteSpace: "nowrap", letterSpacing: "0.05em", animation: "rb 0.8s infinite" }}>OVERDUB</span>
+        )}
+        <button
+          onClick={toggleLoopRec}
+          style={{ width: 44, height: 44, borderRadius: "50%",
+            border: `2px solid ${hasLoopEvents ? "#5E5CE6" : loopRec ? "#FF2D55" : "rgba(255,45,85,0.3)"}`,
+            background: hasLoopEvents ? "rgba(94,92,230,0.15)" : loopRec ? "rgba(255,45,85,0.25)" : "rgba(255,45,85,0.06)",
+            color: hasLoopEvents ? "#5E5CE6" : loopRec ? "#FF2D55" : "rgba(255,45,85,0.45)",
+            fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            animation: loopRec ? "rb 0.8s infinite" : "none", transition: "all 0.15s",
+          }}
+        >●</button>
+      </div>
+      {/* Countdown toggle */}
+      {setLoopMetro && (
+        <button
+          onClick={() => setLoopMetro(p => !p)}
+          title="Countdown 1 bar before recording"
+          style={{ ...pill(loopMetro, "#FF9500"), fontSize: 8, padding: "4px 8px", flexShrink: 0 }}
+        >{recCountdown ? "⏱…" : loopMetro ? "CD ON" : "CD"}</button>
+      )}
     </div>
   );
 
@@ -264,6 +307,7 @@ export default function TransportBar({
           {!isPads && RecBtn}
           {BpmCtrl}
         </div>
+        {isPads && LooperControls && <div style={{ ...rowStyle }}>{LooperControls}</div>}
         <div style={{ ...rowStyle }}>
           {TapBtn}
           {VolKnob}
@@ -286,6 +330,7 @@ export default function TransportBar({
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}`, flexWrap: "wrap" }}>
       {!isPads && PlayBtn}
       {!isPads && RecBtn}
+      {isPads && LooperControls}
       {BpmCtrl}
       {TapBtn}
       {VolKnob}

@@ -2791,7 +2791,7 @@ export default function KickAndSnare(){
     let axis=null;let moved=false;let longPressed=false;let toggledEarly=false;
     didDragRef.current=false;
     // Immediate toggle for inactive steps (pointer events guarantee no double-fire)
-    if(!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});toggledEarly=true;}
+    if(!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});setStNudge(p=>{const n={...p};const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(0);a[step]=0;n[tid]=a;return n;});setStVel(p=>{const n={...p};const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(100);a[step]=100;n[tid]=a;return n;});toggledEarly=true;}
     else setDragInfo({tid,step,axis:null});
     const mv=(ev:PointerEvent)=>{
       if(!ac||longPressed)return;
@@ -3146,7 +3146,37 @@ export default function KickAndSnare(){
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
+          loopRec={loopRec} loopPlaying={loopPlaying} loopEventsCount={loopDisp.length}
+          toggleLoopRec={toggleLoopRec} toggleLoopPlay={loopPlaying?stopLooper:()=>startLooper(false)}
+          loopMetro={loopMetro} setLoopMetro={setLoopMetro}
+          recCountdown={recCountdown} showLooper={showLooper}
         />
+        {/* ── Mini pads REC — apparaissent sous la transport en mode REC (séquenceur uniquement) ── */}
+        {view==="sequencer"&&rec&&(
+          <div style={{marginBottom:10,padding:"8px 12px",borderRadius:10,background:th.surface,border:"1px solid rgba(255,45,85,0.25)"}}>
+            <div style={{fontSize:8,color:"#FF2D55",fontWeight:800,letterSpacing:"0.1em",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+              <span style={{animation:"rb 0.8s infinite"}}>●</span> REC — Tap pads to record
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:8}}>
+              {atO.map(track=>(
+                <button key={track.id}
+                  onTouchStart={e=>{e.preventDefault();trigPad(track.id,110/127);}}
+                  onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();trigPad(track.id,1);}}
+                  style={{aspectRatio:"1",borderRadius:10,background:flashing.has(track.id)?track.color+"44":`${track.color}12`,
+                    border:`2px solid ${flashing.has(track.id)?track.color:track.color+"33"}`,
+                    color:track.color,cursor:"pointer",fontFamily:"inherit",
+                    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
+                    touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",
+                    boxShadow:flashing.has(track.id)?`0 0 20px ${track.color}55`:"none",
+                    transition:"all 0.06s"}}
+                >
+                  <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={22}/>
+                  <span style={{fontSize:9,fontWeight:700}}>{track.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Time Signature ── */}
         {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>

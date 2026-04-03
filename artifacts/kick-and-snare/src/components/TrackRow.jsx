@@ -215,7 +215,7 @@ function TrackRow({
                   position: "relative", overflow: "hidden",
                   scrollSnapAlign: "start",
                   marginLeft: gi.first && step > 0 ? 6 : 2, touchAction: "none", userSelect: "none", WebkitTouchCallout: "none",
-                  background: isCur && gi.first ? "rgba(255,149,0,0.45)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,
+                  background: isCur && gi.first ? "rgba(55,55,65,0.72)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,
                   boxShadow: ac && isCur ? `0 0 18px ${track.color},0 0 40px ${track.color}66,inset 0 0 8px ${track.color}44` : "none",
                   transform: isDrag ? "scale(1.15)" : "scale(1)",
                   transition: isDrag ? "none" : "all 0.08s",
