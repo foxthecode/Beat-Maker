@@ -129,7 +129,7 @@ export default function SampleLoaderModal({
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
     } catch (e: any) {
       console.error('[SampleLoaderModal] getUserMedia failed', e);
-      if (e?.name === 'NotAllowedError') setRecError('Accès au micro refusé. Autorisez Chrome dans les paramètres.');
+      if (e?.name === 'NotAllowedError') setRecError('Micro refusé. Clique sur le lien ↗ ci-dessus pour ouvrir l\'app dans un nouvel onglet, puis autorise le micro là-bas.');
       else if (e?.name === 'NotFoundError') setRecError('Aucun micro détecté.');
       else setRecError('Micro non accessible : ' + (e?.message || e));
     }
@@ -267,6 +267,21 @@ export default function SampleLoaderModal({
         {/* ── RECORDING ── */}
         {step === 'recording' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: '8px 0' }}>
+            {/* Show direct URL so user can open app outside iframe — needed for getUserMedia in Replit preview */}
+            {!isRecording && (
+              <div style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: 'rgba(30,30,40,0.6)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ fontSize: 8, color: dim, letterSpacing: '0.08em' }}>URL DIRECTE DE L'APP (micro requis)</div>
+                <a
+                  href={window.location.origin + window.location.pathname}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 9, color: '#64D2FF', wordBreak: 'break-all', textDecoration: 'underline', cursor: 'pointer' }}
+                >{window.location.origin + window.location.pathname} ↗</a>
+                <div style={{ fontSize: 8, color: dim, lineHeight: 1.5 }}>
+                  Si le micro est refusé ici, ouvre ce lien dans un nouvel onglet — Chrome pourra alors autoriser le micro directement.
+                </div>
+              </div>
+            )}
             <div style={{ fontSize: 40, fontWeight: 900, fontFamily: 'monospace', color: isRecording ? '#FF2D55' : dim }}>
               {fmt(recSeconds)}
             </div>
