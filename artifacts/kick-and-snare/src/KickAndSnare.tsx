@@ -3140,7 +3140,7 @@ export default function KickAndSnare(){
         {/* ── Transport ── */}
         <TransportBar
           themeName={themeName} bpm={bpm} setBpm={setBpm} playing={playing} startStop={startStop}
-          rec={rec} setRec={setRec} handleTap={handleTap}
+          rec={rec} setRec={setRec} handleTap={handleTap} onRecClick={onRecClick}
           swing={swing} setSwing={setSwing} metro={metro} setMetro={setMetro}
           metroVol={metroVol} setMetroVol={setMetroVol} metroSub={metroSub} setMetroSub={setMetroSub}
           midiLM={midiLM} setMidiLM={setMidiLM} linkConnected={linkConnected} linkPeers={linkPeers}
