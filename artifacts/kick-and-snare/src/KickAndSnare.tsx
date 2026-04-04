@@ -4631,22 +4631,34 @@ export default function KickAndSnare(){
       </div>
     )}
     {/* ── Bottom Navigation Bar ── */}
-    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,display:"flex",alignItems:"stretch",background:"#111112",borderTop:`1px solid ${th.sBorder}`,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,display:"flex",alignItems:"stretch",background:"rgba(14,14,16,0.97)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderTop:`1.5px solid ${th.sBorder}`,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
       {([
         {id:"pads",label:"LIVE PADS",icon:"⊞",color:"#5E5CE6",hint:"Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing",act:()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}},
         {id:"sequencer",label:"SEQUENCER",icon:"▦",color:"#FF2D55",hint:"Sequencer · TR-808 step grid · Click = on/off · Drag ↕ = velocity · Long-press = probability",act:()=>view!=="sequencer"&&switchView("sequencer")},
         {id:"euclid",label:"EUCLID",icon:"⬡",color:"#FFD60A",hint:"Euclidean Sequencer · Distributes N hits across M steps mathematically · African rhythms, polymeters",act:()=>view!=="euclid"&&switchView("euclid")},
-      ] as const).map(tab=>(
-        <button
-          key={tab.id}
-          data-hint={tab.hint}
-          onClick={tab.act}
-          style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"10px 4px 8px",border:"none",borderTop:`2px solid ${view===tab.id?tab.color:"transparent"}`,background:view===tab.id?`${tab.color}12`:"transparent",color:view===tab.id?tab.color:th.dim,fontSize:8,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",transition:"all 0.15s"}}
-        >
-          <span style={{fontSize:20,lineHeight:1}}>{tab.icon}</span>
-          <span style={{fontSize:7}}>{tab.label}</span>
-        </button>
-      ))}
+      ] as const).map(tab=>{
+        const active=view===tab.id;
+        return (
+          <button
+            key={tab.id}
+            data-hint={tab.hint}
+            onClick={tab.act}
+            style={{
+              flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
+              padding:"11px 6px 9px",border:"none",
+              borderTop:`3px solid ${active?tab.color:"transparent"}`,
+              background:active?`${tab.color}18`:"transparent",
+              color:active?tab.color:`${tab.color}66`,
+              cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase" as const,
+              transition:"all 0.2s cubic-bezier(0.32,0.72,0,1)",
+              boxShadow:active?`inset 0 1px 0 ${tab.color}33`:"none",
+            }}
+          >
+            <span style={{fontSize:22,lineHeight:1,filter:active?`drop-shadow(0 0 6px ${tab.color}88)`:"none",transition:"filter 0.2s"}}>{tab.icon}</span>
+            <span style={{fontSize:9,fontWeight:800,letterSpacing:"0.06em",lineHeight:1}}>{tab.label}</span>
+          </button>
+        );
+      })}
     </div>
   </>);
 }
