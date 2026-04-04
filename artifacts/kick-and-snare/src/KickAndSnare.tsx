@@ -2755,24 +2755,26 @@ export default function KickAndSnare(){
       const score=scoreForBpm(cBpm);
       if(score<gridBest){gridBest=score;gridBpm=cBpm;}
     }
-    // Anti-doubling: two-pass revised strategy
-    // Pass 1 — N-multiple anchor: if gridBpm ≈ N × sequencer-BPM (N=2..8, within 15%), snap to bpm.
-    // Catches 16th-note patterns where grid scoring lands at 2×, 3× or 4× the actual tempo.
-    if(gridBpm&&bpm>=40){
-      for(let mult=2;mult<=8;mult++){
-        if(Math.abs(gridBpm-mult*bpm)/(mult*bpm)<0.15){gridBpm=Math.round(bpm);break;}
+    // Anti-doubling: two-pass conservative strategy
+    // Pass 1 — sequencer-BPM anchor: if gridBpm is close to 2× or 3× the sequencer BPM
+    //   AND the sequencer BPM itself fits reasonably well, snap to it.
+    //   The score gate prevents snapping when the user genuinely plays at a different tempo
+    //   (e.g. true 200 BPM quarter notes when sequencer is at 90: seqScore is much worse).
+    if(gridBpm&&bpm>=40&&gridBpm>bpm*1.4){
+      const seqScore=scoreForBpm(Math.round(bpm));
+      if(seqScore<=Math.max(gridBest,0.03)*2.5){
+        for(let mult=2;mult<=4;mult++){
+          if(Math.abs(gridBpm-mult*bpm)/(mult*bpm)<0.18){gridBpm=Math.round(bpm);break;}
+        }
       }
     }
-    // Pass 2 — iterative halving: keep halving as long as the half-tempo fits reasonably well.
-    // Floor raised to 0.12 so perfect grid-aligned patterns don't trivially pass the threshold.
-    {
-      let prevScore=Math.max(gridBest,0.12);
-      while(gridBpm&&gridBpm>80){
-        const halfBpm=Math.round(gridBpm/2);
-        if(halfBpm<40)break;
+    // Pass 2 — single anti-doubling: halve once if the half tempo fits within 1.5× gridBest.
+    // Conservative (no loop) to avoid cascading halvings (e.g. 200→100→50→45).
+    if(gridBpm&&gridBpm>80){
+      const halfBpm=Math.round(gridBpm/2);
+      if(halfBpm>=40){
         const halfScore=scoreForBpm(halfBpm);
-        if(halfScore>prevScore*2.0)break;
-        gridBpm=halfBpm;prevScore=halfScore;
+        if(halfScore<=Math.max(gridBest,0.03)*1.5){gridBpm=halfBpm;}
       }
     }
     const finalBpm=Math.max(40,Math.min(240,gridBpm??freeBpm??bpm));
