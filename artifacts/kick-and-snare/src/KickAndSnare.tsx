@@ -10,7 +10,8 @@ import TutorialOverlay from "./components/TutorialOverlay.tsx";
 import SampleLoaderModal from "./components/SampleLoaderModal.tsx";
 import { useAppState } from "./hooks/useAppState.js";
 import { usePanelTransition } from "./hooks/usePanelTransition";
-import { KitBrowser, type UserKit } from "./components/KitBrowser.tsx";
+import { KitBrowser, type UserKit, type SampleBankEntry } from "./components/KitBrowser.tsx";
+import { KitComposer } from "./components/KitComposer.tsx";
 import { idbPut, idbGet, idbDeleteKeysWithPrefix } from "./hooks/idbHelper.ts";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
@@ -1497,6 +1498,7 @@ export default function KickAndSnare(){
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [kitIdx,setKitIdx]=useState(0);
   const [showKitBrowser,setShowKitBrowser]=useState(false);
+  const [showKitComposer,setShowKitComposer]=useState(false);
   const [userKits,setUserKits]=useState<UserKit[]>(()=>loadUserKitsMeta());
   const [activeKitId,setActiveKitId]=useState<string|null>(DRUM_KITS[0]?.id||null);
   const [gfx,setGfx]=useState({
@@ -1634,6 +1636,8 @@ export default function KickAndSnare(){
   const padHeldRef=useRef<Set<string>>(new Set());
   // Race-condition guard for loadUserKit — incremented on each new load request
   const loadEpochRef=useRef(0);
+  // Preview node for KitComposer sample previews
+  const previewNodeRef=useRef<AudioBufferSourceNode|null>(null);
   const [velPicker,setVelPicker]=useState(null);
   // ── CP-I states ──
   const [euclidEditMode,setEuclidEditMode]=useState(false);
@@ -2960,6 +2964,40 @@ export default function KickAndSnare(){
     const updated=userKits.filter(k=>k.id!==kitId);
     setUserKits(updated);saveUserKitsMeta(updated);
     if(activeKitId===kitId)setActiveKitId(null);
+  };
+
+  // ── KitComposer helpers ────────────────────────────────────────────────────
+  const previewSample=async(entry:SampleBankEntry)=>{
+    await engine.init();
+    if(!engine.ctx||!engine.mg)return;
+    try{previewNodeRef.current?.stop();}catch{}previewNodeRef.current=null;
+    let buf:AudioBuffer|null=null;
+    try{
+      if(entry.url){const resp=await fetch(entry.url);const ab=await resp.arrayBuffer();buf=await engine.ctx.decodeAudioData(ab);}
+      else if(entry.blobKey){const ab=await idbGet(entry.blobKey);if(ab)buf=await engine.ctx.decodeAudioData(ab.slice(0));}
+    }catch(e){console.warn('preview failed',e);}
+    if(!buf||!engine.ctx)return;
+    const src=engine.ctx.createBufferSource();src.buffer=buf;src.connect(engine.mg);src.start();
+    previewNodeRef.current=src;
+    src.onended=()=>{if(previewNodeRef.current===src)previewNodeRef.current=null;};
+  };
+
+  const saveComposedKit=async(name:string,icon:string,slots:Record<string,SampleBankEntry|null>)=>{
+    const kitId=`user_${Date.now()}`;
+    const samples:UserKit['samples']={};const shape:UserKit['shape']={};
+    for(const [tid,entry] of Object.entries(slots)){
+      shape[tid]={...(R.fx as typeof fx)[tid]||{...DEFAULT_FX}};
+      if(!entry){samples[tid]={type:'synth'};}
+      else if(entry.url){samples[tid]={type:'url',url:entry.url,originalName:entry.name};}
+      else if(entry.blobKey){samples[tid]={type:'blob',blobKey:entry.blobKey,originalName:entry.name};}
+      else{samples[tid]={type:'synth'};}
+    }
+    const kit:UserKit={id:kitId,name,icon,createdAt:Date.now(),samples,shape};
+    const updated=[...userKits,kit];
+    setUserKits(updated);saveUserKitsMeta(updated);
+    setShowKitComposer(false);
+    // Load the composed kit immediately so the user hears it
+    await loadUserKit(kit);
   };
 
   const loadTemplate=(tpl:typeof SEQUENCER_TEMPLATES[0],variant:"16"|"32"="16")=>{
@@ -4651,6 +4689,17 @@ export default function KickAndSnare(){
       onSave={saveCurrentAsKit}
       onRename={renameKit}
       onDelete={deleteKit}
+      onOpenComposer={()=>setShowKitComposer(true)}
+      themeName={themeName}
+    />
+    <KitComposer
+      open={showKitComposer}
+      onClose={()=>setShowKitComposer(false)}
+      factoryKits={DRUM_KITS}
+      userKits={userKits}
+      tracks={ALL_TRACKS}
+      onPreview={previewSample}
+      onSave={saveComposedKit}
       themeName={themeName}
     />
     {showTour&&<TutorialOverlay onClose={()=>setShowTour(false)} themeName={themeName}/>}

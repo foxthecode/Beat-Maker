@@ -8,6 +8,11 @@ export interface UserKit{
   samples:Record<string,{type:'url'|'blob'|'synth';url?:string;blobKey?:string;originalName?:string;}>;
   shape:Record<string,Record<string,number>>;
 }
+export interface SampleBankEntry{
+  id:string;name:string;category:string;
+  source:'factory'|'user';
+  url?:string;blobKey?:string;
+}
 
 interface FactoryKit{id:string;name:string;icon:string;samples:Record<string,string>;}
 
@@ -21,10 +26,11 @@ interface Props{
   onSave:(name:string,icon:string)=>Promise<void>;
   onRename:(kitId:string,name:string)=>void;
   onDelete:(kitId:string)=>void;
+  onOpenComposer:()=>void;
   themeName:string;
 }
 
-export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoadFactory,onLoadUser,onSave,onRename,onDelete,themeName}:Props){
+export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoadFactory,onLoadUser,onSave,onRename,onDelete,onOpenComposer,themeName}:Props){
   const th=THEMES[themeName]||THEMES.dark;
   const [dialog,setDialog]=useState<null|'save'|{kind:'rename';kit:UserKit}>(null);
   const [kitName,setKitName]=useState('');
@@ -144,6 +150,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
 
         {/* Sticky footer */}
         <div style={{padding:'12px 14px',borderTop:`1px solid ${th.sBorder}`,flexShrink:0,display:'flex',gap:8}}>
+          <button onClick={()=>{onClose();onOpenComposer();}} style={{...btnSt('#BF5AF2','rgba(191,90,242,0.1)'),padding:'8px 12px',flexShrink:0}} title="Assemble a kit from individual samples">🎛 COMPOSE</button>
           <button onClick={openSave} style={{...btnSt(),flex:1,textAlign:'center'}}>＋ SAVE CURRENT AS KIT</button>
         </div>
       </div>
