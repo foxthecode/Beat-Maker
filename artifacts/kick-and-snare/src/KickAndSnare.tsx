@@ -3303,8 +3303,8 @@ export default function KickAndSnare(){
       <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px",paddingBottom:90}}>
 
         {/* ── Header ── */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",position:"relative",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
             <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,background:"linear-gradient(135deg,#FF2D55 0%,#FF9500 100%)",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s"}}>
               <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
                 <ellipse cx="14" cy="17" rx="9" ry="6" stroke="#fff" strokeWidth="1.6" fill="rgba(255,255,255,0.12)"/>
@@ -3321,8 +3321,9 @@ export default function KickAndSnare(){
               <div className="subtitleAnim" style={{fontSize:8,letterSpacing:"0.4em",color:th.dim,whiteSpace:"nowrap"}}>DRUM EXPERIENCE</div>
             </div>
           </div>
-          {/* Animated drummer mascot + kit selector + UNDO/REDO */}
-          <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:20}}>
+          {/* ── Kit selector + Mascot — absolutely centered ── */}
+          <div style={{position:"absolute",left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",alignItems:"center",gap:3,pointerEvents:"none"}}>
+          <div style={{pointerEvents:"auto"}}>
           {/* ── Kit selector → opens KitBrowser ── */}
           {(()=>{
             const activeUserKit=userKits.find(k=>k.id===activeKitId);
@@ -3348,6 +3349,8 @@ export default function KickAndSnare(){
               </button>
             );
           })()}
+          </div>{/* end kit pointerEvents wrapper */}
+          <div style={{pointerEvents:"auto"}}>
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
             const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
@@ -3472,13 +3475,15 @@ export default function KickAndSnare(){
               </svg>
             </div>);
           })()}
-          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+          </div>{/* end mascot pointerEvents wrapper */}
+          </div>{/* end center absolute block */}
+          {/* ── UNDO/REDO — right side ── */}
+          <div style={{display:"flex",gap:4,alignItems:"center",flex:1,justifyContent:"flex-end"}}>
             <button data-hint="Undo (Ctrl+Z) · Go back one step — up to 50 history steps" onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
             <button data-hint="Redo (Ctrl+Y) · Restore the undone action" onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
             <button data-hint="Welcome screen · Show the intro overlay again · Useful after reinstalling or sharing with someone new" onClick={()=>{setShowInfo(false);setShowTour(false);setOverlayVisible(true);}} title="Show intro" style={{width:28,height:28,border:"1px solid rgba(255,45,85,0.2)",borderRadius:6,background:"transparent",color:"rgba(255,45,85,0.45)",fontSize:12,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>⊙</button>
             <button data-hint="Interactive tutorial · Illustrated guided tour of the 8 app sections — can be replayed at any time" onClick={()=>{setShowTour(p=>!p);setShowInfo(false);}} title="Interactive tutorial" style={{width:28,height:28,border:`1px solid ${showTour?"#FF950055":"rgba(255,149,0,0.2)"}`,borderRadius:6,background:showTour?"rgba(255,149,0,0.15)":"transparent",color:showTour?"#FF9500":"rgba(255,149,0,0.55)",fontSize:14,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>🎓</button>
             <button data-hint="User guide · Describes every control and interaction in the app" onClick={()=>setShowInfo(p=>!p)} title="User guide" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
-          </div>
           </div>
           <div style={{display:"none"}} aria-hidden="true">
             {/* Nav buttons moved to fixed bottom bar — code preserved for reference */}
