@@ -1626,13 +1626,7 @@ export default function KickAndSnare(){
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
   // ── lastSeqView: tracks which sequencer view (sequencer|euclid) was most recently active ──
   const [lastSeqView,setLastSeqView]=useState<'sequencer'|'euclid'>('sequencer');
-  useEffect(()=>{
-    if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');
-    // Reset welcome popup each time user navigates to a view
-    if(view==='pads')setShowPadsWelcome(true);
-    if(view==='sequencer')setShowSeqWelcome(true);
-    if(view==='euclid')setShowEuclidWelcome(true);
-  },[view]);
+  useEffect(()=>{if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');},[view]);
   // ── velRange: min/max for random velocity ──
   const [velRange,setVelRange]=useState<{min:number,max:number}>({min:40,max:100});
   // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
