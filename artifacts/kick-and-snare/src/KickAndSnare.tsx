@@ -1618,6 +1618,11 @@ export default function KickAndSnare(){
   const [padFxTrack,setPadFxTrack]=useState<string|null>(null);
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
+  const [showPerform,setShowPerform]=useState(false);
+  const [stutterDiv,setStutterDiv]=useState('1/8');
+  const [waveformCache,setWaveformCache]=useState<Record<string,string>>({});
+  const stutterRef=useRef<ReturnType<typeof setInterval>|null>(null);
+  const lastTrigRef=useRef<string>('');
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
   const [loopMetro,setLoopMetro]=useState(false);
@@ -1899,6 +1904,7 @@ export default function KickAndSnare(){
       engine.ensureRunning().catch(()=>{});
     }
     engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+    lastTrigRef.current=tid;
     if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
@@ -3040,8 +3046,13 @@ export default function KickAndSnare(){
   const fileRef=useRef(null);const ldRef=useRef(null);
   const ldFile=(tid:string)=>{setTimeout(()=>{setSampleModalTrack(tid);setSampleModalOpen(true);},60);};
   const ldFileLocal=(tid:string)=>{ldRef.current=tid;if(fileRef.current){(fileRef.current as HTMLInputElement).value="";(fileRef.current as HTMLInputElement).click();}};
-  const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});}ldRef.current=null;};
-  const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});};
+  const miniWaveformPath=(buffer:AudioBuffer,w:number,h:number):string=>{
+    const data=buffer.getChannelData(0);const step=Math.max(1,Math.ceil(data.length/w));let d='';
+    for(let x=0;x<w;x++){let mn=1,mx=-1;for(let j=0;j<step&&x*step+j<data.length;j++){const v=data[x*step+j];if(v<mn)mn=v;if(v>mx)mx=v;}d+=`M${x},${(((1+mn)/2)*h).toFixed(1)}L${x},${(((1+mx)/2)*h).toFixed(1)}`;}
+    return d;
+  };
+  const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});if(engine.buf[tid]){const wp=miniWaveformPath(engine.buf[tid],28,16);setWaveformCache(p=>({...p,[tid]:wp}));}}ldRef.current=null;};
+  const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});const wp=miniWaveformPath(buffer,28,16);setWaveformCache(p=>({...p,[tid]:wp}));};
 
   const pill=(on,c)=>({padding:"5px 11px",border:`1px solid ${on?c+"55":th.sBorder}`,borderRadius:6,background:on?c+"18":"transparent",color:on?c:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"});
 
@@ -3148,7 +3159,7 @@ export default function KickAndSnare(){
       {!isAudioReady&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,height:2,background:"rgba(0,0,0,0.25)"}}>
         <div style={{height:"100%",background:"linear-gradient(90deg,#FF2D55,#FF9500)",animation:"audioload 0.5s ease-out forwards",willChange:"width"}}/>
       </div>}
-      <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px"}}>
+      <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px",paddingBottom:90}}>
 
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
@@ -3341,14 +3352,11 @@ export default function KickAndSnare(){
             <button data-hint="User guide · Describes every control and interaction in the app" onClick={()=>setShowInfo(p=>!p)} title="User guide" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
           </div>
           </div>
-          <div style={{display:"flex",gap:3,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button data-hint="Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing" onClick={()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}} style={pill(view==="pads","#5E5CE6")}>LIVE PADS</button>
-            {/* ── SEQUENCER + EUCLID grouped block ── */}
-            <div style={{display:"flex",border:`1px solid ${view==="sequencer"?"#FF2D5555":view==="euclid"?"#FFD60A55":th.sBorder}`,borderRadius:6,overflow:"hidden",transition:"border-color 0.15s",}}>
-
-              <button data-hint="Sequencer · TR-808 step grid · Click = on/off · Drag ↕ = velocity · Long-press = probability" onClick={()=>view!=="sequencer"&&switchView("sequencer")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="sequencer"?"#FF2D5518":"transparent",color:view==="sequencer"?"#FF2D55":th.dim,fontSize:9,fontWeight:700,cursor:view==="sequencer"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>SEQUENCER</button>
-              <button data-hint="Euclidean Sequencer · Distributes N hits across M steps mathematically · African rhythms, polymeters" onClick={()=>view!=="euclid"&&switchView("euclid")} style={{padding:"5px 11px",border:"none",borderRight:`1px solid ${th.sBorder}`,borderRadius:0,background:view==="euclid"?"#FFD60A18":"transparent",color:view==="euclid"?"#FFD60A":th.dim,fontSize:9,fontWeight:700,cursor:view==="euclid"?"default":"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"}}>⬡ EUCLIDIAN</button>
-            </div>
+          <div style={{display:"none"}} aria-hidden="true">
+            {/* Nav buttons moved to fixed bottom bar — code preserved for reference */}
+            <button onClick={()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}}>LIVE PADS</button>
+            <button onClick={()=>view!=="sequencer"&&switchView("sequencer")}>SEQUENCER</button>
+            <button onClick={()=>view!=="euclid"&&switchView("euclid")}>⬡ EUCLIDIAN</button>
           </div>
         </div>
 
@@ -3553,6 +3561,7 @@ export default function KickAndSnare(){
                   onMuteToggle={()=>setMuted(p=>({...p,[track.id]:!p[track.id]}))}
                   onSoloToggle={()=>setSoloed(p=>p===track.id?null:track.id)}
                   onLoadSample={()=>ldFile(track.id)}
+                  waveformPath={waveformCache[track.id]}
                   onRemove={()=>{R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
                   onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
                   onSendCursorChange={(dir)=>setTrackSendCursor(p=>({...p,[track.id]:((p[track.id]??0)+dir+FX_SECS.length)%FX_SECS.length}))}
@@ -3723,9 +3732,15 @@ export default function KickAndSnare(){
                     onTouchStart={e=>{e.stopPropagation();e.preventDefault();ldFile(track.id);}}
                     onClick={e=>{e.stopPropagation();ldFile(track.id);}}
                     onPointerDown={e=>e.stopPropagation()}
-                    title="Load sample"
-                    style={{position:"absolute",top:6,right:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,149,0,0.4)",background:"rgba(255,149,0,0.12)",color:"rgba(255,149,0,0.85)",fontSize:10,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
-                  >♪</button>
+                    title={smpN[track.id]||"Load sample"}
+                    style={{position:"absolute",top:6,right:6,width:22,height:22,borderRadius:6,border:`1px solid ${smpN[track.id]?"rgba(255,149,0,0.5)":"rgba(255,149,0,0.4)"}`,background:smpN[track.id]?"rgba(255,149,0,0.18)":"rgba(255,149,0,0.12)",color:"rgba(255,149,0,0.85)",fontSize:10,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2,overflow:"hidden"}}
+                  >
+                    {waveformCache[track.id]?(
+                      <svg viewBox="0 0 28 16" width="22" height="14" style={{position:"absolute",inset:0,margin:"auto",opacity:0.55,pointerEvents:"none"}} preserveAspectRatio="none">
+                        <path d={waveformCache[track.id]} stroke="#FF9500" strokeWidth="1.2" fill="none"/>
+                      </svg>
+                    ):<span style={{position:"relative",zIndex:1}}>♪</span>}
+                  </button>
                   {midiLM&&<div style={{position:"absolute",top:32,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
                   {/* ── 🎛 Sample FX — bottom-left ── */}
                   <button
@@ -3772,6 +3787,95 @@ export default function KickAndSnare(){
               </div>
             );})}
           </div>
+          {/* ── PERFORM FX ── */}
+          {(()=>{
+            const filterRelease=()=>{
+              const t=engine?.ctx?.currentTime??0;
+              const fCut=gfx.filter?.on?Math.max(20,gfx.filter.cut||18000):20000;
+              const fQ=gfx.filter?.on?(gfx.filter.res||0):0;
+              engine.gFlt?.frequency.setTargetAtTime(fCut,t,0.05);
+              engine.gFlt2?.frequency.setTargetAtTime(fCut,t,0.05);
+              engine.gFlt?.Q.setTargetAtTime(fQ,t,0.05);
+              engine.gFlt2?.Q.setTargetAtTime(fQ,t,0.05);
+            };
+            const divMs=(div:string)=>{const b=60000/Math.max(30,bpm);const m:Record<string,number>={'1/4':b,'1/8':b/2,'1/16':b/4,'1/32':b/8};return m[div]??b/2;};
+            return (
+              <div style={{marginTop:10,borderRadius:10,border:`1px solid ${showPerform?"rgba(94,92,230,0.4)":"rgba(94,92,230,0.15)"}`,background:th.surface,overflow:"hidden",transition:"border-color 0.2s"}}>
+                <div onClick={()=>setShowPerform(p=>!p)} style={{padding:"8px 12px",display:"flex",alignItems:"center",gap:6,cursor:"pointer",userSelect:"none"}}>
+                  <span style={{fontSize:10,color:"#5E5CE6"}}>🎛</span>
+                  <span style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em"}}>PERFORM FX</span>
+                  <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showPerform?"▲":"▼"}</span>
+                </div>
+                {showPerform&&(
+                  <div style={{padding:"8px 12px 12px",display:"flex",flexDirection:"column",gap:10}}>
+                    <div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:6}}>FILTER SWEEP — drag to sweep cutoff (←→) and resonance (↑↓)</div>
+                      <div
+                        style={{height:72,borderRadius:8,background:"rgba(255,149,0,0.05)",border:"1px solid rgba(255,149,0,0.25)",position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
+                        onPointerDown={e=>{
+                          e.currentTarget.setPointerCapture(e.pointerId);engine.init();
+                          const upd=(px:number,py:number)=>{
+                            const r=e.currentTarget.getBoundingClientRect();
+                            const x=Math.max(0,Math.min(1,(px-r.left)/r.width));
+                            const y=Math.max(0,Math.min(1,1-(py-r.top)/r.height));
+                            const freq=20*Math.pow(1000,x);const q=y*22;
+                            const t2=engine.ctx?.currentTime??0;
+                            engine.gFlt?.frequency.setTargetAtTime(freq,t2,0.01);
+                            engine.gFlt2?.frequency.setTargetAtTime(freq,t2,0.01);
+                            engine.gFlt?.Q.setTargetAtTime(q,t2,0.01);
+                            engine.gFlt2?.Q.setTargetAtTime(q,t2,0.01);
+                          };
+                          upd(e.clientX,e.clientY);
+                        }}
+                        onPointerMove={e=>{
+                          if(e.buttons===0)return;
+                          const r=e.currentTarget.getBoundingClientRect();
+                          const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+                          const y=Math.max(0,Math.min(1,1-(e.clientY-r.top)/r.height));
+                          const freq=20*Math.pow(1000,x);const q=y*22;
+                          const t2=engine.ctx?.currentTime??0;
+                          engine.gFlt?.frequency.setTargetAtTime(freq,t2,0.01);
+                          engine.gFlt2?.frequency.setTargetAtTime(freq,t2,0.01);
+                          engine.gFlt?.Q.setTargetAtTime(q,t2,0.01);
+                          engine.gFlt2?.Q.setTargetAtTime(q,t2,0.01);
+                        }}
+                        onPointerUp={filterRelease}
+                        onPointerCancel={filterRelease}
+                      >
+                        <div style={{position:"absolute",inset:0,background:"linear-gradient(90deg,rgba(100,210,255,0.08),rgba(255,45,85,0.08))"}}/>
+                        <div style={{position:"absolute",inset:0,background:"linear-gradient(0deg,rgba(255,149,0,0.06),transparent)"}}/>
+                        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+                          <span style={{fontSize:8,color:th.faint}}>← Cutoff →  ↑ Resonance ↓</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:6}}>STUTTER — hold button to repeat last pad hit</div>
+                      <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                        {(['1/4','1/8','1/16','1/32'] as const).map(d=>(
+                          <button key={d} onClick={()=>setStutterDiv(d)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
+                        ))}
+                        <button
+                          onPointerDown={e=>{
+                            e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);engine.init();
+                            const tid=lastTrigRef.current||(atO[0]?.id??'');if(!tid)return;
+                            const ms=divMs(stutterDiv);
+                            if(stutterRef.current)clearInterval(stutterRef.current);
+                            engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});
+                            stutterRef.current=setInterval(()=>{engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});},ms);
+                          }}
+                          onPointerUp={()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}}}
+                          onPointerCancel={()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}}}
+                          onPointerLeave={()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}}}
+                          style={{padding:"5px 14px",borderRadius:6,border:"1px solid rgba(94,92,230,0.45)",background:"rgba(94,92,230,0.12)",color:"#5E5CE6",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
+                        >HOLD</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div style={{marginTop:10}}>
             {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -3923,7 +4027,7 @@ export default function KickAndSnare(){
                                 </div>
                                 <button data-hint={isM?`MUTE active · Track ${tr.label} silenced · Click to re-enable`:`MUTE · Silence track ${tr.label} without clearing the Euclidean rhythm`} onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
                                 <button data-hint={isS?`SOLO active · Only track ${tr.label} is playing · Click to disable`:`SOLO · Isolate track ${tr.label} — all other tracks are silenced`} onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
-                                {(()=>{const hasSmp=!!smpN[tr.id];return(<button data-hint={hasSmp?`Sample: ${smpN[tr.id]} · Click to change the audio file`:`Load an audio sample for track ${tr.label} (MP3, WAV, OGG)`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent"}}>♪</button>);})()}
+                                {(()=>{const hasSmp=!!smpN[tr.id];const hasWv=!!waveformCache[tr.id];return(<button data-hint={hasSmp?`Sample: ${smpN[tr.id]} · Click to change the audio file`:`Load an audio sample for track ${tr.label} (MP3, WAV, OGG)`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent",position:"relative",overflow:"hidden",minWidth:hasWv?28:undefined}}>{hasWv?(<svg viewBox="0 0 28 16" width="26" height="14" style={{position:"absolute",inset:0,margin:"auto",opacity:0.5,pointerEvents:"none"}} preserveAspectRatio="none"><path d={waveformCache[tr.id]} stroke="#FF9500" strokeWidth="1.2" fill="none"/></svg>):<span style={{position:"relative",zIndex:1}}>♪</span>}</button>);})()}
                                 <MidiTag id={tr.id}/>
                                 <button data-hint={`CLR · Clear all Euclidean hits from track ${tr.label} · Resets to N=${p.N} hits=0`} onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
                                 {act.length>1&&<button data-hint={`Remove track ${tr.label} from Euclidean view`} onClick={()=>{R.at=R.at.filter(x=>x!==tr.id);setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==tr.id);setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
@@ -4526,5 +4630,23 @@ export default function KickAndSnare(){
         </div>
       </div>
     )}
+    {/* ── Bottom Navigation Bar ── */}
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,display:"flex",alignItems:"stretch",background:"#111112",borderTop:`1px solid ${th.sBorder}`,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+      {([
+        {id:"pads",label:"LIVE PADS",icon:"⊞",color:"#5E5CE6",hint:"Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing",act:()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}},
+        {id:"sequencer",label:"SEQUENCER",icon:"▦",color:"#FF2D55",hint:"Sequencer · TR-808 step grid · Click = on/off · Drag ↕ = velocity · Long-press = probability",act:()=>view!=="sequencer"&&switchView("sequencer")},
+        {id:"euclid",label:"EUCLID",icon:"⬡",color:"#FFD60A",hint:"Euclidean Sequencer · Distributes N hits across M steps mathematically · African rhythms, polymeters",act:()=>view!=="euclid"&&switchView("euclid")},
+      ] as const).map(tab=>(
+        <button
+          key={tab.id}
+          data-hint={tab.hint}
+          onClick={tab.act}
+          style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"10px 4px 8px",border:"none",borderTop:`2px solid ${view===tab.id?tab.color:"transparent"}`,background:view===tab.id?`${tab.color}12`:"transparent",color:view===tab.id?tab.color:th.dim,fontSize:8,fontWeight:700,letterSpacing:"0.06em",cursor:"pointer",fontFamily:"inherit",textTransform:"uppercase",transition:"all 0.15s"}}
+        >
+          <span style={{fontSize:20,lineHeight:1}}>{tab.icon}</span>
+          <span style={{fontSize:7}}>{tab.label}</span>
+        </button>
+      ))}
+    </div>
   </>);
 }

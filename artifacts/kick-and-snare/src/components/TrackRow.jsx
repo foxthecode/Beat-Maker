@@ -16,6 +16,7 @@ function TrackRow({
   onStepCountChange, onClear,
   onSendCursorChange, onSendAmtChange,
   onFxOpen,
+  waveformPath,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const f = fx || { vol: 80, pan: 0 };
@@ -160,7 +161,13 @@ function TrackRow({
               <button data-hint={isMuted ? `MUTE active · Track ${track.label} is silent · Click to re-enable` : `MUTE · Silently mute track ${track.label} without clearing steps`} onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
               <button data-hint={isSoloed ? `SOLO active · Only track ${track.label} is audible · Click to disable` : `SOLO · Isolate track ${track.label} — all others are muted`} onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
               <button data-hint={`CLR · Clear all steps on track ${track.label} only`} onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
-              <button data-hint={smpN ? `Sample loaded: ${smpN} · Click to change audio file` : `Load a sample · Import an audio file (MP3, WAV, OGG) for this track`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim }}>♪</button>
+              <button data-hint={smpN ? `Sample loaded: ${smpN} · Click to change audio file` : `Load a sample · Import an audio file (MP3, WAV, OGG) for this track`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: waveformPath ? 28 : 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim, position: "relative", overflow: "hidden" }}>
+                {waveformPath ? (
+                  <svg viewBox="0 0 28 16" width="26" height="14" style={{ position: "absolute", inset: 0, margin: "auto", opacity: 0.5, pointerEvents: "none" }} preserveAspectRatio="none">
+                    <path d={waveformPath} stroke="#FF9500" strokeWidth="1.2" fill="none"/>
+                  </svg>
+                ) : <span style={{ position: "relative", zIndex: 1 }}>♪</span>}
+              </button>
               {actLength > 1 && <button data-hint={`Remove track ${track.label} from the active view (not permanently deleted)`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
             {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{smpN.substring(0, 14)}</span>}
