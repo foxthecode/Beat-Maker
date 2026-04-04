@@ -2159,7 +2159,16 @@ export default function KickAndSnare(){
           if(em2.songGlobalStep===0&&prev>=0&&R.songMode&&R.songChain?.length>0){
             songPosRef.current=(songPosRef.current+1)%R.songChain.length;
             const nextPat=R.songChain[songPosRef.current];
-            if(nextPat!==R.cp){R.cp=nextPat;setCPat(nextPat);}
+            if(nextPat!==R.cp){
+              R.cp=nextPat;setCPat(nextPat);
+              // Reset all Euclid track step counters so the new pattern starts from step 0.
+              // Without this, each track continues from its mid-cycle position in the old
+              // pattern — causing out-of-bounds access (skipped beat) or phase offset
+              // when the new pattern has a different N.
+              Object.keys(euclidClockR.current).forEach(tid=>{
+                if(euclidClockR.current[tid])euclidClockR.current[tid].step=0;
+              });
+            }
           }
           em2.songNextTime+=sixteenth;
         }
