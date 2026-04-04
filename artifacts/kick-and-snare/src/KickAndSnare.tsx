@@ -1626,7 +1626,13 @@ export default function KickAndSnare(){
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
   // ── lastSeqView: tracks which sequencer view (sequencer|euclid) was most recently active ──
   const [lastSeqView,setLastSeqView]=useState<'sequencer'|'euclid'>('sequencer');
-  useEffect(()=>{if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');},[view]);
+  useEffect(()=>{
+    if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');
+    // Reset welcome popup each time user navigates to a view
+    if(view==='pads')setShowPadsWelcome(true);
+    if(view==='sequencer')setShowSeqWelcome(true);
+    if(view==='euclid')setShowEuclidWelcome(true);
+  },[view]);
   // ── velRange: min/max for random velocity ──
   const [velRange,setVelRange]=useState<{min:number,max:number}>({min:40,max:100});
   // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
@@ -4918,10 +4924,9 @@ export default function KickAndSnare(){
           <div style={{flex:1}}>
             <div className="gradientShift" style={{fontSize:14,fontWeight:900,letterSpacing:"0.05em",marginBottom:8,background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>The Step Sequencer</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.6,marginBottom:10}}>
-              Program your beats step by step — click a cell to activate it, drag up or down to set its velocity. Each row is a drum track. Hit play and watch your pattern loop.
+              Program your beats step by step — click a cell to activate it, drag up or down to set its velocity. Each row is a drum track. Use <strong style={{color:"#FF2D55"}}>REC</strong> to capture a live performance, browse <strong style={{color:"#5E5CE6"}}>PRESETS</strong> for ready-made patterns, or build a full track in the <strong style={{color:"#BF5AF2"}}>SONG ARRANGER</strong>.
             </div>
-            {/* Feature pills */}
-            <div style={{display:"flex",gap:6,flexWrap:"wrap" as const,marginBottom:10}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap" as const}}>
               <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(255,45,85,0.12)",border:"1px solid rgba(255,45,85,0.3)"}}>
                 <span style={{fontSize:9,fontWeight:700,color:"#FF2D55",letterSpacing:"0.05em"}}>⏺ REC</span>
                 <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>record live hits</span>
@@ -4933,19 +4938,6 @@ export default function KickAndSnare(){
               <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(191,90,242,0.10)",border:"1px solid rgba(191,90,242,0.28)"}}>
                 <span style={{fontSize:9,fontWeight:700,color:"#BF5AF2",letterSpacing:"0.05em"}}>♫ SONG ARRANGER</span>
                 <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>chain patterns</span>
-              </div>
-            </div>
-            {/* Other views */}
-            <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
-              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(94,92,230,0.12)",border:"1px solid rgba(94,92,230,0.3)"}}>
-                <span style={{fontSize:11}}>⊞</span>
-                <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6",letterSpacing:"0.06em"}}>LIVE PADS</span>
-                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>perform live</span>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,214,10,0.10)",border:"1px solid rgba(255,214,10,0.25)"}}>
-                <span style={{fontSize:11}}>⬡</span>
-                <span style={{fontSize:9,fontWeight:700,color:"#FFD60A",letterSpacing:"0.06em"}}>EUCLID</span>
-                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>polyrhythms</span>
               </div>
             </div>
           </div>
@@ -4962,10 +4954,9 @@ export default function KickAndSnare(){
           <div style={{flex:1}}>
             <div className="gradientShift" style={{fontSize:14,fontWeight:900,letterSpacing:"0.05em",marginBottom:8,background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>The Euclidean Sequencer</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.6,marginBottom:10}}>
-              Euclidean rhythms spread N hits as evenly as possible across M steps — a mathematical approach found in African, Cuban and Middle-Eastern music. Dial in hits, steps and rotation to build polyrhythms.
+              Euclidean rhythms spread N hits as evenly as possible across M steps — a mathematical approach found in African, Cuban and Middle-Eastern music. Dial in hits, steps and rotation to build polyrhythms. Jump-start with a <strong style={{color:"#FFD60A"}}>PRESET</strong> or chain your clips in the <strong style={{color:"#BF5AF2"}}>SONG ARRANGER</strong>.
             </div>
-            {/* Feature pills */}
-            <div style={{display:"flex",gap:6,flexWrap:"wrap" as const,marginBottom:10}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap" as const}}>
               <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(255,214,10,0.10)",border:"1px solid rgba(255,214,10,0.28)"}}>
                 <span style={{fontSize:9,fontWeight:700,color:"#FFD60A",letterSpacing:"0.05em"}}>⬡ PRESETS</span>
                 <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>ready-made polyrhythms</span>
@@ -4973,19 +4964,6 @@ export default function KickAndSnare(){
               <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(191,90,242,0.10)",border:"1px solid rgba(191,90,242,0.28)"}}>
                 <span style={{fontSize:9,fontWeight:700,color:"#BF5AF2",letterSpacing:"0.05em"}}>♫ SONG ARRANGER</span>
                 <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>chain patterns</span>
-              </div>
-            </div>
-            {/* Other views */}
-            <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
-              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(94,92,230,0.12)",border:"1px solid rgba(94,92,230,0.3)"}}>
-                <span style={{fontSize:11}}>⊞</span>
-                <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6",letterSpacing:"0.06em"}}>LIVE PADS</span>
-                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>perform live</span>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,45,85,0.12)",border:"1px solid rgba(255,45,85,0.3)"}}>
-                <span style={{fontSize:11}}>▦</span>
-                <span style={{fontSize:9,fontWeight:700,color:"#FF2D55",letterSpacing:"0.06em"}}>SEQUENCER</span>
-                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>step grid</span>
               </div>
             </div>
           </div>
