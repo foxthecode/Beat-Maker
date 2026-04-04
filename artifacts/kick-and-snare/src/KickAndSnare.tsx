@@ -1608,6 +1608,8 @@ export default function KickAndSnare(){
   const [showTS,setShowTS]=useState(false);
   const [flashing,setFlashing]=useState<Set<string>>(()=>new Set());
   const flashTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
+  // Tracks which pad tids are currently held — prevents retap-erase re-trigger on long-press
+  const padHeldRef=useRef<Set<string>>(new Set());
   const [velPicker,setVelPicker]=useState(null);
   // ── CP-I states ──
   const [euclidEditMode,setEuclidEditMode]=useState(false);
@@ -3513,8 +3515,13 @@ export default function KickAndSnare(){
               <div style={{display:"flex",gap:4,flex:1}}>
                 {atO.map(tr=>(
                   <button key={tr.id}
-                    onTouchStart={e=>{e.preventDefault();trigPad(tr.id,110/127);}}
-                    onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();trigPad(tr.id,1);}}
+                    onContextMenu={e=>e.preventDefault()}
+                    onTouchStart={e=>{e.preventDefault();if(padHeldRef.current.has(tr.id))return;padHeldRef.current.add(tr.id);trigPad(tr.id,110/127);}}
+                    onTouchEnd={()=>padHeldRef.current.delete(tr.id)}
+                    onTouchCancel={()=>padHeldRef.current.delete(tr.id)}
+                    onPointerDown={e=>{if(e.pointerType==="touch")return;if(padHeldRef.current.has(tr.id))return;padHeldRef.current.add(tr.id);e.preventDefault();trigPad(tr.id,1);}}
+                    onPointerUp={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(tr.id);}}
+                    onPointerCancel={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(tr.id);}}
                     style={{flex:1,height:40,borderRadius:6,background:flashing.has(tr.id)?tr.color+"44":tr.color+"0d",
                       border:`1.5px solid ${flashing.has(tr.id)?tr.color:tr.color+"2a"}`,
                       color:tr.color,cursor:"pointer",fontFamily:"inherit",fontSize:7,fontWeight:800,letterSpacing:"0.05em",
@@ -3730,16 +3737,25 @@ export default function KickAndSnare(){
                 {/* ── Pad tile ── */}
                 <div style={{position:"relative"}}>
                   <button
+                    onContextMenu={e=>e.preventDefault()}
                     onTouchStart={e=>{
-                      e.preventDefault(); // block subsequent pointerdown on mobile
+                      e.preventDefault();
+                      if(padHeldRef.current.has(track.id))return;
+                      padHeldRef.current.add(track.id);
                       trigPad(track.id,110/127);
                     }}
+                    onTouchEnd={()=>padHeldRef.current.delete(track.id)}
+                    onTouchCancel={()=>padHeldRef.current.delete(track.id)}
                     onPointerDown={e=>{
-                      if(e.pointerType==="touch")return; // already handled by onTouchStart
+                      if(e.pointerType==="touch")return;
+                      if(padHeldRef.current.has(track.id))return;
+                      padHeldRef.current.add(track.id);
                       e.preventDefault();
                       e.currentTarget.setPointerCapture(e.pointerId);
                       trigPad(track.id,1);
                     }}
+                    onPointerUp={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(track.id);}}
+                    onPointerCancel={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(track.id);}}
                     style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
                     <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
                     <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
