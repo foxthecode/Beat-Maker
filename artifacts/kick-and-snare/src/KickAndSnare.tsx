@@ -4886,9 +4886,9 @@ export default function KickAndSnare(){
         <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
           <span style={{fontSize:28,lineHeight:1,flexShrink:0}}>⊞</span>
           <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.04em",marginBottom:6}}>Welcome to Live Pads</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.55,marginBottom:10}}>
-              Tap or click the pads to trigger drums in real time. You can also use your keyboard.
+            <div className="gradientShift" style={{fontSize:14,fontWeight:900,letterSpacing:"0.05em",marginBottom:8,background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>Welcome to your Drum Experience</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.6,marginBottom:12}}>
+              You are now in the Live Pads panel — tap or click any pad to trigger drums in real time. Two more views are available:
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
               <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,45,85,0.12)",border:"1px solid rgba(255,45,85,0.3)"}}>
