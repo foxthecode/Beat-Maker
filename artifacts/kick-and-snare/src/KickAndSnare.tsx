@@ -3321,9 +3321,8 @@ export default function KickAndSnare(){
               <div className="subtitleAnim" style={{fontSize:8,letterSpacing:"0.4em",color:th.dim,whiteSpace:"nowrap"}}>DRUM EXPERIENCE</div>
             </div>
           </div>
-          {/* ── Kit selector + Mascot — flex centered column ── */}
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:"0 0 auto"}}>
-          <div>
+          {/* ── Col 2 : Kit selector ── */}
+          <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center"}}>
           {/* ── Kit selector → opens KitBrowser ── */}
           {(()=>{
             const activeUserKit=userKits.find(k=>k.id===activeKitId);
@@ -3349,8 +3348,9 @@ export default function KickAndSnare(){
               </button>
             );
           })()}
-          </div>{/* end kit wrapper */}
-          <div>
+          </div>{/* end col 2 kit */}
+          {/* ── Col 3 : Mascotte ── */}
+          <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center"}}>
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
             const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
@@ -3475,9 +3475,8 @@ export default function KickAndSnare(){
               </svg>
             </div>);
           })()}
-          </div>{/* end mascot wrapper */}
-          </div>{/* end center flex column */}
-          {/* ── UNDO/REDO — right side ── */}
+          </div>{/* end col 3 mascot */}
+          {/* ── Col 4 : Undo/Redo + Intro + Tutorial + Guide ── */}
           <div style={{display:"flex",gap:4,alignItems:"center",flex:1,justifyContent:"flex-end"}}>
             <button data-hint="Undo (Ctrl+Z) · Go back one step — up to 50 history steps" onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
             <button data-hint="Redo (Ctrl+Y) · Restore the undone action" onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
