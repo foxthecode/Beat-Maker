@@ -153,7 +153,7 @@ export default function PatternBank({
   playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait = false,
   patNameEdit, setPatNameEdit,
   onLoadTemplate, onLoadEuclidTemplate,
-  view,
+  view, onClear,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const longPressRef = useRef(null);
@@ -185,6 +185,11 @@ export default function PatternBank({
               <button data-hint={`DUP · Duplicate pattern ${cPat + 1} into slot ${cPat + 2}`}
                 onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }}
                 style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>
+            )}
+            {onClear && (
+              <button data-hint={`CLR · Efface tous les hits du pattern ${cPat + 1} · Utilise Undo pour annuler`}
+                onClick={onClear}
+                style={{ padding: "2px 6px", border: "1px solid rgba(255,45,85,0.3)", borderRadius: 5, background: "transparent", color: "#FF2D55", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>CLR</button>
             )}
             {pBank.length > 1 && (
               <button data-hint={`DEL · Delete pattern ${cPat + 1}`}

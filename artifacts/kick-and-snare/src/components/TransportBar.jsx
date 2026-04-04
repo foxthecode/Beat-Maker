@@ -214,14 +214,6 @@ export default function TransportBar({
       style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
-  const ClearBtn = (
-    <button
-      data-hint="CLEAR · Efface tous les hits de toutes les pistes du pattern courant · Utilise Undo pour annuler"
-      onClick={onClear}
-      style={pill(false, "#FF2D55")}
-      title="Clear all hits">✕ CLEAR</button>
-  );
-
   const ExportBtn = onExport && (
     <div data-hint={`Export WAV · Rend ${exportBars} mesure${exportBars > 1 ? "s" : ""} en fichier audio 16-bit PCM · Choisir 1b/2b/4b puis ⬇ WAV`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
       {[1,2,4].map(n => (
@@ -289,7 +281,6 @@ export default function TransportBar({
           {TSBtn}
           {MetroBtn}
           {SubBtn}
-          {!isPads && ClearBtn}
         </div>
         <div style={{ ...rowStyle }}>
           {MidiBtn}
@@ -312,7 +303,6 @@ export default function TransportBar({
       {TSBtn}
       {MetroBtn}
       {SubBtn}
-      {!isPads && ClearBtn}
       {!isPortrait && !isMobile && KeybBtn}
       {MidiBtn}
       {LinkBtn}

@@ -3613,6 +3613,7 @@ export default function KickAndSnare(){
           STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}
           patNameEdit={patNameEdit} setPatNameEdit={setPatNameEdit}
           onLoadTemplate={loadTemplate} onLoadEuclidTemplate={loadEuclidTemplate} view={view}
+          onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
         />}
 
         {/* ── SEQUENCER ── */}
