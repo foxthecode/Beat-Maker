@@ -2659,16 +2659,12 @@ export default function KickAndSnare(){
     const L=loopRef.current;
     const beatMs=60000/Math.max(30,R.bpm);
     const newDurMs=newBars*R.sig.beats*beatMs;
+    // Non-destructive: L.events is NEVER filtered — it holds the full recording.
+    // Reducing bars silences events beyond the window; increasing bars restores them.
+    L.lengthMs=newDurMs;
     if(L.events.length>0){
-      // Trim events that fall beyond the new duration (decreasing bars)
-      // Increasing bars: events stay in place, new bars are simply empty
-      const trimmed=L.events.filter(ev=>ev.tOff<newDurMs);
-      if(trimmed.length!==L.events.length){
-        pushLoopSnapshot();
-        L.events=trimmed;
-      }
-      L.lengthMs=newDurMs;
-      setLoopDisp(trimmed.map(ev=>({tid:ev.tid,tOff:ev.tOff,vel:ev.vel})));
+      // Display only events within the active window
+      setLoopDisp(L.events.filter(ev=>ev.tOff<newDurMs).map(ev=>({tid:ev.tid,tOff:ev.tOff,vel:ev.vel})));
     }
     setLoopBars(newBars);
     R.loopBars=newBars;
@@ -2746,12 +2742,20 @@ export default function KickAndSnare(){
       const score=scoreForBpm(cBpm);
       if(score<gridBest){gridBest=score;gridBpm=cBpm;}
     }
-    // Anti-doubling: if half-BPM fits nearly as well, prefer it (avoids 180→90 ambiguity)
+    // Anti-doubling: two-pass strategy
+    // Pass 1 — sequencer-BPM anchor: if detected BPM is ~2× the current sequencer BPM (±15%),
+    // halve it immediately — the capture should stay in the existing tempo context.
+    if(gridBpm&&bpm>=40){
+      const ratio=gridBpm/bpm;
+      if(ratio>1.7&&ratio<2.3){gridBpm=Math.round(gridBpm/2);}
+    }
+    // Pass 2 — general anti-doubling: widen tolerance to 2.0 so the lower tempo
+    // is strongly preferred whenever it aligns reasonably (catches 8th-note patterns).
     if(gridBpm&&gridBpm>80){
       const halfBpm=Math.round(gridBpm/2);
       if(halfBpm>=40){
         const halfScore=scoreForBpm(halfBpm);
-        if(halfScore<=Math.max(gridBest,0.03)*1.25){gridBpm=halfBpm;}
+        if(halfScore<=Math.max(gridBest,0.03)*2.0){gridBpm=halfBpm;}
       }
     }
     const finalBpm=Math.max(40,Math.min(240,gridBpm??freeBpm??bpm));
