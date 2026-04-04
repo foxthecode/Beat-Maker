@@ -1627,6 +1627,25 @@ export default function KickAndSnare(){
   // ── lastSeqView: tracks which sequencer view (sequencer|euclid) was most recently active ──
   const [lastSeqView,setLastSeqView]=useState<'sequencer'|'euclid'>('sequencer');
   useEffect(()=>{if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');},[view]);
+  // ── Per-pattern velocity: stVel ↔ pBank[cPat]._vel ──────────────────────────
+  // stVel is global; we sync it per-pattern so randomize/drag only affects cPat.
+  const _velFromSwitch=useRef(false);
+  // When cPat changes, restore that pattern's saved velocity (if any)
+  useEffect(()=>{
+    const saved=(R.pb[cPat] as any)?._vel;
+    if(saved&&Object.keys(saved).length>0){_velFromSwitch.current=true;setStVel({...saved});}
+  },[cPat]);
+  // When stVel changes, debounce-save to pBank[cPat]._vel (skip if from cPat switch)
+  const _velSaveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>{
+    if(_velFromSwitch.current){_velFromSwitch.current=false;return;}
+    if(_velSaveTimer.current)clearTimeout(_velSaveTimer.current);
+    const snapPat=cPat;const snapVel=stVel;
+    _velSaveTimer.current=setTimeout(()=>{
+      setPBank(pb=>{const n=[...pb];n[snapPat]={...n[snapPat],_vel:{...snapVel}};return n;});
+    },200);
+    return()=>{if(_velSaveTimer.current)clearTimeout(_velSaveTimer.current);};
+  },[stVel]);
   // ── velRange: min/max for random velocity ──
   const [velRange,setVelRange]=useState<{min:number,max:number}>({min:40,max:100});
   // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
