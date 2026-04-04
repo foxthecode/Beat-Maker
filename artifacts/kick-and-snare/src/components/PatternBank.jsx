@@ -294,9 +294,9 @@ export default function PatternBank({
                 const isCurrent = songPosRef.current === si && playing && songMode;
                 return (
                   <div key={si}
-                    onClick={() => { songPosRef.current = si; }}
-                    onContextMenu={e => { e.preventDefault(); setSongChain(p => p.filter((_, j) => j !== si)); }}
-                    title={`Slot ${si + 1} : Pattern ${patIdx + 1} · clic-droit pour retirer`}
+                    onClick={() => { setSongChain(p => p.filter((_, j) => j !== si)); }}
+                    data-hint={`Slot ${si + 1} : Pattern ${patIdx + 1} · Clic pour retirer de la chaîne`}
+                    title={`Retirer Pattern ${patIdx + 1}`}
                     style={{
                       minWidth: 34, height: 34, borderRadius: 7, flexShrink: 0,
                       background: col + (isCurrent ? "55" : "1a"),
