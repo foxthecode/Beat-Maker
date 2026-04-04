@@ -10,6 +10,8 @@ import TutorialOverlay from "./components/TutorialOverlay.tsx";
 import SampleLoaderModal from "./components/SampleLoaderModal.tsx";
 import { useAppState } from "./hooks/useAppState.js";
 import { usePanelTransition } from "./hooks/usePanelTransition";
+import { KitBrowser, type UserKit } from "./components/KitBrowser.tsx";
+import { idbPut, idbGet, idbDeleteKeysWithPrefix } from "./hooks/idbHelper.ts";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
 
@@ -165,6 +167,23 @@ function encodeWAV(buffer:AudioBuffer):ArrayBuffer{
       v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;
     }
   return ab;
+}
+
+// ── Kit persistence helpers ───────────────────────────────────────────────────
+const USER_KITS_META_KEY='ks_user_kits_meta';
+function saveUserKitsMeta(kits:UserKit[]):void{
+  try{localStorage.setItem(USER_KITS_META_KEY,JSON.stringify(kits));}catch(e){console.warn('kit meta save failed',e);}
+}
+function loadUserKitsMeta():UserKit[]{
+  try{return JSON.parse(localStorage.getItem(USER_KITS_META_KEY)||'[]');}catch{return [];}
+}
+// Converts an AudioBuffer to a WAV ArrayBuffer (re-uses encodeWAV above)
+function bufferToWAVArrayBuffer(buf:AudioBuffer):ArrayBuffer{return encodeWAV(buf);}
+// Pure utility — SVG waveform path from AudioBuffer (module-level so loadUserKit can use it)
+function miniWaveformPathUtil(buffer:AudioBuffer,w:number,h:number):string{
+  const data=buffer.getChannelData(0);const step=Math.max(1,Math.ceil(data.length/w));let d='';
+  for(let x=0;x<w;x++){let mn=1,mx=-1;for(let j=0;j<step&&x*step+j<data.length;j++){const v=data[x*step+j];if(v<mn)mn=v;if(v>mx)mx=v;}d+=`M${x},${(((1+mn)/2)*h).toFixed(1)}L${x},${(((1+mx)/2)*h).toFixed(1)}`;}
+  return d;
 }
 
 // ── Per-track Euclidean rhythm presets (single-track, used in the track dropdown) ──
@@ -1477,6 +1496,9 @@ export default function KickAndSnare(){
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [kitIdx,setKitIdx]=useState(0);
+  const [showKitBrowser,setShowKitBrowser]=useState(false);
+  const [userKits,setUserKits]=useState<UserKit[]>(()=>loadUserKitsMeta());
+  const [activeKitId,setActiveKitId]=useState<string|null>(DRUM_KITS[0]?.id||null);
   const [gfx,setGfx]=useState({
     reverb:{on:false,decay:1.5,size:0.5,type:'room',sends:{}},
     delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
@@ -1610,6 +1632,8 @@ export default function KickAndSnare(){
   const flashTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
   // Tracks which pad tids are currently held — prevents retap-erase re-trigger on long-press
   const padHeldRef=useRef<Set<string>>(new Set());
+  // Race-condition guard for loadUserKit — incremented on each new load request
+  const loadEpochRef=useRef(0);
   const [velPicker,setVelPicker]=useState(null);
   // ── CP-I states ──
   const [euclidEditMode,setEuclidEditMode]=useState(false);
@@ -2869,6 +2893,73 @@ export default function KickAndSnare(){
       });
       return next;
     });
+    setActiveKitId(kit.id);
+  };
+
+  // ── User kit management ───────────────────────────────────────────────────
+  const saveCurrentAsKit=async(name:string,icon:string)=>{
+    await engine.init();
+    const samples:UserKit['samples']={};
+    const shape:UserKit['shape']={};
+    const kitId=`user_${Date.now()}`;
+    for(const tid of act){
+      shape[tid]={...(R.fx as typeof fx)[tid]||{...DEFAULT_FX}};
+      const buf=(engine.buf as any)[tid] as AudioBuffer|undefined;
+      if(buf){
+        const blobKey=`ks_blob_${kitId}_${tid}`;
+        try{await idbPut(blobKey,bufferToWAVArrayBuffer(buf));samples[tid]={type:'blob',blobKey,originalName:smpN[tid]||tid};}
+        catch(e){console.warn('idb save failed',tid,e);samples[tid]={type:'synth'};}
+      } else {
+        samples[tid]={type:'synth'};
+      }
+    }
+    const kit:UserKit={id:kitId,name,icon,createdAt:Date.now(),samples,shape};
+    const updated=[...userKits,kit];
+    setUserKits(updated);saveUserKitsMeta(updated);setActiveKitId(kit.id);
+  };
+
+  const loadUserKit=async(kit:UserKit)=>{
+    await engine.init();
+    const epoch=++loadEpochRef.current;
+    const nextFx={...(R.fx as typeof fx)};
+    for(const [tid,info] of Object.entries(kit.samples)){
+      if(epoch!==loadEpochRef.current)return;
+      if(info.type==='blob'&&info.blobKey){
+        try{
+          const ab=await idbGet(info.blobKey);
+          if(!ab||epoch!==loadEpochRef.current)continue;
+          const audioBuf=await engine.ctx!.decodeAudioData(ab.slice(0));
+          if(epoch!==loadEpochRef.current)continue;
+          engine.loadBuffer(tid,audioBuf);
+          setSmpN(prev=>({...prev,[tid]:info.originalName||'User sample'}));
+          const wp=miniWaveformPathUtil(audioBuf,28,16);
+          setWaveformCache(prev=>({...prev,[tid]:wp}));
+        }catch(e){console.warn('load user sample failed',tid,e);}
+      } else if(info.type==='url'&&info.url){
+        await engine.loadUrl(tid,info.url);
+        setSmpN(prev=>({...prev,[tid]:info.originalName||tid}));
+      } else {
+        delete (engine.buf as any)[tid];
+        if(engine.ctx){engine.renderShape(tid,nextFx[tid]||{...DEFAULT_FX},true).catch(()=>{});}
+        setSmpN(prev=>({...prev,[tid]:`${tid} · ${kit.name}`}));
+      }
+      if(kit.shape[tid]){
+        nextFx[tid]={...nextFx[tid],...kit.shape[tid]};
+        engine.uFx(tid,nextFx[tid]);
+      }
+    }
+    if(epoch===loadEpochRef.current){setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);}
+  };
+
+  const renameKit=(kitId:string,newName:string)=>{
+    const updated=userKits.map(k=>k.id===kitId?{...k,name:newName}:k);
+    setUserKits(updated);saveUserKitsMeta(updated);
+  };
+  const deleteKit=async(kitId:string)=>{
+    await idbDeleteKeysWithPrefix(`ks_blob_${kitId}_`).catch(()=>{});
+    const updated=userKits.filter(k=>k.id!==kitId);
+    setUserKits(updated);saveUserKitsMeta(updated);
+    if(activeKitId===kitId)setActiveKitId(null);
   };
 
   const loadTemplate=(tpl:typeof SEQUENCER_TEMPLATES[0],variant:"16"|"32"="16")=>{
@@ -3197,42 +3288,29 @@ export default function KickAndSnare(){
           </div>
           {/* Animated drummer mascot + kit selector + UNDO/REDO */}
           <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:20}}>
-          {/* ── Kit selector ◀ [icon · NAME] ▶ ── */}
+          {/* ── Kit selector → opens KitBrowser ── */}
           {(()=>{
-            const curKit=DRUM_KITS[kitIdx]||DRUM_KITS[0];
-            const arrowBtn=(label,onClick,title)=>(
-              <button onClick={onClick} title={title} style={{
-                width:22,height:22,border:"1px solid rgba(255,149,0,0.28)",
-                borderRadius:6,background:"rgba(255,149,0,0.07)",
-                color:"#FF9500",fontSize:11,fontWeight:900,cursor:"pointer",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                fontFamily:"inherit",padding:0,lineHeight:1,
-                transition:"background 0.12s,border-color 0.12s,transform 0.08s",
-                flexShrink:0,
-              }}
-              onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,149,0,0.18)";(e.currentTarget as HTMLButtonElement).style.borderColor="rgba(255,149,0,0.55)";}}
-              onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,149,0,0.07)";(e.currentTarget as HTMLButtonElement).style.borderColor="rgba(255,149,0,0.28)";}}
-              onMouseDown={e=>{(e.currentTarget as HTMLButtonElement).style.transform="scale(0.88)";}}
-              onMouseUp={e=>{(e.currentTarget as HTMLButtonElement).style.transform="scale(1)";}}
-              >{label}</button>
-            );
+            const activeUserKit=userKits.find(k=>k.id===activeKitId);
+            const factoryKitForId=DRUM_KITS.find(k=>k.id===activeKitId);
+            const curIcon=activeUserKit?activeUserKit.icon:factoryKitForId?.icon||DRUM_KITS[Math.max(0,kitIdx)]?.icon||'🔴';
+            const curName=activeUserKit?activeUserKit.name:factoryKitForId?.name||DRUM_KITS[Math.max(0,kitIdx)]?.name||'808 Classic';
+            const isUser=!!activeUserKit;
             return(
-              <div data-hint="Kit selector · ‹ › to switch · Available kits: 808 Classic, CR-78 Vintage, Kit 3, Kit 8" style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                {arrowBtn("‹",()=>{const ni=(kitIdx-1+DRUM_KITS.length)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);},"Previous kit")}
-                <div style={{
-                  display:"flex",flexDirection:"column",alignItems:"center",
-                  minWidth:66,padding:"3px 7px 4px",borderRadius:7,
-                  background:"linear-gradient(160deg,rgba(255,149,0,0.13) 0%,rgba(255,45,85,0.09) 100%)",
-                  border:"1px solid rgba(255,149,0,0.22)",
-                  boxShadow:"0 0 10px rgba(255,149,0,0.08) inset",
-                  cursor:"default",userSelect:"none",position:"relative",overflow:"hidden",
-                }}>
-                  <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
-                  <span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curKit.icon}</span>
-                  <span style={{fontSize:6,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",marginTop:1,whiteSpace:"nowrap"}}>{curKit.name}</span>
+              <button data-hint="Open Kit Library · Browse factory and saved kits · Save current setup as a kit" onClick={()=>setShowKitBrowser(true)} style={{
+                display:"flex",alignItems:"center",gap:5,padding:"3px 8px 4px",borderRadius:7,
+                background:"linear-gradient(160deg,rgba(255,149,0,0.13) 0%,rgba(255,45,85,0.09) 100%)",
+                border:`1px solid ${isUser?"rgba(255,149,0,0.45)":"rgba(255,149,0,0.22)"}`,
+                boxShadow:"0 0 10px rgba(255,149,0,0.08) inset",
+                cursor:"pointer",fontFamily:"inherit",flexShrink:0,position:"relative",overflow:"hidden",
+                transition:"border-color 0.15s,background 0.15s",
+              }}>
+                <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
+                <span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}>
+                  <span style={{fontSize:6,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{curName}</span>
+                  <span style={{fontSize:5,color:th.dim,letterSpacing:"0.08em"}}>{isUser?"MY KIT ▼":"BROWSE ▼"}</span>
                 </div>
-                {arrowBtn("›",()=>{const ni=(kitIdx+1)%DRUM_KITS.length;applyKit(DRUM_KITS[ni]);},"Next kit")}
-              </div>
+              </button>
             );
           })()}
           {(()=>{
@@ -4562,6 +4640,19 @@ export default function KickAndSnare(){
     )}
 
     {/* ── Tutorial overlay ── */}
+    <KitBrowser
+      open={showKitBrowser}
+      onClose={()=>setShowKitBrowser(false)}
+      factoryKits={DRUM_KITS}
+      userKits={userKits}
+      activeKitId={activeKitId}
+      onLoadFactory={kit=>{applyKit(kit);setShowKitBrowser(false);}}
+      onLoadUser={loadUserKit}
+      onSave={saveCurrentAsKit}
+      onRename={renameKit}
+      onDelete={deleteKit}
+      themeName={themeName}
+    />
     {showTour&&<TutorialOverlay onClose={()=>setShowTour(false)} themeName={themeName}/>}
     {/* ── Info overlay ── */}
     {showInfo&&(
