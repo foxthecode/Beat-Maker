@@ -9,6 +9,7 @@ import LooperPanel from "./components/LooperPanel.jsx";
 import TutorialOverlay from "./components/TutorialOverlay.tsx";
 import SampleLoaderModal from "./components/SampleLoaderModal.tsx";
 import { useAppState } from "./hooks/useAppState.js";
+import { usePanelTransition } from "./hooks/usePanelTransition";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
 
@@ -59,13 +60,14 @@ const ALL_TRACKS=[
   {id:"perc",label:"PERC",color:"#BF5AF2",icon:"▲"},
 ];
 const TRACKS=ALL_TRACKS;
-const DEFAULT_ACTIVE=["kick","snare"];
+const DEFAULT_ACTIVE=["kick","snare","hihat","clap","tom","ride","crash","perc"];
 const DEFAULT_KEY_MAP={kick:"q",snare:"s",hihat:"d",clap:"f",tom:"g",ride:"h",crash:"j",perc:"k"};
 const DEFAULT_MIDI_NOTES={kick:36,snare:38,hihat:42,clap:39,tom:45,ride:51,crash:49,perc:47,__play__:246,__rec__:247,__tap__:null,__bpm__:null,__swing__:null}; // CC = value+128 (__play__=CC118 __rec__=CC119)
 const NOTE_NAMES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 const midiNoteName=n=>n==null?"—":n>=128?`CC${n-128}`:NOTE_NAMES[n%12]+(Math.floor(n/12)-1);
 const MAX_PAT=8,NR=50;
 const SEC_COL=["#FF2D55","#FF9500","#30D158","#5E5CE6","#BF5AF2","#64D2FF","#FFD60A","#FF375F"];
+const CUSTOM_COLORS=['#E91E63','#9C27B0','#00BCD4','#8BC34A','#FF5722','#607D8B','#CDDC39','#00E676','#F50057','#18FFFF','#76FF03','#FF6E40','#B388FF','#1DE9B6','#FFAB40','#8D6E63'];
 const mkE=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(0)]));
 const mkN=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(0)]));
 const mkV=s=>Object.fromEntries(ALL_TRACKS.map(t=>[t.id,Array(s).fill(100)]));
@@ -1473,6 +1475,7 @@ export default function KickAndSnare(){
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
   const [customTracks,setCustomTracks]=useState([]);
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
+  const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
   const [euclidParams,setEuclidParams]=useState({});
   const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
@@ -1619,10 +1622,18 @@ export default function KickAndSnare(){
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
   const [showPerform,setShowPerform]=useState(false);
-  const [stutterDiv,setStutterDiv]=useState('1/8');
+  const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/8'|'1/16'|'1/32'>('1/8');
+  const [perfTrack,setPerfTrack]=useState<string>('');
   const [waveformCache,setWaveformCache]=useState<Record<string,string>>({});
   const stutterRef=useRef<ReturnType<typeof setInterval>|null>(null);
   const lastTrigRef=useRef<string>('');
+  const perfTrackRef=useRef<string>('');
+  const perfSwipeRef=useRef<{startX:number,startIdx:number}|null>(null);
+  const perfRvHold=useRef(false);
+  const perfDlHold=useRef(false);
+  const perfRvPrevRef=useRef<{mix:number,decay:number}|null>(null);
+  const perfDlPrevRef=useRef<{mix:number,time:number,fb:number}|null>(null);
+  const filterPosRef=useRef<Record<string,{x:number,y:number}>>({});
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
   const [loopMetro,setLoopMetro]=useState(false);
@@ -3054,14 +3065,18 @@ export default function KickAndSnare(){
   const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});if(engine.buf[tid]){const wp=miniWaveformPath(engine.buf[tid],28,16);setWaveformCache(p=>({...p,[tid]:wp}));}}ldRef.current=null;};
   const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});const wp=miniWaveformPath(buffer,28,16);setWaveformCache(p=>({...p,[tid]:wp}));};
 
-  const pill=(on,c)=>({padding:"5px 11px",border:`1px solid ${on?c+"55":th.sBorder}`,borderRadius:6,background:on?c+"18":"transparent",color:on?c:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit"});
+  const pill=(on,c)=>({padding:"8px 16px",border:`1.5px solid ${on?c+"66":th.sBorder}`,borderRadius:8,background:on?c+"22":"rgba(255,255,255,0.03)",color:on?c:c+'77',fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit",transition:"all 0.2s cubic-bezier(0.32,0.72,0,1)",boxShadow:on?`0 0 12px ${c}22`:"none"});
 
   const CUST_ICONS=["◉","◈","⬟","⬡","◳","⬢","◙","⟡"];
   const addCustomTrack=()=>{
     const name=newTrackName.trim();if(!name)return;
     const id=`ct_${Date.now()}`;const N=STEPS;
-    const usedCols=customTracks.map(c=>c.color);const custCol=SEC_COL.find(c=>!usedCols.includes(c))||SEC_COL[customTracks.length%SEC_COL.length];
-    const t={id,label:name.toUpperCase().slice(0,10),icon:CUST_ICONS[customTracks.length%CUST_ICONS.length],color:custCol};
+    const usedColors=new Set([...ALL_TRACKS.map(t=>t.color),...customTracks.map(t=>t.color)]);
+    const autoColor=CUSTOM_COLORS.find(c=>!usedColors.has(c))||CUSTOM_COLORS[customTracks.length%CUSTOM_COLORS.length];
+    const finalColor=selectedCustomColor||autoColor;
+    const t={id,label:name.toUpperCase().slice(0,10),icon:CUST_ICONS[customTracks.length%CUST_ICONS.length],color:finalColor};
+    const newCustomTracks=[...customTracks,t];
+    R.allT=[...ALL_TRACKS,...newCustomTracks];
     setCustomTracks(p=>[...p,t]);
     setPBank(pb=>pb.map(pat=>({...pat,[id]:Array(N).fill(0),_steps:{...(pat._steps||{}),[id]:N}})));
     setStVel(p=>({...p,[id]:Array(N).fill(100)}));
@@ -3070,34 +3085,40 @@ export default function KickAndSnare(){
     setStRatch(p=>({...p,[id]:Array(N).fill(1)}));
     setFx(p=>({...p,[id]:{...DEFAULT_FX}}));
     setAct(a=>[...a,id]);
-    setNewTrackName("");setShowCustomInput(false);setShowAdd(false);
-    // Pre-render 808 cowbell for this custom track, then play a preview
+    setNewTrackName("");setShowCustomInput(false);setShowAdd(false);setSelectedCustomColor(null);
     setSmpN(p=>({...p,[id]:"808 Cowbell (synth)"}));
-    engine.init();
-    if(!engine.ch[id])engine._build(id);
+    engine.init();if(!engine.ch[id])engine._build(id);
     (async()=>{
-      try{
-        const sr=engine.ctx.sampleRate;
-        const oCtx=new OfflineAudioContext(1,Math.ceil(sr*0.65),sr);
-        engine._syn(id,0,1,oCtx.destination,oCtx);
-        engine.buf[id]=await oCtx.startRendering();
-      }catch(e){console.warn("Custom 808 prerender failed",e);}
-      engine.play(id,0.7,0,{...DEFAULT_FX});
+      try{const sr=engine.ctx.sampleRate;const oCtx=new OfflineAudioContext(1,Math.ceil(sr*0.65),sr);engine._syn(id,0,1,oCtx.destination,oCtx);engine.buf[id]=await oCtx.startRendering();}catch(e){console.warn("Custom 808 prerender failed",e);}
+      if(engine.buf[id]){engine.play(id,0.7,0,{...DEFAULT_FX});}
     })();
   };
 
   // Shared custom track input UI (used in sequencer + euclid add panels)
   const CustomTrackInput=()=>showCustomInput?(
-    <div style={{display:"flex",gap:4,alignItems:"center",width:"100%",marginTop:4}}>
-      <input autoFocus value={newTrackName} onChange={e=>setNewTrackName(e.target.value)}
-        onKeyDown={e=>{if(e.key==="Enter")addCustomTrack();if(e.key==="Escape"){setShowCustomInput(false);setNewTrackName("");}}}
-        placeholder="Track name…" maxLength={10}
-        style={{flex:1,height:26,borderRadius:5,border:`1px solid ${th.sBorder}`,background:"transparent",color:th.text,fontSize:10,fontWeight:700,padding:"0 8px",fontFamily:"inherit",outline:"none"}}/>
-      <button onClick={addCustomTrack} style={{padding:"4px 10px",borderRadius:5,border:"1px solid rgba(48,209,88,0.4)",background:"rgba(48,209,88,0.1)",color:"#30D158",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>ADD</button>
-      <button onClick={()=>{setShowCustomInput(false);setNewTrackName("");}} style={{width:22,height:26,borderRadius:5,border:"none",background:"transparent",color:th.dim,fontSize:11,cursor:"pointer",lineHeight:1}}>✕</button>
+    <div style={{display:"flex",flexDirection:"column",gap:6,width:"100%",marginTop:4}}>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        {(()=>{const usedColors=new Set([...ALL_TRACKS.map(t=>t.color),...customTracks.map(t=>t.color)]);const autoColor=CUSTOM_COLORS.find(c=>!usedColors.has(c))||CUSTOM_COLORS[0];const displayColor=selectedCustomColor||autoColor;return(
+          <div style={{width:22,height:22,borderRadius:11,flexShrink:0,background:displayColor,border:`2px solid ${th.sBorder}`,boxShadow:`0 0 6px ${displayColor}44`}}/>
+        );})()}
+        <input autoFocus value={newTrackName} onChange={e=>setNewTrackName(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter")addCustomTrack();if(e.key==="Escape"){setShowCustomInput(false);setNewTrackName("");setSelectedCustomColor(null);}}}
+          placeholder="Track name…" maxLength={10}
+          style={{flex:1,height:28,borderRadius:6,border:`1.5px solid ${selectedCustomColor?selectedCustomColor+'66':th.sBorder}`,background:"transparent",color:th.text,fontSize:11,fontWeight:700,padding:"0 8px",fontFamily:"inherit",outline:"none",transition:"border-color 0.15s"}}/>
+        <button onClick={addCustomTrack} disabled={!newTrackName.trim()}
+          style={{padding:"5px 14px",borderRadius:6,border:"1px solid rgba(48,209,88,0.4)",background:newTrackName.trim()?"rgba(48,209,88,0.15)":"transparent",color:newTrackName.trim()?"#30D158":th.dim,fontSize:10,fontWeight:800,cursor:newTrackName.trim()?"pointer":"default",fontFamily:"inherit",transition:"all 0.12s"}}>ADD</button>
+        <button onClick={()=>{setShowCustomInput(false);setNewTrackName("");setSelectedCustomColor(null);}} style={{width:24,height:28,borderRadius:6,border:"none",background:"transparent",color:th.dim,fontSize:12,cursor:"pointer",lineHeight:1}}>✕</button>
+      </div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",paddingLeft:2,alignItems:"center"}}>
+        <span style={{fontSize:8,fontWeight:700,color:th.dim,marginRight:2}}>COLOR</span>
+        {(()=>{const usedColors=new Set([...ALL_TRACKS.map(t=>t.color),...customTracks.map(t=>t.color)]);return CUSTOM_COLORS.filter(c=>!usedColors.has(c)).slice(0,12).map(c=>(
+          <button key={c} onClick={()=>setSelectedCustomColor(c)}
+            style={{width:22,height:22,borderRadius:11,padding:0,border:selectedCustomColor===c?`2.5px solid ${th.text}`:`1.5px solid ${c}55`,background:c,cursor:"pointer",transform:selectedCustomColor===c?"scale(1.25)":"scale(1)",transition:"all 0.1s",boxShadow:selectedCustomColor===c?`0 0 10px ${c}66`:"none"}}/>
+        ));})()}
+      </div>
     </div>
   ):(
-    <button onClick={()=>setShowCustomInput(true)} style={{padding:"4px 10px",borderRadius:6,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ CUSTOM</button>
+    <button onClick={()=>{setShowCustomInput(true);setSelectedCustomColor(null);}} style={{padding:"5px 14px",borderRadius:6,border:`1px dashed ${th.sBorder}`,background:"transparent",color:th.dim,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ CUSTOM</button>
   );
 
   // ── MIDI Learn inline badge ──
@@ -3787,88 +3808,137 @@ export default function KickAndSnare(){
               </div>
             );})}
           </div>
-          {/* ── PERFORM FX ── */}
+          {/* ── PERFORM FX v10 ── */}
           {(()=>{
-            const filterRelease=()=>{
-              const t=engine?.ctx?.currentTime??0;
+            const divToMs=(div:string)=>{const b=60000/Math.max(30,bpm);const m:Record<string,number>={'1/4':b,'1/8':b/2,'1/16':b/4,'1/32':b/8};return m[div]??b/2;};
+            const target=perfTrack||atO[0]?.id||'';
+            const tObj=atO.find(t=>t.id===target)||atO[0];
+            const tColor=tObj?.color||'#5E5CE6';
+            const applyFilter=(x:number,y:number)=>{
+              const freq=20*Math.pow(1000,x);const q=y*22;
+              const t2=engine.ctx?.currentTime??0;
+              if(target&&engine.ch[target]?.flt){
+                engine.ch[target].flt.frequency.setTargetAtTime(freq,t2,0.01);
+                engine.ch[target].flt.Q?.setTargetAtTime(q,t2,0.01);
+              } else {
+                engine.gFlt?.frequency.setTargetAtTime(freq,t2,0.01);
+                engine.gFlt2?.frequency.setTargetAtTime(freq,t2,0.01);
+                engine.gFlt?.Q.setTargetAtTime(q,t2,0.01);
+                engine.gFlt2?.Q.setTargetAtTime(q,t2,0.01);
+              }
+            };
+            const resetFilter=()=>{
+              const t2=engine.ctx?.currentTime??0;
               const fCut=gfx.filter?.on?Math.max(20,gfx.filter.cut||18000):20000;
               const fQ=gfx.filter?.on?(gfx.filter.res||0):0;
-              engine.gFlt?.frequency.setTargetAtTime(fCut,t,0.05);
-              engine.gFlt2?.frequency.setTargetAtTime(fCut,t,0.05);
-              engine.gFlt?.Q.setTargetAtTime(fQ,t,0.05);
-              engine.gFlt2?.Q.setTargetAtTime(fQ,t,0.05);
+              if(target&&engine.ch[target]?.flt){
+                engine.ch[target].flt.frequency.setTargetAtTime(fCut,t2,0.06);
+                engine.ch[target].flt.Q?.setTargetAtTime(fQ,t2,0.06);
+              } else {
+                engine.gFlt?.frequency.setTargetAtTime(fCut,t2,0.06);
+                engine.gFlt2?.frequency.setTargetAtTime(fCut,t2,0.06);
+                engine.gFlt?.Q.setTargetAtTime(fQ,t2,0.06);
+                engine.gFlt2?.Q.setTargetAtTime(fQ,t2,0.06);
+              }
             };
-            const divMs=(div:string)=>{const b=60000/Math.max(30,bpm);const m:Record<string,number>={'1/4':b,'1/8':b/2,'1/16':b/4,'1/32':b/8};return m[div]??b/2;};
+            const startRvHold=()=>{
+              engine.init();if(perfRvHold.current)return;perfRvHold.current=true;
+              const rv=gfx.reverb||{};perfRvPrevRef.current={mix:rv.mix??0.18,decay:rv.decay??2};
+              engine.updateReverb?.({...rv,mix:Math.min(1,(rv.mix??0.18)+0.45),decay:(rv.decay??2)*1.6});
+            };
+            const stopRvHold=()=>{
+              if(!perfRvHold.current)return;perfRvHold.current=false;
+              if(perfRvPrevRef.current){engine.updateReverb?.({...(gfx.reverb||{}),...perfRvPrevRef.current});perfRvPrevRef.current=null;}
+            };
+            const startDlHold=()=>{
+              engine.init();if(perfDlHold.current)return;perfDlHold.current=true;
+              const dl=gfx.delay||{};perfDlPrevRef.current={mix:dl.mix??0,time:dl.time??0.25,fb:dl.fb??0.3};
+              const t2=engine.ctx?.currentTime??0;engine.gDlBus?.gain.setTargetAtTime(Math.min(1,(dl.mix??0)+0.55),t2,0.02);
+            };
+            const stopDlHold=()=>{
+              if(!perfDlHold.current)return;perfDlHold.current=false;
+              if(perfDlPrevRef.current&&engine.ctx){const t2=engine.ctx.currentTime;engine.gDlBus?.gain.setTargetAtTime(perfDlPrevRef.current.mix,t2,0.12);perfDlPrevRef.current=null;}
+            };
+            const startStutter=()=>{
+              engine.init();const tid=lastTrigRef.current||(atO[0]?.id??'');if(!tid)return;
+              if(stutterRef.current)clearInterval(stutterRef.current);
+              engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});
+              stutterRef.current=setInterval(()=>engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX}),divToMs(stutterDiv));
+            };
+            const stopStutter=()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}};
+            const fPos=filterPosRef.current[target]||{x:0.5,y:0.5};
+            const holdBtn=(label:string,color:string,onDown:()=>void,onUp:()=>void)=>(
+              <button onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);onDown();}}
+                onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
+                style={{flex:1,padding:"9px 4px",borderRadius:8,border:`1.5px solid ${color}55`,background:`${color}15`,color,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",transition:"all 0.1s"}}>
+                {label}
+              </button>
+            );
             return (
-              <div style={{marginTop:10,borderRadius:10,border:`1px solid ${showPerform?"rgba(94,92,230,0.4)":"rgba(94,92,230,0.15)"}`,background:th.surface,overflow:"hidden",transition:"border-color 0.2s"}}>
-                <div onClick={()=>setShowPerform(p=>!p)} style={{padding:"8px 12px",display:"flex",alignItems:"center",gap:6,cursor:"pointer",userSelect:"none"}}>
-                  <span style={{fontSize:10,color:"#5E5CE6"}}>🎛</span>
-                  <span style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em"}}>PERFORM FX</span>
-                  <span style={{marginLeft:"auto",fontSize:10,color:th.dim}}>{showPerform?"▲":"▼"}</span>
+              <div style={{marginTop:10,borderRadius:10,border:`1px solid ${showPerform?tColor+"44":"rgba(94,92,230,0.15)"}`,background:th.surface,overflow:"hidden",transition:"border-color 0.2s"}}>
+                {/* Header: left=toggle, right=track selector */}
+                <div style={{padding:"8px 12px",display:"flex",alignItems:"center",gap:6,cursor:"pointer",userSelect:"none"}}>
+                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:"#5E5CE6",flexShrink:0}}>🎛</span>
+                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em",flex:1}}>PERFORM FX</span>
+                  {/* Track swipe selector */}
+                  <div style={{display:"flex",alignItems:"center",gap:3,touchAction:"none"}}
+                    onPointerDown={e=>{const idx=atO.findIndex(t=>t.id===target);perfSwipeRef.current={startX:e.clientX,startIdx:Math.max(0,idx)};}}
+                    onPointerUp={e=>{
+                      if(!perfSwipeRef.current)return;const dx=e.clientX-perfSwipeRef.current.startX;
+                      if(Math.abs(dx)>40){const n=atO.length;const ni=(perfSwipeRef.current.startIdx+(dx<0?1:-1)+n)%n;const nid=atO[ni]?.id||'';setPerfTrack(nid);perfTrackRef.current=nid;}
+                      perfSwipeRef.current=null;
+                    }}>
+                    <button onClick={()=>{const idx=atO.findIndex(t=>t.id===target);const ni=(idx-1+atO.length)%atO.length;const nid=atO[ni]?.id||'';setPerfTrack(nid);perfTrackRef.current=nid;}} style={{width:20,height:20,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>‹</button>
+                    <span style={{fontSize:8,fontWeight:800,color:tColor,minWidth:36,textAlign:"center",letterSpacing:"0.05em"}}>{tObj?.label||'—'}</span>
+                    <button onClick={()=>{const idx=atO.findIndex(t=>t.id===target);const ni=(idx+1)%atO.length;const nid=atO[ni]?.id||'';setPerfTrack(nid);perfTrackRef.current=nid;}} style={{width:20,height:20,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>›</button>
+                  </div>
+                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:th.dim,marginLeft:4}}>{showPerform?"▲":"▼"}</span>
                 </div>
                 {showPerform&&(
-                  <div style={{padding:"8px 12px 12px",display:"flex",flexDirection:"column",gap:10}}>
+                  <div style={{padding:"8px 12px 14px",display:"flex",flexDirection:"column",gap:10}}>
+                    {/* FILTER XY */}
                     <div>
-                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:6}}>FILTER SWEEP — drag to sweep cutoff (←→) and resonance (↑↓)</div>
-                      <div
-                        style={{height:72,borderRadius:8,background:"rgba(255,149,0,0.05)",border:"1px solid rgba(255,149,0,0.25)",position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
-                        onPointerDown={e=>{
-                          e.currentTarget.setPointerCapture(e.pointerId);engine.init();
-                          const upd=(px:number,py:number)=>{
-                            const r=e.currentTarget.getBoundingClientRect();
-                            const x=Math.max(0,Math.min(1,(px-r.left)/r.width));
-                            const y=Math.max(0,Math.min(1,1-(py-r.top)/r.height));
-                            const freq=20*Math.pow(1000,x);const q=y*22;
-                            const t2=engine.ctx?.currentTime??0;
-                            engine.gFlt?.frequency.setTargetAtTime(freq,t2,0.01);
-                            engine.gFlt2?.frequency.setTargetAtTime(freq,t2,0.01);
-                            engine.gFlt?.Q.setTargetAtTime(q,t2,0.01);
-                            engine.gFlt2?.Q.setTargetAtTime(q,t2,0.01);
-                          };
-                          upd(e.clientX,e.clientY);
-                        }}
-                        onPointerMove={e=>{
-                          if(e.buttons===0)return;
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>FILTER SWEEP · {tObj?.label||'ALL'} · drag cutoff (←→) resonance (↑↓)</div>
+                      <div style={{height:80,borderRadius:8,background:`${tColor}08`,border:`1px solid ${tColor}33`,position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
+                        onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);engine.init();
                           const r=e.currentTarget.getBoundingClientRect();
                           const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
                           const y=Math.max(0,Math.min(1,1-(e.clientY-r.top)/r.height));
-                          const freq=20*Math.pow(1000,x);const q=y*22;
-                          const t2=engine.ctx?.currentTime??0;
-                          engine.gFlt?.frequency.setTargetAtTime(freq,t2,0.01);
-                          engine.gFlt2?.frequency.setTargetAtTime(freq,t2,0.01);
-                          engine.gFlt?.Q.setTargetAtTime(q,t2,0.01);
-                          engine.gFlt2?.Q.setTargetAtTime(q,t2,0.01);
-                        }}
-                        onPointerUp={filterRelease}
-                        onPointerCancel={filterRelease}
-                      >
-                        <div style={{position:"absolute",inset:0,background:"linear-gradient(90deg,rgba(100,210,255,0.08),rgba(255,45,85,0.08))"}}/>
+                          filterPosRef.current[target]={x,y};applyFilter(x,y);}}
+                        onPointerMove={e=>{if(e.buttons===0)return;
+                          const r=e.currentTarget.getBoundingClientRect();
+                          const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+                          const y=Math.max(0,Math.min(1,1-(e.clientY-r.top)/r.height));
+                          filterPosRef.current[target]={x,y};applyFilter(x,y);}}
+                        onPointerUp={resetFilter} onPointerCancel={resetFilter}>
+                        <div style={{position:"absolute",inset:0,background:`linear-gradient(90deg,rgba(100,210,255,0.07),${tColor}14)`}}/>
                         <div style={{position:"absolute",inset:0,background:"linear-gradient(0deg,rgba(255,149,0,0.06),transparent)"}}/>
+                        {/* Crosshair dot */}
+                        <div style={{position:"absolute",width:10,height:10,borderRadius:5,background:tColor,boxShadow:`0 0 8px ${tColor}`,left:`calc(${fPos.x*100}% - 5px)`,top:`calc(${(1-fPos.y)*100}% - 5px)`,transition:"left 0.06s,top 0.06s",pointerEvents:"none"}}/>
                         <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
-                          <span style={{fontSize:8,color:th.faint}}>← Cutoff →  ↑ Resonance ↓</span>
+                          <span style={{fontSize:8,color:th.faint,opacity:0.7}}>← Cutoff →  ↑ Res ↓</span>
                         </div>
                       </div>
                     </div>
+                    {/* HOLD Buttons row */}
                     <div>
-                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:6}}>STUTTER — hold button to repeat last pad hit</div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>HOLD EFFECTS — press and hold</div>
+                      <div style={{display:"flex",gap:6}}>
+                        {holdBtn("REVERB","#BF5AF2",startRvHold,stopRvHold)}
+                        {holdBtn("DELAY","#64D2FF",startDlHold,stopDlHold)}
+                      </div>
+                    </div>
+                    {/* STUTTER */}
+                    <div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>STUTTER — hold to repeat last pad hit</div>
                       <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
                         {(['1/4','1/8','1/16','1/32'] as const).map(d=>(
-                          <button key={d} onClick={()=>setStutterDiv(d)} style={{padding:"3px 8px",borderRadius:4,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
+                          <button key={d} onClick={()=>setStutterDiv(d)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
                         ))}
                         <button
-                          onPointerDown={e=>{
-                            e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);engine.init();
-                            const tid=lastTrigRef.current||(atO[0]?.id??'');if(!tid)return;
-                            const ms=divMs(stutterDiv);
-                            if(stutterRef.current)clearInterval(stutterRef.current);
-                            engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});
-                            stutterRef.current=setInterval(()=>{engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});},ms);
-                          }}
-                          onPointerUp={()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}}}
-                          onPointerCancel={()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}}}
-                          onPointerLeave={()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}}}
-                          style={{padding:"5px 14px",borderRadius:6,border:"1px solid rgba(94,92,230,0.45)",background:"rgba(94,92,230,0.12)",color:"#5E5CE6",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}
-                        >HOLD</button>
+                          onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startStutter();}}
+                          onPointerUp={stopStutter} onPointerCancel={stopStutter} onPointerLeave={stopStutter}
+                          style={{padding:"6px 16px",borderRadius:6,border:`1.5px solid rgba(94,92,230,0.5)`,background:"rgba(94,92,230,0.15)",color:"#5E5CE6",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>HOLD</button>
                       </div>
                     </div>
                   </div>

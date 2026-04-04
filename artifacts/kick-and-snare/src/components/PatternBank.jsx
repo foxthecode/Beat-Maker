@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { THEMES } from "../theme.js";
 import { SEQUENCER_TEMPLATES } from "../sequencerTemplates.ts";
 import { EUCLID_TEMPLATES } from "../euclidTemplates.ts";
+import { usePanelTransition } from "../hooks/usePanelTransition";
 
 function MiniGrid({ steps = [], color, n = 16 }) {
   const sz = n > 16 ? 2.5 : 3.5;
@@ -39,8 +40,7 @@ function EuclidDots({ hits, N, rot = 0, color }) {
 
 function EuclidConcentric({ tracks }) {
   const size = 38;
-  const cx = size / 2;
-  const cy = size / 2;
+  const cx = size / 2, cy = size / 2;
   const outerR = size / 2 - 2;
   const gap = tracks.length > 1 ? (outerR - 5) / (tracks.length - 1) : 0;
   return (
@@ -74,23 +74,10 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
   const isEuclid = view === "euclid";
   const templates = isEuclid ? EUCLID_TEMPLATES : SEQUENCER_TEMPLATES;
   const n = variant === "32" ? 32 : 16;
-
   const accentColor = isEuclid ? "#FFD60A" : "#5E5CE6";
-
   const toggle = () => setOpen(o => !o);
-
-  const load = (tpl) => {
-    if (isEuclid) {
-      onLoadEuclid && onLoadEuclid(tpl);
-    } else {
-      onLoad && onLoad(tpl, variant);
-    }
-    setOpen(false);
-  };
-
-  const handleBlur = (e) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
-  };
+  const load = (tpl) => { if (isEuclid) { onLoadEuclid && onLoadEuclid(tpl); } else { onLoad && onLoad(tpl, variant); } setOpen(false); };
+  const handleBlur = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); };
 
   return (
     <div ref={ref} style={{ position: "relative" }} onBlur={handleBlur} tabIndex={-1}>
@@ -99,110 +86,47 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
           ? `PRESETS Euclidian · ${EUCLID_TEMPLATES.length} ready-to-use polyrhythms · Click to browse and load a preset`
           : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} TR-808 patterns (Hip-hop, Techno, Jazz…) · Click to browse · ${variant}-step variant`}
         onClick={toggle}
-        style={{
-          display: "flex", alignItems: "center", gap: 5,
-          padding: "2px 8px", borderRadius: 5, cursor: "pointer",
-          border: `1px solid ${open ? accentColor + "99" : th.sBorder}`,
-          background: open ? accentColor + "18" : "transparent",
-          color: open ? accentColor : th.dim,
-          fontSize: 8, fontWeight: open ? 800 : 500,
-          letterSpacing: "0.06em", fontFamily: "inherit",
-        }}
+        style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 5, cursor: "pointer", border: `1px solid ${open ? accentColor + "99" : th.sBorder}`, background: open ? accentColor + "18" : "transparent", color: open ? accentColor : th.dim, fontSize: 8, fontWeight: open ? 800 : 500, letterSpacing: "0.06em", fontFamily: "inherit" }}
       >
         <span>{isEuclid ? "⬡ PRESETS" : "PRESETS"}</span>
         <span style={{ fontSize: 7 }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 4px)", left: 0,
-          zIndex: 300, width: isEuclid ? 300 : 320,
-          background: "#1a1a1e", border: `1px solid ${accentColor}44`,
-          borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
-          overflow: "hidden",
-        }}>
-          {/* Header */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "7px 10px 6px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            background: "rgba(255,255,255,0.02)",
-          }}>
-            <span style={{ fontSize: 8, color: accentColor, fontWeight: 800, letterSpacing: "0.08em", flex: 1 }}>
-              {isEuclid ? "⬡ EUCLIDIAN PRESETS" : "■ STEP TEMPLATES"}
-            </span>
-            {!isEuclid && (
-              <span style={{ fontSize: 7, color: th.faint }}>{variant} steps</span>
-            )}
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 300, width: isEuclid ? 300 : 320, background: "#1a1a1e", border: `1px solid ${accentColor}44`, borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px 6px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+            <span style={{ fontSize: 8, color: accentColor, fontWeight: 800, letterSpacing: "0.08em", flex: 1 }}>{isEuclid ? "⬡ EUCLIDIAN PRESETS" : "■ STEP TEMPLATES"}</span>
+            {!isEuclid && <span style={{ fontSize: 7, color: th.faint }}>{variant} steps</span>}
           </div>
-
-          {/* Template list */}
           <div style={{ maxHeight: 320, overflowY: "auto" }}>
             {templates.map(tpl => {
-              const stepsK = !isEuclid && (variant === "32" && tpl.steps32
-                ? tpl.steps32.kick : tpl.steps.kick);
-              const stepsS = !isEuclid && (variant === "32" && tpl.steps32
-                ? (tpl.steps32.snare || tpl.steps32.clap || Object.values(tpl.steps32)[1])
-                : (tpl.steps.snare || tpl.steps.clap || Object.values(tpl.steps)[1]));
-              const stepsH = !isEuclid && (variant === "32" && tpl.steps32
-                ? (tpl.steps32.hihat || Object.values(tpl.steps32)[2])
-                : (tpl.steps.hihat || Object.values(tpl.steps)[2]));
+              const stepsK = !isEuclid && (variant === "32" && tpl.steps32 ? tpl.steps32.kick : tpl.steps.kick);
+              const stepsS = !isEuclid && (variant === "32" && tpl.steps32 ? (tpl.steps32.snare || tpl.steps32.clap || Object.values(tpl.steps32)[1]) : (tpl.steps.snare || tpl.steps.clap || Object.values(tpl.steps)[1]));
+              const stepsH = !isEuclid && (variant === "32" && tpl.steps32 ? (tpl.steps32.hihat || Object.values(tpl.steps32)[2]) : (tpl.steps.hihat || Object.values(tpl.steps)[2]));
               const disabled = !isEuclid && variant === "32" && !tpl.steps32;
-
               return (
-                <div
-                  key={tpl.id}
-                  data-hint={disabled
-                    ? `${tpl.name} · No 32-step variant available · Switch to 16 steps to load`
-                    : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · ${tpl.description || ""} · Click to load into current pattern`}
-                  onClick={() => !disabled && load(tpl)}
-                  title={disabled ? "No 32-step variant" : tpl.description || tpl.name}
-                  style={{
-                    display: "flex", flexDirection: "column", gap: isEuclid ? 4 : 3,
-                    padding: "7px 10px",
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
-                    cursor: disabled ? "not-allowed" : "pointer",
-                    opacity: disabled ? 0.38 : 1,
-                    transition: "background 0.08s",
-                  }}
+                <div key={tpl.id} data-hint={disabled ? `${tpl.name} · No 32-step variant available · Switch to 16 steps to load` : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · ${tpl.description || ""} · Click to load into current pattern`}
+                  onClick={() => !disabled && load(tpl)} title={disabled ? "No 32-step variant" : tpl.description || tpl.name}
+                  style={{ display: "flex", flexDirection: "column", gap: isEuclid ? 4 : 3, padding: "7px 10px", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.38 : 1, transition: "background 0.08s" }}
                   onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = `${tpl.color}10`; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
                 >
-                  {/* Row 1 — icon + name + metadata */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: isEuclid ? 11 : 13, lineHeight: 1, opacity: 0.85 }}>{tpl.icon}</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, flex: 1, letterSpacing: "0.02em" }}>
-                      {tpl.name}
-                    </span>
-                    <span style={{ fontSize: 7, color: tpl.color + "99", letterSpacing: "0.1em", fontWeight: 700 }}>
-                      {tpl.genre}
-                    </span>
-                    {tpl.bpm && (
-                      <span style={{ fontSize: 7, color: th.faint, letterSpacing: "0.06em" }}>{tpl.bpm}</span>
-                    )}
-                    {!isEuclid && (
-                      <span style={{ fontSize: 7, color: "#30D15899", letterSpacing: "0.06em" }}>
-                        {Object.keys(variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps).length}trk
-                      </span>
-                    )}
+                    <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, flex: 1, letterSpacing: "0.02em" }}>{tpl.name}</span>
+                    <span style={{ fontSize: 7, color: tpl.color + "99", letterSpacing: "0.1em", fontWeight: 700 }}>{tpl.genre}</span>
+                    {tpl.bpm && <span style={{ fontSize: 7, color: th.faint, letterSpacing: "0.06em" }}>{tpl.bpm}</span>}
+                    {!isEuclid && <span style={{ fontSize: 7, color: "#30D15899", letterSpacing: "0.06em" }}>{Object.keys(variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps).length}trk</span>}
                   </div>
-
-                  {/* Row 2 — Euclid: circle previews / Sequencer: mini grids */}
                   {isEuclid ? (
                     <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       {Object.entries(tpl.params).map(([tid, p]) => (
                         <div key={tid} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                           <EuclidDots hits={p.hits} N={p.N} rot={p.rot || 0} color={tpl.color} />
-                          <span style={{ fontSize: 5.5, color: tpl.color + "99", letterSpacing: "0.05em", fontFamily: "monospace" }}>
-                            E({p.hits},{p.N})
-                          </span>
+                          <span style={{ fontSize: 5.5, color: tpl.color + "99", letterSpacing: "0.05em", fontFamily: "monospace" }}>E({p.hits},{p.N})</span>
                         </div>
                       ))}
-                      {tpl.description && (
-                        <span style={{ fontSize: 6, color: th.faint, flex: 1, lineHeight: 1.3, minWidth: 80 }}>
-                          {tpl.description.split('—')[1]?.trim() || ""}
-                        </span>
-                      )}
+                      {tpl.description && <span style={{ fontSize: 6, color: th.faint, flex: 1, lineHeight: 1.3, minWidth: 80 }}>{tpl.description.split('—')[1]?.trim() || ""}</span>}
                     </div>
                   ) : (
                     <>
@@ -215,15 +139,8 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
               );
             })}
           </div>
-
-          <div style={{
-            padding: "5px 10px", fontSize: 7, color: th.faint, textAlign: "center",
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-            letterSpacing: "0.04em",
-          }}>
-            {isEuclid
-              ? "Euclidean polyrhythms · Source: Toussaint 2005"
-              : "Humanized velocities included · All tracks auto-enabled"}
+          <div style={{ padding: "5px 10px", fontSize: 7, color: th.faint, textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.05)", letterSpacing: "0.04em" }}>
+            {isEuclid ? "Euclidean polyrhythms · Source: Toussaint 2005" : "Humanized velocities included · All tracks auto-enabled"}
           </div>
         </div>
       )}
@@ -234,7 +151,7 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
 export default function PatternBank({
   themeName, pBank, setPBank, cPat, setCPat,
   songChain, setSongChain, songMode, setSongMode, showSong, setShowSong,
-  playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait=false,
+  playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait = false,
   patNameEdit, setPatNameEdit,
   onLoadTemplate, onLoadEuclidTemplate,
   view,
@@ -243,215 +160,162 @@ export default function PatternBank({
   const longPressRef = useRef(null);
   const [variant, setVariant] = useState("16");
   const isEuclid = view === "euclid";
+  const songTimeline = usePanelTransition(false);
 
-  const startLongPress = (i) => {
-    longPressRef.current = setTimeout(() => { setPatNameEdit && setPatNameEdit(i); }, 500);
-  };
-  const cancelLongPress = () => {
-    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
-  };
+  const localPill = (on, c) => ({
+    padding: "5px 12px", border: `1.5px solid ${on ? c + "66" : th.sBorder}`,
+    borderRadius: 7, background: on ? c + "22" : "transparent",
+    color: on ? c : c + "77", fontSize: 9, fontWeight: 800,
+    cursor: "pointer", letterSpacing: "0.06em", textTransform: "uppercase",
+    fontFamily: "inherit", transition: "all 0.2s cubic-bezier(0.32,0.72,0,1)",
+    boxShadow: on ? `0 0 10px ${c}22` : "none",
+  });
+
+  const startLongPress = (i) => { longPressRef.current = setTimeout(() => { setPatNameEdit && setPatNameEdit(i); }, 500); };
+  const cancelLongPress = () => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } };
 
   return (
     <>
-      {/* ── Pattern Bank ── */}
-      <div style={{ marginBottom: 8, padding: "5px 10px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-          <span data-hint={`PAT · ${pBank.length} pattern${pBank.length > 1 ? "s" : ""} available · Active pattern: ${cPat + 1} · Click a slot to switch`} style={{ fontSize: 8, color: th.dim }}>PAT</span>
-
-
+      {/* ── Pattern Bank (Clip Launcher) ── */}
+      <div style={{ marginBottom: 8, padding: "6px 10px 8px", borderRadius: 10, background: th.surface, border: `1px solid ${th.sBorder}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+          <span data-hint={`PAT · ${pBank.length} pattern${pBank.length > 1 ? "s" : ""} available · Active: ${cPat + 1} · Click a clip to switch`} style={{ fontSize: 8, color: th.dim }}>PAT</span>
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", position: "relative", zIndex: 10 }}>
-            <TemplateDropdown
-              onLoad={onLoadTemplate}
-              onLoadEuclid={onLoadEuclidTemplate}
-              th={th}
-              view={view}
-              variant={variant}
-              setVariant={setVariant}
-            />
+            <TemplateDropdown onLoad={onLoadTemplate} onLoadEuclid={onLoadEuclidTemplate} th={th} view={view} variant={variant} setVariant={setVariant} />
             {pBank.length < MAX_PAT && (
-              <button
-                data-hint={`DUP · Duplicate pattern ${cPat + 1} into slot ${cPat + 2} · Great for creating groove variations`}
+              <button data-hint={`DUP · Duplicate pattern ${cPat + 1} into slot ${cPat + 2}`}
                 onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }}
-                style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}
-              >DUP</button>
+                style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>
             )}
             {pBank.length > 1 && (
-              <button
-                data-hint={`DEL · Delete pattern ${cPat + 1} from the bank · This action is irreversible`}
+              <button data-hint={`DEL · Delete pattern ${cPat + 1}`}
                 onClick={() => { setPBank(p => p.filter((_, j) => j !== cPat)); if (cPat > 0) setCPat(cPat - 1); }}
-                style={{ padding: "2px 6px", border: "1px solid rgba(255,55,95,0.2)", borderRadius: 5, background: "transparent", color: "#FF375F", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}
-              >DEL</button>
+                style={{ padding: "2px 6px", border: "1px solid rgba(255,55,95,0.2)", borderRadius: 5, background: "transparent", color: "#FF375F", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DEL</button>
             )}
           </div>
         </div>
 
-        <div style={isPortrait
-          ? { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }
-          : { display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }
-        }>
+        {/* Clip cards — horizontal scroll */}
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 0 2px", WebkitOverflowScrolling: "touch" }}>
           {pBank.map((pat, i) => {
-            const col = SEC_COL[i % 8];
-            const isCur = cPat === i;
+            const isActive = cPat === i;
+            const isPlaying = playing && songMode && songPosRef.current != null && songChain[songPosRef.current] === i;
+            const col = SEC_COL[i % SEC_COL.length];
             const isEditing = patNameEdit === i;
+            const ks = pat.kick || []; const ss = pat.snare || pat.clap || []; const hs = pat.hihat || [];
+            const n = variant === "32" ? 32 : Math.max(ks.length, ss.length, hs.length, 16);
             return (
-              <div key={i} style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <div key={i} style={{ position: "relative", flexShrink: 0 }}>
                 {isEditing ? (
-                  <input
-                    autoFocus
-                    defaultValue={pat._name || ""}
-                    maxLength={12}
-                    onBlur={e => {
-                      const v = e.target.value.trim();
-                      setPBank(p => { const n = [...p]; n[i] = { ...n[i], _name: v || undefined }; return n; });
-                      setPatNameEdit && setPatNameEdit(null);
-                    }}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" || e.key === "Escape") e.target.blur();
-                    }}
-                    style={{ width: isPortrait ? "100%" : 42, height: 24, borderRadius: 5, border: `1px solid ${col}88`, background: "rgba(0,0,0,0.6)", color: col, fontSize: 8, fontWeight: 800, textAlign: "center", fontFamily: "inherit", outline: "none", padding: "0 2px" }}
+                  <input autoFocus defaultValue={pat._name || ""} maxLength={12}
+                    onBlur={e => { const v = e.target.value.trim(); setPBank(p => { const n2 = [...p]; n2[i] = { ...n2[i], _name: v || undefined }; return n2; }); setPatNameEdit && setPatNameEdit(null); }}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); }}
+                    style={{ width: 64, height: 54, borderRadius: 10, border: `2px solid ${col}88`, background: "rgba(0,0,0,0.7)", color: col, fontSize: 9, fontWeight: 800, textAlign: "center", fontFamily: "inherit", outline: "none", padding: "0 4px" }}
                   />
                 ) : (
-                  <button
-                    data-hint={isCur
-                      ? `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Long-press to rename`
-                      : `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Click to switch · Long-press to rename`}
+                  <div
+                    data-hint={isActive ? `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Long-press to rename` : `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Click to switch · Long-press to rename`}
                     onClick={() => { setCPat(i); R.pat = pBank[i]; }}
+                    onDoubleClick={() => { setCPat(i); if (playing && songMode) { const idx = songChain.indexOf(i); if (idx >= 0) songPosRef.current = idx; } }}
                     onMouseDown={() => startLongPress(i)}
                     onMouseUp={cancelLongPress}
                     onMouseLeave={cancelLongPress}
                     onTouchStart={() => startLongPress(i)}
                     onTouchEnd={cancelLongPress}
                     onTouchCancel={cancelLongPress}
-                    title={pat._name || `Pattern ${i + 1}` + " (long-press to rename)"}
-                    style={{ width: isPortrait ? "100%" : 36, height: 24, borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: pat._name ? 7 : 10, fontWeight: 800, border: `1px solid ${isCur ? col + "66" : th.sBorder}`, background: isCur ? col + "20" : "transparent", color: isCur ? col : th.dim, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", padding: "0 2px" }}>
-                    {i + 1}
-                  </button>
-                )}
-                {/* ── Mini preview ── */}
-                {(() => {
-                  const ks = pat.kick || [];
-                  const ss = pat.snare || pat.clap || [];
-                  const hs = pat.hihat || [];
-                  const hasHits = ks.some(v => v > 0) || ss.some(v => v > 0) || hs.some(v => v > 0);
-                  if (!hasHits) return null;
-                  const w = isPortrait ? "100%" : 36;
-                  if (isEuclid) {
-                    const N = Math.max(ks.length, ss.length, 16);
-                    const kHits = ks.filter(v => v > 0).length;
-                    const sHits = ss.filter(v => v > 0).length;
-                    const hHits = hs.filter(v => v > 0).length;
-                    const eucTracks = [
-                      kHits > 0 && { hits: kHits, N, color: col },
-                      sHits > 0 && { hits: sHits, N, color: col + "99" },
-                      hHits > 0 && { hits: hHits, N, color: col + "55" },
-                    ].filter(Boolean);
-                    if (!eucTracks.length) return null;
-                    return (
-                      <div style={{ width: w, display: "flex", justifyContent: "center" }}>
-                        <EuclidConcentric tracks={eucTracks} />
-                      </div>
-                    );
-                  }
-                  const n = Math.max(ks.length, ss.length, hs.length, 16);
-                  return (
-                    <div style={{ width: w, overflow: "hidden", display: "flex", flexDirection: "column", gap: 1.5 }}>
-                      {[{ steps: ks, opacity: 1 }, { steps: ss, opacity: 0.65 }, { steps: hs, opacity: 0.35 }]
-                        .filter(({ steps }) => steps.some(v => v > 0))
-                        .map(({ steps, opacity }, ri) => (
-                          <div key={ri} style={{ display: "flex", gap: 0.5 }}>
-                            {Array(n).fill(0).map((_, si) => (
-                              <div key={si} style={{
-                                flex: 1, height: ri === 0 ? 5 : 3, borderRadius: 0.8,
-                                background: steps[si] > 0 ? col : "rgba(255,255,255,0.07)",
-                                opacity: steps[si] > 0 ? opacity : 1,
-                              }} />
-                            ))}
-                          </div>
-                        ))}
+                    style={{
+                      minWidth: 60, padding: "5px 7px", borderRadius: 10, cursor: "pointer", textAlign: "center",
+                      border: `2px solid ${isActive ? col : "transparent"}`,
+                      background: isActive ? col + "18" : th.surface,
+                      transition: "all 0.2s cubic-bezier(0.32,0.72,0,1)",
+                      boxShadow: isPlaying ? `0 0 16px ${col}44` : "none",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 900, color: col, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 54 }}>
+                      {pat._name || `P${i + 1}`}
                     </div>
-                  );
-                })()}
+                    {isEuclid ? (
+                      (() => {
+                        const kHits = ks.filter(v => v > 0).length; const sHits = ss.filter(v => v > 0).length; const hHits = hs.filter(v => v > 0).length;
+                        const N2 = Math.max(ks.length, ss.length, 16);
+                        const eucTracks = [kHits > 0 && { hits: kHits, N: N2, color: col }, sHits > 0 && { hits: sHits, N: N2, color: col + "99" }, hHits > 0 && { hits: hHits, N: N2, color: col + "55" }].filter(Boolean);
+                        return eucTracks.length ? <div style={{ display: "flex", justifyContent: "center" }}><EuclidConcentric tracks={eucTracks} /></div> : <div style={{ height: 24 }} />;
+                      })()
+                    ) : (
+                      <MiniGrid steps={ks} color={col} n={Math.min(n, 16)} />
+                    )}
+                    {isPlaying && <div style={{ height: 2, background: col, borderRadius: 1, marginTop: 3, animation: "rb 0.8s infinite" }} />}
+                  </div>
+                )}
               </div>
             );
           })}
           {pBank.length < MAX_PAT && (
-            <button
-              data-hint={`+ Add an empty pattern · Slot ${pBank.length + 1} · ${MAX_PAT - pBank.length - 1} slot${MAX_PAT - pBank.length - 1 > 1 ? "s" : ""} remaining`}
+            <button data-hint={`+ Add empty pattern · Slot ${pBank.length + 1}`}
               onClick={() => { setPBank(p => [...p, mkE(STEPS)]); setCPat(pBank.length); }}
-              style={{ width: isPortrait ? "100%" : 24, height: 24, border: `1px dashed ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-            >+</button>
+              style={{ minWidth: 40, height: 54, borderRadius: 10, border: `1px dashed ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 18, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>+</button>
           )}
         </div>
       </div>
 
-      {/* ── Song Arranger — sequencer + euclid ── */}
-      {(
-        <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${showSong ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
-            <div data-hint="Song Arranger · Chain patterns to build a song · Enable SONG mode to play the chain in order" onClick={() => setShowSong(p => !p)} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
-              <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGER</span>
-              <span style={{ fontSize: 10, color: th.dim }}>{showSong ? "▲" : "▼"}</span>
-            </div>
-            <button
-              data-hint={songMode
-                ? playing ? "SONG mode active · Auto-plays the chain · Click to disable" : "SONG mode ON · Start playback to chain patterns · Click to disable"
-                : "SONG mode OFF · Enable to play patterns in chain order · Click to activate"}
-              onClick={e => { e.stopPropagation(); setSongMode(p => !p); }}
-              style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${songMode ? "#BF5AF255" : "rgba(255,255,255,0.12)"}`, background: songMode ? "#BF5AF218" : "transparent", color: songMode ? "#BF5AF2" : "inherit", fontSize: 8, fontWeight: 700, cursor: "pointer", letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "inherit", animation: songMode && playing ? "pulse 1s infinite" : "none" }}
-            >
-              {songMode ? (playing ? "▶ ON" : "ON") : "OFF"}
-            </button>
+      {/* ── Song Arranger ── */}
+      <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${songTimeline.isOpen || songMode ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden", transition: "border-color 0.2s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
+          <div data-hint="Song Arranger · Chain patterns to build a song · Enable SONG mode to play the chain in order"
+            onClick={() => { songTimeline.toggle(); setShowSong && setShowSong(p => !p); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGER</span>
+            <span style={{ fontSize: 10, color: th.dim }}>{songTimeline.isOpen ? "▲" : "▼"}</span>
           </div>
-          {showSong && (
-            <div style={{ padding: "0 12px 12px" }}>
-              <div style={{ marginBottom: 10 }}>
-                {songMode && <span style={{ fontSize: 8, color: th.dim }}>The sequencer automatically advances through the pattern chain each cycle</span>}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
-                {songChain.map((patIdx, chainIdx) => {
-                  const isActive = songMode && playing && songPosRef.current === chainIdx;
+          <button
+            data-hint={songMode ? playing ? "SONG mode active · Auto-plays the chain · Click to disable" : "SONG mode ON · Start playback to chain patterns · Click to disable" : "SONG mode OFF · Enable to play patterns in chain order · Click to activate"}
+            onClick={e => { e.stopPropagation(); setSongMode(p => !p); }}
+            style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${songMode ? "#BF5AF255" : "rgba(255,255,255,0.12)"}`, background: songMode ? "#BF5AF218" : "transparent", color: songMode ? "#BF5AF2" : "inherit", fontSize: 8, fontWeight: 700, cursor: "pointer", letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "inherit", animation: songMode && playing ? "pulse 1s infinite" : "none" }}
+          >{songMode ? (playing ? "▶ ON" : "ON") : "OFF"}</button>
+        </div>
+
+        {songTimeline.visible && (
+          <div className={songTimeline.className}>
+            <div style={{ padding: "0 12px 10px" }}>
+              {songMode && <div style={{ fontSize: 8, color: th.dim, marginBottom: 8 }}>Auto-advances through the chain each cycle · right-click a block to remove it</div>}
+              {/* Horizontal timeline */}
+              <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: "4px 0 8px", WebkitOverflowScrolling: "touch" }}>
+                {songChain.map((patIdx, si) => {
+                  const col = SEC_COL[patIdx % SEC_COL.length];
+                  const isCurrent = songPosRef.current === si && playing && songMode;
                   return (
-                    <div key={chainIdx} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", borderRadius: 6, background: isActive ? "rgba(191,90,242,0.08)" : "transparent", border: `1px solid ${isActive ? "rgba(191,90,242,0.3)" : "transparent"}` }}>
-                      <span style={{ width: 16, fontSize: 8, color: isActive ? "#BF5AF2" : th.faint, fontWeight: 700, textAlign: "right", flexShrink: 0 }}>{chainIdx + 1}</span>
-                      <div style={{ display: "flex", gap: 3, flex: 1, flexWrap: "wrap" }}>
-                        {pBank.map((_, pi) => (
-                          <button
-                            key={pi}
-                            data-hint={`Song slot ${chainIdx + 1} → Pattern ${pi + 1} · Click to assign this pattern to this chain slot`}
-                            onClick={() => setSongChain(p => { const n = [...p]; n[chainIdx] = pi; return n; })}
-                            style={{ width: 26, height: 22, borderRadius: 4, cursor: "pointer", fontFamily: "inherit", fontSize: 9, fontWeight: 800, border: `1px solid ${patIdx === pi ? SEC_COL[pi % 8] + "66" : th.sBorder}`, background: patIdx === pi ? SEC_COL[pi % 8] + "20" : "transparent", color: patIdx === pi ? SEC_COL[pi % 8] : th.dim }}>{pi + 1}</button>
-                        ))}
-                      </div>
-                      {isActive && <span style={{ fontSize: 9, color: "#BF5AF2" }}>▶</span>}
-                      <button
-                        data-hint={`⊕ DUP · Duplicate slot ${chainIdx + 1} right after in the chain`}
-                        onClick={() => setSongChain(p => { const n = [...p]; n.splice(chainIdx + 1, 0, patIdx); return n; })}
-                        title="Duplicate this row"
-                        style={{ padding: "0 6px", height: 18, border: "1px solid rgba(48,209,88,0.35)", borderRadius: 3, background: "transparent", color: "#30D158", fontSize: 8, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, letterSpacing: "0.04em", fontFamily: "inherit" }}>⊕ DUP</button>
-                      {songChain.length > 1 && (
-                        <button
-                          data-hint={`× Remove slot ${chainIdx + 1} from the song chain`}
-                          onClick={() => setSongChain(p => p.filter((_, j) => j !== chainIdx))}
-                          style={{ width: 18, height: 18, border: "1px solid rgba(255,55,95,0.25)", borderRadius: 3, background: "transparent", color: "#FF375F", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
-                      )}
+                    <div key={si}
+                      onClick={() => { songPosRef.current = si; }}
+                      onContextMenu={e => { e.preventDefault(); setSongChain(p => p.filter((_, j) => j !== si)); }}
+                      title={`Slot ${si + 1}: Pattern ${patIdx + 1} · right-click to remove`}
+                      style={{
+                        minWidth: 34, height: 34, borderRadius: 7, flexShrink: 0,
+                        background: col + (isCurrent ? "55" : "22"),
+                        border: `1.5px solid ${col + (isCurrent ? "aa" : "44")}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 800, color: col, cursor: "pointer",
+                        transition: "all 0.15s",
+                        boxShadow: isCurrent ? `0 0 10px ${col}44` : "none",
+                      }}>
+                      {patIdx + 1}
                     </div>
                   );
                 })}
+                <button onClick={() => setSongChain(p => [...p, cPat])}
+                  title={`Add Pattern ${cPat + 1} to chain`}
+                  style={{ minWidth: 34, height: 34, borderRadius: 7, border: `1px dashed ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 14, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
               </div>
+              {/* Controls */}
               <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  data-hint={`+ ADD STEP · Appends pattern ${cPat + 1} to the end of the song chain · Current chain: ${songChain.length} step${songChain.length > 1 ? "s" : ""}`}
-                  onClick={() => setSongChain(p => [...p, cPat])}
-                  style={{ padding: "4px 12px", borderRadius: 6, border: "1px dashed rgba(191,90,242,0.35)", background: "transparent", color: "#BF5AF2", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ ADD STEP</button>
-                <button
-                  data-hint="RESET · Resets the song chain to a single step with the current pattern · Clears the entire song sequence"
-                  onClick={() => setSongChain([cPat])}
-                  style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 9, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>RESET</button>
+                <button onClick={() => setSongMode(p => !p)} style={localPill(songMode, "#30D158")}>
+                  {songMode ? "■ STOP" : "▶"} SONG
+                </button>
+                <button onClick={() => { setSongChain([]); songPosRef.current = 0; }} style={localPill(false, "#FF2D55")}>CLEAR</button>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </>
   );
 }
