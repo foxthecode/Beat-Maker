@@ -135,7 +135,7 @@ export default function TransportBar({
     </div>
   );
 
-  const RecBtn = view !== "euclid" && (
+  const RecBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         data-hint={rec ? "REC actif · Frappe les pads ou le clavier pour enregistrer en live · Raccourci : Alt" : playing ? "REC · Active l'enregistrement live · Raccourci : Alt" : "REC · Lance la lecture + l'enregistrement simultanément · Raccourci : Alt"}

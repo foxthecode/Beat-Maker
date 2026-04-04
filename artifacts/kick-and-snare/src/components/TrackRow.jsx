@@ -17,6 +17,7 @@ function TrackRow({
   onSendCursorChange, onSendAmtChange,
   onFxOpen,
   waveformPath,
+  onRandomVel,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const f = fx || { vol: 80, pan: 0 };
@@ -168,6 +169,7 @@ function TrackRow({
                   </svg>
                 ) : <span style={{ position: "relative", zIndex: 1 }}>♪</span>}
               </button>
+              {onRandomVel && <button data-hint={`🎲 Randomize velocity of active steps on ${track.label} · Range: configurable min/max · Supports undo`} onClick={()=>onRandomVel(track.id)} title="Randomize velocity" style={{...btnSt,width:22,border:"1px solid rgba(255,149,0,0.25)",background:"rgba(255,149,0,0.06)",color:"#FF9500",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>🎲</button>}
               {actLength > 1 && <button data-hint={`Remove track ${track.label} from the active view (not permanently deleted)`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
             {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{smpN.substring(0, 14)}</span>}
@@ -207,7 +209,7 @@ function TrackRow({
                 data-hint={stepHint}
                 onPointerDown={e => onStepDown(step, e)}
                 onContextMenu={e => onContextMenu(step, e)}
-                data-step="true"
+                data-step={step}
                 className={isCur && ac && !isDrag ? "stepPulse" : ""}
                 style={{
                   flex: isPortrait ? "0 0 24px" : 1, minWidth: isPortrait ? 24 : 0,

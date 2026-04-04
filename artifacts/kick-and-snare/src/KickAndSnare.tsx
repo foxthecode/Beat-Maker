@@ -1467,9 +1467,6 @@ export default function KickAndSnare(){
   const isMobileRef=useRef(isMobile);
   // ── H.2a: Portrait detection ──
   const [isPortrait,setIsPortrait]=useState(()=>window.innerHeight>window.innerWidth);
-  // ── H.3: REC pads fade-out ──
-  const [recPadsVisible,setRecPadsVisible]=useState(false);
-
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
@@ -1600,11 +1597,14 @@ export default function KickAndSnare(){
   // Session
   // UI
   const [rec,setRec]=useState(false);const [kMap,setKMap]=useState({...DEFAULT_KEY_MAP});const [showK,setShowK]=useState(false);
-  // ── H.3: recPadsVisible with 150ms fade-out ──
-  useEffect(()=>{
-    if(rec&&playing)setRecPadsVisible(true);
-    else{const t=setTimeout(()=>setRecPadsVisible(false),150);return()=>clearTimeout(t);}
-  },[rec,playing]);
+  // ── lastSeqView: tracks which sequencer view (sequencer|euclid) was most recently active ──
+  const [lastSeqView,setLastSeqView]=useState<'sequencer'|'euclid'>('sequencer');
+  useEffect(()=>{if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');},[view]);
+  // ── velRange: min/max for random velocity ──
+  const [velRange,setVelRange]=useState<{min:number,max:number}>({min:40,max:100});
+  // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [recPadsVisible,_setRecPadsVisible]=useState(false);
   const [showTS,setShowTS]=useState(false);
   const [flashing,setFlashing]=useState<Set<string>>(()=>new Set());
   const flashTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
@@ -1753,8 +1753,9 @@ export default function KickAndSnare(){
   R.songChain=songChain;   // ordered pattern indices — song mode iteration
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
   R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
-  R.loopRec=loopRec;       // looper recording active — trigPad appends timed events
-  R.loopBars=loopBars;     // number of bars in loop — used for auto-Q snap calculation
+  R.loopRec=false;          // LOOPER DISABLED — force false, prevents any loop scheduling
+  // R.loopBars=loopBars;  // LOOPER DISABLED
+  R.lastSeqView=lastSeqView; // E3: last active sequencer view for pads REC indicator
   R.mnMap=midiNoteMap;     // MIDI note→trackId map — MIDI handler lookup table
   R.mLearn=midiLearnTrack; // MIDI learn target id — incoming note assigns to this
   R.mNotes=midiNotes;      // MIDI notes mode active — enables note-on triggering
@@ -1920,60 +1921,21 @@ export default function KickAndSnare(){
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
     flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
-    // Looper recording — use audio clock (ctx.currentTime) to stay in the same
-    // time domain as the scheduler. performance.now() has a capture-order bias
-    // vs audioStart (set one line earlier) that makes hits sound slightly early.
-    if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
-      const L=loopRef.current;
-      // Subtract only real measured latency; avoid aggressive fallbacks that push
-      // hits exactly on the downbeat to negative rawSec → wrap to end of loop.
-      const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
-      const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
-      let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
-      // Snap to beat-0 only when hit lands within a tiny window of the loop boundary.
-      // Kept small (120ms max, 4%) so late-overdub hits aren't silently pulled to bar 1.
-      const snapThresh=Math.min(120,L.lengthMs*0.04);
-      if(tOff>L.lengthMs-snapThresh)tOff=0;
-      // AUTO-Q: snap to nearest subdivision on capture
-      if(autoQRef.current&&L.lengthMs>0){
-        const snapMs=L.lengthMs/(R.loopBars*16);
-        tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));
-      }
-      const evId=`${Date.now()}-${Math.random()}`;
-      const ev={id:evId,tid,tOff,vel,pass:L.passId};
-      L.events.push(ev);
-      setLoopDisp(d=>[...d,{tid,tOff,vel}]);
-    }
-    // Free-capture — records timestamps WITHOUT activating REC, for BPM detection
-    // Uses audio clock (ctx.currentTime) to stay in the same time domain as the scheduler
-    if(R.uiView==='pads'&&!R.loopRec&&engine.ctx){
-      const now=engine.ctx.currentTime;
-      if(freeCaptureStartRef.current===null){
-        freeCaptureStartRef.current=now;
-        freeCaptureRef.current=[{tid,t:0,vel}];
-      }else{
-        freeCaptureRef.current.push({tid,t:(now-freeCaptureStartRef.current)*1000,vel});
-      }
-      const buf=freeCaptureRef.current;
-      setFreeCaptureCount(buf.length);
-      if(buf.length>=4){
-        // Snapshot immutable AVANT le setTimeout
-        // pour éviter toute race condition avec les
-        // taps suivants qui mutent freeCaptureRef
-        const snapshot=buf.map(h=>h.t);
-        setTimeout(()=>{
-          let bestBpm:number|null=null,bestScore=Infinity;
-          for(let cBpm=40;cBpm<=240;cBpm++){
-            const beatMs=60000/cBpm;
-            let err=0;
-            snapshot.forEach(t=>{const ph=t%beatMs;err+=Math.min(ph,beatMs-ph);});
-            const score=(err/snapshot.length)/beatMs;
-            if(score<bestScore){bestScore=score;bestBpm=cBpm;}
-          }
-          if(bestBpm!==null)setFreeBpm(bestBpm);
-        },0);
-      }
-    }
+    // LOOPER DISABLED — conservé pour développement futur
+    // if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
+    //   const L=loopRef.current;
+    //   const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
+    //   const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
+    //   let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
+    //   const snapThresh=Math.min(120,L.lengthMs*0.04);
+    //   if(tOff>L.lengthMs-snapThresh)tOff=0;
+    //   if(autoQRef.current&&L.lengthMs>0){const snapMs=L.lengthMs/(R.loopBars*16);tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));}
+    //   const evId=`${Date.now()}-${Math.random()}`;
+    //   const ev={id:evId,tid,tOff,vel,pass:L.passId};
+    //   L.events.push(ev);setLoopDisp(d=>[...d,{tid,tOff,vel}]);
+    // }
+    // FREE-CAPTURE BPM DISABLED — conservé pour développement futur
+    // if(R.uiView==='pads'&&!R.loopRec&&engine.ctx){ ... }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
     if(R.rec&&R.step>=0&&engine.ctx){
       const gSt=R.sig?.steps||16;
@@ -2194,12 +2156,8 @@ export default function KickAndSnare(){
       setCtxSuspended(true);
       return;
     }
-    // Live Pads view: PLAY targets the looper when there are recorded events
-    if(R.uiView==='pads'&&loopRef.current.events.length>0){
-      if(loopRef.current.audioStart!==null){stopLooper();}
-      else{await startLooper(false);}
-      return;
-    }
+    // LOOPER DISABLED — looper routing removed, pads PLAY goes to sequencer
+    // if(R.uiView==='pads'&&loopRef.current.events.length>0){ ... }
     if(playing){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
       euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
@@ -2990,6 +2948,17 @@ export default function KickAndSnare(){
   };
 
   const handleClick=(tid,step)=>{pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=r[step]?0:1;return{...p,[tid]:r};});};
+  // D2: Random velocity for active steps within velRange
+  const randomizeVelocity=(tid:string)=>{
+    pushHistory();
+    setStVel(prev=>{
+      const n={...prev};
+      const steps=pat[tid]||[];
+      const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(100);
+      for(let i=0;i<steps.length;i++){if(steps[i])a[i]=Math.round(velRange.min+Math.random()*(velRange.max-velRange.min));}
+      n[tid]=a;return n;
+    });
+  };
   const didDragRef=useRef(false);
   const startDrag=(tid,step,e)=>{
     e.preventDefault();
@@ -3007,7 +2976,30 @@ export default function KickAndSnare(){
     let axis=null;let moved=false;let longPressed=false;let toggledEarly=false;
     didDragRef.current=false;
     // Immediate toggle for inactive steps (pointer events guarantee no double-fire)
-    if(!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});setStNudge(p=>{const n={...p};const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(0);a[step]=0;n[tid]=a;return n;});setStVel(p=>{const n={...p};const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(100);a[step]=100;n[tid]=a;return n;});toggledEarly=true;}
+    if(!ac){pushHistory();setPat(p=>{const r=[...(p[tid]||[])];r[step]=1;return{...p,[tid]:r};});setStNudge(p=>{const n={...p};const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(0);a[step]=0;n[tid]=a;return n;});setStVel(p=>{const n={...p};const a=Array.isArray(n[tid])?[...n[tid]]:Array(STEPS).fill(100);a[step]=100;n[tid]=a;return n;});toggledEarly=true;
+      // C1: PAINT MODE — drag horizontal on inactive step to fill consecutive steps
+      let lastPaintStep=step;
+      const paintMv=(ev:PointerEvent)=>{
+        const stepEls=el.parentElement?.querySelectorAll('[data-step]');
+        if(!stepEls)return;
+        for(const stepEl of stepEls){
+          const sr=(stepEl as HTMLElement).getBoundingClientRect();
+          if(ev.clientX>=sr.left&&ev.clientX<=sr.right){
+            const s=parseInt((stepEl as HTMLElement).getAttribute('data-step')||'-1');
+            if(s>=0&&s!==lastPaintStep&&!pat[tid]?.[s]){
+              setPat(p=>{const r2=[...(p[tid]||[])];r2[s]=1;return{...p,[tid]:r2};});
+              setStVel(p=>{const n2={...p};const a2=Array.isArray(n2[tid])?[...n2[tid]]:Array(STEPS).fill(100);a2[s]=100;n2[tid]=a2;return n2;});
+              lastPaintStep=s;didDragRef.current=true;
+            }
+            break;
+          }
+        }
+      };
+      el.addEventListener('pointermove',paintMv);
+      el.addEventListener('pointerup',()=>el.removeEventListener('pointermove',paintMv),{once:true});
+      el.addEventListener('pointercancel',()=>el.removeEventListener('pointermove',paintMv),{once:true});
+      return; // Skip normal nudge/velocity drag logic
+    }
     else setDragInfo({tid,step,axis:null});
     const mv=(ev:PointerEvent)=>{
       if(!ac||longPressed)return;
@@ -3508,10 +3500,16 @@ export default function KickAndSnare(){
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
           <TipBadge id="seq_steps" text="Tap a cell to activate a sound · Double-tap to reset · Long-press = probability" color="#FF2D55"/>
-          {/* ── Mini REC pads — juste au-dessus des tracks, seulement quand rec+playing ── */}
-          {recPadsVisible&&(
-            <div style={{marginBottom:6,padding:"5px 8px",borderRadius:8,background:"rgba(255,45,85,0.05)",border:"1px solid rgba(255,45,85,0.22)",display:"flex",alignItems:"center",gap:5,opacity:rec&&playing?1:0,transition:"opacity 0.15s",pointerEvents:rec&&playing?"auto":"none"}}>
-              <span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em",animation:"rb 0.8s infinite",flexShrink:0}}>● REC</span>
+          {/* ── REC Pads — always visible in sequencer view (Mod B) ── */}
+          {view==="sequencer"&&(
+            <div style={{marginBottom:6,padding:"5px 8px",borderRadius:8,
+              background:rec&&playing?"rgba(255,45,85,0.06)":th.surface,
+              border:`1px solid ${rec&&playing?"rgba(255,45,85,0.28)":th.sBorder}`,
+              display:"flex",alignItems:"center",gap:5,transition:"all 0.2s"}}>
+              {rec&&playing
+                ?<span style={{fontSize:7,fontWeight:800,color:"#FF2D55",letterSpacing:"0.1em",animation:"rb 0.8s infinite",flexShrink:0}}>● REC</span>
+                :<span style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.1em",flexShrink:0}}>♫ TAP</span>
+              }
               <div style={{display:"flex",gap:4,flex:1}}>
                 {atO.map(tr=>(
                   <button key={tr.id}
@@ -3587,6 +3585,7 @@ export default function KickAndSnare(){
                   onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
                   onSendCursorChange={(dir)=>setTrackSendCursor(p=>({...p,[track.id]:((p[track.id]??0)+dir+FX_SECS.length)%FX_SECS.length}))}
                   onSendAmtChange={(amt)=>{const idx=trackSendCursor[track.id]??0;const sec=FX_SECS[idx].sec;upSend(sec,track.id,amt);}}
+                  onRandomVel={randomizeVelocity}
                   onStepCountChange={(nt)=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nt}};cp[track.id]=remap(cp[track.id],tSteps,nt);n[cPat]=cp;return n;});}}
                   onClear={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}}
                   onFxOpen={()=>setPadFxTrack(p=>p===track.id?null:track.id)}
@@ -3607,7 +3606,14 @@ export default function KickAndSnare(){
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record a loop" color="#5E5CE6"/>
-          {/* ── Looper banner (foldable) ── */}
+          {/* E4: REC indicator in Live Pads view */}
+          {rec&&playing&&(
+            <div style={{padding:"3px 10px",borderRadius:6,marginBottom:8,background:"rgba(255,45,85,0.06)",border:"1px solid rgba(255,45,85,0.2)",fontSize:8,fontWeight:700,color:"#FF2D55",textAlign:"center",letterSpacing:"0.06em",animation:"rb 0.8s infinite"}}>
+              ● REC → {lastSeqView==='euclid'?'EUCLIDIAN':'SEQUENCER'} (P{cPat+1})
+            </div>
+          )}
+          {/* LOOPER DISABLED — conservé pour développement futur */}
+          {false && (
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
             {/* Header band — div (not button) so we can embed CAPTURE button without invalid nesting */}
             <div onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",cursor:"pointer",userSelect:"none"}}>
@@ -3712,6 +3718,7 @@ export default function KickAndSnare(){
               </div>
             )}
           </div>
+          )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12,touchAction:"none"}}>
             {atO.map((track)=>{
