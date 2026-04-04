@@ -3030,9 +3030,6 @@ export default function KickAndSnare(){
     // Activate all tracks used in this template
     setAct(prev=>{const next=[...prev];tplIds.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
     if(tpl.bpm)setBpm(tpl.bpm);
-    // Apply default kit for this template
-    const kitId=TEMPLATE_KITS[tpl.id];
-    if(kitId){const kit=DRUM_KITS.find(k=>k.id===kitId);if(kit)applyKit(kit);}
     setSwipeToast(`${(tpl as any).icon||"✓"} ${tpl.name} · ${ns} steps`);
     setTimeout(()=>setSwipeToast(null),1200);
   };
