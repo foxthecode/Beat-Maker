@@ -2659,11 +2659,24 @@ export default function KickAndSnare(){
     const L=loopRef.current;
     const beatMs=60000/Math.max(30,R.bpm);
     const newDurMs=newBars*R.sig.beats*beatMs;
+    const newLenSec=newDurMs/1000;
+    // Recalculate audioStart to keep playhead phase coherent when the loop length changes live.
+    // Without this, loopN = elapsed/newLenSec jumps → scheduler sees unknown id_loopN keys
+    // → re-triggers events that just played → pile-up → saturation.
+    const ctx=engine?.ctx;
+    if(L.audioStart!==null&&ctx&&L.lengthMs>0){
+      const oldLenSec=L.lengthMs/1000;
+      const elapsed=ctx.currentTime-L.audioStart;
+      const posInOldLoop=((elapsed%oldLenSec)+oldLenSec)%oldLenSec;
+      const posInNewLoop=posInOldLoop%newLenSec;
+      L.audioStart=ctx.currentTime-posInNewLoop;
+    }
     // Non-destructive: L.events is NEVER filtered — it holds the full recording.
     // Reducing bars silences events beyond the window; increasing bars restores them.
     L.lengthMs=newDurMs;
+    // Clear scheduled set so the scheduler reschedules cleanly with the new loopN keys.
+    L.scheduled=new Set();
     if(L.events.length>0){
-      // Display only events within the active window
       setLoopDisp(L.events.filter(ev=>ev.tOff<newDurMs).map(ev=>({tid:ev.tid,tOff:ev.tOff,vel:ev.vel})));
     }
     setLoopBars(newBars);
@@ -2742,20 +2755,24 @@ export default function KickAndSnare(){
       const score=scoreForBpm(cBpm);
       if(score<gridBest){gridBest=score;gridBpm=cBpm;}
     }
-    // Anti-doubling: two-pass strategy
-    // Pass 1 — sequencer-BPM anchor: if detected BPM is ~2× the current sequencer BPM (±15%),
-    // halve it immediately — the capture should stay in the existing tempo context.
+    // Anti-doubling: two-pass revised strategy
+    // Pass 1 — N-multiple anchor: if gridBpm ≈ N × sequencer-BPM (N=2..8, within 15%), snap to bpm.
+    // Catches 16th-note patterns where grid scoring lands at 2×, 3× or 4× the actual tempo.
     if(gridBpm&&bpm>=40){
-      const ratio=gridBpm/bpm;
-      if(ratio>1.7&&ratio<2.3){gridBpm=Math.round(gridBpm/2);}
+      for(let mult=2;mult<=8;mult++){
+        if(Math.abs(gridBpm-mult*bpm)/(mult*bpm)<0.15){gridBpm=Math.round(bpm);break;}
+      }
     }
-    // Pass 2 — general anti-doubling: widen tolerance to 2.0 so the lower tempo
-    // is strongly preferred whenever it aligns reasonably (catches 8th-note patterns).
-    if(gridBpm&&gridBpm>80){
-      const halfBpm=Math.round(gridBpm/2);
-      if(halfBpm>=40){
+    // Pass 2 — iterative halving: keep halving as long as the half-tempo fits reasonably well.
+    // Floor raised to 0.12 so perfect grid-aligned patterns don't trivially pass the threshold.
+    {
+      let prevScore=Math.max(gridBest,0.12);
+      while(gridBpm&&gridBpm>80){
+        const halfBpm=Math.round(gridBpm/2);
+        if(halfBpm<40)break;
         const halfScore=scoreForBpm(halfBpm);
-        if(halfScore<=Math.max(gridBest,0.03)*2.0){gridBpm=halfBpm;}
+        if(halfScore>prevScore*2.0)break;
+        gridBpm=halfBpm;prevScore=halfScore;
       }
     }
     const finalBpm=Math.max(40,Math.min(240,gridBpm??freeBpm??bpm));
