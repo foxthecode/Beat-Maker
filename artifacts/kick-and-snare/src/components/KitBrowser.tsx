@@ -1,5 +1,6 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {THEMES} from '../theme.js';
+import {useSheetTransition} from '../hooks/usePanelTransition';
 
 const KIT_EMOJIS=['🥁','🔴','🎷','📼','⚡','🌍','🔥','🎹','🎸','🎺','🎵','💥','🔊','🎤','⭐','🧨','🪘','🎼','🔉','🏺'];
 
@@ -32,6 +33,7 @@ interface Props{
 
 export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoadFactory,onLoadUser,onSave,onRename,onDelete,onOpenComposer,themeName}:Props){
   const th=THEMES[themeName]||THEMES.dark;
+  const sheet=useSheetTransition(open);
   const [dialog,setDialog]=useState<null|'save'|{kind:'rename';kit:UserKit}>(null);
   const [kitName,setKitName]=useState('');
   const [kitIcon,setKitIcon]=useState('🥁');
@@ -51,7 +53,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
     return()=>document.removeEventListener('mousedown',handler,{capture:true});
   },[menuFor]);
 
-  if(!open)return null;
+  if(!sheet.visible)return null;
 
   const handleSave=async()=>{
     if(!kitName.trim()||saving)return;
@@ -94,14 +96,13 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
 
   const factorySampleCount=(kit:FactoryKit)=>Object.values(kit.samples).filter(Boolean).length;
 
-  const overlay:React.CSSProperties={position:'fixed',inset:0,zIndex:400,display:'flex',flexDirection:'column',justifyContent:'flex-end',background:'rgba(0,0,0,0.72)',backdropFilter:'blur(4px)'};
-  const panel:React.CSSProperties={background:'linear-gradient(170deg,#141420 0%,#0F0A14 100%)',borderTop:'1px solid rgba(255,149,0,0.18)',borderRadius:'16px 16px 0 0',maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 -8px 40px rgba(0,0,0,0.6)'};
   const inputSt:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,149,0,0.35)',background:'rgba(255,149,0,0.07)',color:th.text,fontSize:13,fontFamily:'inherit',outline:'none'};
   const btnSt=(color='#FF9500',bg='rgba(255,149,0,0.12)'):React.CSSProperties=>({padding:'8px 18px',borderRadius:8,border:`1px solid ${color}55`,background:bg,color,fontSize:11,fontWeight:800,letterSpacing:'0.08em',cursor:'pointer',fontFamily:'inherit',transition:'all 0.1s'});
 
   return(
-    <div style={overlay} onPointerDown={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <div style={panel}>
+    <>
+    <div className={sheet.overlayClass} onClick={onClose} style={{position:'fixed',inset:0,zIndex:400,background:'rgba(0,0,0,0.72)',backdropFilter:'blur(4px)'}}/>
+    <div className={sheet.sheetClass} style={{position:'fixed',bottom:0,left:0,right:0,zIndex:401,maxWidth:960,margin:'0 auto',background:'linear-gradient(170deg,#141420 0%,#0F0A14 100%)',borderTop:'1px solid rgba(255,149,0,0.18)',borderRadius:'16px 16px 0 0',maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 -8px 40px rgba(0,0,0,0.6)'}}>
         {/* Header */}
         <div style={{padding:'14px 16px 10px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,borderBottom:`1px solid ${th.sBorder}`}}>
           <div>
@@ -190,6 +191,6 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
