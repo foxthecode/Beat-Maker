@@ -190,7 +190,7 @@ export default function TransportBar({
     </div>
   );
 
-  const TSBtn = view !== "euclid" && (
+  const TSBtn = view !== "euclid" && view !== "pads" && (
     <button
       data-hint={`Time Signature · Mesure actuelle : ${sig?.label || "4/4"} · Clic pour changer (3/4, 5/4, 6/8…) · Définit les accents du métronome`}
       onClick={() => setShowTS(!showTS)}
