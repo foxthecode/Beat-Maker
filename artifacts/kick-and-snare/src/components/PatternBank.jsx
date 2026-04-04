@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { THEMES } from "../theme.js";
 import { SEQUENCER_TEMPLATES } from "../sequencerTemplates.ts";
 import { EUCLID_TEMPLATES } from "../euclidTemplates.ts";
-import { usePanelTransition } from "../hooks/usePanelTransition";
+import { useSheetTransition } from "../hooks/usePanelTransition";
 
 function MiniGrid({ steps = [], color, n = 16 }) {
   const sz = n > 16 ? 2.5 : 3.5;
@@ -160,7 +160,7 @@ export default function PatternBank({
   const longPressRef = useRef(null);
   const [variant, setVariant] = useState("16");
   const isEuclid = view === "euclid";
-  const songTimeline = usePanelTransition(false);
+  const songSheet = useSheetTransition();
 
   const localPill = (on, c) => ({
     padding: "5px 12px", border: `1.5px solid ${on ? c + "66" : th.sBorder}`,
@@ -258,14 +258,14 @@ export default function PatternBank({
         </div>
       </div>
 
-      {/* ── Song Arranger ── */}
-      <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${songTimeline.isOpen || songMode ? "rgba(191,90,242,0.35)" : th.sBorder}`, overflow: "hidden", transition: "border-color 0.2s" }}>
+      {/* ── Song Arranger header (always visible) ── */}
+      <div style={{ marginBottom: 8, borderRadius: 10, background: th.surface, border: `1px solid ${songSheet.isOpen || songMode ? "rgba(191,90,242,0.35)" : th.sBorder}`, transition: "border-color 0.2s" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", userSelect: "none" }}>
           <div data-hint="Song Arranger · Chain patterns to build a song · Enable SONG mode to play the chain in order"
-            onClick={() => { songTimeline.toggle(); setShowSong && setShowSong(p => !p); }}
+            onClick={() => { songSheet.toggle(); setShowSong && setShowSong(p => !p); }}
             style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, cursor: "pointer" }}>
             <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGER</span>
-            <span style={{ fontSize: 10, color: th.dim }}>{songTimeline.isOpen ? "▲" : "▼"}</span>
+            <span style={{ fontSize: 10, color: th.dim }}>{songSheet.isOpen ? "▲" : "▼"}</span>
           </div>
           <button
             data-hint={songMode ? playing ? "SONG mode active · Auto-plays the chain · Click to disable" : "SONG mode ON · Start playback to chain patterns · Click to disable" : "SONG mode OFF · Enable to play patterns in chain order · Click to activate"}
@@ -273,49 +273,56 @@ export default function PatternBank({
             style={{ padding: "2px 8px", borderRadius: 6, border: `1px solid ${songMode ? "#BF5AF255" : "rgba(255,255,255,0.12)"}`, background: songMode ? "#BF5AF218" : "transparent", color: songMode ? "#BF5AF2" : "inherit", fontSize: 8, fontWeight: 700, cursor: "pointer", letterSpacing: "0.07em", textTransform: "uppercase", fontFamily: "inherit", animation: songMode && playing ? "pulse 1s infinite" : "none" }}
           >{songMode ? (playing ? "▶ ON" : "ON") : "OFF"}</button>
         </div>
+      </div>
 
-        {songTimeline.visible && (
-          <div className={songTimeline.className}>
-            <div style={{ padding: "0 12px 10px" }}>
-              {songMode && <div style={{ fontSize: 8, color: th.dim, marginBottom: 8 }}>Auto-advances through the chain each cycle · right-click a block to remove it</div>}
-              {/* Horizontal timeline */}
-              <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: "4px 0 8px", WebkitOverflowScrolling: "touch" }}>
-                {songChain.map((patIdx, si) => {
-                  const col = SEC_COL[patIdx % SEC_COL.length];
-                  const isCurrent = songPosRef.current === si && playing && songMode;
-                  return (
-                    <div key={si}
-                      onClick={() => { songPosRef.current = si; }}
-                      onContextMenu={e => { e.preventDefault(); setSongChain(p => p.filter((_, j) => j !== si)); }}
-                      title={`Slot ${si + 1}: Pattern ${patIdx + 1} · right-click to remove`}
-                      style={{
-                        minWidth: 34, height: 34, borderRadius: 7, flexShrink: 0,
-                        background: col + (isCurrent ? "55" : "22"),
-                        border: `1.5px solid ${col + (isCurrent ? "aa" : "44")}`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, fontWeight: 800, color: col, cursor: "pointer",
-                        transition: "all 0.15s",
-                        boxShadow: isCurrent ? `0 0 10px ${col}44` : "none",
-                      }}>
-                      {patIdx + 1}
-                    </div>
-                  );
-                })}
-                <button onClick={() => setSongChain(p => [...p, cPat])}
-                  title={`Add Pattern ${cPat + 1} to chain`}
-                  style={{ minWidth: 34, height: 34, borderRadius: 7, border: `1px dashed ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 14, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-              </div>
-              {/* Controls */}
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => setSongMode(p => !p)} style={localPill(songMode, "#30D158")}>
-                  {songMode ? "■ STOP" : "▶"} SONG
-                </button>
-                <button onClick={() => { setSongChain([]); songPosRef.current = 0; }} style={localPill(false, "#FF2D55")}>CLEAR</button>
-              </div>
+      {/* ── Song Timeline — bottom sheet overlay (0.4s slide-up) ── */}
+      {songSheet.visible && (
+        <>
+          <div className={songSheet.overlayClass} onClick={() => songSheet.hide()} style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.4)" }} />
+          <div className={songSheet.sheetClass} style={{ position: "fixed", bottom: 70, left: 0, right: 0, zIndex: 151, maxWidth: 960, margin: "0 auto", background: th.bg || th.surface, borderRadius: "16px 16px 0 0", border: `1px solid ${th.sBorder}`, borderBottom: "none", padding: "12px 14px 16px", boxShadow: "0 -4px 24px rgba(0,0,0,0.3)" }}>
+            {/* Sheet header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG ARRANGEMENT</span>
+              <button onClick={() => songSheet.hide()} style={{ width: 28, height: 28, borderRadius: 7, border: "none", background: "rgba(255,55,95,0.12)", color: "#FF375F", fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            </div>
+            {songMode && <div style={{ fontSize: 8, color: th.dim, marginBottom: 8 }}>Auto-advances through the chain each cycle · right-click a block to remove it</div>}
+            {/* Horizontal timeline */}
+            <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: "6px 4px 10px", WebkitOverflowScrolling: "touch", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: `1px solid ${th.sBorder}` }}>
+              {songChain.map((patIdx, si) => {
+                const col = SEC_COL[patIdx % SEC_COL.length];
+                const isCurrent = songPosRef.current === si && playing && songMode;
+                return (
+                  <div key={si}
+                    onClick={() => { songPosRef.current = si; }}
+                    onContextMenu={e => { e.preventDefault(); setSongChain(p => p.filter((_, j) => j !== si)); }}
+                    title={`Slot ${si + 1}: Pattern ${patIdx + 1} · right-click to remove`}
+                    style={{
+                      minWidth: 40, height: 40, borderRadius: 8, flexShrink: 0,
+                      background: col + (isCurrent ? "55" : "22"),
+                      border: `2px solid ${col + (isCurrent ? "aa" : "44")}`,
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", transition: "all 0.15s",
+                      boxShadow: isCurrent ? `0 0 12px ${col}44` : "none",
+                    }}>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: col }}>{patIdx + 1}</span>
+                    <span style={{ fontSize: 6, fontWeight: 700, color: col + "88" }}>{pBank[patIdx]?._name || `P${patIdx + 1}`}</span>
+                  </div>
+                );
+              })}
+              <button onClick={() => setSongChain(p => [...p, cPat])}
+                title={`Add Pattern ${cPat + 1} to chain`}
+                style={{ minWidth: 40, height: 40, borderRadius: 8, border: `1.5px dashed ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 18, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            </div>
+            {/* Controls */}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button onClick={() => setSongMode(p => !p)} style={{ ...localPill(songMode, "#30D158"), flex: 1 }}>
+                {songMode ? "■ STOP" : "▶ PLAY"} SONG
+              </button>
+              <button onClick={() => { setSongChain([]); songPosRef.current = 0; }} style={localPill(false, "#FF2D55")}>✕ CLEAR</button>
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </>
   );
 }
