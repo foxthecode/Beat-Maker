@@ -1688,6 +1688,12 @@ export default function KickAndSnare(){
   const filterPosRef=useRef<Record<string,{x:number,y:number}>>({});
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
+  // ── Rec grid overlay (Live Pads + REC active) ──
+  const [showRecGrid,setShowRecGrid]=useState(false);
+  useEffect(()=>{
+    if(rec&&playing&&view==="pads")setShowRecGrid(true);
+    else if(!rec||!playing)setShowRecGrid(false);
+  },[rec,playing,view]);
   const [loopMetro,setLoopMetro]=useState(false);
   // masterVol → engine gain + localStorage (0d)
   useEffect(()=>{
@@ -3761,13 +3767,21 @@ export default function KickAndSnare(){
 
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
-          <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record a loop" color="#5E5CE6"/>
-          {/* E4: REC indicator in Live Pads view */}
-          {rec&&playing&&(
-            <div style={{padding:"3px 10px",borderRadius:6,marginBottom:8,background:"rgba(255,45,85,0.06)",border:"1px solid rgba(255,45,85,0.2)",fontSize:8,fontWeight:700,color:"#FF2D55",textAlign:"center",letterSpacing:"0.06em",animation:"rb 0.8s infinite"}}>
-              ● REC → {lastSeqView==='euclid'?'EUCLIDIAN':'SEQUENCER'} (P{cPat+1})
-            </div>
-          )}
+          <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record into the sequencer" color="#5E5CE6"/>
+          {/* ── REC button — Live Pads ── */}
+          <button
+            onClick={onRecClick}
+            style={{width:"100%",marginBottom:10,padding:"9px 12px",borderRadius:10,border:`1.5px solid ${rec?"rgba(255,45,85,0.55)":"rgba(255,255,255,0.1)"}`,background:rec?"rgba(255,45,85,0.13)":"rgba(255,255,255,0.03)",color:rec?"#FF2D55":"rgba(255,255,255,0.4)",fontSize:10,fontWeight:800,letterSpacing:"0.1em",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:7,transition:"all 0.15s"}}
+          >
+            <span style={{fontSize:13,animation:rec&&playing?"rb 0.8s infinite":"none"}}>⏺</span>
+            {rec&&playing
+              ?<><span style={{animation:"rb 0.8s infinite"}}>REC</span><span style={{fontWeight:400,fontSize:8,color:"rgba(255,45,85,0.7)",letterSpacing:"0.06em"}}>→ {lastSeqView==="euclid"?"EUCLID":"SEQUENCER"} · P{cPat+1} · step {cStep>=0?cStep+1:"—"}</span></>
+              :rec
+                ?<span style={{color:"rgba(255,149,0,0.9)"}}>REC · TAP PLAY TO START</span>
+                :<span>REC</span>
+            }
+            {rec&&playing&&<span style={{marginLeft:"auto",fontSize:8,color:"rgba(255,255,255,0.3)",fontWeight:400}}>grid ↓</span>}
+          </button>
           {/* LOOPER DISABLED — conservé pour développement futur */}
           {false && (
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
@@ -4908,6 +4922,40 @@ export default function KickAndSnare(){
             ))}
           </div>
         </div>
+      </div>
+    )}
+    {/* ── REC Grid Overlay — slides up from bottom when REC is active in Live Pads ── */}
+    {view==="pads"&&(
+      <div style={{position:"fixed",bottom:54,left:0,right:0,zIndex:190,height:"56vh",background:"rgba(10,10,14,0.97)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",borderRadius:"14px 14px 0 0",borderTop:`1.5px solid ${showRecGrid?"rgba(255,45,85,0.45)":"rgba(255,45,85,0.08)"}`,boxShadow:"0 -8px 36px rgba(0,0,0,0.8)",transform:showRecGrid?"translateY(0)":"translateY(108%)",transition:"transform 0.28s cubic-bezier(0.4,0,0.2,1)",display:"flex",flexDirection:"column",overflow:"hidden",pointerEvents:showRecGrid?"auto":"none"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px 8px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
+          <span style={{fontSize:9,fontWeight:900,color:"#FF2D55",letterSpacing:"0.1em",animation:showRecGrid?"rb 0.8s infinite":"none"}}>⏺ REC</span>
+          <span style={{fontSize:8,fontWeight:700,color:"rgba(255,255,255,0.45)",letterSpacing:"0.07em"}}>→ {lastSeqView==="euclid"?"EUCLID":"SEQUENCER"} · P{cPat+1}</span>
+          <span style={{fontSize:8,color:"rgba(255,255,255,0.2)",marginLeft:2}}>step {cStep>=0?cStep+1:"—"} / {STEPS}</span>
+          <button onClick={()=>setShowRecGrid(false)} title="Hide grid (keeps recording)" style={{marginLeft:"auto",background:"none",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,color:"rgba(255,255,255,0.35)",fontSize:9,padding:"2px 9px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}}>▼</button>
+        </div>
+        {/* Mini step grid — read-only, live step highlight */}
+        <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:"8px 12px",display:"flex",flexDirection:"column",gap:5}}>
+          {atO.map(tr=>{
+            const steps:number[]=pBank[cPat][tr.id]||[];
+            const N=steps.length||STEPS;
+            return(
+              <div key={tr.id} style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:7,fontWeight:800,color:tr.color,letterSpacing:"0.06em",width:30,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
+                <div style={{flex:1,display:"flex",gap:1.5,overflow:"hidden"}}>
+                  {Array.from({length:N},(_,i)=>{
+                    const on=!!(steps[i]);const isCur=cStep===i;
+                    return(
+                      <div key={i} style={{flex:1,height:18,borderRadius:3,background:isCur?"rgba(255,255,255,0.95)":on?tr.color+"cc":"rgba(255,255,255,0.06)",border:isCur?`1.5px solid ${tr.color}`:"1px solid transparent",boxShadow:isCur?`0 0 6px ${tr.color}`:"none",transition:"background 0.04s",flexShrink:0,minWidth:0,maxWidth:24}}/>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Footer hint */}
+        <div style={{textAlign:"center",padding:"6px",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:"0.05em",flexShrink:0}}>TAP A PAD TO RECORD · HITS SNAP TO NEAREST STEP</div>
       </div>
     )}
     {/* ── Live Pads Welcome Popup ── */}
