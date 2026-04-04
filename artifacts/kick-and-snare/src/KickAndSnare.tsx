@@ -1491,6 +1491,8 @@ export default function KickAndSnare(){
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
   const [view,setView]=useState("pads");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
   const [showPadsWelcome,setShowPadsWelcome]=useState(true);
+  const [showSeqWelcome,setShowSeqWelcome]=useState(true);
+  const [showEuclidWelcome,setShowEuclidWelcome]=useState(true);
   const [customTracks,setCustomTracks]=useState([]);
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
@@ -4904,6 +4906,90 @@ export default function KickAndSnare(){
             </div>
           </div>
           <button onClick={e=>{e.stopPropagation();setShowPadsWelcome(false);}} style={{flexShrink:0,background:"none",border:"none",color:"rgba(255,255,255,0.3)",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,marginTop:-2}}>✕</button>
+        </div>
+        <div style={{marginTop:10,fontSize:8,color:"rgba(255,255,255,0.3)",textAlign:"center" as const,letterSpacing:"0.04em"}}>TAP ANYWHERE TO DISMISS</div>
+      </div>
+    )}
+    {/* ── Sequencer Welcome Popup ── */}
+    {showSeqWelcome&&view==="sequencer"&&(
+      <div onClick={()=>setShowSeqWelcome(false)} style={{position:"fixed",bottom:68,left:"50%",transform:"translateX(-50%)",zIndex:210,width:"min(400px,93vw)",borderRadius:14,background:"rgba(20,20,26,0.97)",border:"1px solid rgba(255,45,85,0.35)",boxShadow:"0 6px 32px rgba(0,0,0,0.8)",padding:"16px 18px",cursor:"pointer",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+          <span style={{fontSize:26,lineHeight:1,flexShrink:0}}>▦</span>
+          <div style={{flex:1}}>
+            <div className="gradientShift" style={{fontSize:14,fontWeight:900,letterSpacing:"0.05em",marginBottom:8,background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>The Step Sequencer</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.6,marginBottom:10}}>
+              Program your beats step by step — click a cell to activate it, drag up or down to set its velocity. Each row is a drum track. Hit play and watch your pattern loop.
+            </div>
+            {/* Feature pills */}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap" as const,marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(255,45,85,0.12)",border:"1px solid rgba(255,45,85,0.3)"}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#FF2D55",letterSpacing:"0.05em"}}>⏺ REC</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>record live hits</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(94,92,230,0.10)",border:"1px solid rgba(94,92,230,0.28)"}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6",letterSpacing:"0.05em"}}>■ PRESETS</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>ready-made patterns</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(191,90,242,0.10)",border:"1px solid rgba(191,90,242,0.28)"}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#BF5AF2",letterSpacing:"0.05em"}}>♫ SONG ARRANGER</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>chain patterns</span>
+              </div>
+            </div>
+            {/* Other views */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(94,92,230,0.12)",border:"1px solid rgba(94,92,230,0.3)"}}>
+                <span style={{fontSize:11}}>⊞</span>
+                <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6",letterSpacing:"0.06em"}}>LIVE PADS</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>perform live</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,214,10,0.10)",border:"1px solid rgba(255,214,10,0.25)"}}>
+                <span style={{fontSize:11}}>⬡</span>
+                <span style={{fontSize:9,fontWeight:700,color:"#FFD60A",letterSpacing:"0.06em"}}>EUCLID</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>polyrhythms</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={e=>{e.stopPropagation();setShowSeqWelcome(false);}} style={{flexShrink:0,background:"none",border:"none",color:"rgba(255,255,255,0.3)",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,marginTop:-2}}>✕</button>
+        </div>
+        <div style={{marginTop:10,fontSize:8,color:"rgba(255,255,255,0.3)",textAlign:"center" as const,letterSpacing:"0.04em"}}>TAP ANYWHERE TO DISMISS</div>
+      </div>
+    )}
+    {/* ── Euclid Welcome Popup ── */}
+    {showEuclidWelcome&&view==="euclid"&&(
+      <div onClick={()=>setShowEuclidWelcome(false)} style={{position:"fixed",bottom:68,left:"50%",transform:"translateX(-50%)",zIndex:210,width:"min(400px,93vw)",borderRadius:14,background:"rgba(20,20,26,0.97)",border:"1px solid rgba(255,214,10,0.3)",boxShadow:"0 6px 32px rgba(0,0,0,0.8)",padding:"16px 18px",cursor:"pointer",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+          <span style={{fontSize:26,lineHeight:1,flexShrink:0}}>⬡</span>
+          <div style={{flex:1}}>
+            <div className="gradientShift" style={{fontSize:14,fontWeight:900,letterSpacing:"0.05em",marginBottom:8,background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>The Euclidean Sequencer</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.6,marginBottom:10}}>
+              Euclidean rhythms spread N hits as evenly as possible across M steps — a mathematical approach found in African, Cuban and Middle-Eastern music. Dial in hits, steps and rotation to build polyrhythms.
+            </div>
+            {/* Feature pills */}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap" as const,marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(255,214,10,0.10)",border:"1px solid rgba(255,214,10,0.28)"}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#FFD60A",letterSpacing:"0.05em"}}>⬡ PRESETS</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>ready-made polyrhythms</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:6,background:"rgba(191,90,242,0.10)",border:"1px solid rgba(191,90,242,0.28)"}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#BF5AF2",letterSpacing:"0.05em"}}>♫ SONG ARRANGER</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>chain patterns</span>
+              </div>
+            </div>
+            {/* Other views */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(94,92,230,0.12)",border:"1px solid rgba(94,92,230,0.3)"}}>
+                <span style={{fontSize:11}}>⊞</span>
+                <span style={{fontSize:9,fontWeight:700,color:"#5E5CE6",letterSpacing:"0.06em"}}>LIVE PADS</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>perform live</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,45,85,0.12)",border:"1px solid rgba(255,45,85,0.3)"}}>
+                <span style={{fontSize:11}}>▦</span>
+                <span style={{fontSize:9,fontWeight:700,color:"#FF2D55",letterSpacing:"0.06em"}}>SEQUENCER</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.4)"}}>step grid</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={e=>{e.stopPropagation();setShowEuclidWelcome(false);}} style={{flexShrink:0,background:"none",border:"none",color:"rgba(255,255,255,0.3)",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,marginTop:-2}}>✕</button>
         </div>
         <div style={{marginTop:10,fontSize:8,color:"rgba(255,255,255,0.3)",textAlign:"center" as const,letterSpacing:"0.04em"}}>TAP ANYWHERE TO DISMISS</div>
       </div>
