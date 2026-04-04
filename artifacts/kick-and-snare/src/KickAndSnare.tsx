@@ -3029,7 +3029,7 @@ export default function KickAndSnare(){
     setStRatch(p=>{const n={...p};tplIds.forEach(id=>{n[id]=Array(ns).fill(1);});return n;});
     // Activate all tracks used in this template
     setAct(prev=>{const next=[...prev];tplIds.forEach(id=>{if(!next.includes(id))next.push(id);});return next;});
-    if(tpl.bpm)setBpm(tpl.bpm);
+    // BPM preserved: templates suggest BPM but never override user setting
     setSwipeToast(`${(tpl as any).icon||"✓"} ${tpl.name} · ${ns} steps`);
     setTimeout(()=>setSwipeToast(null),1200);
   };
@@ -3067,7 +3067,7 @@ export default function KickAndSnare(){
     });
     // ── 3. Activate ONLY the tracks in this preset ──
     setAct(newTids);
-    if(tpl.bpm)setBpm(tpl.bpm);
+    // BPM preserved: euclid presets suggest BPM but never override user setting
     // Apply default kit for this euclid preset
     const kitId=TEMPLATE_KITS[tpl.id];
     if(kitId){const kit=DRUM_KITS.find(k=>k.id===kitId);if(kit)applyKit(kit);}
@@ -3321,9 +3321,9 @@ export default function KickAndSnare(){
               <div className="subtitleAnim" style={{fontSize:8,letterSpacing:"0.4em",color:th.dim,whiteSpace:"nowrap"}}>DRUM EXPERIENCE</div>
             </div>
           </div>
-          {/* ── Kit selector + Mascot — absolutely centered ── */}
-          <div style={{position:"absolute",left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",alignItems:"center",gap:3,pointerEvents:"none"}}>
-          <div style={{pointerEvents:"auto"}}>
+          {/* ── Kit selector + Mascot — flex centered column ── */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:"0 0 auto"}}>
+          <div>
           {/* ── Kit selector → opens KitBrowser ── */}
           {(()=>{
             const activeUserKit=userKits.find(k=>k.id===activeKitId);
@@ -3349,8 +3349,8 @@ export default function KickAndSnare(){
               </button>
             );
           })()}
-          </div>{/* end kit pointerEvents wrapper */}
-          <div style={{pointerEvents:"auto"}}>
+          </div>{/* end kit wrapper */}
+          <div>
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
             const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
@@ -3475,8 +3475,8 @@ export default function KickAndSnare(){
               </svg>
             </div>);
           })()}
-          </div>{/* end mascot pointerEvents wrapper */}
-          </div>{/* end center absolute block */}
+          </div>{/* end mascot wrapper */}
+          </div>{/* end center flex column */}
           {/* ── UNDO/REDO — right side ── */}
           <div style={{display:"flex",gap:4,alignItems:"center",flex:1,justifyContent:"flex-end"}}>
             <button data-hint="Undo (Ctrl+Z) · Go back one step — up to 50 history steps" onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>

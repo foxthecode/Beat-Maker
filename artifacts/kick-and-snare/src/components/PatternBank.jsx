@@ -183,7 +183,7 @@ export default function PatternBank({
             <TemplateDropdown onLoad={onLoadTemplate} onLoadEuclid={onLoadEuclidTemplate} th={th} view={view} variant={variant} setVariant={setVariant} />
             {pBank.length < MAX_PAT && (
               <button data-hint={`DUP · Duplicate pattern ${cPat + 1} into slot ${cPat + 2}`}
-                onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); setCPat(cPat + 1); }}
+                onClick={() => { const dup = JSON.parse(JSON.stringify(pBank[cPat])); setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; }); if (!(playing && songMode)) setCPat(cPat + 1); }}
                 style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>
             )}
             {onClear && (
@@ -219,7 +219,7 @@ export default function PatternBank({
                 ) : (
                   <div
                     data-hint={isActive ? `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Long-press to rename` : `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Click to switch · Long-press to rename`}
-                    onClick={() => { setCPat(i); R.pat = pBank[i]; }}
+                    onClick={() => { setCPat(i); if (!(playing && songMode)) R.pat = pBank[i]; }}
                     onDoubleClick={() => { setCPat(i); if (playing && songMode) { const idx = songChain.indexOf(i); if (idx >= 0) songPosRef.current = idx; } }}
                     onMouseDown={() => startLongPress(i)}
                     onMouseUp={cancelLongPress}
@@ -256,7 +256,7 @@ export default function PatternBank({
           })}
           {pBank.length < MAX_PAT && (
             <button data-hint={`+ Add empty pattern · Slot ${pBank.length + 1}`}
-              onClick={() => { setPBank(p => [...p, mkE(STEPS)]); setCPat(pBank.length); }}
+              onClick={() => { setPBank(p => [...p, mkE(STEPS)]); if (!(playing && songMode)) setCPat(pBank.length); }}
               style={{ minWidth: 40, height: 54, borderRadius: 10, border: `1px dashed ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 18, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>+</button>
           )}
         </div>
