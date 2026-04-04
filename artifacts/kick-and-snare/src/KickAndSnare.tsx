@@ -1489,7 +1489,8 @@ export default function KickAndSnare(){
   const [isPortrait,setIsPortrait]=useState(()=>window.innerHeight>window.innerWidth);
   const [bpm,setBpm]=useState(90);const [playing,setPlaying]=useState(false);const [cStep,setCStep]=useState(-1);
   const [swing,setSwing]=useState(0);const [muted,setMuted]=useState({});const [soloed,setSoloed]=useState(null);
-  const [view,setView]=useState("sequencer");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
+  const [view,setView]=useState("pads");const [act,setAct]=useState(DEFAULT_ACTIVE);const [showAdd,setShowAdd]=useState(false);
+  const [showPadsWelcome,setShowPadsWelcome]=useState(true);
   const [customTracks,setCustomTracks]=useState([]);
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
@@ -4879,11 +4880,39 @@ export default function KickAndSnare(){
         </div>
       </div>
     )}
+    {/* ── Live Pads Welcome Popup ── */}
+    {showPadsWelcome&&view==="pads"&&(
+      <div onClick={()=>setShowPadsWelcome(false)} style={{position:"fixed",bottom:68,left:"50%",transform:"translateX(-50%)",zIndex:210,width:"min(380px,92vw)",borderRadius:14,background:"rgba(20,20,26,0.97)",border:"1px solid rgba(94,92,230,0.45)",boxShadow:"0 6px 32px rgba(0,0,0,0.8)",padding:"16px 18px",cursor:"pointer",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+          <span style={{fontSize:28,lineHeight:1,flexShrink:0}}>⊞</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.04em",marginBottom:6}}>Welcome to Live Pads</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.75)",lineHeight:1.55,marginBottom:10}}>
+              Tap or click the pads to trigger drums in real time. You can also use your keyboard.
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,45,85,0.12)",border:"1px solid rgba(255,45,85,0.3)"}}>
+                <span style={{fontSize:11}}>▦</span>
+                <span style={{fontSize:9,fontWeight:700,color:"#FF2D55",letterSpacing:"0.06em"}}>SEQUENCER</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.45)"}}>step grid</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:7,background:"rgba(255,214,10,0.10)",border:"1px solid rgba(255,214,10,0.25)"}}>
+                <span style={{fontSize:11}}>⬡</span>
+                <span style={{fontSize:9,fontWeight:700,color:"#FFD60A",letterSpacing:"0.06em"}}>EUCLID</span>
+                <span style={{fontSize:8,color:"rgba(255,255,255,0.45)"}}>polyrhythms</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={e=>{e.stopPropagation();setShowPadsWelcome(false);}} style={{flexShrink:0,background:"none",border:"none",color:"rgba(255,255,255,0.3)",fontSize:16,cursor:"pointer",padding:0,lineHeight:1,marginTop:-2}}>✕</button>
+        </div>
+        <div style={{marginTop:10,fontSize:8,color:"rgba(255,255,255,0.3)",textAlign:"center" as const,letterSpacing:"0.04em"}}>TAP ANYWHERE TO DISMISS</div>
+      </div>
+    )}
     {/* ── Bottom Navigation Bar ── */}
     <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,display:"flex",alignItems:"stretch",background:"rgba(14,14,16,0.97)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderTop:`1.5px solid ${th.sBorder}`,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
       {([
-        {id:"pads",label:"LIVE PADS",icon:"⊞",color:"#5E5CE6",hint:"Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing",act:()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}},
         {id:"sequencer",label:"SEQUENCER",icon:"▦",color:"#FF2D55",hint:"Sequencer · TR-808 step grid · Click = on/off · Drag ↕ = velocity · Long-press = probability",act:()=>view!=="sequencer"&&switchView("sequencer")},
+        {id:"pads",label:"LIVE PADS",icon:"⊞",color:"#5E5CE6",hint:"Live Pads · 8 colored pads playable in real time by touch or keyboard · Perfect for performing",act:()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}},
         {id:"euclid",label:"EUCLID",icon:"⬡",color:"#FFD60A",hint:"Euclidean Sequencer · Distributes N hits across M steps mathematically · African rhythms, polymeters",act:()=>view!=="euclid"&&switchView("euclid")},
       ] as const).map(tab=>{
         const active=view===tab.id;
