@@ -1792,6 +1792,7 @@ export default function KickAndSnare(){
   const histRef=useRef({past:[],future:[]});
   const [histLen,setHistLen]=useState({past:0,future:0});
   const _pbRef=useRef(null);const _epRef=useRef(null);const _svRef=useRef(null);const _snRef=useRef(null);const _spRef=useRef(null);const _srRef=useRef(null);
+  const _akRef=useRef<string>('');const _kiRef=useRef<number>(0);const _smRef=useRef<Record<string,string>>({});const _ctRef=useRef<any[]>([]);const _acRef=useRef<string[]>([]);const _ukRef=useRef<UserKit[]>([]);
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // Euclid polyrhythm — independent per-track clocks
   const euclidClockR=useRef({});
@@ -3031,11 +3032,46 @@ export default function KickAndSnare(){
   // Step interactions
   // Keep snapshot refs always current (assigned during render)
   _pbRef.current=pBank;_epRef.current=euclidParams;_svRef.current=stVel;_snRef.current=stNudge;_spRef.current=stProb;_srRef.current=stRatch;
-  const _snap=()=>({pBank:JSON.parse(JSON.stringify(_pbRef.current)),euclidParams:JSON.parse(JSON.stringify(_epRef.current)),stVel:JSON.parse(JSON.stringify(_svRef.current)),stNudge:JSON.parse(JSON.stringify(_snRef.current)),stProb:JSON.parse(JSON.stringify(_spRef.current)),stRatch:JSON.parse(JSON.stringify(_srRef.current))});
+  _akRef.current=activeKitId;_kiRef.current=kitIdx;_smRef.current=smpN;_ctRef.current=customTracks;_acRef.current=act;_ukRef.current=userKits;
+  const _snap=()=>({
+    pBank:JSON.parse(JSON.stringify(_pbRef.current)),
+    euclidParams:JSON.parse(JSON.stringify(_epRef.current)),
+    stVel:JSON.parse(JSON.stringify(_svRef.current)),
+    stNudge:JSON.parse(JSON.stringify(_snRef.current)),
+    stProb:JSON.parse(JSON.stringify(_spRef.current)),
+    stRatch:JSON.parse(JSON.stringify(_srRef.current)),
+    activeKitId:_akRef.current,
+    kitIdx:_kiRef.current,
+    smpN:{..._smRef.current},
+    customTracks:JSON.parse(JSON.stringify(_ctRef.current)),
+    act:[..._acRef.current],
+  });
   const _updHL=()=>setHistLen({past:histRef.current.past.length,future:histRef.current.future.length});
   const pushHistory=()=>{histRef.current.past.push(_snap());if(histRef.current.past.length>60)histRef.current.past.shift();histRef.current.future=[];_updHL();};
-  const undo=()=>{const h=histRef.current;if(!h.past.length)return;h.future.push(_snap());const s=h.past.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
-  const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);_updHL();};
+  // Re-load audio buffers when restoring a kit from history (without pushing a new history entry)
+  const _restoreKitAudio=(snapKitId:string)=>{
+    const fk=DRUM_KITS.find(k=>k.id===snapKitId);
+    if(fk){
+      const kitSamples=fk.samples as Record<string,string>;
+      ALL_TRACKS.forEach(tr=>{
+        const tid=tr.id;const curFx=(R.fx as typeof fx)[tid]||{...DEFAULT_FX};
+        delete (engine.buf as any)[tid];
+        if(kitSamples[tid]){engine.loadUrl(tid,kitSamples[tid]).then(ok=>{if(!ok&&engine.ctx)engine.renderShape(tid,curFx,true).catch(()=>{});});}
+        else if(engine.ctx){engine.renderShape(tid,curFx,true).catch(()=>{});}
+      });
+      return;
+    }
+    const uk=_ukRef.current.find(k=>k.id===snapKitId);
+    if(uk)loadUserKit(uk);
+  };
+  const _applySnap=(s:ReturnType<typeof _snap>)=>{
+    setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);
+    setSmpN(s.smpN);setAct(s.act);setCustomTracks(s.customTracks);
+    if(s.kitIdx!==_kiRef.current)setKitIdx(s.kitIdx);
+    if(s.activeKitId!==_akRef.current){setActiveKitId(s.activeKitId);_restoreKitAudio(s.activeKitId);}
+  };
+  const undo=()=>{const h=histRef.current;if(!h.past.length)return;h.future.push(_snap());const s=h.past.pop();_applySnap(s);_updHL();};
+  const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();_applySnap(s);_updHL();};
   R.undo=undo;R.redo=redo;R.pushHistory=pushHistory;
 
   // ── Kit applier ─────────────────────────────────────────────────────────────
@@ -3378,14 +3414,15 @@ export default function KickAndSnare(){
     for(let x=0;x<w;x++){let mn=1,mx=-1;for(let j=0;j<step&&x*step+j<data.length;j++){const v=data[x*step+j];if(v<mn)mn=v;if(v>mx)mx=v;}d+=`M${x},${(((1+mn)/2)*h).toFixed(1)}L${x},${(((1+mx)/2)*h).toFixed(1)}`;}
     return d;
   };
-  const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});if(engine.buf[tid]){const wp=miniWaveformPath(engine.buf[tid],28,16);setWaveformCache(p=>({...p,[tid]:wp}));}}ldRef.current=null;};
-  const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});const wp=miniWaveformPath(buffer,28,16);setWaveformCache(p=>({...p,[tid]:wp}));};
+  const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;pushHistory();engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});if(engine.buf[tid]){const wp=miniWaveformPath(engine.buf[tid],28,16);setWaveformCache(p=>({...p,[tid]:wp}));}}ldRef.current=null;};
+  const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{pushHistory();setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});const wp=miniWaveformPath(buffer,28,16);setWaveformCache(p=>({...p,[tid]:wp}));};
 
   const pill=(on,c)=>({padding:"8px 16px",border:`1.5px solid ${on?c+"66":th.sBorder}`,borderRadius:8,background:on?c+"22":"rgba(255,255,255,0.03)",color:on?c:c+'77',fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit",transition:"all 0.2s cubic-bezier(0.32,0.72,0,1)",boxShadow:on?`0 0 12px ${c}22`:"none"});
 
   const CUST_ICONS=["◉","◈","⬟","⬡","◳","⬢","◙","⟡"];
   const addCustomTrack=()=>{
     const name=newTrackName.trim();if(!name)return;
+    pushHistory();
     const id=`ct_${Date.now()}`;const N=STEPS;
     const usedColors=new Set([...ALL_TRACKS.map(t=>t.color),...customTracks.map(t=>t.color)]);
     const autoColor=CUSTOM_COLORS.find(c=>!usedColors.has(c))||CUSTOM_COLORS[customTracks.length%CUSTOM_COLORS.length];
@@ -4896,8 +4933,8 @@ export default function KickAndSnare(){
       factoryKits={DRUM_KITS}
       userKits={userKits}
       activeKitId={activeKitId}
-      onLoadFactory={kit=>{applyKit(kit);setShowKitBrowser(false);}}
-      onLoadUser={loadUserKit}
+      onLoadFactory={kit=>{pushHistory();applyKit(kit);setShowKitBrowser(false);}}
+      onLoadUser={kit=>{pushHistory();loadUserKit(kit);}}
       onSave={saveCurrentAsKit}
       onRename={renameKit}
       onDelete={deleteKit}
