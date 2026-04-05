@@ -1733,6 +1733,7 @@ export default function KickAndSnare(){
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
   const [showPerform,setShowPerform]=useState(false);
+  const [showFxRack,setShowFxRack]=useState(false);
   const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/8'|'1/16'|'1/32'>('1/8');
   const [perfTrack,setPerfTrack]=useState<string>('');
   const [waveformCache,setWaveformCache]=useState<Record<string,string>>({});
@@ -3772,11 +3773,12 @@ export default function KickAndSnare(){
           freeCaptureCount={freeCaptureCount} freeBpm={freeBpm}
           onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
           onSaveProject={saveProject} onLoadProject={loadProject}
+          onShowFxRack={()=>setShowFxRack(true)}
         />
         </div>{/* end fixed-header maxWidth */}
       </div>{/* end fixed-header */}
       {/* ═══ Scrollable content (flex:1 between fixed header + fixed bottom nav) ═══ */}
-      <div style={{flex:1,minHeight:0,overflowY:view==="pads"?"hidden":"auto",overflowX:"hidden"}}>
+      <div style={{flex:1,minHeight:0,overflowY:(view==="pads"&&!showPerform)?"hidden":"auto",overflowX:"hidden"}}>
         <div style={{maxWidth:960,margin:"0 auto",padding:"0 12px",paddingBottom:60}}>
 
         {/* ── Time Signature ── */}
@@ -3990,7 +3992,7 @@ export default function KickAndSnare(){
         </>)}
 
         {/* ── LIVE PADS ── */}
-        {view==="pads"&&(<div style={{padding:"4px 0 0",display:"flex",flexDirection:"column",height:"calc(100dvh - 230px)"}}>
+        {view==="pads"&&(<div style={{padding:"4px 0 0"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record into the sequencer" color="#5E5CE6"/>
           {/* LOOPER DISABLED — conservé pour développement futur */}
           {false && (
@@ -4100,7 +4102,7 @@ export default function KickAndSnare(){
           </div>
           )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`1fr`,gap:12,touchAction:"none",flex:1,minHeight:0}}>
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`calc((100dvh - ${showPerform?460:250}px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:showPerform?10:0}}>
             {atO.map((track)=>{
               const padVol=fx[track.id]?.vol??80;
               const pR=9;const pC=2*Math.PI*pR;
@@ -4949,6 +4951,32 @@ export default function KickAndSnare(){
       </div>
     )}
 
+    {/* ── Master FX Rack bottom sheet ── */}
+    {showFxRack&&(
+      <>
+        <div onClick={()=>setShowFxRack(false)} style={{position:"fixed",inset:0,zIndex:1400,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)"}}/>
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:1401,background:"#1a1a1e",borderRadius:"18px 18px 0 0",boxShadow:"0 -8px 48px rgba(0,0,0,0.8)",paddingBottom:"env(safe-area-inset-bottom,16px)",maxHeight:"88vh",overflowY:"auto",overflowX:"hidden"}}>
+          <div style={{display:"flex",justifyContent:"center",paddingTop:10,paddingBottom:4}}>
+            <div style={{width:38,height:4,borderRadius:2,background:"rgba(255,255,255,0.18)"}}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 20px 10px"}}>
+            <span style={{fontSize:12,fontWeight:900,color:"#FF9500",letterSpacing:"0.1em"}}>🎛 MASTER FX RACK</span>
+            <button onClick={()=>setShowFxRack(false)} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:16,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.6)",fontSize:16,cursor:"pointer",flexShrink:0}}>×</button>
+          </div>
+          <FXRack
+            gfx={gfx} setGfx={setGfx}
+            tracks={[...ALL_TRACKS,...customTracks]}
+            themeName={themeName} bpm={bpm}
+            midiLM={midiLM} MidiTag={MidiTag}
+            isPortrait={isPortrait}
+            fxChainOrder={fxChainOrder} setFxChainOrder={setFxChainOrder}
+            onChainOrderChange={(o:string[])=>{engine.setChainOrder?.(o);}}
+            fxSendPos={fxSendPos} setFxSendPos={setFxSendPos}
+            trackFx={trackFx} onTrackFxChange={onTrackFxChange}
+          />
+        </div>
+      </>
+    )}
     {/* ── Tutorial overlay ── */}
     <KitBrowser
       open={showKitBrowser}
