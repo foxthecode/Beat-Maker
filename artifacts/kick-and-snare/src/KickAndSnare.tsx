@@ -101,7 +101,7 @@ const DEFAULT_FX = Object.freeze({
 // samples: partial map of track-id → local URL (kick/snare/hihat from pre-loaded packs)
 // shape:   _syn multipliers applied when no real sample is available, OR pre-rendered if ctx ready
 const DRUM_KITS=[
-  {id:"808",      name:"808 Classic",  icon:SVG_808,
+  {id:"808",      name:"808",  icon:SVG_808,
    samples:{kick:`${import.meta.env.BASE_URL}samples/turbo808/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/turbo808/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/turbo808/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/turbo808/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/turbo808/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/turbo808/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/turbo808/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/turbo808/perc.wav`},
    labels:{tom:"SUB",ride:"OPEN HH",crash:"FX",perc:"HARM"},
    shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
@@ -1492,7 +1492,7 @@ export default function KickAndSnare(){
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
   const [euclidParams,setEuclidParams]=useState({});
-  const [smpN,setSmpN]=useState({kick:"KICK · 808 Classic [sample]",snare:"SNARE · 808 Classic [sample]",hihat:"HI-HAT · 808 Classic [sample]",clap:"CLAP · 808 Classic [sample]",tom:"TOM · 808 Classic [sample]",ride:"RIDE · 808 Classic [sample]",crash:"CRASH · 808 Classic [sample]",perc:"PERC · 808 Classic [sample]"});
+  const [smpN,setSmpN]=useState({kick:"KICK · 808 [sample]",snare:"SNARE · 808 [sample]",hihat:"HI-HAT · 808 [sample]",clap:"CLAP · 808 [sample]",tom:"TOM · 808 [sample]",ride:"RIDE · 808 [sample]",crash:"CRASH · 808 [sample]",perc:"PERC · 808 [sample]"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [kitIdx,setKitIdx]=useState(0);
   const kitIdxRef=useRef(0);kitIdxRef.current=kitIdx;
@@ -3495,7 +3495,7 @@ export default function KickAndSnare(){
             const activeUserKit=userKits.find(k=>k.id===activeKitId);
             const factoryKitForId=DRUM_KITS.find(k=>k.id===activeKitId);
             const curIcon=activeUserKit?activeUserKit.icon:factoryKitForId?.icon||DRUM_KITS[Math.max(0,kitIdx)]?.icon||'🔴';
-            const curName=activeUserKit?activeUserKit.name:factoryKitForId?.name||DRUM_KITS[Math.max(0,kitIdx)]?.name||'808 Classic';
+            const curName=activeUserKit?activeUserKit.name:factoryKitForId?.name||DRUM_KITS[Math.max(0,kitIdx)]?.name||'808';
             const isUser=!!activeUserKit;
             return(
               <button data-hint="Open Kit Library · Browse factory and saved kits · Save current setup as a kit" onClick={()=>setShowKitBrowser(true)} style={{
@@ -4907,7 +4907,7 @@ export default function KickAndSnare(){
             {([
               {title:"Header",color:"#FF9500",icon:"🎸",items:[
                 {key:"K (logo)",desc:"Icon that pulses on every downbeat — shows that audio is active."},
-                {key:"◀ Kit ▶",desc:"Switch between sound kits: 808 Classic, CR-78 Vintage, Kit 3, Kit 8. Each kit recolors all track sounds."},
+                {key:"◀ Kit ▶",desc:"Switch between sound kits: 808, CR-78 Vintage, Kit 3, Kit 8. Each kit recolors all track sounds."},
                 {key:"Mascot",desc:"Animated drummer that hits the drums matching active tracks. Bob speed and glow halo follow the BPM in real time."},
                 {key:"↺ / ↻",desc:"Undo (Ctrl+Z) / Redo (Ctrl+Y) — up to 50 history steps on patterns."},
                 {key:"? (this panel)",desc:"Displays this user guide. Click outside to close."},
