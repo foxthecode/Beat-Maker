@@ -15,9 +15,13 @@ export function drumKitSVG(_c:string):string{
   return DRUM_KIT_ICON_MARKER;
 }
 
-/** Returns true for any icon value that should render as the drum-kit PNG */
+/** Returns true for any icon value that should render as the drum-kit PNG.
+ *  Covers: new marker, old <img> tags, and any SVG that is NOT a known
+ *  factory-kit SVG (808 chip or Launchpad grid). */
 export function isDrumKitIcon(icon:string):boolean{
-  return icon===DRUM_KIT_ICON_MARKER
-    || icon.includes('drum-kit-icon.png')
-    || icon.includes('viewBox="0 0 32 28"'); // old wireframe SVG pattern
+  if(icon===DRUM_KIT_ICON_MARKER)return true;
+  if(icon.includes('drum-kit-icon.png'))return true;
+  // Any SVG that isn't one of the two factory icons → it's an old user-kit icon
+  if(icon.startsWith('<svg')&&icon!==SVG_808&&icon!==SVG_LAUNCHPAD)return true;
+  return false;
 }
