@@ -101,7 +101,7 @@ const DEFAULT_FX = Object.freeze({
 const DRUM_KITS=[
   {id:"808",      name:"808 Classic",  icon:"🔴",
    samples:{kick:`${import.meta.env.BASE_URL}samples/turbo808/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/turbo808/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/turbo808/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/turbo808/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/turbo808/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/turbo808/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/turbo808/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/turbo808/perc.wav`},
-   labels:{tom:"808 SUB",ride:"OPEN HH",crash:"808 FX",perc:"808 HARM"},
+   labels:{tom:"SUB",ride:"OPEN HH",crash:"FX",perc:"HARM"},
    shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
   {id:"trap",     name:"Trap",         icon:"⬡",
    samples:{} as Record<string,string>,
