@@ -255,7 +255,8 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
 
   useEffect(()=>{if(!open&&recording)stopRecording();},[open]);
 
-  const bank=useMemo(()=>buildBank(factoryKits,userKits,recEntries),[factoryKits,userKits,recEntries]);
+  // Only show user-loaded/recorded samples — factory kit samples are not listed here
+  const bank=useMemo(()=>buildBank([],userKits,recEntries),[userKits,recEntries]);
   const tabSamples=useMemo(()=>bank.filter(e=>e.category===activeTab),[bank,activeTab]);
   const filledCount=Object.values(slots).filter(Boolean).length;
 
