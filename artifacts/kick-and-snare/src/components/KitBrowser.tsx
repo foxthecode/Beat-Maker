@@ -98,7 +98,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
     }
   };
 
-  const card=(icon:string,name:string,sub:string,isActive:boolean,onClick:()=>void,extra?:React.ReactNode)=>(
+  const card=(icon:string,name:string,sub:string,isActive:boolean,onClick:()=>void,extra?:React.ReactNode,showIcon=true)=>(
     <div onClick={onClick} style={{
       position:'relative',padding:'12px 10px 10px',borderRadius:12,cursor:'pointer',
       border:`2px solid ${isActive?'#FF9500':th.sBorder}`,
@@ -107,7 +107,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
       transition:'all 0.14s',userSelect:'none',WebkitTapHighlightColor:'transparent',
       boxShadow:isActive?'0 0 14px rgba(255,149,0,0.15)':'none',
     }}>
-      <KitIcon icon={icon} size={28}/>
+      {showIcon&&<KitIcon icon={icon} size={28}/>}
       <div style={{fontSize:9,fontWeight:800,color:isActive?'#FF9500':th.text,letterSpacing:'0.06em',textAlign:'center',lineHeight:1.2,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</div>
       <div style={{fontSize:7,color:th.dim,textAlign:'center'}}>{sub}</div>
       {isActive&&<div style={{position:'absolute',top:5,right:5,width:6,height:6,borderRadius:'50%',background:'#FF9500'}}/>}
@@ -163,7 +163,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
               );
               return(
                 <div key={kit.id} style={{position:'relative'}}>
-                  {card(kit.icon,kit.name,dateStr,isAct,async()=>{if(!isAct&&!loading){setLoading(kit.id);try{await onLoadUser(kit);}finally{setLoading(null);}}},dots)}
+                  {card(kit.icon,kit.name,dateStr,isAct,async()=>{if(!isAct&&!loading){setLoading(kit.id);try{await onLoadUser(kit);}finally{setLoading(null);}}},dots,false)}
                   {loading===kit.id&&<div style={{position:'absolute',inset:0,borderRadius:12,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,pointerEvents:'none'}}>⏳</div>}
                   {menuOpen&&(
                     <div ref={menuRef} style={{position:'absolute',top:28,left:0,zIndex:10,background:'#1e1e2e',border:`1px solid ${th.sBorder}`,borderRadius:8,overflow:'hidden',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',minWidth:110}}>
