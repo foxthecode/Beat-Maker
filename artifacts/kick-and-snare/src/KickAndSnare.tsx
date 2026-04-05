@@ -100,7 +100,7 @@ const DEFAULT_FX = Object.freeze({
 // shape:   _syn multipliers applied when no real sample is available, OR pre-rendered if ctx ready
 const DRUM_KITS=[
   {id:"808",      name:"808 Classic",  icon:"🔴",
-   samples:{} as Record<string,string>,
+   samples:{kick:`${import.meta.env.BASE_URL}samples/turbo808/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/turbo808/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/turbo808/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/turbo808/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/turbo808/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/turbo808/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/turbo808/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/turbo808/perc.wav`},
    shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
   {id:"trap",     name:"Trap",         icon:"⬡",
    samples:{} as Record<string,string>,
