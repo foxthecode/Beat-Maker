@@ -134,12 +134,9 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
     <div className={sheet.sheetClass} style={{position:'fixed',bottom:0,left:0,right:0,zIndex:401,maxWidth:960,margin:'0 auto',background:'linear-gradient(170deg,#141420 0%,#0F0A14 100%)',borderTop:'1px solid rgba(255,149,0,0.18)',borderRadius:'16px 16px 0 0',maxHeight:'85vh',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 -8px 40px rgba(0,0,0,0.6)'}}>
         {/* Header */}
         <div style={{padding:'14px 16px 10px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,borderBottom:`1px solid ${th.sBorder}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:38,height:38,objectFit:'contain',borderRadius:6,display:'block',flexShrink:0}}/>
-            <div>
-              <div style={{fontSize:11,fontWeight:900,color:'#FF9500',letterSpacing:'0.2em'}}>KIT LIBRARY</div>
-              <div style={{fontSize:7,color:th.dim,letterSpacing:'0.1em',marginTop:1}}>{factoryKits.length} FACTORY · {userKits.length} USER</div>
-            </div>
+          <div>
+            <div style={{fontSize:11,fontWeight:900,color:'#FF9500',letterSpacing:'0.2em'}}>KIT LIBRARY</div>
+            <div style={{fontSize:7,color:th.dim,letterSpacing:'0.1em',marginTop:1}}>{factoryKits.length} FACTORY · {userKits.length} USER</div>
           </div>
           <button onClick={onClose} style={{...btnSt('#888','transparent'),padding:'6px 10px',fontSize:14}}>✕</button>
         </div>
@@ -185,7 +182,6 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
         {/* Sticky footer */}
         <div style={{padding:'12px 14px',borderTop:`1px solid ${th.sBorder}`,flexShrink:0,display:'flex',gap:8}}>
           <button onClick={()=>{onClose();onOpenComposer();}} style={{display:'flex',alignItems:'center',gap:6,...btnSt('#BF5AF2','rgba(191,90,242,0.1)'),padding:'8px 14px',flexShrink:0}} title="Assemble a kit from individual samples">
-            <img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:22,height:22,objectFit:'contain',borderRadius:3,flexShrink:0,display:'block'}}/>
             <span style={{fontSize:10,fontWeight:900,letterSpacing:'0.1em'}}>COMPOSE YOUR OWN KIT</span>
           </button>
           <button onClick={openSave} style={{...btnSt(),flex:1,textAlign:'center'}}>＋ SAVE CURRENT AS KIT</button>
