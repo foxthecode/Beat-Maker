@@ -3238,21 +3238,20 @@ export default function KickAndSnare(){
     pushHistory();
     const paramEntries=Object.entries(tpl.params) as [string,{N:number,hits:number,rot?:number}][];
     const newTids=paramEntries.map(([tid])=>tid);
-    // ── 1. Reset euclidParams to ONLY the new preset's tracks ──
-    setEuclidParams(()=>{
-      const next:{[k:string]:any}={};
+    // ── 1. Merge euclidParams — update preset tracks, keep others intact ──
+    setEuclidParams(prev=>{
+      const next:{[k:string]:any}={...prev};
       paramEntries.forEach(([tid,p])=>{
         next[tid]={N:p.N,hits:p.hits,rot:p.rot??0,tpl:tpl.name,fold:false};
       });
       return next;
     });
-    // ── 2. Clear the current pattern entirely, then write new preset ──
+    // ── 2. Write preset tracks into pattern, keep non-preset tracks intact ──
     setPBank(pb=>{
       const n=[...pb];
-      // Start with a blank slate for this slot: zero out ALL tracks' steps + _steps
-      const cp:any={_steps:{}};
-      [...ALL_TRACKS,...customTracks].forEach(t=>{cp[t.id]=[];});
-      // Write the new preset's Euclidean rhythms
+      const existing=n[cPat]||{};
+      const cp:any={...existing,_steps:{...(existing._steps||{})}};
+      // Write ONLY the preset's Euclidean rhythms (non-preset tracks unchanged)
       paramEntries.forEach(([tid,p])=>{
         const N=p.N;const hits=p.hits;const rot=p.rot??0;
         const raw=euclidRhythm(hits,N);
@@ -3264,8 +3263,8 @@ export default function KickAndSnare(){
       n[cPat]=cp;
       return n;
     });
-    // ── 3. Activate ONLY the tracks in this preset ──
-    setAct(newTids);
+    // ── 3. Add preset tracks to active set — keep existing active tracks ──
+    setAct(prev=>[...new Set([...prev,...newTids])]);
     // BPM preserved: euclid presets suggest BPM but never override user setting
     // Kit preserved: euclid presets never change the current kit
     setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidian`);
