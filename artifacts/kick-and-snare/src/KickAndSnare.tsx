@@ -4208,13 +4208,21 @@ export default function KickAndSnare(){
           {/* ── PERFORM FX v10 ── */}
           {(()=>{
             const divToMs=(div:string)=>{const b=60000/Math.max(30,bpm);const m:Record<string,number>={'1/4':b,'1/8':b/2,'1/16':b/4,'1/32':b/8};return m[div]??b/2;};
-            const target=perfTrack||atO[0]?.id||'';
-            const tObj=atO.find(t=>t.id===target)||atO[0];
-            const tColor=tObj?.color||'#5E5CE6';
+            const MASTER_ID='__master__';
+            const isMaster=perfTrack===MASTER_ID;
+            const target=isMaster?'':(perfTrack||atO[0]?.id||'');
+            const tObj=isMaster?null:(atO.find(t=>t.id===target)||atO[0]);
+            const tColor=isMaster?'#FFFFFF':(tObj?.color||'#5E5CE6');
+            const tLabel=isMaster?'MASTER':(tObj?.label||'—');
+            const tIcon=isMaster?'🔊':(tObj?.icon||'');
+            /* selector nav – tracks + MASTER sentinel at the end */
+            const allTargets=[...atO.map(t=>t.id),MASTER_ID];
+            const curIdx=Math.max(0,allTargets.indexOf(isMaster?MASTER_ID:(perfTrack||atO[0]?.id||'')));
+            const navTo=(ni:number)=>{const nid=allTargets[((ni%allTargets.length)+allTargets.length)%allTargets.length];setPerfTrack(nid);perfTrackRef.current=nid;};
             const applyFilter=(x:number,y:number)=>{
               const freq=20*Math.pow(1000,x);const q=y*22;
               const t2=engine.ctx?.currentTime??0;
-              if(target&&engine.ch[target]?.flt){
+              if(!isMaster&&target&&engine.ch[target]?.flt){
                 engine.ch[target].flt.frequency.setTargetAtTime(freq,t2,0.01);
                 engine.ch[target].flt.Q?.setTargetAtTime(q,t2,0.01);
               } else {
@@ -4228,7 +4236,7 @@ export default function KickAndSnare(){
               const t2=engine.ctx?.currentTime??0;
               const fCut=gfx.filter?.on?Math.max(20,gfx.filter.cut||18000):20000;
               const fQ=gfx.filter?.on?(gfx.filter.res||0):0;
-              if(target&&engine.ch[target]?.flt){
+              if(!isMaster&&target&&engine.ch[target]?.flt){
                 engine.ch[target].flt.frequency.setTargetAtTime(fCut,t2,0.06);
                 engine.ch[target].flt.Q?.setTargetAtTime(fQ,t2,0.06);
               } else {
@@ -4257,12 +4265,28 @@ export default function KickAndSnare(){
               if(perfDlPrevRef.current&&engine.ctx){const t2=engine.ctx.currentTime;engine.gDlBus?.gain.setTargetAtTime(perfDlPrevRef.current.mix,t2,0.12);perfDlPrevRef.current=null;}
             };
             const startStutter=()=>{
-              engine.init();const tid=lastTrigRef.current||(atO[0]?.id??'');if(!tid)return;
-              if(stutterRef.current)clearInterval(stutterRef.current);
-              engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});
-              stutterRef.current=setInterval(()=>engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX}),divToMs(stutterDiv));
+              engine.init();
+              if(isMaster){
+                if(stutterRef.current)clearInterval(stutterRef.current);
+                let muted=false;
+                const half=divToMs(stutterDiv)/2;
+                stutterRef.current=setInterval(()=>{
+                  muted=!muted;
+                  const t2=engine.ctx?.currentTime??0;
+                  engine.mg?.gain.setTargetAtTime(muted?0:masterVol/100,t2,0.004);
+                },half);
+              } else {
+                const tid=perfTrackRef.current||lastTrigRef.current||(atO[0]?.id??'');
+                if(!tid)return;
+                if(stutterRef.current)clearInterval(stutterRef.current);
+                engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX});
+                stutterRef.current=setInterval(()=>engine.play(tid,0.85,0,R.fx[tid]||{...DEFAULT_FX}),divToMs(stutterDiv));
+              }
             };
-            const stopStutter=()=>{if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}};
+            const stopStutter=()=>{
+              if(stutterRef.current){clearInterval(stutterRef.current);stutterRef.current=null;}
+              if(isMaster&&engine.ctx&&engine.mg)engine.mg.gain.setTargetAtTime(masterVol/100,engine.ctx.currentTime,0.02);
+            };
             const fPos=filterPosRef.current[target]||{x:0.5,y:0.5};
             const holdBtn=(label:string,color:string,onDown:()=>void,onUp:()=>void)=>(
               <button onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);onDown();}}
@@ -4272,30 +4296,33 @@ export default function KickAndSnare(){
               </button>
             );
             return (
-              <div style={{marginTop:10,borderRadius:10,border:`1px solid ${showPerform?tColor+"44":"rgba(94,92,230,0.15)"}`,background:th.surface,overflow:"hidden",transition:"border-color 0.2s"}}>
-                {/* Header: left=toggle, right=track selector */}
-                <div style={{padding:"8px 12px",display:"flex",alignItems:"center",gap:6,cursor:"pointer",userSelect:"none"}}>
-                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:"#5E5CE6",flexShrink:0}}>🎛</span>
-                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em",flex:1}}>PERFORM FX</span>
-                  {/* Track swipe selector */}
-                  <div style={{display:"flex",alignItems:"center",gap:3,touchAction:"none"}}
-                    onPointerDown={e=>{const idx=atO.findIndex(t=>t.id===target);perfSwipeRef.current={startX:e.clientX,startIdx:Math.max(0,idx)};}}
+              <div style={{marginTop:10,borderRadius:10,border:`1px solid ${showPerform?tColor+"44":"rgba(94,92,230,0.15)"}`,background:th.surface,overflow:"hidden",transition:"border-color 0.2s",borderLeft:`3px solid ${tColor}`}}>
+                {/* Header: left=toggle, center=label, right=target selector */}
+                <div style={{padding:"7px 10px",display:"flex",alignItems:"center",gap:6,userSelect:"none"}}>
+                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:"#5E5CE6",flexShrink:0,cursor:"pointer"}}>🎛</span>
+                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em",flex:1,cursor:"pointer"}}>PERFORM FX</span>
+                  {/* Pill badge selector with swipe */}
+                  <div style={{display:"flex",alignItems:"center",gap:2,touchAction:"none"}}
+                    onPointerDown={e=>{perfSwipeRef.current={startX:e.clientX,startIdx:curIdx};}}
                     onPointerUp={e=>{
                       if(!perfSwipeRef.current)return;const dx=e.clientX-perfSwipeRef.current.startX;
-                      if(Math.abs(dx)>40){const n=atO.length;const ni=(perfSwipeRef.current.startIdx+(dx<0?1:-1)+n)%n;const nid=atO[ni]?.id||'';setPerfTrack(nid);perfTrackRef.current=nid;}
+                      if(Math.abs(dx)>30)navTo(perfSwipeRef.current.startIdx+(dx<0?1:-1));
                       perfSwipeRef.current=null;
                     }}>
-                    <button onClick={()=>{const idx=atO.findIndex(t=>t.id===target);const ni=(idx-1+atO.length)%atO.length;const nid=atO[ni]?.id||'';setPerfTrack(nid);perfTrackRef.current=nid;}} style={{width:20,height:20,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>‹</button>
-                    <span style={{fontSize:8,fontWeight:800,color:tColor,minWidth:36,textAlign:"center",letterSpacing:"0.05em"}}>{tObj?.label||'—'}</span>
-                    <button onClick={()=>{const idx=atO.findIndex(t=>t.id===target);const ni=(idx+1)%atO.length;const nid=atO[ni]?.id||'';setPerfTrack(nid);perfTrackRef.current=nid;}} style={{width:20,height:20,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>›</button>
+                    <button onClick={e=>{e.stopPropagation();navTo(curIdx-1);}} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",lineHeight:1,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+                    <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:12,background:isMaster?"rgba(255,255,255,0.08)":`${tColor}1A`,border:`1px solid ${tColor}55`,minWidth:68,justifyContent:"center",transition:"all 0.18s"}}>
+                      <span style={{fontSize:11,lineHeight:1}}>{tIcon}</span>
+                      <span style={{fontSize:8,fontWeight:800,color:tColor,letterSpacing:"0.07em",lineHeight:1}}>{tLabel}</span>
+                    </div>
+                    <button onClick={e=>{e.stopPropagation();navTo(curIdx+1);}} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",lineHeight:1,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
                   </div>
-                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:th.dim,marginLeft:4}}>{showPerform?"▲":"▼"}</span>
+                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:th.dim,cursor:"pointer"}}>{showPerform?"▲":"▼"}</span>
                 </div>
                 {showPerform&&(
                   <div style={{padding:"8px 12px 14px",display:"flex",flexDirection:"column",gap:10}}>
                     {/* FILTER XY */}
                     <div>
-                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>FILTER SWEEP · {tObj?.label||'ALL'} · drag cutoff (←→) resonance (↑↓)</div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>FILTER SWEEP · {tIcon} {tLabel} · drag cutoff (←→) resonance (↑↓)</div>
                       <div style={{height:80,borderRadius:8,background:`${tColor}08`,border:`1px solid ${tColor}33`,position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
                         onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);engine.init();
                           const r=e.currentTarget.getBoundingClientRect();
@@ -4319,7 +4346,7 @@ export default function KickAndSnare(){
                     </div>
                     {/* STUTTER */}
                     <div>
-                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>STUTTER — hold to repeat last pad hit</div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>STUTTER · {tIcon} {tLabel} — {isMaster?"hold = mute/unmute master":"hold to repeat pad"}</div>
                       <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
                         {(['1/4','1/8','1/16','1/32'] as const).map(d=>(
                           <button key={d} onClick={()=>setStutterDiv(d)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
