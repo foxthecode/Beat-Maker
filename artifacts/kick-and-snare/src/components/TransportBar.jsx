@@ -101,6 +101,7 @@ export default function TransportBar({
   );
 
   const isPads = view === "pads";
+  const isEuclid = view === "euclid";
   // Looper is "active" when it is playing or recording (includes countdown)
   const looperActive = isPads && (loopPlaying || loopRec);
   // In pads: if looper active → control looper; otherwise → control main sequencer
@@ -270,7 +271,7 @@ export default function TransportBar({
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
         <div style={{ ...rowStyle }}>
           {PlayBtn}
-          {!isPads && RecBtn}
+          {!isPads && !isEuclid && RecBtn}
           {BpmCtrl}
         </div>
         {isPads && LooperControls && <div style={{ ...rowStyle }}>{LooperControls}</div>}
@@ -294,7 +295,7 @@ export default function TransportBar({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}`, flexWrap: "wrap" }}>
       {PlayBtn}
-      {!isPads && RecBtn}
+      {!isPads && !isEuclid && RecBtn}
       {isPads && LooperControls}
       {BpmCtrl}
       {TapBtn}

@@ -3105,9 +3105,7 @@ export default function KickAndSnare(){
     // ── 3. Activate ONLY the tracks in this preset ──
     setAct(newTids);
     // BPM preserved: euclid presets suggest BPM but never override user setting
-    // Apply default kit for this euclid preset
-    const kitId=TEMPLATE_KITS[tpl.id];
-    if(kitId){const kit=DRUM_KITS.find(k=>k.id===kitId);if(kit)applyKit(kit);}
+    // Kit preserved: euclid presets never change the current kit
     setSwipeToast(`${tpl.icon} ${tpl.name} · Euclidian`);
     setTimeout(()=>setSwipeToast(null),1400);
   };
@@ -3657,8 +3655,8 @@ export default function KickAndSnare(){
         {/* ── SEQUENCER ── */}
         {view==="sequencer"&&(<>
           <TipBadge id="seq_steps" text="Tap a cell to activate a sound · Double-tap to reset · Long-press = probability" color="#FF2D55"/>
-          {/* ── REC Pads — always visible in sequencer view (Mod B) ── */}
-          {view==="sequencer"&&(
+          {/* ── REC Pads — only visible when REC is active in sequencer view ── */}
+          {rec&&view==="sequencer"&&(
             <div style={{marginBottom:6,padding:"5px 8px",borderRadius:8,
               background:rec&&playing?"rgba(255,45,85,0.06)":th.surface,
               border:`1px solid ${rec&&playing?"rgba(255,45,85,0.28)":th.sBorder}`,
@@ -3677,7 +3675,7 @@ export default function KickAndSnare(){
                     onPointerDown={e=>{if(e.pointerType==="touch")return;if(padHeldRef.current.has(tr.id))return;padHeldRef.current.add(tr.id);e.preventDefault();trigPad(tr.id,1);}}
                     onPointerUp={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(tr.id);}}
                     onPointerCancel={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(tr.id);}}
-                    style={{flex:1,height:40,borderRadius:6,background:flashing.has(tr.id)?tr.color+"44":tr.color+"0d",
+                    style={{flex:1,height:80,borderRadius:6,background:flashing.has(tr.id)?tr.color+"44":tr.color+"0d",
                       border:`1.5px solid ${flashing.has(tr.id)?tr.color:tr.color+"2a"}`,
                       color:tr.color,cursor:"pointer",fontFamily:"inherit",fontSize:7,fontWeight:800,letterSpacing:"0.05em",
                       touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",
@@ -3768,20 +3766,6 @@ export default function KickAndSnare(){
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"12px 0"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record into the sequencer" color="#5E5CE6"/>
-          {/* ── REC button — Live Pads ── */}
-          <button
-            onClick={onRecClick}
-            style={{width:"100%",marginBottom:10,padding:"9px 12px",borderRadius:10,border:`1.5px solid ${rec?"rgba(255,45,85,0.55)":"rgba(255,255,255,0.1)"}`,background:rec?"rgba(255,45,85,0.13)":"rgba(255,255,255,0.03)",color:rec?"#FF2D55":"rgba(255,255,255,0.4)",fontSize:10,fontWeight:800,letterSpacing:"0.1em",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:7,transition:"all 0.15s"}}
-          >
-            <span style={{fontSize:13,animation:rec&&playing?"rb 0.8s infinite":"none"}}>⏺</span>
-            {rec&&playing
-              ?<><span style={{animation:"rb 0.8s infinite"}}>REC</span><span style={{fontWeight:400,fontSize:8,color:"rgba(255,45,85,0.7)",letterSpacing:"0.06em"}}>→ {lastSeqView==="euclid"?"EUCLID":"SEQUENCER"} · P{cPat+1} · step {cStep>=0?cStep+1:"—"}</span></>
-              :rec
-                ?<span style={{color:"rgba(255,149,0,0.9)"}}>REC · TAP PLAY TO START</span>
-                :<span>REC</span>
-            }
-            {rec&&playing&&<span style={{marginLeft:"auto",fontSize:8,color:"rgba(255,255,255,0.3)",fontWeight:400}}>grid ↓</span>}
-          </button>
           {/* LOOPER DISABLED — conservé pour développement futur */}
           {false && (
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
