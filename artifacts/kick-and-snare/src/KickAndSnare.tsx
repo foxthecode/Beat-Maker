@@ -115,7 +115,8 @@ const DRUM_KITS=[
    samples:{kick:`${import.meta.env.BASE_URL}samples/acoustic/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/acoustic/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/acoustic/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/acoustic/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/acoustic/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/acoustic/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/acoustic/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/acoustic/perc.wav`},
    shape:{sDec:1.5, sTune:1.08, sPunch:0.85,sSnap:1.6, sBody:1.5, sTone:1   }},
   {id:"world",    name:"World",        icon:"🌍",
-   samples:{} as Record<string,string>,
+   samples:{kick:`${import.meta.env.BASE_URL}samples/world/perc1.wav`,snare:`${import.meta.env.BASE_URL}samples/world/perc2.wav`,hihat:`${import.meta.env.BASE_URL}samples/world/perc3.wav`,clap:`${import.meta.env.BASE_URL}samples/world/perc4.wav`,tom:`${import.meta.env.BASE_URL}samples/world/perc5.wav`,ride:`${import.meta.env.BASE_URL}samples/world/perc6.wav`,crash:`${import.meta.env.BASE_URL}samples/world/perc7.wav`,perc:`${import.meta.env.BASE_URL}samples/world/perc8.wav`},
+   labels:{kick:"Perc 1",snare:"Perc 2",hihat:"Perc 3",clap:"Perc 4",tom:"Perc 5",ride:"Perc 6",crash:"Perc 7",perc:"Perc 8"},
    shape:{sDec:0.6, sTune:1.05, sPunch:1.4, sSnap:2.0, sBody:1.1, sTone:1.3 }},
 ];
 type DrumKit=typeof DRUM_KITS[number];
