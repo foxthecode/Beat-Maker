@@ -15,6 +15,7 @@ import { KitComposer } from "./components/KitComposer.tsx";
 import { idbPut, idbGet, idbDeleteKeysWithPrefix } from "./hooks/idbHelper.ts";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
+import { SVG_808, SVG_LAUNCHPAD } from "./kitIcons";
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 /** All built-in drum track IDs plus any custom track string. */
@@ -99,48 +100,39 @@ const DEFAULT_FX = Object.freeze({
 // samples: partial map of track-id → local URL (kick/snare/hihat from pre-loaded packs)
 // shape:   _syn multipliers applied when no real sample is available, OR pre-rendered if ctx ready
 const DRUM_KITS=[
-  {id:"808",      name:"808 Classic",  icon:"🔴",
+  {id:"808",      name:"808 Classic",  icon:SVG_808,
    samples:{kick:`${import.meta.env.BASE_URL}samples/turbo808/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/turbo808/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/turbo808/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/turbo808/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/turbo808/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/turbo808/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/turbo808/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/turbo808/perc.wav`},
    labels:{tom:"SUB",ride:"OPEN HH",crash:"FX",perc:"HARM"},
    shape:{sDec:1,   sTune:1,    sPunch:1,   sSnap:1,   sBody:1,   sTone:1   }},
-  {id:"trap",     name:"Trap",         icon:"⬡",
-   samples:{} as Record<string,string>,
-   shape:{sDec:2.8, sTune:0.52, sPunch:2.2, sSnap:0.3, sBody:2,   sTone:0.75}},
-  {id:"jazz",     name:"Jazz Kit",     icon:"🎷",
-   samples:{kick:`${import.meta.env.BASE_URL}samples/kit3/kick.mp3`,snare:`${import.meta.env.BASE_URL}samples/kit3/snare.mp3`,hihat:`${import.meta.env.BASE_URL}samples/kit3/hihat.mp3`},
-   shape:{sDec:2.2, sTune:1.1,  sPunch:0.5, sSnap:2.5, sBody:0.65,sTone:0.85}},
   {id:"lofi",     name:"Lo-Fi",        icon:"📼",
    samples:{kick:`${import.meta.env.BASE_URL}samples/cr78/kick.mp3`,snare:`${import.meta.env.BASE_URL}samples/cr78/snare.mp3`,hihat:`${import.meta.env.BASE_URL}samples/cr78/hihat.mp3`},
    shape:{sDec:0.8, sTune:0.9,  sPunch:0.7, sSnap:0.5, sBody:1.15,sTone:0.65}},
-  {id:"electro",  name:"Electronic",   icon:"⚡",
+  {id:"electro",  name:"Electronic",   icon:SVG_LAUNCHPAD,
    samples:{} as Record<string,string>,
    shape:{sDec:0.3, sTune:1.5,  sPunch:2.8, sSnap:2.8, sBody:0.7, sTone:1.7 }},
   {id:"acoustic", name:"Acoustic",     icon:"🥁",
    samples:{kick:`${import.meta.env.BASE_URL}samples/acoustic/kick.wav`,snare:`${import.meta.env.BASE_URL}samples/acoustic/snare.wav`,hihat:`${import.meta.env.BASE_URL}samples/acoustic/hihat.wav`,clap:`${import.meta.env.BASE_URL}samples/acoustic/clap.wav`,tom:`${import.meta.env.BASE_URL}samples/acoustic/tom.wav`,ride:`${import.meta.env.BASE_URL}samples/acoustic/ride.wav`,crash:`${import.meta.env.BASE_URL}samples/acoustic/crash.wav`,perc:`${import.meta.env.BASE_URL}samples/acoustic/perc.wav`},
    shape:{sDec:1.5, sTune:1.08, sPunch:0.85,sSnap:1.6, sBody:1.5, sTone:1   }},
-  {id:"afrobeat", name:"Afrobeat",     icon:"🌍",
+  {id:"world",    name:"World",        icon:"🌍",
    samples:{} as Record<string,string>,
    shape:{sDec:0.6, sTune:1.05, sPunch:1.4, sSnap:2.0, sBody:1.1, sTone:1.3 }},
-  {id:"latin",    name:"Latin",        icon:"🔥",
-   samples:{} as Record<string,string>,
-   shape:{sDec:0.45,sTune:1.25, sPunch:1.6, sSnap:2.3, sBody:0.75,sTone:1.5 }},
 ];
 type DrumKit=typeof DRUM_KITS[number];
 
 // Template → kit mapping (no need to modify template files)
 const TEMPLATE_KITS:Record<string,string>={
   classic_808:"808",boom_bap:"808",reggae:"808",
-  trap:"trap",
-  jazz_swing:"jazz",
+  trap:"electro",
+  jazz_swing:"acoustic",
   lofi:"lofi",
   house:"electro",techno_909:"electro",dnb:"electro",uk_garage:"electro",
   funk:"acoustic",gospel:"acoustic",
-  bossa_nova:"latin",samba:"latin",
-  afrobeat:"afrobeat",
+  bossa_nova:"world",samba:"world",
+  afrobeat:"world",
   // Euclid
-  tresillo:"latin",cinquillo:"latin",son_clave:"latin",bossa_bell:"latin",
-  west_african_bell:"afrobeat",kpanlogo:"afrobeat",venda:"afrobeat",
-  ruchenitza:"acoustic",aksak:"acoustic",nawakhat:"acoustic",hemiola_4_3:"jazz",
+  tresillo:"world",cinquillo:"world",son_clave:"world",bossa_bell:"world",
+  west_african_bell:"world",kpanlogo:"world",venda:"world",
+  ruchenitza:"acoustic",aksak:"acoustic",nawakhat:"acoustic",hemiola_4_3:"acoustic",
   reich_phase:"electro",
 };
 
@@ -1502,6 +1494,8 @@ export default function KickAndSnare(){
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [kitIdx,setKitIdx]=useState(0);
   const kitIdxRef=useRef(0);kitIdxRef.current=kitIdx;
+  // Pre-fetched ArrayBuffers for kit 808 (fetch on mount, decode when AudioContext is ready)
+  const preloadedABRef=useRef<Record<string,ArrayBuffer>>({});
   const [showKitBrowser,setShowKitBrowser]=useState(false);
   const [showKitComposer,setShowKitComposer]=useState(false);
   const [userKits,setUserKits]=useState<UserKit[]>(()=>loadUserKitsMeta());
@@ -1541,24 +1535,43 @@ export default function KickAndSnare(){
   // Apply gfx the moment the audio engine first becomes ready (e.g. preset loaded before first play)
   const gfxRef=useRef(gfx);
   useEffect(()=>{gfxRef.current=gfx;},[gfx]);
+  // Prefetch 808 WAV files immediately on mount (no AudioContext needed — just fetch)
   useEffect(()=>{
-    if(isAudioReady&&engine.ctx){
-      engine.uGfx(gfxRef.current);
-      engine.updateReverb(gfxRef.current.reverb?.decay??1.5,gfxRef.current.reverb?.size??0.5,gfxRef.current.reverb?.type||'room');
-      // Auto-load factory kit samples on first audio activation (kitIdx>=0 = factory kit active)
-      if(kitIdxRef.current>=0){
-        const fk=DRUM_KITS[kitIdxRef.current];
-        if(fk){
-          const ks=(fk as any).samples as Record<string,string>;
-          Object.entries(ks).forEach(([tid,url])=>{
-            if(url&&!(engine.buf as any)[tid])engine.loadUrl(tid,url).catch(()=>{});
-          });
-          setSmpN(prev=>{
-            const next={...prev};
-            ALL_TRACKS.forEach(tr=>{if(ks[tr.id])next[tr.id]=`${tr.label} · ${fk.name} [sample]`;});
-            return next;
-          });
-        }
+    const kit808=DRUM_KITS[0];
+    if(!kit808)return;
+    const ks=(kit808 as any).samples as Record<string,string>;
+    Object.entries(ks).forEach(([tid,url])=>{
+      if(!url)return;
+      fetch(url).then(r=>r.arrayBuffer()).then(ab=>{preloadedABRef.current[tid]=ab;}).catch(()=>{});
+    });
+  },[]);
+
+  useEffect(()=>{
+    if(!isAudioReady||!engine.ctx)return;
+    engine.uGfx(gfxRef.current);
+    engine.updateReverb(gfxRef.current.reverb?.decay??1.5,gfxRef.current.reverb?.size??0.5,gfxRef.current.reverb?.type||'room');
+    // Auto-load factory kit samples on first audio activation
+    if(kitIdxRef.current>=0){
+      const fk=DRUM_KITS[kitIdxRef.current];
+      if(fk){
+        const ks=(fk as any).samples as Record<string,string>;
+        Object.entries(ks).forEach(([tid,url])=>{
+          if(!url||( engine.buf as any)[tid])return;
+          const preloaded=preloadedABRef.current[tid];
+          if(preloaded){
+            // Already fetched — decode instantly without network round-trip
+            engine.ctx!.decodeAudioData(preloaded.slice(0),(buf)=>{(engine.buf as any)[tid]=buf;},()=>{
+              engine.loadUrl(tid,url).catch(()=>{});
+            });
+          } else {
+            engine.loadUrl(tid,url).catch(()=>{});
+          }
+        });
+        setSmpN(prev=>{
+          const next={...prev};
+          ALL_TRACKS.forEach(tr=>{if(ks[tr.id])next[tr.id]=`${tr.label} · ${fk.name} [sample]`;});
+          return next;
+        });
       }
     }
   },[isAudioReady]);
@@ -3393,7 +3406,10 @@ export default function KickAndSnare(){
                 transition:"border-color 0.15s,background 0.15s",
               }}>
                 <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
-                <span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
+                {curIcon.startsWith('<svg')
+                  ?<span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}} dangerouslySetInnerHTML={{__html:curIcon}}/>
+                  :<span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
+                }
                 <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}>
                   <span style={{fontSize:6,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{curName}</span>
                   <span style={{fontSize:5,color:th.dim,letterSpacing:"0.08em"}}>{isUser?"MY KIT ▼":"BROWSE ▼"}</span>

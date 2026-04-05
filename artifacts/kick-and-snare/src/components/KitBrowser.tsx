@@ -1,8 +1,7 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {THEMES} from '../theme.js';
 import {useSheetTransition} from '../hooks/usePanelTransition';
-
-const KIT_EMOJIS=['🥁','🔴','🎷','📼','⚡','🌍','🔥','🎹','🎸','🎺','🎵','💥','🔊','🎤','⭐','🧨','🪘','🎼','🔉','🏺'];
+import {USER_KIT_COLORS,drumKitSVG} from '../kitIcons';
 
 export interface UserKit{
   id:string;name:string;icon:string;createdAt:number;
@@ -31,19 +30,25 @@ interface Props{
   themeName:string;
 }
 
+function KitIcon({icon,size=28}:{icon:string;size?:number}){
+  if(icon.startsWith('<svg')){
+    return <span style={{display:'block',lineHeight:0,width:size,height:size,overflow:'hidden'}} dangerouslySetInnerHTML={{__html:icon}}/>;
+  }
+  return <span style={{fontSize:size,lineHeight:1}}>{icon}</span>;
+}
+
 export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoadFactory,onLoadUser,onSave,onRename,onDelete,onOpenComposer,themeName}:Props){
   const th=THEMES[themeName]||THEMES.dark;
   const sheet=useSheetTransition(open);
   const [dialog,setDialog]=useState<null|'save'|{kind:'rename';kit:UserKit}>(null);
   const [kitName,setKitName]=useState('');
-  const [kitIcon,setKitIcon]=useState('🥁');
   const [menuFor,setMenuFor]=useState<string|null>(null);
   const [saving,setSaving]=useState(false);
   const [loading,setLoading]=useState<string|null>(null);
   const menuRef=useRef<HTMLDivElement>(null);
   const nameRef=useRef<HTMLInputElement>(null);
 
-  useEffect(()=>{if(!open){setDialog(null);setMenuFor(null);}else{setLoading(null);}},[ open]);
+  useEffect(()=>{if(!open){setDialog(null);setMenuFor(null);}else{setLoading(null);}},[open]);
   useEffect(()=>{if(dialog)setTimeout(()=>nameRef.current?.focus(),80);},[dialog]);
 
   useEffect(()=>{
@@ -55,10 +60,13 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
 
   if(!sheet.visible)return null;
 
+  // Auto-assign icon colour for the next user kit
+  const nextKitIcon=()=>drumKitSVG(USER_KIT_COLORS[userKits.length%USER_KIT_COLORS.length]);
+
   const handleSave=async()=>{
     if(!kitName.trim()||saving)return;
     setSaving(true);
-    try{await onSave(kitName.trim(),kitIcon);setDialog(null);setKitName('');setKitIcon('🥁');}
+    try{await onSave(kitName.trim(),nextKitIcon());setDialog(null);setKitName('');}
     finally{setSaving(false);}
   };
   const handleRename=()=>{
@@ -67,18 +75,18 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
     }
   };
   const openRename=(kit:UserKit)=>{setMenuFor(null);setKitName(kit.name);setDialog({kind:'rename',kit});};
-  const openSave=()=>{setKitName('');setKitIcon('🥁');setDialog('save');};
+  const openSave=()=>{setKitName('');setDialog('save');};
 
   const card=(icon:string,name:string,sub:string,isActive:boolean,onClick:()=>void,extra?:React.ReactNode)=>(
     <div onClick={onClick} style={{
       position:'relative',padding:'12px 10px 10px',borderRadius:12,cursor:'pointer',
       border:`2px solid ${isActive?'#FF9500':th.sBorder}`,
       background:isActive?'rgba(255,149,0,0.08)':th.surface,
-      display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+      display:'flex',flexDirection:'column',alignItems:'center',gap:6,
       transition:'all 0.14s',userSelect:'none',WebkitTapHighlightColor:'transparent',
       boxShadow:isActive?'0 0 14px rgba(255,149,0,0.15)':'none',
     }}>
-      <div style={{fontSize:26,lineHeight:1}}>{icon}</div>
+      <KitIcon icon={icon} size={28}/>
       <div style={{fontSize:9,fontWeight:800,color:isActive?'#FF9500':th.text,letterSpacing:'0.06em',textAlign:'center',lineHeight:1.2,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</div>
       <div style={{fontSize:7,color:th.dim,textAlign:'center'}}>{sub}</div>
       {isActive&&<div style={{position:'absolute',top:5,right:5,width:6,height:6,borderRadius:'50%',background:'#FF9500'}}/>}
@@ -99,6 +107,9 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
   const inputSt:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,149,0,0.35)',background:'rgba(255,149,0,0.07)',color:th.text,fontSize:13,fontFamily:'inherit',outline:'none'};
   const btnSt=(color='#FF9500',bg='rgba(255,149,0,0.12)'):React.CSSProperties=>({padding:'8px 18px',borderRadius:8,border:`1px solid ${color}55`,background:bg,color,fontSize:11,fontWeight:800,letterSpacing:'0.08em',cursor:'pointer',fontFamily:'inherit',transition:'all 0.1s'});
 
+  // Drum kit SVG for compose button (purple)
+  const composeDrumSVG=drumKitSVG('#BF5AF2');
+
   return(
     <>
     <div className={sheet.overlayClass} onClick={onClose} style={{position:'fixed',inset:0,zIndex:400,background:'rgba(0,0,0,0.72)',backdropFilter:'blur(4px)'}}/>
@@ -118,7 +129,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
           {grid(factoryKits.map(kit=>{
             const isAct=activeKitId===kit.id;
             const sc=factorySampleCount(kit);
-            return card(kit.icon,kit.name,sc>0?`${sc} samples`:'synthesis',isAct,()=>{if(!isAct)onLoadFactory(kit);},undefined);
+            return <React.Fragment key={kit.id}>{card(kit.icon,kit.name,sc>0?`${sc} samples`:'synthesis',isAct,()=>{if(!isAct)onLoadFactory(kit);},undefined)}</React.Fragment>;
           }))}
 
           <div style={{height:18}}/>
@@ -151,7 +162,10 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
 
         {/* Sticky footer */}
         <div style={{padding:'12px 14px',borderTop:`1px solid ${th.sBorder}`,flexShrink:0,display:'flex',gap:8}}>
-          <button onClick={()=>{onClose();onOpenComposer();}} style={{...btnSt('#BF5AF2','rgba(191,90,242,0.1)'),padding:'8px 12px',flexShrink:0}} title="Assemble a kit from individual samples">🎛 COMPOSE</button>
+          <button onClick={()=>{onClose();onOpenComposer();}} style={{display:'flex',alignItems:'center',gap:6,...btnSt('#BF5AF2','rgba(191,90,242,0.1)'),padding:'8px 14px',flexShrink:0}} title="Assemble a kit from individual samples">
+            <span style={{display:'block',lineHeight:0,width:20,height:20,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:composeDrumSVG.replace('width="30" height="26"','width="20" height="20"').replace('viewBox="0 0 30 26"','viewBox="0 0 30 26"')}}/>
+            <span style={{fontSize:10,fontWeight:900,letterSpacing:'0.1em'}}>COMPOSE YOUR OWN KIT</span>
+          </button>
           <button onClick={openSave} style={{...btnSt(),flex:1,textAlign:'center'}}>＋ SAVE CURRENT AS KIT</button>
         </div>
       </div>
@@ -161,15 +175,15 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
         <div style={{position:'fixed',inset:0,zIndex:410,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.55)',padding:16}}>
           <div style={{background:'#161624',border:`1px solid rgba(255,149,0,0.3)`,borderRadius:14,padding:20,width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:14}}>
             <div style={{fontSize:11,fontWeight:900,color:'#FF9500',letterSpacing:'0.15em'}}>SAVE KIT</div>
-            <input ref={nameRef} placeholder="Kit name…" value={kitName} onChange={e=>setKitName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSave()} style={inputSt} maxLength={32}/>
-            <div>
-              <div style={{fontSize:8,color:th.dim,marginBottom:6,letterSpacing:'0.1em'}}>ICON</div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-                {KIT_EMOJIS.map(em=>(
-                  <button key={em} onClick={()=>setKitIcon(em)} style={{width:32,height:32,borderRadius:6,border:`2px solid ${kitIcon===em?'#FF9500':th.sBorder}`,background:kitIcon===em?'rgba(255,149,0,0.15)':'transparent',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{em}</button>
-                ))}
+            {/* Preview of auto-assigned icon */}
+            <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,149,0,0.06)',border:'1px solid rgba(255,149,0,0.15)'}}>
+              <span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:nextKitIcon().replace('width="30" height="26"','width="36" height="36"')}}/>
+              <div>
+                <div style={{fontSize:8,color:'#FF9500',fontWeight:800,letterSpacing:'0.1em'}}>AUTO-ASSIGNED ICON</div>
+                <div style={{fontSize:7,color:th.dim,marginTop:2}}>Unique drum kit colour per kit</div>
               </div>
             </div>
+            <input ref={nameRef} placeholder="Kit name…" value={kitName} onChange={e=>setKitName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSave()} style={inputSt} maxLength={32}/>
             <div style={{display:'flex',gap:8}}>
               <button onClick={()=>setDialog(null)} style={{...btnSt('#888','transparent'),flex:1}}>CANCEL</button>
               <button onClick={handleSave} disabled={saving||!kitName.trim()} style={{...btnSt('#FF9500','rgba(255,149,0,0.15)'),flex:2,opacity:saving||!kitName.trim()?0.45:1}}>{saving?'SAVING…':'SAVE KIT'}</button>
