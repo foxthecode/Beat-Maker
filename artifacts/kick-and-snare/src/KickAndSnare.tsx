@@ -3531,7 +3531,7 @@ export default function KickAndSnare(){
   };
 
   return(<>
-    <div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"auto",touchAction:"manipulation"}}>
+    <div style={{height:"100dvh",background:th.bg,color:th.text,fontFamily:"'JetBrains Mono','SF Mono','Fira Code',monospace",overflow:"hidden",touchAction:"manipulation",display:"flex",flexDirection:"column"}}>
       <input type="file" accept="audio/*" ref={fileRef} onChange={onFile} style={{display:"none"}}/>
       <SampleLoaderModal
         open={sampleModalOpen}
@@ -3548,10 +3548,12 @@ export default function KickAndSnare(){
       {!isAudioReady&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:9999,height:2,background:"rgba(0,0,0,0.25)"}}>
         <div style={{height:"100%",background:"linear-gradient(90deg,#FF2D55,#FF9500)",animation:"audioload 0.5s ease-out forwards",willChange:"width"}}/>
       </div>}
-      <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px",paddingBottom:90}}>
+      {/* ═══ Fixed header: logo + kit + mascot + transport (always visible) ═══ */}
+      <div style={{flexShrink:0,background:th.bg,zIndex:100,borderBottom:`1.5px solid ${th.sBorder}`,boxShadow:"0 2px 20px rgba(0,0,0,0.5)"}}>
+        <div style={{maxWidth:960,margin:"0 auto",padding:"4px 12px 0"}}>
 
         {/* ── Header ── */}
-        <div style={{display:"flex",alignItems:"center",position:"relative",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
+        <div style={{display:"flex",alignItems:"center",position:"relative",marginBottom:4,padding:"4px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
             <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,background:"linear-gradient(135deg,#FF2D55 0%,#FF9500 100%)",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s"}}>
               <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
@@ -3771,6 +3773,11 @@ export default function KickAndSnare(){
           onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
           onSaveProject={saveProject} onLoadProject={loadProject}
         />
+        </div>{/* end fixed-header maxWidth */}
+      </div>{/* end fixed-header */}
+      {/* ═══ Scrollable content (flex:1 between fixed header + fixed bottom nav) ═══ */}
+      <div style={{flex:1,minHeight:0,overflowY:view==="pads"?"hidden":"auto",overflowX:"hidden"}}>
+        <div style={{maxWidth:960,margin:"0 auto",padding:"0 12px",paddingBottom:60}}>
 
         {/* ── Time Signature ── */}
         {showTS&&view!=="euclid"&&(<div style={{marginBottom:10,padding:10,borderRadius:10,background:th.surface,border:`1px solid ${th.sBorder}`}}>
@@ -3983,7 +3990,7 @@ export default function KickAndSnare(){
         </>)}
 
         {/* ── LIVE PADS ── */}
-        {view==="pads"&&(<div style={{padding:"12px 0"}}>
+        {view==="pads"&&(<div style={{padding:"4px 0 0",display:"flex",flexDirection:"column",height:"calc(100dvh - 230px)"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record into the sequencer" color="#5E5CE6"/>
           {/* LOOPER DISABLED — conservé pour développement futur */}
           {false && (
@@ -4093,15 +4100,15 @@ export default function KickAndSnare(){
           </div>
           )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gap:12,touchAction:"none"}}>
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`1fr`,gap:12,touchAction:"none",flex:1,minHeight:0}}>
             {atO.map((track)=>{
               const padVol=fx[track.id]?.vol??80;
               const pR=9;const pC=2*Math.PI*pR;
               const updateVol=(nv:number)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),vol:nv};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});};
               return(
-              <div key={track.id}>
+              <div key={track.id} style={{height:"100%"}}>
                 {/* ── Pad tile ── */}
-                <div style={{position:"relative"}}>
+                <div style={{position:"relative",height:"100%"}}>
                   <button
                     onContextMenu={e=>e.preventDefault()}
                     onTouchStart={e=>{
@@ -4122,7 +4129,7 @@ export default function KickAndSnare(){
                     }}
                     onPointerUp={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(track.id);}}
                     onPointerCancel={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(track.id);}}
-                    style={{width:"100%",aspectRatio:"1",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
+                    style={{width:"100%",height:"100%",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
                     <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
                     <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                     {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
@@ -4735,7 +4742,8 @@ export default function KickAndSnare(){
           </>
         );
       })()}
-    </div>
+        </div>{/* end scrollable-content maxWidth */}
+      </div>{/* end scrollable-content */}
     {/* ── Global Track FX bottom sheet (works from any view — sequencer, pads, euclid) ── */}
     {padFxTrack&&(()=>{
       const tr=atO.find(t=>t.id===padFxTrack);
