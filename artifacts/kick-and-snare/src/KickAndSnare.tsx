@@ -3777,7 +3777,7 @@ export default function KickAndSnare(){
         </div>{/* end fixed-header maxWidth */}
       </div>{/* end fixed-header */}
       {/* ═══ Scrollable content (flex:1 between fixed header + fixed bottom nav) ═══ */}
-      <div style={{flex:1,minHeight:0,overflowY:(view==="pads"&&!showPerform)?"hidden":"auto",overflowX:"hidden"}}>
+      <div style={{flex:1,minHeight:0,overflowY:"auto",overflowX:"hidden"}}>
         <div style={{maxWidth:960,margin:"0 auto",padding:"0 12px",paddingBottom:60}}>
 
         {/* ── Time Signature ── */}
@@ -4101,7 +4101,7 @@ export default function KickAndSnare(){
           </div>
           )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`calc((100dvh - ${showPerform?460:250}px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:showPerform?10:0}}>
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
             {atO.map((track)=>{
               const padVol=fx[track.id]?.vol??80;
               const pR=9;const pC=2*Math.PI*pR;
