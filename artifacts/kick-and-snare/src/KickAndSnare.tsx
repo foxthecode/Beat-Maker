@@ -16,7 +16,7 @@ import { idbPut, idbGet, idbDeleteKeysWithPrefix } from "./hooks/idbHelper.ts";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
 import { SVG_808, SVG_LAUNCHPAD, isDrumKitIcon } from "./kitIcons";
-const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.png`;
+const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.jpg`;
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 /** All built-in drum track IDs plus any custom track string. */

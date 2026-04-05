@@ -2,7 +2,7 @@ import React,{useState,useRef,useEffect} from 'react';
 import {THEMES} from '../theme.js';
 import {useSheetTransition} from '../hooks/usePanelTransition';
 import {USER_KIT_COLORS,drumKitSVG,isDrumKitIcon} from '../kitIcons';
-const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.png`;
+const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.jpg`;
 
 export interface UserKit{
   id:string;name:string;icon:string;createdAt:number;

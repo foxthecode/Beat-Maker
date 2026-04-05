@@ -4,7 +4,7 @@ import type {UserKit,SampleBankEntry} from './KitBrowser.tsx';
 import {useSheetTransition} from '../hooks/usePanelTransition';
 import {idbPut} from '../hooks/idbHelper';
 import {USER_KIT_COLORS,drumKitSVG} from '../kitIcons';
-const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.png`;
+const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.jpg`;
 
 interface Track{id:string;label:string;color:string;}
 interface FactoryKit{id:string;name:string;icon:string;samples:Record<string,string>;}
