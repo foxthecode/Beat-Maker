@@ -20,6 +20,7 @@ export default function TransportBar({
   loopMetro, setLoopMetro, recCountdown, showLooper,
   onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
   freeCaptureCount, freeBpm, onLoopCapture, onClearCapture,
+  onSaveProject, onLoadProject,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
@@ -255,6 +256,30 @@ export default function TransportBar({
     </button>
   );
 
+  const loadFileRef = useRef(null);
+  const SaveBtn = onSaveProject && (
+    <button
+      data-hint="Sauvegarder le projet · Exporte tous les patterns, BPM, FX, kit actif et paramètres en fichier .ks.json · Le fichier peut être rechargé à tout moment"
+      onClick={onSaveProject}
+      style={{ ...pill(false, "#30D158"), display: "flex", alignItems: "center", gap: 4 }}>
+      <span style={{ fontSize: 11, lineHeight: 1 }}>💾</span>
+      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>SAVE</span>
+    </button>
+  );
+  const LoadBtn = onLoadProject && (
+    <>
+      <input ref={loadFileRef} type="file" accept=".ks.json,application/json" style={{ display: "none" }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) onLoadProject(f); e.target.value = ""; }} />
+      <button
+        data-hint="Charger un projet · Importe un fichier .ks.json précédemment sauvegardé · Remplace le projet courant"
+        onClick={() => loadFileRef.current?.click()}
+        style={{ ...pill(false, "#64D2FF"), display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
+        <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>LOAD</span>
+      </button>
+    </>
+  );
+
   const LinkBtn = hasLinkApi && (
     <button
       data-hint={linkConnected ? `Ableton LINK · Connecté · ${linkPeers} pair${linkPeers > 1 ? "s" : ""} · Synchronisation BPM réseau active` : "Ableton LINK · Synchroniser le BPM avec d'autres apps sur le réseau local (Ableton, Traktor…)"}
@@ -285,6 +310,8 @@ export default function TransportBar({
         </div>
         <div style={{ ...rowStyle }}>
           {MidiBtn}
+          {SaveBtn}
+          {LoadBtn}
           {LinkBtn}
           {ExportBtn}
         </div>
@@ -306,6 +333,8 @@ export default function TransportBar({
       {SubBtn}
       {!isPortrait && !isMobile && KeybBtn}
       {MidiBtn}
+      {SaveBtn}
+      {LoadBtn}
       {LinkBtn}
       {ExportBtn}
     </div>

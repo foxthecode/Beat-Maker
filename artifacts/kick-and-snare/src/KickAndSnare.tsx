@@ -2381,6 +2381,74 @@ export default function KickAndSnare(){
     setExportState("idle");
   };
 
+  // ── Save / Load Project ───────────────────────────────────────────────────────
+  const saveProject=()=>{
+    const project={
+      _ks:1,
+      bpm,swing,masterVol,
+      tSigLabel:tSig.label,grpIdx,
+      cPat,pBank,
+      stVel,stNudge,stProb,stRatch,
+      act,muted,soloed,
+      customTracks,
+      euclidParams,
+      activeKitId,kitIdx,
+      gfx,fx,
+      fxChainOrder,fxSendPos,trackFx,
+      songChain,
+      velRange,
+      themeName,
+    };
+    const json=JSON.stringify(project,null,2);
+    const blob=new Blob([json],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
+    a.href=url;a.download=`ks-project-${ts}.ks.json`;
+    a.click();URL.revokeObjectURL(url);
+  };
+
+  const loadProject=(file:File)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const p=JSON.parse(e.target?.result as string);
+        if(!p||p._ks!==1){alert("Fichier invalide — ce n'est pas un projet Kick & Snare.");return;}
+        if(p.bpm!==undefined)setBpm(p.bpm);
+        if(p.swing!==undefined)setSwing(p.swing);
+        if(p.masterVol!==undefined)setMasterVol(p.masterVol);
+        if(p.tSigLabel){const ts=TIME_SIGS.find(s=>s.label===p.tSigLabel);if(ts)setTSig(ts);}
+        if(p.grpIdx!==undefined)setGrpIdx(p.grpIdx);
+        if(p.pBank){setPBank(p.pBank);setCPat(Math.min(p.cPat??0,p.pBank.length-1));}
+        if(p.stVel)setStVel(p.stVel);
+        if(p.stNudge)setStNudge(p.stNudge);
+        if(p.stProb)setStProb(p.stProb);
+        if(p.stRatch)setStRatch(p.stRatch);
+        if(p.act)setAct(p.act);
+        if(p.muted)setMuted(p.muted);
+        if(p.soloed!==undefined)setSoloed(p.soloed);
+        if(p.customTracks)setCustomTracks(p.customTracks);
+        if(p.euclidParams)setEuclidParams(p.euclidParams);
+        if(p.gfx)setGfx(p.gfx);
+        if(p.fx)setFx(p.fx);
+        if(p.fxChainOrder)setFxChainOrder(p.fxChainOrder);
+        if(p.fxSendPos)setFxSendPos(p.fxSendPos);
+        if(p.trackFx)setTrackFx(p.trackFx);
+        if(p.songChain)setSongChain(p.songChain);
+        if(p.velRange)setVelRange(p.velRange);
+        if(p.themeName)setThemeName(p.themeName);
+        if(p.activeKitId!==undefined){
+          setActiveKitId(p.activeKitId);
+          if(p.kitIdx!==undefined)setKitIdx(p.kitIdx);
+          // re-apply kit if factory
+          const fk=DRUM_KITS.find(k=>k.id===p.activeKitId);
+          if(fk)applyKit(fk);
+        }
+      }catch(err){alert("Impossible de lire le fichier projet.");console.error(err);}
+    };
+    reader.readAsText(file);
+  };
+
   // ── CP-B: Export Looper WAV ───────────────────────────────────────────────────
   const exportLooperWAV=async()=>{
     const L=loopRef.current;
@@ -3620,6 +3688,7 @@ export default function KickAndSnare(){
           loopCanUndo={loopCanUndo} loopCanRedo={loopCanRedo}
           freeCaptureCount={freeCaptureCount} freeBpm={freeBpm}
           onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
+          onSaveProject={saveProject} onLoadProject={loadProject}
         />
 
         {/* ── Time Signature ── */}
