@@ -3404,8 +3404,16 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",position:"relative",marginBottom:14,padding:"10px 0",borderBottom:`1px solid ${th.sBorder}`}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
-            <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,overflow:'hidden',background:"linear-gradient(135deg,#FF2D55 0%,#FF9500 100%)",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s"}}>
-              <img src={DRUM_KIT_IMG_SRC} alt="Kick & Snare" style={{width:38,height:38,objectFit:'cover',display:'block'}}/>
+            <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,background:"linear-gradient(135deg,#FF2D55 0%,#FF9500 100%)",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s"}}>
+              <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
+                <ellipse cx="14" cy="17" rx="9" ry="6" stroke="#fff" strokeWidth="1.6" fill="rgba(255,255,255,0.12)"/>
+                <ellipse cx="14" cy="17" rx="5" ry="3.2" stroke="rgba(255,255,255,0.5)" strokeWidth="0.8"/>
+                <ellipse cx="14" cy="11" rx="9" ry="6" stroke="#fff" strokeWidth="1.4" fill="rgba(255,255,255,0.18)"/>
+                <line x1="5.5" y1="6" x2="5.5" y2="14" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/>
+                <ellipse cx="5.5" cy="6" rx="3.5" ry="1.2" stroke="rgba(255,255,255,0.7)" strokeWidth="1" fill="rgba(255,255,255,0.1)"/>
+                <line x1="22.5" y1="6" x2="22.5" y2="14" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="round"/>
+                <ellipse cx="22.5" cy="6" rx="3" ry="1" stroke="rgba(255,255,255,0.5)" strokeWidth="0.8" fill="rgba(255,255,255,0.08)"/>
+              </svg>
             </div>
             <div style={{flexShrink:0}}>
               <div className="gradientShift" style={{fontSize:20,fontWeight:900,letterSpacing:"0.08em",whiteSpace:"nowrap",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
@@ -4737,8 +4745,27 @@ export default function KickAndSnare(){
     {overlayVisible&&(
       <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,backdropFilter:"blur(12px)"}}>
         <div style={{maxWidth:440,width:"100%",borderRadius:20,background:"rgba(18,18,20,0.95)",border:"1px solid rgba(255,255,255,0.1)",padding:"32px 28px",display:"flex",flexDirection:"column",alignItems:"center",gap:18,boxShadow:"0 24px 80px rgba(0,0,0,0.8)"}}>
-          {/* Drum kit mascot — pixel art */}
-          <img src={DRUM_KIT_IMG_SRC} alt="Kick &amp; Snare drum kit" style={{width:140,height:140,objectFit:'contain',filter:"drop-shadow(0 0 16px rgba(255,45,85,0.5))",imageRendering:'pixelated'}} />
+          {/* Drum kit mascot SVG */}
+          <svg viewBox="0 0 140 70" width="140" height="70" fill="none" style={{overflow:"visible",filter:"drop-shadow(0 0 16px rgba(255,45,85,0.6))"}}>
+            <ellipse cx="70" cy="58" rx="28" ry="9" stroke="#FF2D55" strokeWidth="1.4" fill="rgba(255,45,85,0.08)"/>
+            <ellipse cx="70" cy="58" rx="14" ry="4.5" stroke="rgba(255,45,85,0.4)" strokeWidth="0.8"/>
+            <ellipse cx="70" cy="49" rx="28" ry="9" stroke="#FF2D55" strokeWidth="1.4" fill="rgba(255,45,85,0.12)"/>
+            <line x1="43" y1="58" x2="43" y2="48" stroke="rgba(255,149,0,0.6)" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="97" y1="58" x2="97" y2="48" stroke="rgba(255,149,0,0.6)" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="28" y1="22" x2="28" y2="50" stroke="#8E8E93" strokeWidth="0.8"/>
+            <ellipse cx="28" cy="22" rx="10" ry="2.5" stroke="#FF9500" strokeWidth="1.2" fill="rgba(255,149,0,0.1)"/>
+            <line x1="112" y1="18" x2="112" y2="50" stroke="#8E8E93" strokeWidth="0.8"/>
+            <ellipse cx="112" cy="18" rx="13" ry="3" stroke="#FFD60A" strokeWidth="1.2" fill="rgba(255,214,10,0.1)"/>
+            <ellipse cx="50" cy="42" rx="9" ry="5.5" stroke="#FF9500" strokeWidth="1" fill="rgba(255,149,0,0.08)"/>
+            <ellipse cx="90" cy="40" rx="7" ry="5" stroke="#BF5AF2" strokeWidth="1" fill="rgba(191,90,242,0.08)"/>
+            <style>{`@keyframes wob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}} .dmwob{animation:wob 0.8s ease-in-out infinite;transform-origin:70px 58px}`}</style>
+            <g className="dmwob">
+              <line x1="50" y1="42" x2="30" y2="28" stroke="#30D158" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="30" cy="28" r="3" fill="#30D158" opacity="0.9"/>
+              <line x1="90" y1="40" x2="110" y2="25" stroke="#5E5CE6" strokeWidth="1.4" strokeLinecap="round"/>
+              <circle cx="110" cy="25" r="3" fill="#5E5CE6" opacity="0.9"/>
+            </g>
+          </svg>
           <div style={{fontSize:26,fontWeight:900,letterSpacing:"0.08em",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite",textAlign:"center",lineHeight:1}}>KICK &amp; SNARE</div>
           <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",letterSpacing:"0.35em",textAlign:"center",marginTop:-10}}>DRUM EXPERIENCE</div>
           <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",textAlign:"center",lineHeight:1.65,fontWeight:400,maxWidth:340}}>Your TR-808 drum sequencer in the browser. Build grooves, record loops, and explore Euclidean rhythms.</div>
