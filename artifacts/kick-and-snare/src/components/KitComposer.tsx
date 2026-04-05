@@ -455,7 +455,7 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
           {/* Icon preview */}
           <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:10,background:'rgba(191,90,242,0.06)',border:'1px solid rgba(191,90,242,0.15)'}}>
             <span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0}}
-              dangerouslySetInnerHTML={{__html:drumKitSVG(USER_KIT_COLORS[userKits.length%USER_KIT_COLORS.length]).replace('width="30" height="26"','width="36" height="36"')}}/>
+              dangerouslySetInnerHTML={{__html:drumKitSVG(USER_KIT_COLORS[userKits.length%USER_KIT_COLORS.length])}}/>
             <div>
               <div style={{fontSize:8,color:'#BF5AF2',fontWeight:800,letterSpacing:'0.1em'}}>AUTO-ASSIGNED ICON</div>
               <div style={{fontSize:7,color:th.dim,marginTop:2}}>Unique drum kit colour per kit</div>

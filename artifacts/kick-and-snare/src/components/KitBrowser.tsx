@@ -33,7 +33,7 @@ interface Props{
 }
 
 function KitIcon({icon,size=28}:{icon:string;size?:number}){
-  if(icon.startsWith('<svg')){
+  if(icon.startsWith('<')){
     return <span style={{display:'block',lineHeight:0,width:size,height:size,overflow:'hidden'}} dangerouslySetInnerHTML={{__html:icon}}/>;
   }
   return <span style={{fontSize:size,lineHeight:1}}>{icon}</span>;
@@ -179,7 +179,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
         {/* Sticky footer */}
         <div style={{padding:'12px 14px',borderTop:`1px solid ${th.sBorder}`,flexShrink:0,display:'flex',gap:8}}>
           <button onClick={()=>{onClose();onOpenComposer();}} style={{display:'flex',alignItems:'center',gap:6,...btnSt('#BF5AF2','rgba(191,90,242,0.1)'),padding:'8px 14px',flexShrink:0}} title="Assemble a kit from individual samples">
-            <span style={{display:'block',lineHeight:0,width:20,height:20,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:composeDrumSVG.replace('width="30" height="26"','width="20" height="20"').replace('viewBox="0 0 30 26"','viewBox="0 0 30 26"')}}/>
+            <span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:composeDrumSVG}}/>
             <span style={{fontSize:10,fontWeight:900,letterSpacing:'0.1em'}}>COMPOSE YOUR OWN KIT</span>
           </button>
           <button onClick={openSave} style={{...btnSt(),flex:1,textAlign:'center'}}>＋ SAVE CURRENT AS KIT</button>
@@ -193,7 +193,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
             <div style={{fontSize:11,fontWeight:900,color:'#FF9500',letterSpacing:'0.15em'}}>SAVE KIT</div>
             {/* Preview of auto-assigned icon */}
             <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,149,0,0.06)',border:'1px solid rgba(255,149,0,0.15)'}}>
-              <span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:nextKitIcon().replace('width="30" height="26"','width="36" height="36"')}}/>
+              <span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:nextKitIcon()}}/>
               <div>
                 <div style={{fontSize:8,color:'#FF9500',fontWeight:800,letterSpacing:'0.1em'}}>AUTO-ASSIGNED ICON</div>
                 <div style={{fontSize:7,color:th.dim,marginTop:2}}>Unique drum kit colour per kit</div>
