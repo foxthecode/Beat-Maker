@@ -15,7 +15,8 @@ import { KitComposer } from "./components/KitComposer.tsx";
 import { idbPut, idbGet, idbDeleteKeysWithPrefix } from "./hooks/idbHelper.ts";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
-import { SVG_808, SVG_LAUNCHPAD } from "./kitIcons";
+import { SVG_808, SVG_LAUNCHPAD, isDrumKitIcon } from "./kitIcons";
+const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.png`;
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 /** All built-in drum track IDs plus any custom track string. */
@@ -1687,6 +1688,7 @@ export default function KickAndSnare(){
   // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [recPadsVisible,_setRecPadsVisible]=useState(false);
+  const silentTracksRef=useRef<Set<string>>(new Set());
   const [showTS,setShowTS]=useState(false);
   const [flashing,setFlashing]=useState<Set<string>>(()=>new Set());
   const flashTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
@@ -1849,6 +1851,7 @@ export default function KickAndSnare(){
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
   R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
   R.loopRec=false;          // LOOPER DISABLED — force false, prevents any loop scheduling
+  R.silentTracks=silentTracksRef.current; // tracks with no sample in user kit → no sound
   // R.loopBars=loopBars;  // LOOPER DISABLED
   R.lastSeqView=lastSeqView; // E3: last active sequencer view for pads REC indicator
   R.mnMap=midiNoteMap;     // MIDI note→trackId map — MIDI handler lookup table
@@ -2010,6 +2013,7 @@ export default function KickAndSnare(){
       // Le son démarre dès que le contexte reprend.
       engine.ensureRunning().catch(()=>{});
     }
+    if(R.silentTracks?.has(tid))return;
     engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
     lastTrigRef.current=tid;
     if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
@@ -2054,8 +2058,8 @@ export default function KickAndSnare(){
       setRecFeedback({step:targetStep,tid,color:fbColor,label:fbLabel});
       setTimeout(()=>setRecFeedback(null),400);
       const v100=Math.max(1,Math.round(vel*100));
-      // F.1d: retap erases
-      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][targetStep]=p[tid][targetStep]?0:1;n[R.cp]=p;return n;});
+      // F.1d: always set (retap does NOT erase)
+      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][targetStep]=1;n[R.cp]=p;return n;});
       if(R.pat?.[tid]?.[targetStep]!==0)setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[targetStep]:v100}}));
     }
   },[]);
@@ -2120,6 +2124,7 @@ export default function KickAndSnare(){
     const playTrStep=(tr,psn,ptime)=>{
       const stepProb=prob[tr.id]?.[psn]??100;
       if(Math.random()*100>=stepProb)return;
+      if(R.silentTracks?.has(tr.id))return;
       if(p?.[tr.id]?.[psn]){
         const v=(vel[tr.id]?.[psn]??100)/100;
         const r=ratch[tr.id]?.[psn]||1;
@@ -2935,6 +2940,7 @@ export default function KickAndSnare(){
 
   // ── Kit applier ─────────────────────────────────────────────────────────────
   const applyKit=(kit:typeof DRUM_KITS[number])=>{
+    silentTracksRef.current=new Set();R.silentTracks=new Set();
     const idx=DRUM_KITS.findIndex(k=>k.id===kit.id);
     setKitIdx(Math.max(0,idx));
     const kitSamples=kit.samples as Record<string,string>;
@@ -3002,6 +3008,7 @@ export default function KickAndSnare(){
     await engine.init();
     const epoch=++loadEpochRef.current;
     const nextFx={...(R.fx as typeof fx)};
+    const newSilent=new Set<string>();
     for(const [tid,info] of Object.entries(kit.samples)){
       if(epoch!==loadEpochRef.current)return;
       if(info.type==='blob'&&info.blobKey){
@@ -3018,6 +3025,11 @@ export default function KickAndSnare(){
       } else if(info.type==='url'&&info.url){
         await engine.loadUrl(tid,info.url);
         setSmpN(prev=>({...prev,[tid]:info.originalName||tid}));
+      } else if(info.type==='none'){
+        // Slot explicitly left empty in KitComposer → silent (no synth fallback)
+        delete (engine.buf as any)[tid];
+        newSilent.add(tid);
+        setSmpN(prev=>({...prev,[tid]:'—'}));
       } else {
         delete (engine.buf as any)[tid];
         if(engine.ctx){engine.renderShape(tid,nextFx[tid]||{...DEFAULT_FX},true).catch(()=>{});}
@@ -3029,6 +3041,8 @@ export default function KickAndSnare(){
       }
     }
     if(epoch===loadEpochRef.current){
+      silentTracksRef.current=newSilent;
+      R.silentTracks=newSilent;
       setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);
       setAct(DEFAULT_ACTIVE);
       setUserKitLabelOverride(kit.trackLabels||{});
@@ -3072,10 +3086,10 @@ export default function KickAndSnare(){
     const samples:UserKit['samples']={};const shape:UserKit['shape']={};
     for(const [tid,entry] of Object.entries(slots)){
       shape[tid]={...(R.fx as typeof fx)[tid]||{...DEFAULT_FX}};
-      if(!entry){samples[tid]={type:'synth'};}
+      if(!entry){samples[tid]={type:'none'};}
       else if(entry.url){samples[tid]={type:'url',url:entry.url,originalName:entry.name};}
       else if(entry.blobKey){samples[tid]={type:'blob',blobKey:entry.blobKey,originalName:entry.name};}
-      else{samples[tid]={type:'synth'};}
+      else{samples[tid]={type:'none'};}
     }
     const kit:UserKit={id:kitId,name,icon,createdAt:Date.now(),samples,shape,trackLabels};
     const updated=[...userKits,kit];
@@ -3423,9 +3437,11 @@ export default function KickAndSnare(){
                 transition:"border-color 0.15s,background 0.15s",
               }}>
                 <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
-                {curIcon.startsWith('<')
-                  ?<span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}} dangerouslySetInnerHTML={{__html:curIcon}}/>
-                  :<span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
+                {isDrumKitIcon(curIcon)
+                  ?<img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:22,height:22,objectFit:'contain',borderRadius:3,flexShrink:0,display:'block',filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}/>
+                  :curIcon.startsWith('<')
+                    ?<span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}} dangerouslySetInnerHTML={{__html:curIcon}}/>
+                    :<span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
                 }
                 <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}>
                   <span style={{fontSize:6,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{curName}</span>

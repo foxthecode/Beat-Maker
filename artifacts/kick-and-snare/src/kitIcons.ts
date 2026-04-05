@@ -7,8 +7,17 @@ export const SVG_808=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 24
 
 export const SVG_LAUNCHPAD=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26" width="26" height="26"><rect x="0.5" y="0.5" width="25" height="25" rx="4" fill="#111" stroke="#444" stroke-width="1"/><rect x="2" y="2" width="6" height="6" rx="1.2" fill="#30D158"/><rect x="10" y="2" width="6" height="6" rx="1.2" fill="#5E5CE6"/><rect x="18" y="2" width="6" height="6" rx="1.2" fill="#FF9500"/><rect x="2" y="10" width="6" height="6" rx="1.2" fill="#FF375F"/><rect x="10" y="10" width="6" height="6" rx="1.2" fill="#30D158" opacity="0.6"/><rect x="18" y="10" width="6" height="6" rx="1.2" fill="#5E5CE6" opacity="0.8"/><rect x="2" y="18" width="6" height="6" rx="1.2" fill="#5E5CE6"/><rect x="10" y="18" width="6" height="6" rx="1.2" fill="#FF9500"/><rect x="18" y="18" width="6" height="6" rx="1.2" fill="#FF375F" opacity="0.8"/></svg>`;
 
+/** Marker stored in kit.icon for user-composed kits — rendered as the drum-kit-icon.png image */
+export const DRUM_KIT_ICON_MARKER='__drumkit__';
+
+/** Returns the marker for user kit icons. Color param kept for backwards compat but unused. */
 export function drumKitSVG(_c:string):string{
-  const base=(import.meta as any).env?.BASE_URL??'/';
-  const url=`${base}drum-kit-icon.png`;
-  return `<img src="${url}" alt="drum kit" style="width:100%;height:100%;object-fit:contain;display:block;border-radius:3px;" />`;
+  return DRUM_KIT_ICON_MARKER;
+}
+
+/** Returns true for any icon value that should render as the drum-kit PNG */
+export function isDrumKitIcon(icon:string):boolean{
+  return icon===DRUM_KIT_ICON_MARKER
+    || icon.includes('drum-kit-icon.png')
+    || icon.includes('viewBox="0 0 32 28"'); // old wireframe SVG pattern
 }

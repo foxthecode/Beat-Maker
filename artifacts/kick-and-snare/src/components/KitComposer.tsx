@@ -4,6 +4,7 @@ import type {UserKit,SampleBankEntry} from './KitBrowser.tsx';
 import {useSheetTransition} from '../hooks/usePanelTransition';
 import {idbPut} from '../hooks/idbHelper';
 import {USER_KIT_COLORS,drumKitSVG} from '../kitIcons';
+const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.png`;
 
 interface Track{id:string;label:string;color:string;}
 interface FactoryKit{id:string;name:string;icon:string;samples:Record<string,string>;}
@@ -454,8 +455,7 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
           <div style={{fontSize:11,fontWeight:900,color:'#BF5AF2',letterSpacing:'0.15em'}}>NAME YOUR KIT</div>
           {/* Icon preview */}
           <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:10,background:'rgba(191,90,242,0.06)',border:'1px solid rgba(191,90,242,0.15)'}}>
-            <span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0}}
-              dangerouslySetInnerHTML={{__html:drumKitSVG(USER_KIT_COLORS[userKits.length%USER_KIT_COLORS.length])}}/>
+            <img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:36,height:36,objectFit:'contain',borderRadius:4,flexShrink:0,display:'block'}}/>
             <div>
               <div style={{fontSize:8,color:'#BF5AF2',fontWeight:800,letterSpacing:'0.1em'}}>AUTO-ASSIGNED ICON</div>
               <div style={{fontSize:7,color:th.dim,marginTop:2}}>Unique drum kit colour per kit</div>

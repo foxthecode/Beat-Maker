@@ -1,11 +1,12 @@
 import React,{useState,useRef,useEffect} from 'react';
 import {THEMES} from '../theme.js';
 import {useSheetTransition} from '../hooks/usePanelTransition';
-import {USER_KIT_COLORS,drumKitSVG} from '../kitIcons';
+import {USER_KIT_COLORS,drumKitSVG,isDrumKitIcon} from '../kitIcons';
+const DRUM_KIT_IMG_SRC=`${import.meta.env.BASE_URL}drum-kit-icon.png`;
 
 export interface UserKit{
   id:string;name:string;icon:string;createdAt:number;
-  samples:Record<string,{type:'url'|'blob'|'synth';url?:string;blobKey?:string;originalName?:string;}>;
+  samples:Record<string,{type:'url'|'blob'|'synth'|'none';url?:string;blobKey?:string;originalName?:string;}>;
   shape:Record<string,Record<string,number>>;
   trackLabels?:Record<string,string>;
 }
@@ -33,6 +34,11 @@ interface Props{
 }
 
 function KitIcon({icon,size=28}:{icon:string;size?:number}){
+  if(isDrumKitIcon(icon)){
+    return <span style={{display:'block',lineHeight:0,width:size,height:size,overflow:'hidden',borderRadius:3,flexShrink:0}}>
+      <img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:'100%',height:'100%',objectFit:'contain',display:'block'}}/>
+    </span>;
+  }
   if(icon.startsWith('<')){
     return <span style={{display:'block',lineHeight:0,width:size,height:size,overflow:'hidden'}} dangerouslySetInnerHTML={{__html:icon}}/>;
   }
@@ -122,9 +128,6 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
   const inputSt:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,149,0,0.35)',background:'rgba(255,149,0,0.07)',color:th.text,fontSize:13,fontFamily:'inherit',outline:'none'};
   const btnSt=(color='#FF9500',bg='rgba(255,149,0,0.12)'):React.CSSProperties=>({padding:'8px 18px',borderRadius:8,border:`1px solid ${color}55`,background:bg,color,fontSize:11,fontWeight:800,letterSpacing:'0.08em',cursor:'pointer',fontFamily:'inherit',transition:'all 0.1s'});
 
-  // Drum kit SVG for compose button (purple)
-  const composeDrumSVG=drumKitSVG('#BF5AF2');
-
   return(
     <>
     <div className={sheet.overlayClass} onClick={onClose} style={{position:'fixed',inset:0,zIndex:400,background:'rgba(0,0,0,0.72)',backdropFilter:'blur(4px)'}}/>
@@ -179,7 +182,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
         {/* Sticky footer */}
         <div style={{padding:'12px 14px',borderTop:`1px solid ${th.sBorder}`,flexShrink:0,display:'flex',gap:8}}>
           <button onClick={()=>{onClose();onOpenComposer();}} style={{display:'flex',alignItems:'center',gap:6,...btnSt('#BF5AF2','rgba(191,90,242,0.1)'),padding:'8px 14px',flexShrink:0}} title="Assemble a kit from individual samples">
-            <span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:composeDrumSVG}}/>
+            <img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:22,height:22,objectFit:'contain',borderRadius:3,flexShrink:0,display:'block'}}/>
             <span style={{fontSize:10,fontWeight:900,letterSpacing:'0.1em'}}>COMPOSE YOUR OWN KIT</span>
           </button>
           <button onClick={openSave} style={{...btnSt(),flex:1,textAlign:'center'}}>＋ SAVE CURRENT AS KIT</button>
@@ -193,7 +196,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
             <div style={{fontSize:11,fontWeight:900,color:'#FF9500',letterSpacing:'0.15em'}}>SAVE KIT</div>
             {/* Preview of auto-assigned icon */}
             <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,149,0,0.06)',border:'1px solid rgba(255,149,0,0.15)'}}>
-              <span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0}} dangerouslySetInnerHTML={{__html:nextKitIcon()}}/>
+              <img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:36,height:36,objectFit:'contain',borderRadius:4,flexShrink:0,display:'block'}}/>
               <div>
                 <div style={{fontSize:8,color:'#FF9500',fontWeight:800,letterSpacing:'0.1em'}}>AUTO-ASSIGNED ICON</div>
                 <div style={{fontSize:7,color:th.dim,marginTop:2}}>Unique drum kit colour per kit</div>
