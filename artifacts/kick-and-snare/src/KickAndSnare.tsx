@@ -796,8 +796,9 @@ class Eng{
       },
     };
     if(!S[id]){
-      const dur=0.55*sDec;const mg=gain(1);mg.connect(d);const shift=id.charCodeAt(3)%5;
-      [[520,800],[562,845],[600,900],[480,760],[640,960]][shift].map(([a,b])=>[a*sTune,b*sTune]).forEach(([a,b])=>{[a,b].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.28*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});});
+      const dur=0.55*sDec;const mg=gain(1);mg.connect(d);const shift=(id.length>3?id.charCodeAt(3):id.charCodeAt(0))%5;
+      const[fa,fb]=([[520,800],[562,845],[600,900],[480,760],[640,960]][shift]||[640,960]);
+      [fa*sTune,fb*sTune].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.28*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
       return;
     }
     S[id]();
