@@ -1,4 +1,4 @@
-import React,{useState,useMemo,useRef,useEffect,useCallback} from 'react';
+import React,{useState,useRef,useEffect} from 'react';
 import {THEMES} from '../theme.js';
 import type {UserKit,SampleBankEntry} from './KitBrowser.tsx';
 import {useSheetTransition} from '../hooks/usePanelTransition';
@@ -208,23 +208,6 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
   );
 }
 
-// ── Bank builder ───────────────────────────────────────────────────────────
-function buildBank(factoryKits:readonly FactoryKit[],userKits:UserKit[],extraEntries:SampleBankEntry[]):SampleBankEntry[]{
-  const bank:SampleBankEntry[]=[];
-  factoryKits.forEach(kit=>{
-    Object.entries(kit.samples).forEach(([tid,url])=>{
-      if(url)bank.push({id:`f_${kit.id}_${tid}`,name:`${kit.name} — ${tid.toUpperCase()}`,category:tid,source:'factory',url:url as string});
-    });
-  });
-  userKits.forEach(kit=>{
-    Object.entries(kit.samples).forEach(([tid,info])=>{
-      if(info.type==='blob'&&info.blobKey)bank.push({id:`u_${kit.id}_${tid}`,name:`${kit.name} — ${info.originalName||tid.toUpperCase()}`,category:tid,source:'user',blobKey:info.blobKey});
-    });
-  });
-  extraEntries.forEach(e=>{if(!bank.find(b=>b.id===e.id))bank.push(e);});
-  return bank;
-}
-
 // ── KitComposer ────────────────────────────────────────────────────────────
 export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,onSave,themeName}:Props){
   const th=THEMES[themeName]||THEMES.dark;
@@ -232,11 +215,9 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
 
   const [slots,setSlots]=useState<Record<string,SampleBankEntry|null>>(()=>Object.fromEntries(tracks.map(t=>[t.id,null])));
   const [activeSlot,setActiveSlot]=useState(tracks[0]?.id||'kick');
-  const [activeTab,setActiveTab]=useState(tracks[0]?.id||'kick');
   const [dialog,setDialog]=useState(false);
   const [kitName,setKitName]=useState('');
   const [saving,setSaving]=useState(false);
-  const [previewing,setPreviewing]=useState<string|null>(null);
   const nameRef=useRef<HTMLInputElement>(null);
   const fileInputRef=useRef<HTMLInputElement>(null);
 
@@ -247,35 +228,24 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
   const recChunksRef=useRef<Blob[]>([]);
   const recTimerRef=useRef<ReturnType<typeof setInterval>|null>(null);
 
-  // Extra entries (not yet in a saved kit)
-  const [recEntries,setRecEntries]=useState<SampleBankEntry[]>([]);
-
   // Trim pending — set when recording stops or file is loaded
   const [trimPending,setTrimPending]=useState<{blob:Blob;name:string}|null>(null);
 
   useEffect(()=>{if(!open&&recording)stopRecording();},[open]);
 
-  // Only show user-loaded/recorded samples — factory kit samples are not listed here
-  const bank=useMemo(()=>buildBank([],userKits,recEntries),[userKits,recEntries]);
-  const tabSamples=useMemo(()=>bank.filter(e=>e.category===activeTab),[bank,activeTab]);
   const filledCount=Object.values(slots).filter(Boolean).length;
 
   if(!sheet.visible)return null;
 
-  const selectSlot=(tid:string)=>{setActiveSlot(tid);setActiveTab(tid);};
+  const selectSlot=(tid:string)=>setActiveSlot(tid);
 
-  const assign=(entry:SampleBankEntry)=>{
-    setSlots(prev=>({...prev,[activeSlot]:entry}));
-    const idx=tracks.findIndex(t=>t.id===activeSlot);
+  // Auto-advance to next empty slot after assignment
+  const advanceSlot=(assignedTid:string)=>{
+    const idx=tracks.findIndex(t=>t.id===assignedTid);
     for(let i=1;i<tracks.length;i++){
       const next=tracks[(idx+i)%tracks.length];
-      if(!slots[next.id]){selectSlot(next.id);break;}
+      if(!slots[next.id]){setActiveSlot(next.id);break;}
     }
-  };
-
-  const handlePreview=async(entry:SampleBankEntry)=>{
-    setPreviewing(entry.id);
-    try{await onPreview(entry);}finally{setPreviewing(null);}
   };
 
   const handleSave=async()=>{
@@ -328,8 +298,8 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
 
   // ── TrimModal confirm ─────────────────────────────────────────────────────
   function onTrimConfirm(entry:SampleBankEntry){
-    setRecEntries(prev=>[...prev,entry]);
     setSlots(prev=>({...prev,[activeSlot]:entry}));
+    advanceSlot(activeSlot);
     setTrimPending(null);
   }
 
@@ -377,67 +347,14 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
         </div>
       </div>
 
-      {/* Category tabs */}
-      <div style={{display:'flex',overflowX:'auto',flexShrink:0,padding:'0 12px',gap:4,borderBottom:`1px solid ${th.sBorder}`}}>
-        {tracks.map(tr=>{
-          const isActive=activeTab===tr.id;
-          const count=bank.filter(e=>e.category===tr.id).length;
-          return(
-            <button key={tr.id} onClick={()=>setActiveTab(tr.id)} style={{
-              padding:'7px 10px',borderRadius:'8px 8px 0 0',cursor:'pointer',fontFamily:'inherit',flexShrink:0,
-              border:'none',borderBottom:isActive?`2px solid ${tr.color}`:'2px solid transparent',
-              background:isActive?tr.color+'18':'transparent',
-              color:isActive?tr.color:th.dim,fontSize:8,fontWeight:800,letterSpacing:'0.1em',
-              transition:'all 0.12s',
-            }}>
-              {tr.label}
-              {count>0&&<span style={{fontSize:6,color:isActive?tr.color:th.faint,marginLeft:3}}>({count})</span>}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Sample list */}
-      <div style={{flex:1,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
-        {tabSamples.length===0?(
-          <div style={{padding:'24px 16px',fontSize:9,color:th.dim,letterSpacing:'0.08em',textAlign:'center'}}>
-            No samples in this category.<br/>Load a file or record from the mic below.
-          </div>
-        ):(
-          <div style={{padding:'8px 0'}}>
-            {tabSamples.map(entry=>{
-              const isAssigned=Object.values(slots).some(s=>s?.id===entry.id);
-              const isAssignedHere=slots[activeSlot]?.id===entry.id;
-              const isPrev=previewing===entry.id;
-              const isUser=entry.id.startsWith('trim_')||entry.id.startsWith('rec_');
-              return(
-                <div key={entry.id} style={{
-                  display:'flex',alignItems:'center',gap:8,padding:'8px 14px',cursor:'pointer',
-                  borderBottom:`1px solid ${th.sBorder}`,
-                  background:isAssignedHere?'rgba(191,90,242,0.08)':isAssigned?'rgba(255,149,0,0.04)':'transparent',
-                  transition:'background 0.1s',
-                }}
-                onClick={()=>assign(entry)}>
-                  <button onClick={e=>{e.stopPropagation();handlePreview(entry);}} style={{
-                    width:26,height:26,borderRadius:6,flexShrink:0,cursor:'pointer',fontFamily:'inherit',
-                    border:`1px solid ${isPrev?'#30D158':'rgba(255,255,255,0.15)'}`,
-                    background:isPrev?'rgba(48,209,88,0.18)':'rgba(255,255,255,0.05)',
-                    color:isPrev?'#30D158':th.dim,fontSize:10,display:'flex',alignItems:'center',justifyContent:'center',
-                    transition:'all 0.12s',
-                  }}>
-                    {isPrev?'◼':'▶'}
-                  </button>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:10,color:isAssignedHere?'#BF5AF2':th.text,fontWeight:isAssignedHere?800:400,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{entry.name}</div>
-                    <div style={{fontSize:7,color:isUser?'#FF375F':entry.source==='user'?'#FF9500':th.faint,marginTop:1,letterSpacing:'0.06em'}}>{isUser?'🎙 MY RECORDING':entry.source==='user'?'MY SAMPLE':'FACTORY'}</div>
-                  </div>
-                  {isAssignedHere&&<span style={{fontSize:14,color:'#BF5AF2',flexShrink:0}}>✓</span>}
-                  {isAssigned&&!isAssignedHere&&<span style={{fontSize:8,color:th.faint,flexShrink:0}}>·</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* Guide */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px 20px',gap:18}}>
+        <div style={{fontSize:28,opacity:0.35}}>🎙</div>
+        <div style={{textAlign:'center',fontSize:9,color:th.dim,letterSpacing:'0.1em',lineHeight:1.8}}>
+          SELECT A SLOT ABOVE<br/>
+          THEN LOAD A FILE OR RECORD FROM THE MIC<br/>
+          <span style={{color:'rgba(191,90,242,0.5)'}}>EACH SAMPLE OPENS TRIM & PREVIEW BEFORE BEING ASSIGNED</span>
+        </div>
       </div>
 
       {/* Footer */}

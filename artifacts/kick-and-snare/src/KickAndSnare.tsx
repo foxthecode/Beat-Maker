@@ -1547,33 +1547,37 @@ export default function KickAndSnare(){
   },[]);
 
   useEffect(()=>{
-    if(!isAudioReady||!engine.ctx)return;
-    engine.uGfx(gfxRef.current);
-    engine.updateReverb(gfxRef.current.reverb?.decay??1.5,gfxRef.current.reverb?.size??0.5,gfxRef.current.reverb?.type||'room');
-    // Auto-load factory kit samples on first audio activation
-    if(kitIdxRef.current>=0){
-      const fk=DRUM_KITS[kitIdxRef.current];
-      if(fk){
-        const ks=(fk as any).samples as Record<string,string>;
-        Object.entries(ks).forEach(([tid,url])=>{
-          if(!url||( engine.buf as any)[tid])return;
-          const preloaded=preloadedABRef.current[tid];
-          if(preloaded){
-            // Already fetched — decode instantly without network round-trip
-            engine.ctx!.decodeAudioData(preloaded.slice(0),(buf)=>{(engine.buf as any)[tid]=buf;},()=>{
+    if(!isAudioReady)return;
+    (async()=>{
+      // engine.init() is idempotent — creates AudioContext if not yet done
+      await engine.init();
+      engine.uGfx(gfxRef.current);
+      engine.updateReverb(gfxRef.current.reverb?.decay??1.5,gfxRef.current.reverb?.size??0.5,gfxRef.current.reverb?.type||'room');
+      // Auto-load 808 samples immediately on first audio activation
+      if(kitIdxRef.current>=0){
+        const fk=DRUM_KITS[kitIdxRef.current];
+        if(fk&&engine.ctx){
+          const ks=(fk as any).samples as Record<string,string>;
+          await Promise.all(Object.entries(ks).map(async([tid,url])=>{
+            if(!url||(engine.buf as any)[tid])return;
+            const pre=preloadedABRef.current[tid];
+            try{
+              const decoded=pre
+                ?await engine.ctx!.decodeAudioData(pre.slice(0))
+                :await (engine.loadUrl(tid,url).then(()=>(engine.buf as any)[tid]));
+              if(decoded)(engine.buf as any)[tid]=decoded;
+            }catch{
               engine.loadUrl(tid,url).catch(()=>{});
-            });
-          } else {
-            engine.loadUrl(tid,url).catch(()=>{});
-          }
-        });
-        setSmpN(prev=>{
-          const next={...prev};
-          ALL_TRACKS.forEach(tr=>{if(ks[tr.id])next[tr.id]=`${tr.label} · ${fk.name} [sample]`;});
-          return next;
-        });
+            }
+          }));
+          setSmpN(prev=>{
+            const next={...prev};
+            ALL_TRACKS.forEach(tr=>{if(ks[tr.id])next[tr.id]=`${tr.label} · ${fk.name} [sample]`;});
+            return next;
+          });
+        }
       }
-    }
+    })();
   },[isAudioReady]);
   // BPM sync for delay and ping-pong — recalculate time when BPM or syncDiv changes
   useEffect(()=>{
