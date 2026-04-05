@@ -2013,8 +2013,10 @@ export default function KickAndSnare(){
       // Le son démarre dès que le contexte reprend.
       engine.ensureRunning().catch(()=>{});
     }
-    if(R.silentTracks?.has(tid))return;
-    engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+    if(!R.silentTracks?.has(tid)){
+      engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+    }
+    // animation & haptic always run, even for silent tracks
     lastTrigRef.current=tid;
     if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
