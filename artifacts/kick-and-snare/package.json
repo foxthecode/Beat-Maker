@@ -73,5 +73,10 @@
     "vite": "catalog:",
     "wouter": "^3.3.5",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@capacitor/android": "^5.7.8",
+    "@capacitor/cli": "^5.7.8",
+    "@capacitor/core": "^5.7.8"
   }
 }
