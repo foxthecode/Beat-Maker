@@ -281,16 +281,6 @@ export default function TransportBar({
     </>
   );
 
-  const FxRackBtn = onShowFxRack && (
-    <button
-      data-hint="MASTER FX · Ouvrir le rack d'effets global : Reverb, Delay, Chorus, Flanger, Ping-Pong, Compresseur, Drive, Filtre · Presets disponibles"
-      onClick={onShowFxRack}
-      style={{ ...pill(false, "#FF9500"), display: "flex", alignItems: "center", gap: 4 }}>
-      <span style={{ fontSize: 11, lineHeight: 1 }}>🎛</span>
-      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>FX</span>
-    </button>
-  );
-
   const LinkBtn = hasLinkApi && (
     <button
       data-hint={linkConnected ? `Ableton LINK · Connecté · ${linkPeers} pair${linkPeers > 1 ? "s" : ""} · Synchronisation BPM réseau active` : "Ableton LINK · Synchroniser le BPM avec d'autres apps sur le réseau local (Ableton, Traktor…)"}
@@ -320,7 +310,6 @@ export default function TransportBar({
           {SubBtn}
         </div>
         <div style={{ ...rowStyle }}>
-          {FxRackBtn}
           {MidiBtn}
           {SaveBtn}
           {LoadBtn}
@@ -344,7 +333,6 @@ export default function TransportBar({
       {MetroBtn}
       {SubBtn}
       {!isPortrait && !isMobile && KeybBtn}
-      {FxRackBtn}
       {MidiBtn}
       {SaveBtn}
       {LoadBtn}

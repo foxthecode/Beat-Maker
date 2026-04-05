@@ -3773,7 +3773,6 @@ export default function KickAndSnare(){
           freeCaptureCount={freeCaptureCount} freeBpm={freeBpm}
           onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
           onSaveProject={saveProject} onLoadProject={loadProject}
-          onShowFxRack={()=>setShowFxRack(true)}
         />
         </div>{/* end fixed-header maxWidth */}
       </div>{/* end fixed-header */}
