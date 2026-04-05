@@ -14,7 +14,7 @@ interface Props{
   userKits:UserKit[];
   tracks:readonly Track[];
   onPreview:(entry:SampleBankEntry)=>Promise<void>;
-  onSave:(name:string,icon:string,slots:Record<string,SampleBankEntry|null>)=>Promise<void>;
+  onSave:(name:string,icon:string,slots:Record<string,SampleBankEntry|null>,trackLabels:Record<string,string>)=>Promise<void>;
   themeName:string;
 }
 
@@ -52,6 +52,7 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
   const [waveform,setWaveform]=useState<number[]>([]);
   const [previewing,setPreviewing]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [dragHandle,setDragHandle]=useState<'start'|'end'|null>(null);
   const canvasRef=useRef<HTMLCanvasElement>(null);
   const decodedRef=useRef<AudioBuffer|null>(null);
   const previewCtxRef=useRef<AudioContext|null>(null);
@@ -83,7 +84,7 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
     return()=>{cancelled=true;previewSrcRef.current?.stop();previewCtxRef.current?.close();};
   },[blob]);
 
-  // Draw waveform
+  // Draw waveform + drag handles
   useEffect(()=>{
     const canvas=canvasRef.current;
     if(!canvas||!waveform.length)return;
@@ -93,21 +94,51 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
     const barW=width/waveform.length;
     const sIdx=Math.floor(trimStart*waveform.length);
     const eIdx=Math.ceil(trimEnd*waveform.length);
+    // 1. Waveform bars
     waveform.forEach((v,i)=>{
       const inRange=i>=sIdx&&i<=eIdx;
       ctx.fillStyle=inRange?'#BF5AF2':'rgba(191,90,242,0.22)';
       const h=Math.max(2,v*height*0.88);
       ctx.fillRect(i*barW,(height-h)/2,Math.max(1,barW-0.5),h);
     });
-    // Trim line handles
-    ctx.fillStyle='rgba(255,255,255,0.85)';
-    ctx.fillRect(trimStart*width-1,0,2,height);
-    ctx.fillRect(trimEnd*width-1,0,2,height);
-    // Shaded out-of-range
-    ctx.fillStyle='rgba(0,0,0,0.45)';
+    // 2. Shaded out-of-range regions
+    ctx.fillStyle='rgba(0,0,0,0.48)';
     ctx.fillRect(0,0,trimStart*width,height);
     ctx.fillRect(trimEnd*width,0,(1-trimEnd)*width,height);
+    // 3. Colored drag handles (drawn on top, 4px wide)
+    ctx.fillStyle='rgba(191,90,242,0.95)';
+    ctx.fillRect(trimStart*width-2,0,4,height);
+    ctx.fillStyle='rgba(48,209,88,0.95)';
+    ctx.fillRect(trimEnd*width-2,0,4,height);
+    // 4. Triangular grab indicators at center
+    const my=height/2;
+    ctx.fillStyle='rgba(191,90,242,1)';
+    ctx.beginPath();ctx.moveTo(trimStart*width+2,my-7);ctx.lineTo(trimStart*width+12,my);ctx.lineTo(trimStart*width+2,my+7);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(48,209,88,1)';
+    ctx.beginPath();ctx.moveTo(trimEnd*width-2,my-7);ctx.lineTo(trimEnd*width-12,my);ctx.lineTo(trimEnd*width-2,my+7);ctx.closePath();ctx.fill();
   },[waveform,trimStart,trimEnd]);
+
+  // Drag handlers for trim handles on the canvas
+  const getHandle=(px:number)=>{
+    const dS=Math.abs(px-trimStart),dE=Math.abs(px-trimEnd);
+    if(dS<0.1&&dS<=dE)return 'start' as const;
+    if(dE<0.1)return 'end' as const;
+    return null;
+  };
+  const onPtrDown=(e:React.PointerEvent<HTMLCanvasElement>)=>{
+    const r=canvasRef.current!.getBoundingClientRect();
+    const px=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    const h=getHandle(px);
+    if(h){e.currentTarget.setPointerCapture(e.pointerId);setDragHandle(h);}
+  };
+  const onPtrMove=(e:React.PointerEvent<HTMLCanvasElement>)=>{
+    if(!dragHandle||!canvasRef.current)return;
+    const r=canvasRef.current.getBoundingClientRect();
+    const px=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    if(dragHandle==='start'){if(px<trimEnd-0.02)setTrimStart(px);}
+    else{if(px>trimStart+0.02)setTrimEnd(px);}
+  };
+  const onPtrUp=()=>setDragHandle(null);
 
   const handlePreview=async()=>{
     if(!decodedRef.current)return;
@@ -162,35 +193,25 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
           <button onClick={onCancel} style={{background:'transparent',border:'none',color:th.dim,fontSize:20,cursor:'pointer',padding:'4px 8px'}}>✕</button>
         </div>
 
-        {/* Waveform */}
+        {/* Waveform + draggable handles */}
         <div style={{position:'relative',borderRadius:10,overflow:'hidden',background:'rgba(191,90,242,0.05)',border:'1px solid rgba(191,90,242,0.18)'}}>
-          <canvas ref={canvasRef} width={600} height={90} style={{width:'100%',height:90,display:'block'}}/>
+          <canvas ref={canvasRef} width={600} height={96}
+            style={{width:'100%',height:96,display:'block',cursor:'ew-resize',touchAction:'none'}}
+            onPointerDown={onPtrDown} onPointerMove={onPtrMove} onPointerUp={onPtrUp} onPointerCancel={onPtrUp}/>
           {!waveform.length&&(
             <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:th.dim,letterSpacing:'0.1em'}}>ANALYSING WAVEFORM…</div>
           )}
-        </div>
-
-        {/* Sliders */}
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:8,fontWeight:700,color:th.dim,width:36,letterSpacing:'0.06em',flexShrink:0}}>START</span>
-            <input type="range" min={0} max={0.99} step={0.001} value={trimStart}
-              onChange={e=>{const v=parseFloat(e.target.value);if(v<trimEnd-0.01)setTrimStart(v);}}
-              style={{flex:1,accentColor:'#BF5AF2'}}/>
-            <span style={{fontSize:8,color:'#BF5AF2',width:40,textAlign:'right',flexShrink:0}}>{fmtT(trimStart*duration)}</span>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:8,fontWeight:700,color:th.dim,width:36,letterSpacing:'0.06em',flexShrink:0}}>END</span>
-            <input type="range" min={0.01} max={1} step={0.001} value={trimEnd}
-              onChange={e=>{const v=parseFloat(e.target.value);if(v>trimStart+0.01)setTrimEnd(v);}}
-              style={{flex:1,accentColor:'#BF5AF2'}}/>
-            <span style={{fontSize:8,color:'#BF5AF2',width:40,textAlign:'right',flexShrink:0}}>{fmtT(trimEnd*duration)}</span>
-          </div>
+          {waveform.length>0&&(
+            <>
+              <div style={{position:'absolute',bottom:3,left:`calc(${trimStart*100}% + 5px)`,fontSize:7,color:'#BF5AF2',fontWeight:700,pointerEvents:'none',whiteSpace:'nowrap',letterSpacing:'0.04em'}}>{fmtT(trimStart*duration)}</div>
+              <div style={{position:'absolute',bottom:3,right:`calc(${(1-trimEnd)*100}% + 5px)`,fontSize:7,color:'#30D158',fontWeight:700,pointerEvents:'none',whiteSpace:'nowrap',textAlign:'right',letterSpacing:'0.04em'}}>{fmtT(trimEnd*duration)}</div>
+            </>
+          )}
         </div>
 
         {/* Trim info */}
         <div style={{fontSize:8,color:th.dim,textAlign:'center',letterSpacing:'0.08em'}}>
-          SELECTION: {fmtT((trimEnd-trimStart)*duration)} / {fmtT(duration)}
+          SELECTION: {fmtT((trimEnd-trimStart)*duration)} / {fmtT(duration)} · <span style={{color:'rgba(191,90,242,0.6)'}}>DRAG HANDLES TO TRIM</span>
         </div>
 
         {/* Buttons */}
@@ -215,6 +236,8 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
 
   const [slots,setSlots]=useState<Record<string,SampleBankEntry|null>>(()=>Object.fromEntries(tracks.map(t=>[t.id,null])));
   const [activeSlot,setActiveSlot]=useState(tracks[0]?.id||'kick');
+  const [trackLabels,setTrackLabels]=useState<Record<string,string>>(()=>Object.fromEntries(tracks.map(t=>[t.id,t.label])));
+  const [editingLabel,setEditingLabel]=useState<string|null>(null);
   const [dialog,setDialog]=useState(false);
   const [kitName,setKitName]=useState('');
   const [saving,setSaving]=useState(false);
@@ -237,7 +260,12 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
 
   if(!sheet.visible)return null;
 
-  const selectSlot=(tid:string)=>setActiveSlot(tid);
+  const selectSlot=(tid:string)=>{
+    setActiveSlot(tid);
+    setEditingLabel(null);
+    const entry=slots[tid];
+    if(entry)onPreview(entry).catch(()=>{});
+  };
 
   // Auto-advance to next empty slot after assignment
   const advanceSlot=(assignedTid:string)=>{
@@ -252,7 +280,7 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
     if(!kitName.trim()||saving)return;
     setSaving(true);
     const icon=drumKitSVG(USER_KIT_COLORS[(userKits.length)%USER_KIT_COLORS.length]);
-    try{await onSave(kitName.trim(),icon,slots);setDialog(false);setKitName('');}
+    try{await onSave(kitName.trim(),icon,slots,trackLabels);setDialog(false);setKitName('');}
     finally{setSaving(false);}
   };
 
@@ -327,17 +355,35 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
           {tracks.map(tr=>{
             const assigned=slots[tr.id];
             const isActive=activeSlot===tr.id;
+            const label=trackLabels[tr.id]||tr.label;
+            const isEditing=editingLabel===tr.id&&isActive;
             return(
               <button key={tr.id} onClick={()=>selectSlot(tr.id)} style={{
                 display:'flex',flexDirection:'column',alignItems:'center',gap:3,
-                padding:'8px 10px',borderRadius:10,cursor:'pointer',minWidth:70,
+                padding:'8px 10px',borderRadius:10,cursor:'pointer',minWidth:72,
                 border:`2px solid ${isActive?tr.color:assigned?tr.color+'44':th.sBorder}`,
                 background:isActive?tr.color+'18':assigned?tr.color+'0a':th.surface,
                 transition:'all 0.12s',fontFamily:'inherit',
                 boxShadow:isActive?`0 0 12px ${tr.color}33`:'none',
               }}>
-                <span style={{fontSize:8,fontWeight:900,color:isActive?tr.color:assigned?tr.color+'cc':th.dim,letterSpacing:'0.08em'}}>{tr.label}</span>
-                <span style={{fontSize:6,color:isActive?'#fff':th.faint,maxWidth:68,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'center',letterSpacing:'0.04em'}}>
+                <div style={{display:'flex',alignItems:'center',gap:2,maxWidth:70}}>
+                  {isEditing?(
+                    <input autoFocus value={label} maxLength={14}
+                      onChange={e=>setTrackLabels(p=>({...p,[tr.id]:e.target.value}))}
+                      onClick={e=>e.stopPropagation()}
+                      onBlur={()=>setEditingLabel(null)}
+                      onKeyDown={e=>{if(e.key==='Enter'||e.key==='Escape'){e.stopPropagation();setEditingLabel(null);}}}
+                      style={{width:56,fontSize:7,background:'transparent',border:'none',borderBottom:`1px solid ${tr.color}`,color:tr.color,fontWeight:900,outline:'none',fontFamily:'inherit',letterSpacing:'0.06em',padding:'0 0 1px',textAlign:'center'}}
+                    />
+                  ):(
+                    <span style={{fontSize:8,fontWeight:900,color:isActive?tr.color:assigned?tr.color+'cc':th.dim,letterSpacing:'0.08em',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:58}}>{label}</span>
+                  )}
+                  {isActive&&!isEditing&&(
+                    <span onClick={e=>{e.stopPropagation();setEditingLabel(tr.id);}} title="Rename track"
+                      style={{fontSize:8,cursor:'text',opacity:0.5,flexShrink:0,lineHeight:1}}>✎</span>
+                  )}
+                </div>
+                <span style={{fontSize:6,color:isActive?'#fff':th.faint,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textAlign:'center',letterSpacing:'0.04em'}}>
                   {assigned?assigned.name.split(' — ')[1]||assigned.name:'— empty —'}
                 </span>
                 {assigned&&<div style={{width:4,height:4,borderRadius:'50%',background:tr.color}}/>}

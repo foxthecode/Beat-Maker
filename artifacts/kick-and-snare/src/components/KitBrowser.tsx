@@ -7,6 +7,7 @@ export interface UserKit{
   id:string;name:string;icon:string;createdAt:number;
   samples:Record<string,{type:'url'|'blob'|'synth';url?:string;blobKey?:string;originalName?:string;}>;
   shape:Record<string,Record<string,number>>;
+  trackLabels?:Record<string,string>;
 }
 export interface SampleBankEntry{
   id:string;name:string;category:string;
@@ -26,6 +27,7 @@ interface Props{
   onSave:(name:string,icon:string)=>Promise<void>;
   onRename:(kitId:string,name:string)=>void;
   onDelete:(kitId:string)=>void;
+  onUpdateTrackLabels:(kitId:string,labels:Record<string,string>)=>void;
   onOpenComposer:()=>void;
   themeName:string;
 }
@@ -37,10 +39,12 @@ function KitIcon({icon,size=28}:{icon:string;size?:number}){
   return <span style={{fontSize:size,lineHeight:1}}>{icon}</span>;
 }
 
-export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoadFactory,onLoadUser,onSave,onRename,onDelete,onOpenComposer,themeName}:Props){
+const DEFAULT_TRACK_LABELS:Record<string,string>={kick:'KICK',snare:'SNARE',hihat:'HI-HAT',clap:'CLAP',tom:'TOM',ride:'RIDE',crash:'CRASH',perc:'PERC'};
+
+export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoadFactory,onLoadUser,onSave,onRename,onDelete,onUpdateTrackLabels,onOpenComposer,themeName}:Props){
   const th=THEMES[themeName]||THEMES.dark;
   const sheet=useSheetTransition(open);
-  const [dialog,setDialog]=useState<null|'save'|{kind:'rename';kit:UserKit}>(null);
+  const [dialog,setDialog]=useState<null|'save'|{kind:'rename';kit:UserKit}|{kind:'tracklabels';kit:UserKit;labels:Record<string,string>}>(null);
   const [kitName,setKitName]=useState('');
   const [menuFor,setMenuFor]=useState<string|null>(null);
   const [saving,setSaving]=useState(false);
@@ -76,6 +80,17 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
   };
   const openRename=(kit:UserKit)=>{setMenuFor(null);setKitName(kit.name);setDialog({kind:'rename',kit});};
   const openSave=()=>{setKitName('');setDialog('save');};
+  const openTrackLabels=(kit:UserKit)=>{
+    setMenuFor(null);
+    const labels:Record<string,string>={};
+    Object.keys(kit.samples).forEach(tid=>{labels[tid]=kit.trackLabels?.[tid]||DEFAULT_TRACK_LABELS[tid]||tid.toUpperCase();});
+    setDialog({kind:'tracklabels',kit,labels});
+  };
+  const handleSaveTrackLabels=()=>{
+    if(typeof dialog==='object'&&dialog?.kind==='tracklabels'){
+      onUpdateTrackLabels(dialog.kit.id,dialog.labels);setDialog(null);
+    }
+  };
 
   const card=(icon:string,name:string,sub:string,isActive:boolean,onClick:()=>void,extra?:React.ReactNode)=>(
     <div onClick={onClick} style={{
@@ -149,7 +164,8 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
                   {loading===kit.id&&<div style={{position:'absolute',inset:0,borderRadius:12,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,pointerEvents:'none'}}>⏳</div>}
                   {menuOpen&&(
                     <div ref={menuRef} style={{position:'absolute',top:28,left:0,zIndex:10,background:'#1e1e2e',border:`1px solid ${th.sBorder}`,borderRadius:8,overflow:'hidden',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',minWidth:110}}>
-                      <button onClick={()=>openRename(kit)} style={{display:'block',width:'100%',padding:'8px 14px',background:'transparent',border:'none',color:th.text,fontSize:10,fontWeight:700,textAlign:'left',cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>✏️ RENAME</button>
+                      <button onClick={()=>openRename(kit)} style={{display:'block',width:'100%',padding:'8px 14px',background:'transparent',border:'none',color:th.text,fontSize:10,fontWeight:700,textAlign:'left',cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>✏️ RENAME KIT</button>
+                      <button onClick={()=>openTrackLabels(kit)} style={{display:'block',width:'100%',padding:'8px 14px',background:'transparent',border:'none',color:'#BF5AF2',fontSize:10,fontWeight:700,textAlign:'left',cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>🎚 TRACK NAMES</button>
                       <button onClick={()=>{setMenuFor(null);if(confirm(`Delete "${kit.name}"?`))onDelete(kit.id);}} style={{display:'block',width:'100%',padding:'8px 14px',background:'transparent',border:'none',color:'#FF375F',fontSize:10,fontWeight:700,textAlign:'left',cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>🗑 DELETE</button>
                     </div>
                   )}
@@ -187,6 +203,34 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
             <div style={{display:'flex',gap:8}}>
               <button onClick={()=>setDialog(null)} style={{...btnSt('#888','transparent'),flex:1}}>CANCEL</button>
               <button onClick={handleSave} disabled={saving||!kitName.trim()} style={{...btnSt('#FF9500','rgba(255,149,0,0.15)'),flex:2,opacity:saving||!kitName.trim()?0.45:1}}>{saving?'SAVING…':'SAVE KIT'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Track Labels dialog */}
+      {typeof dialog==='object'&&dialog?.kind==='tracklabels'&&(
+        <div style={{position:'fixed',inset:0,zIndex:410,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.55)',padding:16}}>
+          <div style={{background:'#161624',border:'1px solid rgba(191,90,242,0.3)',borderRadius:14,padding:20,width:'100%',maxWidth:360,display:'flex',flexDirection:'column',gap:12}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:900,color:'#BF5AF2',letterSpacing:'0.15em'}}>TRACK NAMES</div>
+              <div style={{fontSize:7,color:'rgba(255,255,255,0.4)',marginTop:3,letterSpacing:'0.08em'}}>{dialog.kit.name} — rename each track as it appears in the sequencer</div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:240,overflowY:'auto'}}>
+              {Object.keys(dialog.labels).map(tid=>(
+                <div key={tid} style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:8,fontWeight:700,color:'rgba(191,90,242,0.7)',width:36,letterSpacing:'0.06em',flexShrink:0}}>{DEFAULT_TRACK_LABELS[tid]||tid.toUpperCase()}</span>
+                  <input value={dialog.labels[tid]} maxLength={16}
+                    onChange={e=>{const v=e.target.value;setDialog(d=>d&&typeof d==='object'&&d.kind==='tracklabels'?{...d,labels:{...d.labels,[tid]:v}}:d);}}
+                    style={{flex:1,padding:'6px 8px',borderRadius:6,border:'1px solid rgba(191,90,242,0.3)',background:'rgba(191,90,242,0.06)',color:'#fff',fontSize:11,fontFamily:'inherit',outline:'none'}}
+                    onKeyDown={e=>{if(e.key==='Enter')handleSaveTrackLabels();}}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setDialog(null)} style={{flex:1,padding:'8px',borderRadius:8,border:'1px solid rgba(255,255,255,0.1)',background:'transparent',color:'rgba(255,255,255,0.5)',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>CANCEL</button>
+              <button onClick={handleSaveTrackLabels} style={{flex:2,padding:'8px',borderRadius:8,border:'1px solid rgba(191,90,242,0.4)',background:'rgba(191,90,242,0.15)',color:'#BF5AF2',fontSize:10,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>SAVE NAMES</button>
             </div>
           </div>
         </div>

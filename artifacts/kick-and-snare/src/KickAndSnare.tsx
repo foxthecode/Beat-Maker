@@ -1501,6 +1501,7 @@ export default function KickAndSnare(){
   const [showKitComposer,setShowKitComposer]=useState(false);
   const [userKits,setUserKits]=useState<UserKit[]>(()=>loadUserKitsMeta());
   const [activeKitId,setActiveKitId]=useState<string|null>(DRUM_KITS[0]?.id||null);
+  const [userKitLabelOverride,setUserKitLabelOverride]=useState<Record<string,string>>({});
   const [gfx,setGfx]=useState({
     reverb:{on:false,decay:1.5,size:0.5,type:'room',sends:{}},
     delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
@@ -1560,7 +1561,7 @@ export default function KickAndSnare(){
         if(fk&&engine.ctx){
           const ks=(fk as any).samples as Record<string,string>;
           await Promise.all(Object.entries(ks).map(async([tid,url])=>{
-            if(!url||(engine.buf as any)[tid])return;
+            if(!url)return;
             const pre=preloadedABRef.current[tid];
             try{
               const decoded=pre
@@ -1799,7 +1800,7 @@ export default function KickAndSnare(){
   useEffect(()=>{autoQRef.current=autoQ;},[autoQ]);
 
   const allT=[...ALL_TRACKS,...customTracks];
-  const _kitLbl=(DRUM_KITS[kitIdx] as any)?.labels??{};
+  const _kitLbl=kitIdx>=0?((DRUM_KITS[kitIdx] as any)?.labels??{}):userKitLabelOverride;
   const atO=act.map(id=>{const t=allT.find(t=>t.id===id);if(!t)return null;const ov=_kitLbl[id];return ov?{...t,label:ov}:t;}).filter(Boolean);
   const inact=ALL_TRACKS.filter(t=>!act.includes(t.id));
 
@@ -2971,6 +2972,8 @@ export default function KickAndSnare(){
       return next;
     });
     setActiveKitId(kit.id);
+    setAct(DEFAULT_ACTIVE);
+    setUserKitLabelOverride({});
   };
 
   // ── User kit management ───────────────────────────────────────────────────
@@ -3025,12 +3028,21 @@ export default function KickAndSnare(){
         engine.uFx(tid,nextFx[tid]);
       }
     }
-    if(epoch===loadEpochRef.current){setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);}
+    if(epoch===loadEpochRef.current){
+      setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);
+      setAct(DEFAULT_ACTIVE);
+      setUserKitLabelOverride(kit.trackLabels||{});
+    }
   };
 
   const renameKit=(kitId:string,newName:string)=>{
     const updated=userKits.map(k=>k.id===kitId?{...k,name:newName}:k);
     setUserKits(updated);saveUserKitsMeta(updated);
+  };
+  const updateKitTrackLabels=(kitId:string,labels:Record<string,string>)=>{
+    const updated=userKits.map(k=>k.id===kitId?{...k,trackLabels:labels}:k);
+    setUserKits(updated);saveUserKitsMeta(updated);
+    if(activeKitId===kitId)setUserKitLabelOverride(labels);
   };
   const deleteKit=async(kitId:string)=>{
     await idbDeleteKeysWithPrefix(`ks_blob_${kitId}_`).catch(()=>{});
@@ -3055,7 +3067,7 @@ export default function KickAndSnare(){
     src.onended=()=>{if(previewNodeRef.current===src)previewNodeRef.current=null;};
   };
 
-  const saveComposedKit=async(name:string,icon:string,slots:Record<string,SampleBankEntry|null>)=>{
+  const saveComposedKit=async(name:string,icon:string,slots:Record<string,SampleBankEntry|null>,trackLabels:Record<string,string>)=>{
     const kitId=`user_${Date.now()}`;
     const samples:UserKit['samples']={};const shape:UserKit['shape']={};
     for(const [tid,entry] of Object.entries(slots)){
@@ -3065,7 +3077,7 @@ export default function KickAndSnare(){
       else if(entry.blobKey){samples[tid]={type:'blob',blobKey:entry.blobKey,originalName:entry.name};}
       else{samples[tid]={type:'synth'};}
     }
-    const kit:UserKit={id:kitId,name,icon,createdAt:Date.now(),samples,shape};
+    const kit:UserKit={id:kitId,name,icon,createdAt:Date.now(),samples,shape,trackLabels};
     const updated=[...userKits,kit];
     setUserKits(updated);saveUserKitsMeta(updated);
     setShowKitComposer(false);
@@ -4773,6 +4785,7 @@ export default function KickAndSnare(){
       onSave={saveCurrentAsKit}
       onRename={renameKit}
       onDelete={deleteKit}
+      onUpdateTrackLabels={updateKitTrackLabels}
       onOpenComposer={()=>setShowKitComposer(true)}
       themeName={themeName}
     />
