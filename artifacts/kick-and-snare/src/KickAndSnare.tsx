@@ -3489,7 +3489,7 @@ export default function KickAndSnare(){
             </div>
           </div>
           {/* ── Col 2 : Kit selector ── */}
-          <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center"}}>
+          <div style={{display:"flex",flex:1,alignItems:"stretch",justifyContent:"center"}}>
           {/* ── Kit selector → opens KitBrowser ── */}
           {(()=>{
             const activeUserKit=userKits.find(k=>k.id===activeKitId);
@@ -3499,23 +3499,23 @@ export default function KickAndSnare(){
             const isUser=!!activeUserKit;
             return(
               <button data-hint="Open Kit Library · Browse factory and saved kits · Save current setup as a kit" onClick={()=>setShowKitBrowser(true)} style={{
-                display:"flex",alignItems:"center",gap:5,padding:"3px 8px 4px",borderRadius:7,
-                background:"linear-gradient(160deg,rgba(255,149,0,0.13) 0%,rgba(255,45,85,0.09) 100%)",
-                border:`1px solid ${isUser?"rgba(255,149,0,0.45)":"rgba(255,149,0,0.22)"}`,
-                boxShadow:"0 0 10px rgba(255,149,0,0.08) inset",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"6px 14px",borderRadius:10,
+                background:"linear-gradient(160deg,rgba(255,149,0,0.15) 0%,rgba(255,45,85,0.1) 100%)",
+                border:`1px solid ${isUser?"rgba(255,149,0,0.5)":"rgba(255,149,0,0.28)"}`,
+                boxShadow:"0 0 14px rgba(255,149,0,0.1) inset",
                 cursor:"pointer",fontFamily:"inherit",flexShrink:0,position:"relative",overflow:"hidden",
-                transition:"border-color 0.15s,background 0.15s",
+                transition:"border-color 0.15s,background 0.15s",alignSelf:"stretch",
               }}>
                 <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
                 {isDrumKitIcon(curIcon)
-                  ?<img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:22,height:22,objectFit:'contain',borderRadius:3,flexShrink:0,display:'block',filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}/>
+                  ?<img src={DRUM_KIT_IMG_SRC} alt="drum kit" style={{width:36,height:36,objectFit:'contain',borderRadius:6,flexShrink:0,display:'block',filter:"drop-shadow(0 0 6px rgba(255,149,0,0.6))"}}/>
                   :curIcon.startsWith('<')
-                    ?<span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}} dangerouslySetInnerHTML={{__html:curIcon}}/>
-                    :<span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
+                    ?<span style={{display:'block',lineHeight:0,width:36,height:36,overflow:'hidden',flexShrink:0,filter:"drop-shadow(0 0 6px rgba(255,149,0,0.6))"}} dangerouslySetInnerHTML={{__html:curIcon}}/>
+                    :<span style={{fontSize:26,lineHeight:1,filter:"drop-shadow(0 0 6px rgba(255,149,0,0.6))"}}>{curIcon}</span>
                 }
-                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start"}}>
-                  <span style={{fontSize:6,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{curName}</span>
-                  <span style={{fontSize:5,color:th.dim,letterSpacing:"0.08em"}}>{isUser?"MY KIT ▼":"BROWSE ▼"}</span>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2}}>
+                  <span style={{fontSize:9,fontWeight:800,color:"#FF9500",letterSpacing:"0.1em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{curName}</span>
+                  <span style={{fontSize:7,color:th.dim,letterSpacing:"0.1em",fontWeight:600}}>{isUser?"MY KIT ▼":"BROWSE ▼"}</span>
                 </div>
               </button>
             );
