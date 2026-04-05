@@ -3145,44 +3145,59 @@ export default function KickAndSnare(){
     const epoch=++loadEpochRef.current;
     const nextFx={...(R.fx as typeof fx)};
     const newSilent=new Set<string>();
+    // ── Phase 1: pre-load ALL new buffers into temp map — never touch engine.buf yet ──
+    const tempBufs:Record<string,AudioBuffer|'silent'|'synth'>={};
+    const newSmpN:Record<string,string>={};
+    const newWaveforms:Record<string,string>={};
     for(const [tid,info] of Object.entries(kit.samples)){
       if(epoch!==loadEpochRef.current)return;
+      if(kit.shape[tid]){nextFx[tid]={...nextFx[tid],...kit.shape[tid]};engine.uFx(tid,nextFx[tid]);}
       if(info.type==='blob'&&info.blobKey){
         try{
           const ab=await idbGet(info.blobKey);
           if(!ab||epoch!==loadEpochRef.current)continue;
           const audioBuf=await engine.ctx!.decodeAudioData(ab.slice(0));
           if(epoch!==loadEpochRef.current)continue;
-          engine.loadBuffer(tid,audioBuf);
-          setSmpN(prev=>({...prev,[tid]:info.originalName||'User sample'}));
-          const wp=miniWaveformPathUtil(audioBuf,28,16);
-          setWaveformCache(prev=>({...prev,[tid]:wp}));
+          tempBufs[tid]=audioBuf;
+          newSmpN[tid]=info.originalName||'User sample';
+          newWaveforms[tid]=miniWaveformPathUtil(audioBuf,28,16);
         }catch(e){console.warn('load user sample failed',tid,e);}
       } else if(info.type==='url'&&info.url){
-        await engine.loadUrl(tid,info.url);
-        setSmpN(prev=>({...prev,[tid]:info.originalName||tid}));
+        try{
+          const resp=await fetch(info.url);const ab=await resp.arrayBuffer();
+          if(epoch!==loadEpochRef.current)continue;
+          const audioBuf=await engine.ctx!.decodeAudioData(ab);
+          if(epoch!==loadEpochRef.current)continue;
+          tempBufs[tid]=audioBuf;
+          newSmpN[tid]=info.originalName||tid;
+        }catch(e){
+          console.warn('loadUserKit URL fetch failed',tid,e);
+          tempBufs[tid]='synth';newSmpN[tid]=`${tid} · ${kit.name}`;
+        }
       } else if(info.type==='none'){
-        // Slot explicitly left empty in KitComposer → silent (no synth fallback)
-        delete (engine.buf as any)[tid];
-        newSilent.add(tid);
-        setSmpN(prev=>({...prev,[tid]:'—'}));
+        tempBufs[tid]='silent';newSmpN[tid]='—';newSilent.add(tid);
+      } else {
+        tempBufs[tid]='synth';newSmpN[tid]=`${tid} · ${kit.name}`;
+      }
+    }
+    if(epoch!==loadEpochRef.current)return;
+    // ── Phase 2: atomic swap — install all new buffers at once, then update React state ──
+    for(const [tid,bufOrFlag] of Object.entries(tempBufs)){
+      if(bufOrFlag instanceof AudioBuffer){
+        engine.loadBuffer(tid,bufOrFlag);
       } else {
         delete (engine.buf as any)[tid];
-        if(engine.ctx){engine.renderShape(tid,nextFx[tid]||{...DEFAULT_FX},true).catch(()=>{});}
-        setSmpN(prev=>({...prev,[tid]:`${tid} · ${kit.name}`}));
-      }
-      if(kit.shape[tid]){
-        nextFx[tid]={...nextFx[tid],...kit.shape[tid]};
-        engine.uFx(tid,nextFx[tid]);
+        if(bufOrFlag==='synth'&&engine.ctx){
+          engine.renderShape(tid,nextFx[tid]||{...DEFAULT_FX},true).catch(()=>{});
+        }
       }
     }
-    if(epoch===loadEpochRef.current){
-      silentTracksRef.current=newSilent;
-      R.silentTracks=newSilent;
-      setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);
-      setAct(DEFAULT_ACTIVE);
-      setUserKitLabelOverride(kit.trackLabels||{});
-    }
+    // Single batched React state update — no per-track setState calls during loading
+    setSmpN(prev=>({...prev,...newSmpN}));
+    setWaveformCache(prev=>({...prev,...newWaveforms}));
+    silentTracksRef.current=newSilent;R.silentTracks=newSilent;
+    setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);
+    setAct(DEFAULT_ACTIVE);setUserKitLabelOverride(kit.trackLabels||{});
   };
 
   const renameKit=(kitId:string,newName:string)=>{
