@@ -163,7 +163,7 @@ export function KitBrowser({open,onClose,factoryKits,userKits,activeKitId,onLoad
               );
               return(
                 <div key={kit.id} style={{position:'relative'}}>
-                  {card(kit.icon,kit.name,dateStr,isAct,async()=>{if(!isAct&&!loading){setLoading(kit.id);try{await onLoadUser(kit);}finally{setLoading(null);}}},dots,false)}
+                  {card(kit.icon,kit.name,dateStr,isAct,async()=>{if(!isAct&&!loading){setLoading(kit.id);try{await onLoadUser(kit);}finally{setLoading(null);}}},dots,true)}
                   {loading===kit.id&&<div style={{position:'absolute',inset:0,borderRadius:12,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,pointerEvents:'none'}}>⏳</div>}
                   {menuOpen&&(
                     <div ref={menuRef} style={{position:'absolute',top:28,left:0,zIndex:10,background:'#1e1e2e',border:`1px solid ${th.sBorder}`,borderRadius:8,overflow:'hidden',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',minWidth:110}}>
