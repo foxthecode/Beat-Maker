@@ -227,9 +227,29 @@ function euclidRhythm(hits,steps){
   if(hits<=0)return Array(steps).fill(0);
   hits=Math.min(hits,steps);
   if(hits===steps)return Array(steps).fill(1);
-  const arr=Array(steps).fill(0);
-  for(let i=0;i<hits;i++)arr[Math.floor(i*steps/hits)]=1;
-  return arr;
+  // Bjorklund algorithm — correct Euclidean distribution for all cases incl. gcd>1
+  const counts:number[]=[],remainders:number[]=[];
+  let divisor=steps-hits;
+  remainders[0]=hits;
+  let level=0;
+  do{
+    counts[level]=Math.floor(divisor/remainders[level]);
+    remainders[level+1]=divisor%remainders[level];
+    divisor=remainders[level];
+    level++;
+  }while(remainders[level]>1);
+  counts[level]=divisor;
+  const pat:number[]=[];
+  const build=(lv:number):void=>{
+    if(lv===-1){pat.push(0);return;}
+    if(lv===-2){pat.push(1);return;}
+    for(let i=0;i<counts[lv];i++)build(lv-1);
+    if(remainders[lv+1]!==0)build(lv-2);
+  };
+  build(level);
+  // Rotate so the pattern starts on the first hit
+  const first=pat.indexOf(1);
+  return first>0?[...pat.slice(first),...pat.slice(0,first)]:pat;
 }
 
 
@@ -2182,6 +2202,15 @@ export default function KickAndSnare(){
         const stepDur=sixteenth;
         if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-0.5){euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05};}
         const ec=euclidClockR.current[tr.id];
+        // Fix 1: guard ec.step against out-of-bounds when N changes mid-playback
+        if(ec.step>=N)ec.step=ec.step%Math.max(1,N);
+        // Fix 2: fast-forward over missed steps to prevent burst-then-gap glitch
+        // when the scheduler wakes up late (tab backgrounded / heavy render)
+        if(ec.nextTime<ct-stepDur){
+          const missed=Math.floor((ct-ec.nextTime)/stepDur);
+          ec.step=(ec.step+missed)%N;
+          ec.nextTime+=missed*stepDur;
+        }
         while(ec.nextTime<ct+LA){
           const si=ec.step;
           if(R.pat?.[tr.id]?.[si]){
