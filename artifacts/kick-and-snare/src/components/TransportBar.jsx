@@ -160,15 +160,14 @@ export default function TransportBar({
   const LooperControls = null;
 
   const BpmCtrl = (
-    <div data-hint={`BPM · Tempo actuel : ${bpm} BPM · ‹ › ou slider pour ajuster · Raccourci : ← →`} style={{ flex: "1 1 80px", minWidth: 70 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <span style={{ fontSize: 8, color: th.dim, letterSpacing: "0.15em" }}>BPM</span>
-        <MidiTag id="__bpm__" />
-        <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&lt;</button>
-        <span className={bpmFlash ? "bpmFlash" : ""} style={{ fontSize: 28, fontWeight: 900, color: "#FF9500", display: "inline-block" }}>{bpm}</span>
-        <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 11, padding: "0 3px" }}>&gt;</button>
-      </div>
-      <input type="range" min={30} max={300} value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: "100%", height: 4, accentColor: "#FF9500" }} />
+    <div data-hint={`BPM · Tempo actuel : ${bpm} BPM · ‹ › ou slider pour ajuster · Raccourci : ← →`}
+      style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 80px", minWidth: 80 }}>
+      <span style={{ fontSize: 7, color: th.dim, letterSpacing: "0.12em", flexShrink: 0 }}>BPM</span>
+      <MidiTag id="__bpm__" />
+      <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>‹</button>
+      <span className={bpmFlash ? "bpmFlash" : ""} style={{ fontSize: 22, fontWeight: 900, color: "#FF9500", display: "inline-block", minWidth: 30, textAlign: "center", flexShrink: 0 }}>{bpm}</span>
+      <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>›</button>
+      <input type="range" min={30} max={300} value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ flex: 1, minWidth: 50, height: 4, accentColor: "#FF9500" }} />
     </div>
   );
 
@@ -294,22 +293,21 @@ export default function TransportBar({
 
   if (isPortrait) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
-        <div style={{ ...rowStyle }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8, padding: "7px 12px 8px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
+        {/* Row 1 : Play | [< BPM >] [slider] | TAP | METRO */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {PlayBtn}
           {!isPads && !isEuclid && RecBtn}
           {BpmCtrl}
-        </div>
-        {isPads && LooperControls && <div style={{ ...rowStyle }}>{LooperControls}</div>}
-        <div style={{ ...rowStyle }}>
           {TapBtn}
+          {MetroBtn}
+        </div>
+        {/* Row 2 : VOL · SWING · TS · SUB · MIDI · SAVE · LOAD · LINK · EXPORT */}
+        <div style={{ ...rowStyle, flexWrap: "wrap" }}>
           {VolKnob}
           {SwingCtrl}
           {TSBtn}
-          {MetroBtn}
           {SubBtn}
-        </div>
-        <div style={{ ...rowStyle }}>
           {MidiBtn}
           {SaveBtn}
           {LoadBtn}
