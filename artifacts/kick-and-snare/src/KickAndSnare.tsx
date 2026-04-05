@@ -1498,9 +1498,10 @@ export default function KickAndSnare(){
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
   const [euclidParams,setEuclidParams]=useState({});
-  const [smpN,setSmpN]=useState({kick:"808 Bass Drum (synth)",snare:"808 Snare (synth)",hihat:"808 Closed Hi-Hat (synth)",clap:"808 Clap (synth)",tom:"808 Low Tom (synth)",ride:"808 Ride (synth)",crash:"808 Crash (synth)",perc:"808 Cowbell (synth)"});
+  const [smpN,setSmpN]=useState({kick:"KICK · 808 Classic [sample]",snare:"SNARE · 808 Classic [sample]",hihat:"HI-HAT · 808 Classic [sample]",clap:"CLAP · 808 Classic [sample]",tom:"TOM · 808 Classic [sample]",ride:"RIDE · 808 Classic [sample]",crash:"CRASH · 808 Classic [sample]",perc:"PERC · 808 Classic [sample]"});
   const [fx,setFx]=useState(Object.fromEntries(TRACKS.map(t=>[t.id,{...DEFAULT_FX}])));
   const [kitIdx,setKitIdx]=useState(0);
+  const kitIdxRef=useRef(0);kitIdxRef.current=kitIdx;
   const [showKitBrowser,setShowKitBrowser]=useState(false);
   const [showKitComposer,setShowKitComposer]=useState(false);
   const [userKits,setUserKits]=useState<UserKit[]>(()=>loadUserKitsMeta());
@@ -1544,6 +1545,21 @@ export default function KickAndSnare(){
     if(isAudioReady&&engine.ctx){
       engine.uGfx(gfxRef.current);
       engine.updateReverb(gfxRef.current.reverb?.decay??1.5,gfxRef.current.reverb?.size??0.5,gfxRef.current.reverb?.type||'room');
+      // Auto-load factory kit samples on first audio activation (kitIdx>=0 = factory kit active)
+      if(kitIdxRef.current>=0){
+        const fk=DRUM_KITS[kitIdxRef.current];
+        if(fk){
+          const ks=(fk as any).samples as Record<string,string>;
+          Object.entries(ks).forEach(([tid,url])=>{
+            if(url&&!(engine.buf as any)[tid])engine.loadUrl(tid,url).catch(()=>{});
+          });
+          setSmpN(prev=>{
+            const next={...prev};
+            ALL_TRACKS.forEach(tr=>{if(ks[tr.id])next[tr.id]=`${tr.label} · ${fk.name} [sample]`;});
+            return next;
+          });
+        }
+      }
     }
   },[isAudioReady]);
   // BPM sync for delay and ping-pong — recalculate time when BPM or syncDiv changes
