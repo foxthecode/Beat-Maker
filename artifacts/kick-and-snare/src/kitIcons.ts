@@ -10,5 +10,5 @@ export const SVG_LAUNCHPAD=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 export function drumKitSVG(_c:string):string{
   const base=(import.meta as any).env?.BASE_URL??'/';
   const url=`${base}drum-kit-icon.png`;
-  return `<img src="${url}" alt="drum kit" style="width:100%;height:100%;object-fit:contain;filter:invert(1);display:block;border-radius:2px;" />`;
+  return `<img src="${url}" alt="drum kit" style="width:100%;height:100%;object-fit:contain;display:block;border-radius:3px;" />`;
 }

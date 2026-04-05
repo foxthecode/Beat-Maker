@@ -3423,7 +3423,7 @@ export default function KickAndSnare(){
                 transition:"border-color 0.15s,background 0.15s",
               }}>
                 <div style={{position:"absolute",bottom:0,left:0,right:0,height:1.5,background:"linear-gradient(90deg,transparent,#FF9500,#FF2D55,transparent)",opacity:0.7}}/>
-                {curIcon.startsWith('<svg')
+                {curIcon.startsWith('<')
                   ?<span style={{display:'block',lineHeight:0,width:22,height:22,overflow:'hidden',flexShrink:0,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}} dangerouslySetInnerHTML={{__html:curIcon}}/>
                   :<span style={{fontSize:14,lineHeight:1.1,filter:"drop-shadow(0 0 4px rgba(255,149,0,0.5))"}}>{curIcon}</span>
                 }
