@@ -564,6 +564,12 @@ class Eng{
     this._rRunning=true;
     while(this._rQueue.length){
       const {id,fxObj,silent,res}=this._rQueue.shift();
+      // FIX J — On Android, OfflineAudioContext.startRendering() competes with the real-time
+      // AudioContext for CPU, causing audio degradation during the rendering window.
+      // A 400ms yield lets the software keyboard animation (~300ms) and React re-render
+      // complete before the CPU-intensive offline render starts.
+      // The Web Worker scheduler is unaffected (runs independently of the main thread).
+      if(this._isMobile)await new Promise(r=>setTimeout(r,400));
       await this._doRender(id,fxObj,silent);
       res();
     }
@@ -574,7 +580,11 @@ class Eng{
     this._rInProg.add(id);
     const sh={sDec:fxObj?.sDec??1,sTune:fxObj?.sTune??1,sPunch:fxObj?.sPunch??1,sSnap:fxObj?.sSnap??1,sBody:fxObj?.sBody??1,sTone:fxObj?.sTone??1};
     const baseDur={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
-    const dur=Math.min(6,(baseDur[id]||0.65)*Math.max(0.25,sh.sDec));
+    // FIX J — On mobile, reduce rendered duration by 40%: fewer samples = shorter render time
+    // = less CPU competition with the real-time audio thread.
+    // At 60% duration the tails are slightly shorter but drum sounds remain perceptually equivalent.
+    const durMul=this._isMobile?0.6:1.0;
+    const dur=Math.min(6,(baseDur[id]||0.65)*Math.max(0.25,sh.sDec)*durMul);
     try{
       const sr=this.ctx.sampleRate;
       const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
