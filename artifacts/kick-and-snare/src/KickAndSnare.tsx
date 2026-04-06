@@ -4122,7 +4122,7 @@ export default function KickAndSnare(){
                 </div>
 
                 {/* ── RIGHT: Concentric rings SVG — sticky so it stays visible while scrolling track controls ── */}
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flex:1,position:"sticky",top:8,alignSelf:"flex-start",...(isPortrait?{order:-1,marginBottom:8}:{})}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,...(isPortrait?{width:"100%",order:-1,marginBottom:8,position:"sticky",top:0,zIndex:5,background:themeName==="daylight"?"rgba(220,210,190,0.97)":"rgba(10,8,20,0.97)",paddingBottom:6}:{flex:1,position:"sticky",top:8,alignSelf:"flex-start"})}}>
                   <svg width={isPortrait?320:380} height={isPortrait?320:380} style={{display:"block",overflow:"visible"}}>
                     <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
                     {atO.map((tr,ti)=>{
