@@ -3887,8 +3887,10 @@ export default function KickAndSnare(){
 
         {/* ── EUCLID VIEW ── */}
         {view==="euclid"&&(()=>{
-          const CX=190,CY=190;
-          const R_OUT=162,R_IN=atO.length>1?38:148;
+          const svgSz=isPortrait?200:380;
+          const CX=svgSz/2,CY=svgSz/2;
+          const scale=svgSz/380;
+          const R_OUT=Math.round(162*scale),R_IN=atO.length>1?Math.round(38*scale):Math.round(148*scale);
           // E: Euclid tips rendered below the SVG (inside the IIFE so we can include them)
 
           const ringGap=atO.length>1?(R_OUT-R_IN)/(atO.length-1):0;
@@ -3996,12 +3998,12 @@ export default function KickAndSnare(){
           const val0={fontSize:11,fontWeight:800,cursor:"ns-resize",userSelect:"none",touchAction:"none",minWidth:22,textAlign:"center",flexShrink:0};
           const sep0={fontSize:10,color:th.faint,flexShrink:0};
           return(
-            <div style={{padding:"8px 0",overflowX:isPortrait?"visible":"auto"}}>
+            <div style={{padding:"8px 0",overflowX:"auto"}}>
               <TipBadge id="euclid_n" text="N = number of steps · HITS = number of sounds · Spin the wheel to create rhythms" color="#FFD60A"/>
               <TipBadge id="euclid_edit" text="Tap EDIT to easily place your sounds on the Euclidean grid" color="#30D158"/>
-              <div style={{display:"flex",flexDirection:isPortrait?"column":"row",gap:16,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
-                {/* ── LEFT: Track controls ── */}
-                <div style={{display:"flex",flexDirection:"column",gap:6,width:380,flexShrink:0}}>
+              <div style={{display:"flex",flexDirection:"row",gap:12,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
+                {/* ── LEFT: Track controls — scrolls with page ── */}
+                <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,minWidth:isPortrait?190:320}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
                     <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>EUCLIDIAN TRACKS</div>
                     <button data-hint={euclidEditMode?"EDIT mode active · Euclidean dots are enlarged and draggable · Click DONE to finish":"EDIT mode · Enlarges dots for precise placement · Click to activate"} onClick={()=>setEuclidEditMode(p=>!p)} style={{padding:"2px 8px",borderRadius:10,border:`1px solid ${euclidEditMode?"#30D158":"#FFD60A"}`,background:euclidEditMode?"#30D15818":"#FFD60A18",color:euclidEditMode?"#30D158":"#FFD60A",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}>{euclidEditMode?"DONE":"EDIT"}</button>
@@ -4124,9 +4126,9 @@ export default function KickAndSnare(){
                   }
                 </div>
 
-                {/* ── RIGHT: Concentric rings SVG — sticky so it stays visible while scrolling track controls ── */}
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,...(isPortrait?{width:"100%",order:-1,marginBottom:8,position:"sticky",top:0,zIndex:5,background:themeName==="daylight"?"rgba(220,210,190,0.97)":"rgba(10,8,20,0.97)",paddingBottom:6}:{flex:1,position:"sticky",top:8,alignSelf:"flex-start"})}}>
-                  <svg width={isPortrait?320:380} height={isPortrait?320:380} style={{display:"block",overflow:"visible"}}>
+                {/* ── RIGHT: Concentric rings SVG — always sticky on right ── */}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0,position:"sticky",top:8,alignSelf:"flex-start",zIndex:4}}>
+                  <svg width={isPortrait?200:380} height={isPortrait?200:380} style={{display:"block",overflow:"visible"}}>
                     <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
