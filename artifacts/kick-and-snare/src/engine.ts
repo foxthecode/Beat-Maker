@@ -20,6 +20,8 @@ class Eng{
     this._lookAhead=this._isMobile?0.30:0.10;
     // 60ms tick interval: less main-thread pressure than 50ms, still plenty of margin
     this._schedInterval=this._isMobile?60:25;
+    // KeepAlive AudioWorklet state — prevents audio thread from sleeping between hits
+    this._kaReady=false;this._kaNode=null;
   }
   init(){
     if(this.ctx)return;
@@ -159,6 +161,24 @@ class Eng{
     if(this.ctx.state==='suspended'){
       if(!this._resumeP)this._resumeP=this.ctx.resume().finally(()=>{this._resumeP=null;});
       await this._resumeP;
+    }
+    // Start KeepAlive once ctx is running — fire-and-forget, never blocks the audio path
+    if(!this._kaReady)this._initKeepAlive();
+  }
+  async _initKeepAlive(){
+    if(this._kaReady||!this.ctx)return;
+    this._kaReady=true; // set immediately to prevent concurrent calls
+    try{
+      // AudioWorklet runs in the audio rendering thread itself — keeps it pinned awake.
+      // Without this, Android OS suspends the thread during silence → underrun on next hit.
+      const base=(typeof import.meta!=='undefined'&&import.meta.env?.BASE_URL)||'/';
+      const url=base.endsWith('/')?`${base}keepalive-worklet.js`:`${base}/keepalive-worklet.js`;
+      await this.ctx.audioWorklet.addModule(url);
+      this._kaNode=new AudioWorkletNode(this.ctx,'ks-keepalive');
+      this._kaNode.connect(this.ctx.destination);
+      console.info('[Audio] KeepAlive worklet active — audio thread pinned');
+    }catch(e){
+      console.warn('[Audio] KeepAlive worklet unavailable (AudioWorklet not supported or blocked):',e);
     }
   }
   // Reverb IR par bruit blanc + décroissance exponentielle (approche Tone.js / Google Web Audio)
