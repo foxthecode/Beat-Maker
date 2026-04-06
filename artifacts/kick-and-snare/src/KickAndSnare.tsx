@@ -1817,7 +1817,10 @@ export default function KickAndSnare(){
       const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
       const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
       a.download=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
-      a.click();URL.revokeObjectURL(url);
+      a.style.display="none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
     }catch(e){console.error("Export WAV error",e);}
     setExportState("idle");
   };
@@ -1846,7 +1849,10 @@ export default function KickAndSnare(){
     const a=document.createElement("a");
     const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
     a.href=url;a.download=`ks-project-${ts}.ks.json`;
-    a.click();URL.revokeObjectURL(url);
+    a.style.display="none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
   };
 
   const loadProject=(file:File)=>{
