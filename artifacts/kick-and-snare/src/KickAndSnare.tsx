@@ -1170,7 +1170,9 @@ export default function KickAndSnare(){
   R.at=act;           // active track IDs — scheduler and MIDI iterate this list
   R.pb=pBank;         // full pattern bank — song arranger reads all patterns
   R.playing=playing;  // playback state — avoids stale closure on play/stop toggle
-  R.cp=cPat;          // current pattern index — scheduler reads for song chain
+  // In song mode with cPatLocked (user editing a different pattern), keep R.cp at the
+  // scheduler's position (written directly at lines ~1610/1640) rather than following cPat.
+  if(!(playing&&songMode&&cPatLocked.current)) R.cp=cPat;
   R.bpm=bpm;          // BPM — scheduler derives step duration each tick
   R.sw=swing;         // swing % — scheduler applies even/odd step offset
   R.rec=rec;          // record mode — trigPad writes live hits into pattern
