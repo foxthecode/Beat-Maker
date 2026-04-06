@@ -1117,6 +1117,8 @@ export default function KickAndSnare(){
   const perfDlHold=useRef(false);
   const perfRvPrevRef=useRef<{mix:number,decay:number,sends?:Record<string,number>}|null>(null);
   const perfDlPrevRef=useRef<{mix:number,time:number,fb:number,sends?:Record<string,number>}|null>(null);
+  const rvHoldReleaseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const dlHoldReleaseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const filterPosRef=useRef<Record<string,{x:number,y:number}>>({});
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
@@ -3783,6 +3785,8 @@ export default function KickAndSnare(){
             };
             const startRvHold=()=>{
               engine.init();if(perfRvHold.current)return;perfRvHold.current=true;
+              // Cancel any pending release-delay timer so it doesn't override the new hold.
+              if(rvHoldReleaseTimer.current){clearTimeout(rvHoldReleaseTimer.current);rvHoldReleaseTimer.current=null;}
               engine._rvHoldActive=true;
               const t2=engine.ctx?.currentTime??0;
               if(engine.gRvConv&&!engine.gRvConv.buffer&&engine.rv)engine.gRvConv.buffer=engine.rv;
@@ -3791,19 +3795,29 @@ export default function KickAndSnare(){
                 const curBus=engine.gRvBus?.gain.value??1;
                 const sends:Record<string,number>={};
                 Object.entries(engine.ch as Record<string,any>).forEach(([tid,c])=>{
-                  if(c?.rvSend){sends[tid]=c.rvSend.gain.value;c.rvSend.gain.setTargetAtTime(Math.max(c.rvSend.gain.value,0.45),t2,0.04);}
+                  if(c?.rvSend){
+                    const cur=c.rvSend.gain.value;sends[tid]=cur;
+                    // FIX G — cancel any uFx-scheduled decays already queued in the Web Audio timeline
+                    c.rvSend.gain.cancelScheduledValues(t2);
+                    c.rvSend.gain.setTargetAtTime(Math.max(cur,0.45),t2,0.04);
+                  }
                 });
                 perfRvPrevRef.current={mix:curBus*100,decay:2,sends};
+                engine.gRvBus?.gain.cancelScheduledValues(t2);
                 engine.gRvBus?.gain.setTargetAtTime(Math.min(2,curBus*2.0+0.6),t2,0.04);
               } else if(target&&engine.ch[target]?.rvSend){
                 const cur=engine.ch[target].rvSend.gain.value;
                 perfRvPrevRef.current={mix:cur*100,decay:2};
+                engine.ch[target].rvSend.gain.cancelScheduledValues(t2);
                 engine.ch[target].rvSend.gain.setTargetAtTime(Math.min(1,cur+0.55),t2,0.02);
               }
             };
             const stopRvHold=()=>{
               if(!perfRvHold.current)return;perfRvHold.current=false;
-              engine._rvHoldActive=false;
+              // FIX G — Don't release _rvHoldActive immediately.
+              // uFx() fires every scheduler tick (~60ms) and calls cancelScheduledValues(),
+              // which kills the smooth reverb return before it can fade. Keep the guard active
+              // for 280ms so the setTargetAtTime(tau=0.18) completes undisturbed.
               const t2=engine.ctx?.currentTime??0;
               const prev=perfRvPrevRef.current;
               if(isMaster){
@@ -3818,9 +3832,12 @@ export default function KickAndSnare(){
                 engine.ch[target].rvSend.gain.setTargetAtTime(prev.mix/100,t2,0.08);
               }
               perfRvPrevRef.current=null;
+              if(rvHoldReleaseTimer.current)clearTimeout(rvHoldReleaseTimer.current);
+              rvHoldReleaseTimer.current=setTimeout(()=>{engine._rvHoldActive=false;rvHoldReleaseTimer.current=null;},280);
             };
             const startDlHold=()=>{
               engine.init();if(perfDlHold.current)return;perfDlHold.current=true;
+              if(dlHoldReleaseTimer.current){clearTimeout(dlHoldReleaseTimer.current);dlHoldReleaseTimer.current=null;}
               engine._dlHoldActive=true;
               const t2=engine.ctx?.currentTime??0;
               const divMs=divToMs(stutterDiv);
@@ -3829,14 +3846,22 @@ export default function KickAndSnare(){
                 const curWet=engine.gDlWet?.gain.value??0;
                 const sends:Record<string,number>={};
                 Object.entries(engine.ch as Record<string,any>).forEach(([tid,c])=>{
-                  if(c?.dlSend){sends[tid]=c.dlSend.gain.value;c.dlSend.gain.setTargetAtTime(Math.max(c.dlSend.gain.value,0.45),t2,0.02);}
+                  if(c?.dlSend){
+                    const cur=c.dlSend.gain.value;sends[tid]=cur;
+                    // FIX G — cancel queued uFx decays so the boost isn't killed 60ms later
+                    c.dlSend.gain.cancelScheduledValues(t2);
+                    c.dlSend.gain.setTargetAtTime(Math.max(cur,0.45),t2,0.02);
+                  }
                 });
                 perfDlPrevRef.current={mix:curWet*100,time:engine.gDlL?.delayTime.value??0.25,fb:35,sends};
+                engine.gDlWet?.gain.cancelScheduledValues(t2);
                 engine.gDlWet?.gain.setTargetAtTime(Math.min(1,curWet+0.7),t2,0.02);
               } else if(target&&engine.ch[target]?.dlSend){
                 const cur=engine.ch[target].dlSend.gain.value;
                 perfDlPrevRef.current={mix:cur*100,time:engine.gDlL?.delayTime.value??0.25,fb:35};
+                engine.ch[target].dlSend.gain.cancelScheduledValues(t2);
                 engine.ch[target].dlSend.gain.setTargetAtTime(Math.min(1,cur+0.65),t2,0.02);
+                engine.gDlWet?.gain.cancelScheduledValues(t2);
                 engine.gDlWet?.gain.setTargetAtTime(0.7,t2,0.02);
               }
               if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000),t2,0.01);
@@ -3844,7 +3869,8 @@ export default function KickAndSnare(){
             };
             const stopDlHold=()=>{
               if(!perfDlHold.current)return;perfDlHold.current=false;
-              engine._dlHoldActive=false;
+              // FIX G (delay) — Mirror of the reverb fix: keep _dlHoldActive=true for 280ms
+              // so uFx() cancelScheduledValues() doesn't cut the smooth delay return.
               const t2=engine.ctx?.currentTime??0;
               const prev=perfDlPrevRef.current;
               if(isMaster){
@@ -3862,6 +3888,8 @@ export default function KickAndSnare(){
               if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,prev?.time??0.25),t2,0.05);
               if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(prev?.time??0.25)*1.006),t2,0.05);
               perfDlPrevRef.current=null;
+              if(dlHoldReleaseTimer.current)clearTimeout(dlHoldReleaseTimer.current);
+              dlHoldReleaseTimer.current=setTimeout(()=>{engine._dlHoldActive=false;dlHoldReleaseTimer.current=null;},280);
             };
             const startStutter=()=>{
               engine.init();
