@@ -338,7 +338,7 @@ export default function TransportBar({
         {/* Row 1 : Play | [< BPM >] [slider] | TAP | METRO */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {PlayBtn}
-          {!isPads && !isEuclid && RecBtn}
+          {RecBtn}
           {BpmCtrl}
           {TapBtn}
           {MetroBtn}
@@ -363,7 +363,7 @@ export default function TransportBar({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}`, flexWrap: "wrap" }}>
       {PlayBtn}
-      {!isPads && !isEuclid && RecBtn}
+      {RecBtn}
       {isPads && LooperControls}
       {BpmCtrl}
       {TapBtn}
