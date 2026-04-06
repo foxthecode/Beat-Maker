@@ -1527,9 +1527,12 @@ export default function KickAndSnare(){
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
       // ── Euclid: per-track clocks — each track advances independently ──
-      // All tracks are initialized at the same ct+0.05 and advance by the same
-      // sixteenth-note duration, so they naturally stay in sync.
+      // Use a larger lookahead (200ms min) so React render delays never cause notes
+      // to arrive past their scheduled time and be clamped to `now` (jitter).
       const sixteenth=(60/R.bpm)/4;
+      // eLA = at least 200ms — 8 scheduler ticks of buffer vs 4 with LA=100ms.
+      // This means the JS thread can be delayed up to 200ms before any note misfires.
+      const eLA=Math.max(LA,0.20);
       const at=R.at;const m=R.mut;const s=R.sol;
       (R.allT||ALL_TRACKS).forEach(tr=>{
         if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
@@ -1543,28 +1546,32 @@ export default function KickAndSnare(){
         }
         const ec=euclidClockR.current[tr.id];
         if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
-        // Fast-forward: skip steps older than 80ms to avoid note burst after tab sleep
-        if(ec.nextTime<ct-0.08){
-          const skip=Math.ceil((ct-0.08-ec.nextTime)/stepDur);
+        // Fast-forward: skip if more than 1 step behind (avoids burst after tab sleep)
+        if(ec.nextTime<ct-stepDur){
+          const skip=Math.ceil((ct-stepDur-ec.nextTime)/stepDur);
           if(skip>0){ec.step=(ec.step+skip)%N;ec.nextTime+=skip*stepDur;}
         }
-        while(ec.nextTime<ct+LA){
+        while(ec.nextTime<ct+eLA){
           const si=ec.step;
           const stepTime=ec.nextTime;
-          if(trPat[si]){
-            const sp=R.prob[tr.id]?.[si]??100;
-            if(Math.random()*100<sp){
-              const v=(R.vel[tr.id]?.[si]??100)/100;
-              const r=R.ratch[tr.id]?.[si]||1;
-              const nd=R.sn[tr.id]?.[si]||0;
-              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(stepDur/r));
-              R.flashPad?.(tr.id,Math.max(0,Math.round((stepTime-ct)*1000)-4));
+          // Skip notes already in the past — a missing beat is less disruptive than
+          // a note that fires immediately at the wrong time (the cause of jitter).
+          if(stepTime>=ct-0.005){
+            if(trPat[si]){
+              const sp=R.prob[tr.id]?.[si]??100;
+              if(Math.random()*100<sp){
+                const v=(R.vel[tr.id]?.[si]??100)/100;
+                const r=R.ratch[tr.id]?.[si]||1;
+                const nd=R.sn[tr.id]?.[si]||0;
+                for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(stepDur/r));
+                R.flashPad?.(tr.id,Math.max(0,Math.round((stepTime-ct)*1000)-4));
+              }
             }
+            // Delay cursor to match audio — cursor appears when sound plays, not when scheduled
+            const capTid=tr.id,capSi=si;
+            const aheadMs=Math.max(0,Math.round((stepTime-ct)*1000)-4);
+            setTimeout(()=>{if(!R.playing)return;euclidCurRef.current[capTid]=capSi;flushEuclidCur();},aheadMs);
           }
-          // Delay cursor to match audio — cursor appears when sound plays, not when scheduled
-          const capTid=tr.id,capSi=si;
-          const aheadMs=Math.max(0,Math.round((stepTime-ct)*1000)-4);
-          setTimeout(()=>{if(!R.playing)return;euclidCurRef.current[capTid]=capSi;flushEuclidCur();},aheadMs);
           ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;
         }
       });
@@ -1598,7 +1605,7 @@ export default function KickAndSnare(){
         // Init/resync to same origin as the global Euclid clock (ct+0.05).
         // Previously used em.songNextTime which was already 1 step ahead → metro was 1/16th late.
         if(!em.metroNext||em.metroNext<ct-0.5){em.metroNext=ct+0.05;em.metroBeat=0;}
-        while(em.metroNext<ct+LA){
+        while(em.metroNext<ct+eLA){
           playClk(em.metroNext,em.metroBeat===0?"accent":em.metroBeat%2===0?"beat":"sub");
           em.metroBeat=(em.metroBeat+1)%4;em.metroNext+=sxt;
         }
