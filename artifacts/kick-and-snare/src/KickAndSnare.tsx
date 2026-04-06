@@ -1113,22 +1113,12 @@ export default function KickAndSnare(){
   const _pbRef=useRef(null);const _epRef=useRef(null);const _svRef=useRef(null);const _snRef=useRef(null);const _spRef=useRef(null);const _srRef=useRef(null);
   const _akRef=useRef<string>('');const _kiRef=useRef<number>(0);const _smRef=useRef<Record<string,string>>({});const _ctRef=useRef<any[]>([]);const _acRef=useRef<string[]>([]);const _ukRef=useRef<UserKit[]>([]);
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
-  // Euclid polyrhythm — single global clock (all tracks advance together)
-  const euclidClockR=useRef({}); // kept for song-mode compat; actual timing via euclidGlobalRef
-  const euclidGlobalRef=useRef<{nextTime:number|null,globalStep:number}>({nextTime:null,globalStep:0});
-  // Fix 1: decouple visual from scheduler — ref for audio thread, state only for display
+  // Euclid polyrhythm — single global clock (all tracks advance in lock-step)
+  const euclidGlobalRef=useRef<{nextTime:number|null,globalTick:number}>({nextTime:null,globalTick:0});
+  // Write buffer for audio thread; display state for React re-render (one per scheduler tick)
   const euclidCurRef=useRef<Record<string,number>>({});
   const [euclidCurDisplay,setEuclidCurDisplay]=useState<Record<string,number>>({});
-  const euclidRAF=useRef<number|null>(null);
-  const euclidMetroR=useRef({nextTime:null,beat:0});
-  // Fix 1b: RAF-throttled display flush — never blocks the scheduler
-  const flushEuclidCur=useCallback(()=>{
-    if(euclidRAF.current)return;
-    euclidRAF.current=requestAnimationFrame(()=>{
-      euclidRAF.current=null;
-      setEuclidCurDisplay({...euclidCurRef.current});
-    });
-  },[]);
+  const euclidMetroR=useRef<any>({nextTime:null,beat:0});
   // ── Looper ──
   const [loopBars,setLoopBars]=useState(1);
   const [loopRec,setLoopRec]=useState(false);
@@ -1352,8 +1342,6 @@ export default function KickAndSnare(){
   },[playing,linkConnected,linkSyncPlay]);
   // Cleanup
   useEffect(()=>()=>{if(linkWsRef.current)linkWsRef.current.close();},[]);
-  // Fix 1c: cleanup euclidCur RAF on unmount
-  useEffect(()=>()=>{if(euclidRAF.current)cancelAnimationFrame(euclidRAF.current);},[]);
 
 
   // Keyboard shortcuts
@@ -1554,74 +1542,91 @@ export default function KickAndSnare(){
     const LA=engine._lookAhead;
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
-      // ── Euclid: per-track clocks — each track advances independently ──
-      // Use a larger lookahead (200ms min) so React render delays never cause notes
-      // to arrive past their scheduled time and be clamped to `now` (jitter).
       const sixteenth=(60/R.bpm)/4;
-      // eLA = at least 200ms — 8 scheduler ticks of buffer vs 4 with LA=100ms.
-      // This means the JS thread can be delayed up to 200ms before any note misfires.
-      const eLA=Math.max(LA,0.20);
       const at=R.at;const m=R.mut;const s=R.sol;
-      (R.allT||ALL_TRACKS).forEach(tr=>{
-        if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-        const trPat=R.pat?.[tr.id];
-        const N=trPat?.length||0;
-        if(!N)return;
-        const stepDur=sixteenth;
-        // Init / resync: create clock if missing, or reinit if stale (> 1 full cycle behind)
-        if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-N*stepDur){
-          euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05,curStep:-1};
-        }
-        const ec=euclidClockR.current[tr.id];
-        if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
-        while(ec.nextTime<ct+LA){
-          const si=ec.step;
-          if(R.pat?.[tr.id]?.[si]){
-            const sp=R.prob[tr.id]?.[si]??100;
+
+      // ── Horloge globale ancrée ───────────────────────────────────────────────
+      // Une seule origine temporelle. Tous les sons = startTime + tick * sixteenth.
+      // Garantit que les intervalles sont toujours des multiples entiers de sixteenth.
+      const eg=euclidGlobalRef.current;
+      if(eg.nextTime==null||eg.nextTime<ct-sixteenth){
+        eg.nextTime=ct;
+        eg.globalTick=0;
+        const resetCur:Record<string,number>={};
+        (R.allT||ALL_TRACKS).forEach(tr=>{resetCur[tr.id]=-1;});
+        setEuclidCurDisplay(resetCur);
+      }
+
+      // ── Boucle de scheduling ─────────────────────────────────────────────────
+      const eLA=Math.max(LA,0.20); // 200ms minimum — absorbe les délais React
+      const curSnapshot:Record<string,number>={...euclidCurRef.current};
+
+      while(eg.nextTime<ct+eLA){
+        const tickTime=eg.nextTime;
+        const globalTick=eg.globalTick;
+
+        (R.allT||ALL_TRACKS).forEach(tr=>{
+          if(!at.includes(tr.id))return;
+          if(s&&s!==tr.id)return;
+          if(m[tr.id])return;
+          const N=R.pb[R.cp]?._steps?.[tr.id]||(R.pat?.[tr.id]?.length)||16;
+          if(N<=0)return;
+          // Polyrhythme : chaque piste lit son propre index dans le cycle global
+          const stepIndex=globalTick%N;
+          curSnapshot[tr.id]=stepIndex;
+          if(R.pat?.[tr.id]?.[stepIndex]){
+            const sp=R.prob[tr.id]?.[stepIndex]??100;
             if(Math.random()*100<sp){
-              const v=(R.vel[tr.id]?.[si]??100)/100;
-              const r=R.ratch[tr.id]?.[si]||1;
-              const nd=R.sn[tr.id]?.[si]||0;
-              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},ec.nextTime+ri*(stepDur/r));
-              R.flashPad?.(tr.id,Math.max(0,Math.round((ec.nextTime-ct)*1000)-4));
+              const v=(R.vel[tr.id]?.[stepIndex]??100)/100;
+              const r=R.ratch[tr.id]?.[stepIndex]||1;
+              const nd=R.sn[tr.id]?.[stepIndex]||0;
+              for(let ri=0;ri<r;ri++)
+                engine.play(tr.id,v*(ri===0?1:0.65),ri===0?nd:0,R.fx[tr.id]||{...DEFAULT_FX},tickTime+ri*(sixteenth/r));
+              R.flashPad?.(tr.id,Math.max(0,Math.round((tickTime-ct)*1000)-4));
             }
           }
-          ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
-        }
-      });
-      // Song mode cycle tracking — runs always, independent of metro
-      // Advances the song chain every bar (gSt × sixteenth notes)
+        });
+
+        eg.globalTick++;
+        eg.nextTime=eg.nextTime+sixteenth; // addition directe — jamais accumulée depuis 0
+        dirty=true;
+      }
+
+      // Mise à jour visuelle des aiguilles — une seule fois par tick scheduler
+      if(dirty){
+        euclidCurRef.current=curSnapshot;
+        setEuclidCurDisplay({...curSnapshot});
+      }
+
+      // ── Song mode ──────────────────────────────────────────────────────────────
       {
         const em2=euclidMetroR.current;
         if(!em2.songNextTime||em2.songNextTime<ct-0.5){em2.songNextTime=ct+0.05;em2.songGlobalStep=0;}
         const barSteps=R.sig?.steps||16;
         while(em2.songNextTime<ct+LA){
           const prev=em2.songGlobalStep??0;
-          em2.songGlobalStep=((prev+1))%barSteps;
+          em2.songGlobalStep=(prev+1)%barSteps;
           if(em2.songGlobalStep===0&&prev>=0&&R.songMode&&R.songChain?.length>0){
             songPosRef.current=(songPosRef.current+1)%R.songChain.length;
             const nextPat=R.songChain[songPosRef.current];
             if(nextPat!==R.cp){
               R.cp=nextPat;setCPat(nextPat);
-              // Reset all Euclid track step counters so the new pattern starts from step 0.
-              Object.keys(euclidClockR.current).forEach(tid=>{
-                if(euclidClockR.current[tid])euclidClockR.current[tid].step=0;
-              });
+              // Réancrage du globalTick au changement de pattern
+              eg.globalTick=0;
+              eg.nextTime=em2.songNextTime;
             }
           }
           em2.songNextTime+=sixteenth;
         }
       }
-      // Metro in Euclid: Fix 3 — sync on same songNextTime base to prevent drift
+
+      // ── Métronome ──────────────────────────────────────────────────────────────
       if(R.metro){
-        const sxt=(60/R.bpm)/4; // sixteenth note
         const em=euclidMetroR.current;
-        // Init/resync to same origin as the global Euclid clock (ct+0.05).
-        // Previously used em.songNextTime which was already 1 step ahead → metro was 1/16th late.
         if(!em.metroNext||em.metroNext<ct-0.5){em.metroNext=ct+0.05;em.metroBeat=0;}
         while(em.metroNext<ct+eLA){
           playClk(em.metroNext,em.metroBeat===0?"accent":em.metroBeat%2===0?"beat":"sub");
-          em.metroBeat=(em.metroBeat+1)%4;em.metroNext+=sxt;
+          em.metroBeat=(em.metroBeat+1)%4;em.metroNext+=sixteenth;
         }
       }
       return;
@@ -1663,12 +1668,12 @@ export default function KickAndSnare(){
     // if(R.uiView==='pads'&&loopRef.current.events.length>0){ ... }
     if(playing){
       _stopScheduler();setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
-      euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidGlobalRef.current={nextTime:null,globalTick:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
       R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
       // Song arranger: reset to first pattern in chain so display + playback are in sync
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
-      euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidGlobalRef.current={nextTime:null,globalTick:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoopRef.current=schLoop;_startScheduler(engine._schedInterval);schLoop();setPlaying(true);
     }
   };
@@ -1889,7 +1894,7 @@ export default function KickAndSnare(){
       if(engine.ctx?.state==='suspended'){setCtxSuspended(true);return;}
       R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
-      euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidGlobalRef.current={nextTime:null,globalTick:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoopRef.current=schLoop;_startScheduler(engine._schedInterval);schLoop();setPlaying(true);setRec(true);
     });
   };
