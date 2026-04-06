@@ -1078,6 +1078,7 @@ export default function KickAndSnare(){
   const [showTS,setShowTS]=useState(false);
   const [flashing,setFlashing]=useState<Set<string>>(()=>new Set());
   const flashTimers=useRef<Record<string,ReturnType<typeof setTimeout>>>({});
+  const padBtnRefs=useRef<Record<string,HTMLButtonElement|null>>({});
   // Tracks which pad tids are currently held — prevents retap-erase re-trigger on long-press
   const padHeldRef=useRef<Set<string>>(new Set());
   // Race-condition guard for loadUserKit — incremented on each new load request
@@ -1409,8 +1410,23 @@ export default function KickAndSnare(){
     lastTrigRef.current=tid;
     if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
-    setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
-    flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
+    if(R.uiView==="pads"){
+      // DOM-direct flash — zero React re-render, instant visual on mobile
+      const btn=padBtnRefs.current[tid];
+      if(btn){
+        const track=(R.allT||[]).find((t:any)=>t.id===tid);
+        const c=track?.color||'#fff';
+        btn.style.background=`${c}55`;btn.style.borderColor=c;
+        btn.style.boxShadow=`0 0 40px ${c}66`;btn.style.transform='scale(0.95)';
+        flashTimers.current[tid]=setTimeout(()=>{
+          if(btn.isConnected){btn.style.background=`linear-gradient(145deg,${c}28,${c}08)`;btn.style.borderColor=`${c}44`;btn.style.boxShadow=`0 0 16px ${c}11`;btn.style.transform='scale(1)';}
+          delete flashTimers.current[tid];
+        },130);
+      }
+    } else {
+      setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
+      flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
+    }
     // LOOPER DISABLED
     // if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
     //   const L=loopRef.current;
@@ -1851,10 +1867,21 @@ export default function KickAndSnare(){
     };
     const json=JSON.stringify(project,null,2);
     const blob=new Blob([json],{type:"application/json"});
+    const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
+    const fname=`ks-project-${ts}.ks.json`;
+    const isIOS=/iP(hone|ad|od)/i.test(navigator.userAgent);
+    if(isIOS&&navigator.share){
+      // iOS Safari: <a download> silently fails — use Web Share API instead
+      const file=new File([blob],fname,{type:"application/json"});
+      navigator.share({files:[file],title:"Kick & Snare Project"}).catch(()=>{
+        // Share cancelled or not supported for files — open blob in new tab as fallback
+        const url=URL.createObjectURL(blob);window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),10000);
+      });
+      return;
+    }
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
-    a.href=url;a.download=`ks-project-${ts}.ks.json`;
+    a.href=url;a.download=fname;
     a.style.display="none";
     document.body.appendChild(a);
     a.click();
@@ -3535,6 +3562,7 @@ export default function KickAndSnare(){
                 {/* ── Pad tile ── */}
                 <div style={{position:"relative",height:"100%"}}>
                   <button
+                    ref={el=>{padBtnRefs.current[track.id]=el;}}
                     data-hint={`Pad ${track.label} · Press to trigger the sound${kMap[track.id]?` · Keyboard key: ${kMap[track.id].toUpperCase()}`:""}${smpN[track.id]?` · Sample: ${smpN[track.id]}`:" · Active kit sound"}`}
                     onContextMenu={e=>e.preventDefault()}
                     onTouchStart={e=>{
