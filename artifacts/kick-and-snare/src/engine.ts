@@ -14,7 +14,9 @@ class Eng{
     this._nodeCount=0;
     // Voice stealing — stores the last BufferSource+GainNode per track so rapid
     // retriggering of long samples (kick, crash, bass…) doesn't pile up and saturate.
-    this._lastVoice=new Map(); // id → {src, gain, stopAt}
+    this._lastVoice=new Map();     // id → {src, gain, stopAt}  — buffer voice stealing
+    this._lastSynthVg=new Map();  // id → {vg, stopAt}          — synthesis voice stealing
+    this._bpm=120;                // updated by setBpm(); used in _syn() for duration cap
     // PERFORM FX HOLD guards — set by React when a HOLD button is held.
     // While true, uFx() skips the matching send so the hold automation is not overwritten.
     this._rvHoldActive=false;
@@ -468,6 +470,7 @@ class Eng{
     }catch(e){console.warn('[Kit] loadUrl failed',id,url,e);return false;}
   }
   loadBuffer(id,buffer){this.init();if(!this.ch[id])this._build(id);this.buf[id]=buffer;}
+  setBpm(bpm){this._bpm=Math.max(30,bpm||120);}
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
     if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));}
@@ -536,49 +539,73 @@ class Eng{
   }
   _syn(id,t,v,d,octx,sh){
     const ctx=octx||this.ctx;
-    const sDec=sh?.sDec??1, sTune=sh?.sTune??1, sPunch=sh?.sPunch??1, sSnap=sh?.sSnap??1, sBody=sh?.sBody??1, sTone=sh?.sTone??1;
+    let sDec=sh?.sDec??1;
+    const sTune=sh?.sTune??1, sPunch=sh?.sPunch??1, sSnap=sh?.sSnap??1, sBody=sh?.sBody??1, sTone=sh?.sTone??1;
+    // ── Fix N: BPM-adaptive duration cap ─────────────────────────────────────
+    // At high BPM (>160), synthesis oscillators pile up faster than they expire.
+    // Cap sDec so each node runs for at most 5 step-durations. This limits the
+    // concurrent node count to ~5 per instrument instead of BPM/natural_dur.
+    // Only applies to the live AudioContext (not OfflineAudioContext renders).
+    if(!octx&&this._bpm>160){
+      const stepSec=(60/this._bpm)/4;
+      const cap=Math.max(0.06,stepSec*5)/1.0; // 5 steps max, baseline sDec=1
+      sDec=Math.min(sDec,cap);
+    }
+    // ── Fix N: per-call voice gain for synthesis voice stealing ───────────────
+    // All synthesis nodes connect to vg instead of d directly.
+    // When the same track retriggers, the previous vg is faded to 0 in 3ms,
+    // silencing old oscillators without the double-stop exception problem.
+    const vg=ctx.createGain();vg.gain.setValueAtTime(1,t||ctx.currentTime);vg.connect(d);
+    if(!octx){
+      const prev=this._lastSynthVg.get(id);
+      if(prev&&prev.stopAt>(this.ctx?.currentTime??0)){
+        try{prev.vg.gain.cancelScheduledValues(this.ctx.currentTime);prev.vg.gain.setTargetAtTime(0,this.ctx.currentTime,0.003);}catch(_){}
+      }
+      const baseDurMap={kick:1.2,snare:0.28,hihat:0.1,clap:0.28,tom:0.65,ride:0.45,crash:1.6,perc:0.65};
+      this._lastSynthVg.set(id,{vg,stopAt:t+(baseDurMap[id]||0.65)*sDec});
+    }
     const noise=(dur)=>{const b=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*dur),ctx.sampleRate),dd=b.getChannelData(0);for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;const s=ctx.createBufferSource();s.buffer=b;return s;};
     const osc=(type,freq)=>{const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);return o;};
     const gain=(val)=>{const g=ctx.createGain();g.gain.setValueAtTime(val,t);return g;};
     const filt=(type,freq,q=0)=>{const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;return f;};
     const S={
       kick:()=>{
-        const click=noise(0.005);const cg=gain(v*0.6*sPunch);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);const chp=filt("highpass",100);click.connect(chp);chp.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.007);
-        const o=osc("sine",180*sTune);o.frequency.exponentialRampToValueAtTime(Math.max(20,28*sTune),t+0.9*sDec);const g=gain(v*1.5*sBody);g.gain.exponentialRampToValueAtTime(0.001,t+1.1*sDec);o.connect(g);g.connect(d);o.start(t);o.stop(t+1.15*sDec);
+        const click=noise(0.005);const cg=gain(v*0.6*sPunch);cg.gain.exponentialRampToValueAtTime(0.001,t+0.006);const chp=filt("highpass",100);click.connect(chp);chp.connect(cg);cg.connect(vg);click.start(t);click.stop(t+0.007);
+        const o=osc("sine",180*sTune);o.frequency.exponentialRampToValueAtTime(Math.max(20,28*sTune),t+0.9*sDec);const g=gain(v*1.5*sBody);g.gain.exponentialRampToValueAtTime(0.001,t+1.1*sDec);o.connect(g);g.connect(vg);o.start(t);o.stop(t+1.15*sDec);
       },
       snare:()=>{
-        const o=osc("sine",200*sTune);o.frequency.exponentialRampToValueAtTime(150*sTune,t+0.06*sDec);const og=gain(v*0.6*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+0.14*sDec);o.connect(og);og.connect(d);o.start(t);o.stop(t+0.15*sDec);
-        const ns=noise(0.22*sDec);const bp=filt("bandpass",2400*sTone,0.6);const ng=gain(v*0.85*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+0.22*sDec);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+0.23*sDec);
+        const o=osc("sine",200*sTune);o.frequency.exponentialRampToValueAtTime(150*sTune,t+0.06*sDec);const og=gain(v*0.6*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+0.14*sDec);o.connect(og);og.connect(vg);o.start(t);o.stop(t+0.15*sDec);
+        const ns=noise(0.22*sDec);const bp=filt("bandpass",2400*sTone,0.6);const ng=gain(v*0.85*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+0.22*sDec);ns.connect(bp);bp.connect(ng);ng.connect(vg);ns.start(t);ns.stop(t+0.23*sDec);
       },
       hihat:()=>{
-        const decay=0.045*sDec;const mg=gain(1);mg.connect(d);
+        const decay=0.045*sDec;const mg=gain(1);mg.connect(vg);
         const freqs=this._isMobile?[80,167,273,329]:[80,119,167,219,273,329];
         freqs.map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.06);og.gain.exponentialRampToValueAtTime(0.001,t+decay);o.connect(og);og.connect(mg);o.start(t);o.stop(t+decay+0.001);});
-        const ns=noise(decay);const hp=filt("highpass",8000*sTone);const ng=gain(v*0.18*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+decay);ns.connect(hp);hp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+decay+0.001);
+        const ns=noise(decay);const hp=filt("highpass",8000*sTone);const ng=gain(v*0.18*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+decay);ns.connect(hp);hp.connect(ng);ng.connect(vg);ns.start(t);ns.stop(t+decay+0.001);
       },
       clap:()=>{
         const offsets=this._isMobile?[0,0.018]:[0,0.009,0.018,0.028];
-        offsets.map(off=>off*sSnap).forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55*sPunch);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55*sPunch,t+Math.max(0.0001,off));g.gain.exponentialRampToValueAtTime(0.001,t+Math.max(0.001,off)+0.012);ns.connect(bp);bp.connect(g);g.connect(d);ns.start(t+Math.max(0,off));ns.stop(t+Math.max(0,off)+0.015);});
-        const tailDur=0.2*sDec;const tail=noise(tailDur);const bp2=filt("bandpass",1000,0.8);const tg=gain(v*0.45*sBody);tg.gain.setValueAtTime(0,t);tg.gain.setValueAtTime(v*0.45*sBody,t+0.04);tg.gain.exponentialRampToValueAtTime(0.001,t+tailDur);tail.connect(bp2);bp2.connect(tg);tg.connect(d);tail.start(t+0.04);tail.stop(t+tailDur+0.01);
+        offsets.map(off=>off*sSnap).forEach(off=>{const ns=noise(0.012);const bp=filt("bandpass",1200,1.5);const g=gain(v*0.55*sPunch);g.gain.setValueAtTime(0,t);g.gain.setValueAtTime(v*0.55*sPunch,t+Math.max(0.0001,off));g.gain.exponentialRampToValueAtTime(0.001,t+Math.max(0.001,off)+0.012);ns.connect(bp);bp.connect(g);g.connect(vg);ns.start(t+Math.max(0,off));ns.stop(t+Math.max(0,off)+0.015);});
+        const tailDur=0.2*sDec;const tail=noise(tailDur);const bp2=filt("bandpass",1000,0.8);const tg=gain(v*0.45*sBody);tg.gain.setValueAtTime(0,t);tg.gain.setValueAtTime(v*0.45*sBody,t+0.04);tg.gain.exponentialRampToValueAtTime(0.001,t+tailDur);tail.connect(bp2);bp2.connect(tg);tg.connect(vg);tail.start(t+0.04);tail.stop(t+tailDur+0.01);
       },
       tom:()=>{
-        const dur=0.55*sDec;const o=osc("sine",200*sTune);o.frequency.exponentialRampToValueAtTime(Math.max(20,65*sTune),t+0.45*sDec);const g=gain(v*1.0*sBody);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(d);o.start(t);o.stop(t+dur+0.01);
-        const click=noise(0.005);const cg=gain(v*0.3*sPunch);cg.gain.exponentialRampToValueAtTime(0.001,t+0.007);click.connect(cg);cg.connect(d);click.start(t);click.stop(t+0.008);
+        const dur=0.55*sDec;const o=osc("sine",200*sTune);o.frequency.exponentialRampToValueAtTime(Math.max(20,65*sTune),t+0.45*sDec);const g=gain(v*1.0*sBody);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(vg);o.start(t);o.stop(t+dur+0.01);
+        const click=noise(0.005);const cg=gain(v*0.3*sPunch);cg.gain.exponentialRampToValueAtTime(0.001,t+0.007);click.connect(cg);cg.connect(vg);click.start(t);click.stop(t+0.008);
       },
       ride:()=>{
-        const dur=0.35*sDec;const mg=gain(1);mg.connect(d);[5500,7280].map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.07);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
-        const ns=noise(dur);const bp=filt("bandpass",5200*sTone,1.2);const ng=gain(v*0.15*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+dur);ns.connect(bp);bp.connect(ng);ng.connect(d);ns.start(t);ns.stop(t+dur+0.01);
+        const dur=0.35*sDec;const mg=gain(1);mg.connect(vg);[5500,7280].map(f=>f*sTone).forEach(f=>{const o=osc("square",f);const og=gain(v*0.07);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
+        const ns=noise(dur);const bp=filt("bandpass",5200*sTone,1.2);const ng=gain(v*0.15*sSnap);ng.gain.exponentialRampToValueAtTime(0.001,t+dur);ns.connect(bp);bp.connect(ng);ng.connect(vg);ns.start(t);ns.stop(t+dur+0.01);
       },
       crash:()=>{
-        const dur=1.4*sDec;const ns=noise(dur);const hp=filt("highpass",2800*sTone);const bp=filt("bandpass",7000*sTone,0.5);const g=gain(v*0.5);g.gain.exponentialRampToValueAtTime(0.001,t+dur);ns.connect(hp);hp.connect(bp);bp.connect(g);g.connect(d);ns.start(t);ns.stop(t+dur+0.01);
+        const dur=1.4*sDec;const ns=noise(dur);const hp=filt("highpass",2800*sTone);const bp=filt("bandpass",7000*sTone,0.5);const g=gain(v*0.5);g.gain.exponentialRampToValueAtTime(0.001,t+dur);ns.connect(hp);hp.connect(bp);bp.connect(g);g.connect(vg);ns.start(t);ns.stop(t+dur+0.01);
       },
       perc:()=>{
-        const dur=0.5*sDec;const mg=gain(1);mg.connect(d);
+        const dur=0.5*sDec;const mg=gain(1);mg.connect(vg);
         [562,845].map(f=>f*sTune).forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.25*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
       },
     };
     if(!S[id]){
-      const dur=0.55*sDec;const mg=gain(1);mg.connect(d);const shift=(id.length>3?id.charCodeAt(3):id.charCodeAt(0))%5;
+      const dur=0.55*sDec;const mg=gain(1);mg.connect(vg);const shift=(id.length>3?id.charCodeAt(3):id.charCodeAt(0))%5;
       const[fa,fb]=([[520,800],[562,845],[600,900],[480,760],[640,960]][shift]||[640,960]);
       [fa*sTune,fb*sTune].forEach(f=>{const o=osc("square",f);const bp=filt("bandpass",f,6);const og=gain(v*0.28*sBody);og.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(bp);bp.connect(og);og.connect(mg);o.start(t);o.stop(t+dur+0.01);});
       return;

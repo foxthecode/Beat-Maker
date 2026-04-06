@@ -883,6 +883,8 @@ export default function KickAndSnare(){
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
   },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
+  // Fix N — keep engine BPM in sync so _syn() can cap synthesis durations at high BPM
+  useEffect(()=>{engine.setBpm(bpm);},[bpm]);
   // Apply gfx the moment the audio engine first becomes ready (e.g. preset loaded before first play)
   const gfxRef=useRef(gfx);
   useEffect(()=>{gfxRef.current=gfx;},[gfx]);
