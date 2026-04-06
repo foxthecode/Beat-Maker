@@ -3,14 +3,19 @@ import { TRACKS } from './constants';
 // ═══ Audio Engine ════════════════════════════════════════════════════════════
 class Eng{
   constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};this._rvKey='';
-    this._isMobile=/Android|iPhone|iPad/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
-    this._isAndroid=/Android/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
+    const _ua=typeof navigator!=='undefined'?navigator.userAgent:'';
+    // iPadOS 13+ reports as "Macintosh" — detect via maxTouchPoints
+    const _isIpadOS=/Macintosh/.test(_ua)&&typeof navigator!=='undefined'&&navigator.maxTouchPoints>1;
+    this._isMobile=/Android|iPhone|iPad/i.test(_ua)||_isIpadOS;
+    this._isAndroid=/Android/i.test(_ua);
     this._rInProg=new Set();
     this._rQueue=[];
     this._rRunning=false;
     this._nodeCount=0;
-    this._lookAhead=this._isMobile?0.25:0.1;
-    this._schedInterval=this._isMobile?50:25;
+    // 300ms look-ahead on mobile: absorbs browser jitter and iOS scheduler throttling
+    this._lookAhead=this._isMobile?0.30:0.10;
+    // 60ms tick interval: less main-thread pressure than 50ms, still plenty of margin
+    this._schedInterval=this._isMobile?60:25;
   }
   init(){
     if(this.ctx)return;
@@ -36,7 +41,7 @@ class Eng{
       this.ctx.addEventListener('statechange',()=>{if(this.ctx.state==='running')diagFn();},{once:true});
     }
     this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
-    this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample='4x';
+    this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample=this._isMobile?'2x':'4x';
     this.gDrv.curve=this._buildCurve('tanh',0);
     this.gCmp=this.ctx.createDynamicsCompressor();
     this.gCmp.threshold.value=0;this.gCmp.ratio.value=1;
@@ -122,7 +127,7 @@ class Eng{
     this.gPpDlL.connect(this.gPpPanL);this.gPpDlR.connect(this.gPpPanR);
     this.gPpPanL.connect(this.gOut);this.gPpPanR.connect(this.gOut);
     this.gAnalyser=this.ctx.createAnalyser();
-    this.gAnalyser.fftSize=512;this.gAnalyser.smoothingTimeConstant=0.8;
+    this.gAnalyser.fftSize=this._isMobile?256:512;this.gAnalyser.smoothingTimeConstant=0.8;
     this.gOut.connect(this.gAnalyser);
     this._mkRv(2,0.5,'room');this._rvKey='2|0.5|room';
     if(this.gRvConv)this.gRvConv.buffer=this.rv; // assigne immédiatement — sinon le convolver produit du silence
@@ -210,7 +215,7 @@ class Eng{
     c.tsAtk=this.ctx.createGain();c.tsAtk.gain.value=1;
     c.drv=this.ctx.createWaveShaper();
     c.drv.curve=this._buildCurve('tanh',0);
-    c.drv.oversample='2x';
+    c.drv.oversample=this._isMobile?'none':'2x';
     c.flt=this.ctx.createBiquadFilter();
     c.flt.type='lowpass';c.flt.frequency.value=20000;c.flt.Q.value=0;
     c.vol=this.ctx.createGain();c.vol.gain.value=0.8;
@@ -319,7 +324,7 @@ class Eng{
   _buildCurve(mode='tanh',amt=0){
     const key=mode+'_'+Math.round(amt*100);
     if(this._c[key])return this._c[key];
-    const n=8192,a=new Float32Array(n),d=amt;
+    const n=this._isMobile?4096:8192,a=new Float32Array(n),d=amt;
     for(let i=0;i<n;i++){
       const x=i*2/n-1;
       if(mode==='tanh'){
@@ -428,16 +433,16 @@ class Eng{
     if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
     if(this._isMobile&&this.gRvBus){
       const ct2=this.ctx.currentTime;
-      if(this._nodeCount>=24&&this.gRvBus.gain.value>0.01){
+      if(this._nodeCount>=16&&this.gRvBus.gain.value>0.01){
         this.gRvBus.gain.cancelScheduledValues(ct2);
         this.gRvBus.gain.setTargetAtTime(0,ct2,0.015);
-      }else if(this._nodeCount<16&&this.gRvBus.gain.value<0.99){
+      }else if(this._nodeCount<10&&this.gRvBus.gain.value<0.99){
         this.gRvBus.gain.cancelScheduledValues(ct2);
         this.gRvBus.gain.setTargetAtTime(1,ct2,0.15);
       }
     }
     if(this.buf[id]){
-      if(this._isMobile&&this._nodeCount>=32){return;}
+      if(this._isMobile&&this._nodeCount>=24){return;}
       this._nodeCount++;
       const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);
       if(this._isMobile){
