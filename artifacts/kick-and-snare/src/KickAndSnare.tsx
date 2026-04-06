@@ -2927,8 +2927,8 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",position:"relative",marginBottom:4,padding:"4px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
-            <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s",background:"#fff"}}>
-              <img src={`${import.meta.env.BASE_URL}fox-logo.jpg`} alt="Kick & Snare" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+            <div data-hint={`Logo · Pulse on every downbeat — shows audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s",background:"#FF6A00"}}>
+              <img src={`${import.meta.env.BASE_URL}fox-logo.jpg`} alt="Kick & Snare" style={{width:"100%",height:"100%",objectFit:"cover",display:"block",mixBlendMode:"multiply"}}/>
             </div>
             <div style={{flexShrink:0}}>
               <div className="gradientShift" style={{fontSize:20,fontWeight:900,letterSpacing:"0.08em",whiteSpace:"nowrap",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
