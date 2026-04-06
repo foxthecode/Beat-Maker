@@ -942,7 +942,7 @@ export default function KickAndSnare(){
     const toPads=nextView==="pads";
 
     // ── Stop ONLY on direct seq↔euclid; never when pads is involved (either side) ──
-    if(!fromPads&&!toPads&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
+    if(!fromPads&&!toPads&&R.playing){_stopScheduler();setPlaying(false);setCStep(-1);R.step=-1;}
     // ── Metro: disable only on seq↔euclid when not playing ──
     if(!fromPads&&!toPads&&!R.playing)setMetro(false);
 
@@ -955,7 +955,7 @@ export default function KickAndSnare(){
       // act stays untouched — pads show exactly the same tracks as the source view
     } else if(fromPads){
       const crossView=nextView!==padSrcViewRef.current;
-      if(crossView&&R.playing){clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;}
+      if(crossView&&R.playing){_stopScheduler();setPlaying(false);setCStep(-1);R.step=-1;}
       if(crossView){
         // ── Different source → restore the target view's saved state ──
         if(nextView==="euclid"){
@@ -1477,6 +1477,34 @@ export default function KickAndSnare(){
   const isGS=(step,groups,accents=[0])=>{let a=0;for(let g=0;g<groups.length;g++){if(step===a)return{y:true,f:accents.includes(g)};a+=groups[g];}return{y:false,f:false};};
 
   const nxtRef=useRef(0);const schRef=useRef(null);
+  // Worker-based scheduler: immune to iframe timer throttling by the browser
+  const workerRef=useRef<Worker|null>(null);
+  const schLoopRef=useRef<()=>void>(()=>{});
+
+  const _stopScheduler=useCallback(()=>{
+    if(workerRef.current){workerRef.current.postMessage({type:'stop'});workerRef.current.terminate();workerRef.current=null;}
+    clearTimeout(schRef.current);schRef.current=null;
+  },[]);
+
+  const _startScheduler=useCallback((interval:number)=>{
+    _stopScheduler();
+    try{
+      const blob=new Blob([
+        'var id=null;self.onmessage=function(e){'+
+        'if(e.data.type==="start"){if(id)clearInterval(id);id=setInterval(function(){self.postMessage("tick");},e.data.interval);}'+
+        'else if(e.data.type==="stop"){if(id){clearInterval(id);id=null;}}};'
+      ],{type:'text/javascript'});
+      const url=URL.createObjectURL(blob);
+      const w=new Worker(url);
+      URL.revokeObjectURL(url);
+      w.onmessage=()=>{if(R.playing)schLoopRef.current();};
+      w.postMessage({type:'start',interval});
+      workerRef.current=w;
+    }catch{
+      // Fallback: use drift-compensated setTimeout if Worker creation fails
+      schRef.current=setTimeout(()=>schLoopRef.current(),interval);
+    }
+  },[_stopScheduler]);
   const schSt=useCallback((sn,time)=>{
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
     const prob=R.prob,ratch=R.ratch,cs=R.sig;
@@ -1553,24 +1581,6 @@ export default function KickAndSnare(){
         }
         while(ec.nextTime<ct+LA){
           const si=ec.step;
-
-          // ── DIAGNOSTIC TIMING ──────────────────────────────────────────────────
-          if(typeof (ec as any)._diagLast === 'number'){
-            const interval=(ec.nextTime-(ec as any)._diagLast)*1000;
-            const expected=stepDur*1000;
-            const drift=interval-expected;
-            if(Math.abs(drift)>2){
-              console.warn(
-                `[EUCLID DRIFT] track=${tr.id} step=${si}/${N}` +
-                ` interval=${interval.toFixed(2)}ms expected=${expected.toFixed(2)}ms` +
-                ` drift=${drift>0?'+':''}${drift.toFixed(2)}ms` +
-                ` bpm=${R.bpm} ct=${ct.toFixed(4)}`
-              );
-            }
-          }
-          (ec as any)._diagLast = ec.nextTime;
-          // ── FIN DIAGNOSTIC ─────────────────────────────────────────────────────
-
           if(R.pat?.[tr.id]?.[si]){
             const sp=R.prob[tr.id]?.[si]??100;
             if(Math.random()*100<sp){
@@ -1619,7 +1629,6 @@ export default function KickAndSnare(){
           em.metroBeat=(em.metroBeat+1)%4;em.metroNext+=sxt;
         }
       }
-      {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
       return;
     }
     // ── Linear / Pads: global step scheduler ──
@@ -1642,8 +1651,10 @@ export default function KickAndSnare(){
       // Sync visual cursor to audio: fire setCStep at the actual scheduled time (not lookahead)
       {const sn=R.step;const ahead=Math.max(0,Math.round((st-ct)*1000)-4);setTimeout(()=>setCStep(sn),ahead);}
     }
-    {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
   },[schSt]);
+  // Keep schLoopRef current so the worker's onmessage always calls the latest schLoop
+  // (avoids stale closures when schSt or other deps change during playback)
+  useEffect(()=>{schLoopRef.current=schLoop;},[schLoop]);
 
   const startStop=async()=>{
     await engine.ensureRunning();
@@ -1656,14 +1667,14 @@ export default function KickAndSnare(){
     // LOOPER DISABLED — looper routing removed, pads PLAY goes to sequencer
     // if(R.uiView==='pads'&&loopRef.current.events.length>0){ ... }
     if(playing){
-      clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
+      _stopScheduler();setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
       euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
       R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
       // Song arranger: reset to first pattern in chain so display + playback are in sync
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
-      schLoop();setPlaying(true);
+      schLoopRef.current=schLoop;_startScheduler(engine._schedInterval);schLoop();setPlaying(true);
     }
   };
   ssRef.current=startStop;
@@ -1884,10 +1895,10 @@ export default function KickAndSnare(){
       R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
-      schLoop();setPlaying(true);setRec(true);
+      schLoopRef.current=schLoop;_startScheduler(engine._schedInterval);schLoop();setPlaying(true);setRec(true);
     });
   };
-  useEffect(()=>()=>clearTimeout(schRef.current),[]);
+  useEffect(()=>()=>_stopScheduler(),[]);
 
   // FIX 4 — visibilitychange: resume AudioContext + restart schedulers on foreground return
   // Note: loopSchedFn reads only from refs so any captured version works — [] deps is intentional
@@ -1899,9 +1910,10 @@ export default function KickAndSnare(){
           try{await engine.ctx.resume();setCtxSuspended(false);}
           catch{setCtxSuspended(true);}
         }
-        if(R.playing&&!schRef.current){
-          nxtRef.current=engine.ctx.currentTime+0.05;
-          schLoop();
+        // Worker-based scheduler keeps running in background; only restart if somehow stopped
+        if(R.playing&&!workerRef.current){
+          schLoopRef.current=schLoop;
+          _startScheduler(engine._schedInterval);
         }
         if(loopRef.current.audioStart!==null&&!loopRef.current.schTimer){
           loopSchedFn();
@@ -1912,9 +1924,9 @@ export default function KickAndSnare(){
         }
       }
       if(document.visibilityState==='hidden'){
-        // Never stop schedulers while looper is recording — a brief hide (OS notification,
-        // iframe blur, etc.) must not kill an in-progress recording pass.
-        if(R.playing&&!R.loopRec){clearTimeout(schRef.current);schRef.current=null;}
+        // Worker-based scheduler keeps running in background — no need to stop it.
+        // The audio engine (WebAudio) is hardware-timed and immune to throttling.
+        // We only stop the legacy looper scheduler (not worker-based).
         if(loopRef.current.audioStart!==null&&!R.loopRec){
           clearTimeout(loopRef.current.schTimer);loopRef.current.schTimer=null;
         }

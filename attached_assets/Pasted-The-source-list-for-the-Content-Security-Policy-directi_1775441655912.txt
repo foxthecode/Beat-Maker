@@ -1,0 +1,3381 @@
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+ stallwart: failed ping 1
+/@Fox-Burrow/Beat-Maker:1 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.
+00bo3mlkmjr8z.js:21 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+00bo3mlkmjr8z.js:21 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+00bo3mlkmjr8z.js:21 [LaunchDarkly] LaunchDarkly client initialized
+www.facebook.com/tr/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775433173017&sw=1440&sh=900&v=2.9.281&r=stable&ec=0&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[title]=Loading...%20-%20Replit&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&expv2[7]=pt0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+ Unrecognized feature: 'ambient-light-sensor'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'battery'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'execution-while-not-rendered'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'execution-while-out-of-viewport'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'layout-animations'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'legacy-image-formats'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'navigation-override'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'oversized-images'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'publickey-credentials'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'speaker-selection'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'unoptimized-images'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'unsized-media'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'pointer-lock'.
+C @ 0i8wy8tbht2ow.js:2
+ Allow attribute will take precedence over 'allowfullscreen'.
+C @ 0i8wy8tbht2ow.js:2
+ Allow attribute will take precedence over 'allowpaymentrequest'.
+C @ 0i8wy8tbht2ow.js:2
+/@Fox-Burrow/Beat-Maker:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+workspace_iframe.html:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html:32 Unrecognized feature: 'battery'.
+workspace_iframe.html:32 Unrecognized feature: 'battery'.
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+workspace_iframe.html:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775433179441&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20Tab-module__TVf9ZW__tabButton%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22Git%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=Git&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=1&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:4265
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:4265
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775433181207&cd[buttonFeatures]=%7B%22classList%22%3A%22RemoteURLFromBranch-module__akOZmq__remoteUrl%20Button-module__nDccya__button%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-pressed%3Ashades-up-2%20_sdz_surface-border%20_sdz_surface-border-strength-strong%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22https%3A%2F%2Fgithub.com%2Ffoxthecode%2FBeat-Maker%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22foxthecode%2FBeat-Maker%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22a%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%7D&cd[buttonText]=foxthecode%2FBeat-Maker&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=2&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775433992672:4267
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775433992672:4267
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434007523:4274
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434007523:4274
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434022487:4277
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434022487:4277
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434032750:4276
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434032750:4276
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434042102:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434042102:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434052336:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434052336:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434063027:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434063027:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434072143:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434072143:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434079810:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434079810:4279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434101470:4280
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434101470:4280
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434110992:4281
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434110992:4281
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434119973:4282
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775434119973:4282
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:4282
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:4282
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775434192879&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20Tab-module__TVf9ZW__tabButton%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22Preview%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=Preview&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=3&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775434207057&cd[buttonFeatures]=%7B%22classList%22%3A%22IconButton-module__eEtQNq__root%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22https%3A%2F%2Fdf4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev%2F%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22New%20tab%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22a%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%7D&cd[buttonText]=New%20tab&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=4&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775434592207&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20ExpandableFeedContent-module__mkQqzq__expandableButton%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%2216%20messages%20%26%2061%20actions%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=0%20messages%20%26%200%20actions&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=5&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775434598548&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20ExpandableFeedContent-module__mkQqzq__expandableButton%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%221%20message%20%26%201%20action%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=0%20message%20%26%200%20action&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=6&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/src/KickAndSnare.tsx?t=1775435027647:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/src/KickAndSnare.tsx?t=1775435027647:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/src/KickAndSnare.tsx?t=1775435039721:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/src/KickAndSnare.tsx?t=1775435039721:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/src/KickAndSnare.tsx?t=1775435126514:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/src/KickAndSnare.tsx?t=1775435126514:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435139037:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435139037:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435184381:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435184381:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435199982:3288
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435199982:3288
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435209044:3292
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435209044:3292
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435214001:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435214001:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3296
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775435544404&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20ExpandableFeedContent-module__mkQqzq__expandableButton%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%2222%20messages%20%26%2096%20actions%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=0%20messages%20%26%200%20actions&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=7&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775435557490&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20ExpandableFeedContent-module__mkQqzq__expandableButton%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%2222%20messages%20%26%2096%20actions%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=0%20messages%20%26%200%20actions&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=8&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435610843:3277
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435610843:3277
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435617845:3277
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435617845:3277
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435634703:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435634703:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435642413:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435642413:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435648588:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435648588:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435655757:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435655757:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3279
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3279
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ stallwart: failed ping 1
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ <Section> is deprecated. Please use <MenuSection> instead.
+(anonymous) @ 00bo3mlkmjr8z.js:21
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435986688:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775435986688:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3286
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3286
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+gravatar.com/avatar/1b3cf2de11d108d153423c5e70887ce3?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/cb84d743bbe37d6f8cc736d1dd548c60?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+0z9zlignr3i92.js:2 WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0z9zlignr3i92.js:2
+0u~m5gbfwrvdx.js:2 WebSocket connection to 'wss://eval.worf.platform.replit.com/wsv2/v2.public.Q2dZSWlvVE16Z1lTQmdpcG9Nek9CaUlFZDI5eVpqQUFPdXNCQ2lSa1pqUXlPRGhtT1MwMVpqSm1MVFJpTmpjdE9ETXlNQzFtT0dJek56azVOakl4TnpRU0EyNXBlQm9XY21Wd2JHbDBMWEpsY0d3dFptbHNaWE10ZDI5eVppSUtRbVZoZEMxTllXdGxjaW9LUm05NExVSjFjbkp2ZDBKT0NoZHlaWEJzYVhRdGNtVndiQzFpYkc5amEzTXRkMjl5WmhJVmNtVndiR2wwTFhKbGNHd3RiV1YwWVMxM2IzSm1HaHh5WlhCc2FYUXRiV0Z5WjJGeWFXNWxMV0pzYjJOcmN5MTNiM0ptU2djSTM3SFpHQkFCVUFCNEFJSUJGV052Ym01bFkzUnZjbk11Y21Wd2JHbDBMbU52YllvQkdBb1FSRTlmVTBWRFZWSkpWRmxmVTBOQlRoSUVkSEoxWlZJbENBRVFnSUNBZ0NBWkFBQUFBQUFBRUVBaEFBQUFBQUFBRUVBb2dJQ0FnTWdCTUFJNEFHQURhaEVJMzdIWkdCSUtSbTk0TFVKMWNuSnZkNW9CQ2dvSU1DNHdMalUxTURtZ0FRRT0ga7s_Y-Uh9MTVL2CkDz4a9rUcU21xWGsMX7A3e5ub5nxaj6bCUxCjd9JZ4mjcDxEaWJ4h_mQUFOSyDq76YGcF.Q2dad2NtOWtPak1pQ25KbGNHeHBkQzVqYjIwPQ' failed: 
+d @ 0u~m5gbfwrvdx.js:2
+ stallwart: failed ping 1
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437528055:3285
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437528055:3285
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437543906:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437543906:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437562168:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437562168:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437572493:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775437572493:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3299
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker&rl=&if=false&ts=1775437796238&cd[buttonFeatures]=%7B%22classList%22%3A%22IconButton-module__eEtQNq__root%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22https%3A%2F%2Fdf4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev%2F%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22New%20tab%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22a%22%2C%22type%22%3Anull%2C%22name%22%3A%22%22%7D&cd[buttonText]=New%20tab&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&v=2.9.281&r=stable&ec=9&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775433172646&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+00bo3mlkmjr8z.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 00bo3mlkmjr8z.js:21
+stallwart.build.js:1 stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775439591866:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775439591866:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775439597352:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775439597352:3299
+stallwart.build.js:1 stallwart: failed ping 1
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3298
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3298
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440360289:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440360289:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440454052:3298
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440454052:3298
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440463999:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440463999:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440486743:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440486743:3296
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440502977:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440502977:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3299
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3299
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3299
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440712553:3300
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440712553:3300
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440719658:3302
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775440719658:3302
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3302
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3302
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ stallwart: failed ping 1
+ stallwart: failed ping 1
+www.facebook.com/tr/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.show%3Dtrue&rl=&if=false&ts=1775441176689&sw=1440&sh=900&v=2.9.281&r=stable&ec=11&o=4126&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[title]=Beat%20Maker%20-%20Replit&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441176681&coo=false&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+00bo3mlkmjr8z.js:21 Cache data may be lost when replacing the authorizations field of a Customer object.
+
+This could cause additional (usually avoidable) network requests to fetch data that were otherwise cached.
+
+To address this problem (which is not a bug in Apollo Client), either ensure all objects of type CustomerAuthorizations have an ID or a custom merge function, or define a custom merge function for the Customer.authorizations field, so InMemoryCache can safely merge these objects:
+
+  existing: {"__typename":"CustomerAuthorizations","createWorkspace":{"__typename":"CustomerAuthorization","isAuthorized":true,"code":"authorized"}}
+  incoming: {"__typename":"CustomerAuthorizations","viewSubscription":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view the subscription."},"viewSeats":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view seats."},"viewUsage":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view usage."},"editUsageLimit":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to edit the usage limit."},"editSettings":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to edit the settings."}}
+
+For more information about these options, please refer to the documentation:
+
+  * Ensuring entity objects have IDs: https://go.apollo.dev/c/generating-unique-identifiers
+  * Defining custom merge functions: https://go.apollo.dev/c/merging-non-normalized-objects
+
+(anonymous) @ 00bo3mlkmjr8z.js:21
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.show%3Dtrue&rl=&if=false&ts=1775441180683&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20index-module__R-95IG__navItem%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22Account%20seats%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3A%22button%22%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=Account%20seats&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&cudff[fn]=%5E**-%5E*****%27*&cudff[ln]=*********&ncudff[fn]=**********&udff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=12&o=6174&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441176681&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.show%3Dtrue%26settings.tab%3Dseats&rl=&if=false&ts=1775441180697&sw=1440&sh=900&cudff[fn]=%5E**-%5E*****%27*&cudff[ln]=*********&ncudff[fn]=**********&udff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=13&o=6174&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[title]=Beat%20Maker%20-%20Replit&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441180693&coo=false&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.show%3Dtrue%26settings.tab%3Dseats&rl=&if=false&ts=1775441181679&cd[buttonFeatures]=%7B%22classList%22%3A%22%20useView-module__vOh_Ha__view%20useView-module__vOh_Ha__isHorizontal%20index-module__R-95IG__navItem%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up-2%20_sdz_custom-pressed%3Ashades-up-3%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22Account%20usage%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3A%22button%22%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=Account%20usage&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&cudff[fn]=%5E**-%5E*****%27*&cudff[ln]=*********&ncudff[fn]=**********&udff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=14&o=6174&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441180693&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.show%3Dtrue%26settings.tab%3DcustomerUsage&rl=&if=false&ts=1775441181691&sw=1440&sh=900&cudff[fn]=%5E**-%5E*****%27*&cudff[ln]=*********&ncudff[fn]=**********&udff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=15&o=6174&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[title]=Beat%20Maker%20-%20Replit&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441181688&coo=false&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+www.facebook.com/tr/?id=1153929076518158&ev=SubscribedButtonClick&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.show%3Dtrue%26settings.tab%3DcustomerUsage&rl=&if=false&ts=1775441195690&cd[buttonFeatures]=%7B%22classList%22%3A%22Button-module__nDccya__button%20Interactive2-module__BR3hWq__shades%20Interactive2-module__BR3hWq__root%20Interactive2-module__BR3hWq__transition%20Interactive2-module__BR3hWq__disabled%20_sdz_text%20_sdz_surface-2%20_sdz_switch-theme%20_sdz_theme-primary%20_sdz_surface-bg%20_sdz_custom-hover%3Ashades-up%20_sdz_custom-pressed%3Ashades-up-2%20Interactive2-module__BR3hWq__borderRadius%20Interactive2-module__BR3hWq__focus%22%2C%22destination%22%3A%22%22%2C%22id%22%3A%22react-aria52158495-%3Ar40q%3A%22%2C%22imageUrl%22%3A%22%22%2C%22innerText%22%3A%22Save%22%2C%22numChildButtons%22%3A0%2C%22tag%22%3A%22button%22%2C%22type%22%3A%22button%22%2C%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D&cd[buttonText]=Save&cd[formFeatures]=%5B%5D&cd[pageFeatures]=%7B%22title%22%3A%22Beat%20Maker%20-%20Replit%22%7D&sw=1440&sh=900&cudff[fn]=%5E**-%5E*****%27*&cudff[ln]=*********&ncudff[fn]=**********&udff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=16&o=6174&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441181688&coo=false&es=automatic&tm=3&expv2[0]=pl0&expv2[1]=el2&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+00bo3mlkmjr8z.js:21 Unknown query {
+  "kind": "Document",
+  "definitions": [
+    {
+      "kind": "OperationDefinition",
+      "operation": "query",
+      "name": {
+        "kind": "Name",
+        "value": "CustomerUsageShared"
+      },
+      "variableDefinitions": [
+        {
+          "kind": "VariableDefinition",
+          "variable": {
+            "kind": "Variable",
+            "name": {
+              "kind": "Name",
+              "value": "orgId"
+            }
+          },
+          "type": {
+            "kind": "NonNullType",
+            "type": {
+              "kind": "NamedType",
+              "name": {
+                "kind": "Name",
+                "value": "String"
+              }
+            }
+          },
+          "directives": []
+        }
+      ],
+      "directives": [],
+      "selectionSet": {
+        "kind": "SelectionSet",
+        "selections": [
+          {
+            "kind": "Field",
+            "name": {
+              "kind": "Name",
+              "value": "getOrg"
+            },
+            "arguments": [
+              {
+                "kind": "Argument",
+                "name": {
+                  "kind": "Name",
+                  "value": "orgId"
+                },
+                "value": {
+                  "kind": "Variable",
+                  "name": {
+                    "kind": "Name",
+                    "value": "orgId"
+                  }
+                }
+              }
+            ],
+            "directives": [],
+            "selectionSet": {
+              "kind": "SelectionSet",
+              "selections": [
+                {
+                  "kind": "Field",
+                  "name": {
+                    "kind": "Name",
+                    "value": "__typename"
+                  },
+                  "arguments": [],
+                  "directives": []
+                },
+                {
+                  "kind": "InlineFragment",
+                  "typeCondition": {
+                    "kind": "NamedType",
+                    "name": {
+                      "kind": "Name",
+                      "value": "Org"
+                    }
+                  },
+                  "directives": [],
+                  "selectionSet": {
+                    "kind": "SelectionSet",
+                    "selections": [
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "id"
+                        },
+                        "arguments": [],
+                        "directives": []
+                      },
+                      {
+                        "kind": "Field",
+                        "name": {
+                          "kind": "Name",
+                          "value": "usageBasedBillingAlerts"
+                        },
+                        "arguments": [],
+                        "directives": [],
+                        "selectionSet": {
+                          "kind": "SelectionSet",
+                          "selections": [
+                            {
+                              "kind": "InlineFragment",
+                              "typeCondition": {
+                                "kind": "NamedType",
+                                "name": {
+                                  "kind": "Name",
+                                  "value": "UsageBasedBillingAlertsConfig"
+                                }
+                              },
+                              "directives": [],
+                              "selectionSet": {
+                                "kind": "SelectionSet",
+                                "selections": [
+                                  {
+                                    "kind": "Field",
+                                    "name": {
+                                      "kind": "Name",
+                                      "value": "groupAlerts"
+                                    },
+                                    "arguments": [],
+                                    "directives": [],
+                                    "selectionSet": {
+                                      "kind": "SelectionSet",
+                                      "selections": [
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "id"
+                                          },
+                                          "arguments": [],
+                                          "directives": []
+                                        },
+                                        {
+                                          "kind": "Field",
+                                          "name": {
+                                            "kind": "Name",
+                                            "value": "groupId"
+                                   
+(anonymous) @ 00bo3mlkmjr8z.js:21
+www.facebook.com/tr/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40Fox-Burrow%2FBeat-Maker%3Fsettings.tab%3DcustomerUsage&rl=&if=false&ts=1775441201785&sw=1440&sh=900&cudff[fn]=%5E**-%5E*****%27*&cudff[ln]=*********&ncudff[fn]=**********&udff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=4d70532a175534fd8f3acc920cb679f03fdc3c5ead881412f1568ff92e7b36e8&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=17&o=6174&fbp=fb.1.1775203453656.231659650545724540&ler=empty&cdl=API_unavailable&pmd[title]=Beat%20Maker%20-%20Replit&pmd[locale]=en&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&plt=3240.199999999255&it=1775441201782&coo=false&expv2[0]=pl0&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=ct3&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441369160:3305
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441369160:3305
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441388700:3305
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441388700:3305
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3305
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3305
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441542926:3308
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441542926:3308
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/:1 Unchecked runtime.lastError: The message port closed before a response was received.
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/:1 Unchecked runtime.lastError: The message port closed before a response was received.
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/:1 Unchecked runtime.lastError: The message port closed before a response was received.
+df4288f9-5f2f-4b67-8320-f8b379962174-00-2nqzxixpryyzo.worf.replit.dev/:1 Unchecked runtime.lastError: The message port closed before a response was received.
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441569376:3309
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ df4288f9-5f2f-4b67-8…=1775441569376:3309
+KickAndSnare.tsx:1965 WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:1965
+ WebSocket connection to 'ws://localhost:9898/' failed: 
+(anonymous) @ KickAndSnare.tsx:3309
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+/public/js/beacon.js:1  Failed to load resource: net::ERR_FAILED
+stallwart.build.js:1 stallwart: failed ping 1
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=4/8 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=4/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=0.9520
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=1/8 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=9/16 interval=666.67ms expected=166.67ms drift=+500.00ms bpm=90 ct=1.8315
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+startStop @ KickAndSnare.tsx:1666
+await in startStop
+executeDispatch @ react-dom_client.js?v=24c9f68d:11734
+runWithFiberInDEV @ react-dom_client.js?v=24c9f68d:1483
+processDispatchQueue @ react-dom_client.js?v=24c9f68d:11770
+(anonymous) @ react-dom_client.js?v=24c9f68d:12180
+batchedUpdates$1 @ react-dom_client.js?v=24c9f68d:2626
+dispatchEventForPluginEventSystem @ react-dom_client.js?v=24c9f68d:11875
+dispatchEvent @ react-dom_client.js?v=24c9f68d:14790
+dispatchDiscreteEvent @ react-dom_client.js?v=24c9f68d:14771
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=0/8 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=0/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=2.9722
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=6/8 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=6/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=3.9764
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=4/8 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=12/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=4.9894
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=2/8 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=2/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=5.9820
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=kick step=0/8 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=snare step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=hihat step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=clap step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=tom step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=ride step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=crash step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+KickAndSnare.tsx:1563 [EUCLID DRIFT] track=perc step=8/16 interval=333.33ms expected=166.67ms drift=+166.67ms bpm=90 ct=6.9718
+(anonymous) @ KickAndSnare.tsx:1563
+(anonymous) @ KickAndSnare.tsx:1537
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
+setTimeout
+(anonymous) @ KickAndSnare.tsx:1622
