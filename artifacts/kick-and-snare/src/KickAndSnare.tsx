@@ -1449,33 +1449,55 @@ export default function KickAndSnare(){
     // }
     // FREE-CAPTURE BPM DISABLED — conservé pour développement futur
     // if(R.uiView==='pads'&&!R.loopRec&&engine.ctx){ ... }
-    // F.1b: REC mode with quantization snap + timing feedback + retap erase
-    if(R.rec&&R.step>=0&&engine.ctx){
-      const gSt=R.sig?.steps||16;
-      const tSt=R.view==="euclid"?(R.ts?.[tid]||gSt):([gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt);
-      const ratio=Math.max(1,Math.round(tSt/gSt));
-      // F.1b: lookahead-aware quantization — accounts for scheduler running ahead of audio time
-      const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
-      const sw=bd*(R.sw||0)/100*0.5;
-      const curStepDur=R.step%2===0?(bd+sw):(bd-sw);
-      const stepStart=nxtRef.current-curStepDur; // scheduled audio-time when R.step plays
-      const offsetFromStart=engine.ctx.currentTime-stepStart; // <0 = still in lookahead buffer
-      const stepsFromNow=Math.round(offsetFromStart/bd); // -1 at 90bpm, -2 at 180bpm, etc.
-      const qStep=((R.step+stepsFromNow)%gSt+gSt)%gSt;
-      // visual feedback: normalized offset within the actual nearest step
-      const relOffset=(offsetFromStart%bd+bd)%bd;
-      const snapRatio=relOffset/bd;
-      const targetStep=ratio>1?qStep*ratio:qStep%tSt;
-      // F.1c: timing feedback color
-      const fbColor=snapRatio>=0.35&&snapRatio<=0.65?"#30D158":snapRatio>=0.2&&snapRatio<=0.8?"#FF9500":"#FF2D55";
-      const fbLabel=snapRatio>=0.35&&snapRatio<=0.65?"✓":snapRatio>=0.2&&snapRatio<=0.8?"~":"!";
-      setRecFeedback({step:targetStep,tid,color:fbColor,label:fbLabel});
-      if(recFbTimerRef.current)clearTimeout(recFbTimerRef.current);
-      recFbTimerRef.current=setTimeout(()=>{setRecFeedback(null);recFbTimerRef.current=null;},400);
-      const v100=Math.max(1,Math.round(vel*100));
-      // F.1d: always set (retap does NOT erase)
-      setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][targetStep]=1;n[R.cp]=p;return n;});
-      if(R.pat?.[tid]?.[targetStep]!==0)setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[targetStep]:v100}}));
+    // F.1b: REC mode — quantization snap + timing feedback. Works in Linear AND Euclidean.
+    if(R.rec&&engine.ctx){
+      const isEuclid=R.view==="euclid";
+      let targetStep=-1;let snapRatio=0.5;
+      if(isEuclid){
+        // Euclidean REC: snap tap to nearest 16th-note globalTick.
+        // stepIndex = nearestTick % N where N is this track's Euclidean cycle length.
+        const eg=euclidGlobalRef.current;
+        if(eg.nextTime!=null){
+          const sixteenth=(60/R.bpm)/4;
+          const lastTickIdx=((eg.globalTick-1)%1000000+1000000)%1000000;
+          const lastTickTime=eg.nextTime-sixteenth;
+          const offsetFromLast=Math.max(0,engine.ctx.currentTime-lastTickTime);
+          const rawRatio=Math.min(1,offsetFromLast/sixteenth);
+          const nearestTick=rawRatio<0.5?lastTickIdx:eg.globalTick;
+          const N=R.pb[R.cp]?._steps?.[tid]||(R.pat?.[tid]?.length)||16;
+          targetStep=((nearestTick%N)+N)%N;
+          // nearestDist: 0=perfect snap, 0.5=worst (halfway between ticks)
+          const nearestDist=rawRatio<0.5?rawRatio:1-rawRatio;
+          snapRatio=0.5-nearestDist; // maps 0=worst→0, 0.5=perfect→0.5 (green zone ≥0.35)
+        }
+      }else if(R.step>=0){
+        // Linear: lookahead-aware quantization (unchanged)
+        const gSt=R.sig?.steps||16;
+        const tSt=[gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt;
+        const ratio=Math.max(1,Math.round(tSt/gSt));
+        const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
+        const sw=bd*(R.sw||0)/100*0.5;
+        const curStepDur=R.step%2===0?(bd+sw):(bd-sw);
+        const stepStart=nxtRef.current-curStepDur;
+        const offsetFromStart=engine.ctx.currentTime-stepStart;
+        const stepsFromNow=Math.round(offsetFromStart/bd);
+        const qStep=((R.step+stepsFromNow)%gSt+gSt)%gSt;
+        const relOffset=(offsetFromStart%bd+bd)%bd;
+        snapRatio=relOffset/bd;
+        targetStep=ratio>1?qStep*ratio:qStep%tSt;
+      }
+      if(targetStep>=0){
+        // F.1c: timing feedback color (same scale for both modes)
+        const fbColor=snapRatio>=0.35&&snapRatio<=0.65?"#30D158":snapRatio>=0.2&&snapRatio<=0.8?"#FF9500":"#FF2D55";
+        const fbLabel=snapRatio>=0.35&&snapRatio<=0.65?"✓":snapRatio>=0.2&&snapRatio<=0.8?"~":"!";
+        setRecFeedback({step:targetStep,tid,color:fbColor,label:fbLabel});
+        if(recFbTimerRef.current)clearTimeout(recFbTimerRef.current);
+        recFbTimerRef.current=setTimeout(()=>{setRecFeedback(null);recFbTimerRef.current=null;},400);
+        const v100=Math.max(1,Math.round(vel*100));
+        // F.1d: always set (retap does NOT erase)
+        setPBank(pb=>{const n=[...pb];const p={...n[R.cp]};p[tid]=[...p[tid]];p[tid][targetStep]=1;n[R.cp]=p;return n;});
+        if(R.pat?.[tid]?.[targetStep]!==0)setStVel(sv=>({...sv,[tid]:{...(sv[tid]||{}),[targetStep]:v100}}));
+      }
     }
   },[]);
   R.trigPad=trigPad;
