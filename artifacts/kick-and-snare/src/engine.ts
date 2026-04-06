@@ -27,7 +27,7 @@ class Eng{
     // With 300ms scheduler look-ahead the extra latency is inaudible, but underruns disappear.
     // iOS: 'interactive' balances latency and stability; still safe with 300ms look-ahead.
     const latHint=this._isAndroid?'playback':'interactive';
-    const ctxOpts=this._isMobile?{latencyHint:latHint}:{latencyHint:latHint,sampleRate:44100};
+    const ctxOpts={latencyHint:latHint};
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(ctxOpts);
     if(this._isMobile){
       const diagFn=()=>{
