@@ -1853,7 +1853,7 @@ export default function KickAndSnare(){
   };
 
   // ── Save / Load Project ───────────────────────────────────────────────────────
-  const saveProject=()=>{
+  const saveProject=async()=>{
     const project={
       _ks:1,
       bpm,swing,masterVol,
@@ -1871,28 +1871,48 @@ export default function KickAndSnare(){
       themeName,
     };
     const json=JSON.stringify(project,null,2);
-    // .ks.txt — MIUI/Android blocks .json downloads but allows .txt
     const blob=new Blob([json],{type:"text/plain"});
     const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
     const fname=`ks-project-${ts}.ks.txt`;
     const file=new File([blob],fname,{type:"text/plain"});
-    if(isMobile){
-      // Mobile: prefer native Share sheet → fallback to copy-paste modal (Option B)
-      if(navigator.share&&navigator.canShare?.({files:[file]})){
-        navigator.share({files:[file],title:"Kick & Snare Project"})
-          .catch(()=>setSaveFallback(json));
-        return;
+
+    // 1. File System Access API — opens native Android/Desktop file picker, bypasses MIUI blocks
+    if((window as any).showSaveFilePicker){
+      try{
+        const handle=await (window as any).showSaveFilePicker({
+          suggestedName:fname,
+          types:[{description:"Kick & Snare Project",accept:{"text/plain":[".ks.txt"]}}],
+        });
+        const writable=await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return; // ✓ saved
+      }catch(e:any){
+        if(e?.name==="AbortError")return; // user cancelled the picker — do nothing
+        // other error → try next method
       }
-      // Share not supported or blocked → show text modal
-      setSaveFallback(json);
-      return;
     }
-    // Desktop: standard anchor download — reliable on all desktop browsers
+
+    // 2. Web Share API (iOS Safari + some Android browsers)
+    if(navigator.share&&navigator.canShare?.({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:"Kick & Snare Project"});
+        return;
+      }catch(e:any){
+        if(e?.name==="AbortError")return; // user dismissed sheet
+        // blocked → fall through
+      }
+    }
+
+    // 3. Classic anchor download — works on desktop, sometimes on mobile
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;a.download=fname;a.style.display="none";
     document.body.appendChild(a);a.click();
     setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+
+    // 4. Last resort — show copy-paste modal (always works)
+    if(isMobile) setSaveFallback(json);
   };
 
   // Shared parsing logic — used by file load AND paste-text load
