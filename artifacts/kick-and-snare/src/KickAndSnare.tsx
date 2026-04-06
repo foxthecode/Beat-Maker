@@ -4385,7 +4385,7 @@ export default function KickAndSnare(){
                     <MidiTag id={`fx_pitch_on_${tr.id}`}/>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} dimmed={!f.onPitch}/>
+                    {SlRow({label:"Semitones",keyName:"pitch",min:-12,max:12,step:1,val:f.pitch??0,color:tr.color,fmt:(v:number)=>(v>0?"+":"")+v+"st",dimmed:!f.onPitch})}
                     <MidiTag id={`fx_pitch_${tr.id}`}/>
                   </div>
                 </div>
@@ -4400,11 +4400,11 @@ export default function KickAndSnare(){
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} dimmed={!f.onFilter}/>
+                      {SlRow({label:"Cutoff",keyName:"cut",min:80,max:20000,step:50,val:f.cut??5000,color:"#64D2FF",fmt:(v:number)=>freqFmt(v)+"Hz",dimmed:!f.onFilter})}
                       <MidiTag id={`fx_cut_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Res" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} dimmed={!f.onFilter}/>
+                      {SlRow({label:"Res",keyName:"res",min:0,max:20,step:0.5,val:f.res??0,color:"#64D2FF",fmt:(v:number)=>Number(v).toFixed(1)+"Q",dimmed:!f.onFilter})}
                       <MidiTag id={`fx_res_${tr.id}`}/>
                     </div>
                   </div>
@@ -4419,7 +4419,7 @@ export default function KickAndSnare(){
                     <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} dimmed={!f.onDrive}/>
+                    {SlRow({label:"Amount",keyName:"drive",min:0,max:100,step:1,val:f.drive??0,color:"#FF9500",fmt:(v:number)=>v+"%",dimmed:!f.onDrive})}
                     <MidiTag id={`fx_drv_${tr.id}`}/>
                   </div>
                 </div>
@@ -4434,15 +4434,15 @@ export default function KickAndSnare(){
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Mix" keyName="rMix" min={0} max={100} step={1} val={f.rMix??0} color="#64D2FF" fmt={(v:number)=>v+"%"} dimmed={!f.onReverb}/>
+                      {SlRow({label:"Mix",keyName:"rMix",min:0,max:100,step:1,val:f.rMix??0,color:"#64D2FF",fmt:(v:number)=>v+"%",dimmed:!f.onReverb})}
                       <MidiTag id={`fx_rmix_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Decay" keyName="rDecay" min={0.1} max={6} step={0.1} val={f.rDecay??1.5} color="#64D2FF" fmt={(v:number)=>v.toFixed(1)+"s"} dimmed={!f.onReverb}/>
+                      {SlRow({label:"Decay",keyName:"rDecay",min:0.1,max:6,step:0.1,val:f.rDecay??1.5,color:"#64D2FF",fmt:(v:number)=>v.toFixed(1)+"s",dimmed:!f.onReverb})}
                       <MidiTag id={`fx_rdec_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Size" keyName="rSize" min={0} max={1} step={0.05} val={(f as any).rSize??0.5} color="#64D2FF" fmt={(v:number)=>Math.round(v*100)+"%"} dimmed={!f.onReverb}/>
+                      {SlRow({label:"Size",keyName:"rSize",min:0,max:1,step:0.05,val:(f as any).rSize??0.5,color:"#64D2FF",fmt:(v:number)=>Math.round(v*100)+"%",dimmed:!f.onReverb})}
                       <MidiTag id={`fx_rsz_${tr.id}`}/>
                     </div>
                   </div>
@@ -4466,16 +4466,16 @@ export default function KickAndSnare(){
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {!f.dSync&&(
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <SlRow label="Time" keyName="dTime" min={0.01} max={1.9} step={0.01} val={f.dTime??0.25} color="#30D158" fmt={(v:number)=>v.toFixed(2)+"s"} dimmed={!f.onDelay}/>
+                        {SlRow({label:"Time",keyName:"dTime",min:0.01,max:1.9,step:0.01,val:f.dTime??0.25,color:"#30D158",fmt:(v:number)=>v.toFixed(2)+"s",dimmed:!f.onDelay})}
                         <MidiTag id={`fx_dtime_${tr.id}`}/>
                       </div>
                     )}
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Fdbk" keyName="dFdbk" min={0} max={75} step={1} val={f.dFdbk??35} color="#30D158" fmt={(v:number)=>v+"%"} dimmed={!f.onDelay}/>
+                      {SlRow({label:"Fdbk",keyName:"dFdbk",min:0,max:75,step:1,val:f.dFdbk??35,color:"#30D158",fmt:(v:number)=>v+"%",dimmed:!f.onDelay})}
                       <MidiTag id={`fx_dfdbk_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Mix" keyName="dMix" min={0} max={100} step={1} val={f.dMix??0} color="#30D158" fmt={(v:number)=>v+"%"} dimmed={!f.onDelay}/>
+                      {SlRow({label:"Mix",keyName:"dMix",min:0,max:100,step:1,val:f.dMix??0,color:"#30D158",fmt:(v:number)=>v+"%",dimmed:!f.onDelay})}
                       <MidiTag id={`fx_dmix_${tr.id}`}/>
                     </div>
                   </div>
@@ -4485,7 +4485,7 @@ export default function KickAndSnare(){
               {padFxTab==='OUT'&&(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <SlRow label="Volume" keyName="vol" min={0} max={100} step={1} val={f.vol??80} color="#8E8E93" fmt={v=>v+"%"}/>
+                    {SlRow({label:"Volume",keyName:"vol",min:0,max:100,step:1,val:f.vol??80,color:"#8E8E93",fmt:(v:number)=>v+"%"})}
                     <MidiTag id={`vol_${tr.id}`}/>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
