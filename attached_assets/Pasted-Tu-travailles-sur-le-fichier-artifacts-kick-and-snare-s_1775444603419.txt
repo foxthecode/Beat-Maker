@@ -1,0 +1,354 @@
+Tu travailles sur le fichier `artifacts/kick-and-snare/src/KickAndSnare.tsx`.
+
+L'objectif est d'intégrer des améliorations à la reverb et au delay (moteur audio + UI) sans modifier la structure existante de l'app. Lis attentivement chaque section avant de commencer.
+
+---
+
+## SECTION 1 — MOTEUR AUDIO : corrections `_mkRv()`, `updateReverb()`, init delay
+
+### 1a. Remplacer `_mkRv()` dans la classe `Eng`
+
+Remplace la méthode existante par cette version. Les changements : normalisation du gain de sortie par `(1 / nCombs)` au lieu du facteur fixe `0.015`, et ajout d'un stage d'early reflections (3 délais courts après les allpass) pour un son plus naturel et moins "en boîte".
+```typescript
+_mkRv(decay = 2, size = 0.5, type = 'room') {
+  const sr = this.ctx.sampleRate;
+  const scale = sr / 44100;
+  const cfgs = {
+    plate: { roomSize: 0.52,              damp: 0.82, preDelay: 0.002 },
+    room:  { roomSize: 0.50 + size * 0.3, damp: 0.5 + size * 0.3, preDelay: 0.01 + size * 0.02 },
+    hall:  { roomSize: 0.75 + size * 0.2, damp: 0.3 + size * 0.2, preDelay: 0.025 + size * 0.04 },
+  };
+  const cfg = cfgs[type] || cfgs.room;
+  const { roomSize, damp } = cfg;
+  const preDelaySamples = Math.floor(cfg.preDelay * sr);
+  // Early reflections : 3 délais courts (7ms, 13ms, 23ms) mixés avant le Schroeder
+  const erDelaysSamples = [Math.floor(0.007 * sr), Math.floor(0.013 * sr), Math.floor(0.023 * sr)];
+  const totalSamples = Math.ceil(sr * (Math.min(8, decay) + cfg.preDelay + 0.1));
+  const buf = this.ctx.createBuffer(2, totalSamples, sr);
+  const combDelaysL = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617].map(d => Math.floor(d * scale));
+  const combDelaysR = combDelaysL.map(d => d + 23);
+  const apDelays    = [556, 441, 341, 225].map(d => Math.floor(d * scale));
+  const nCombs = combDelaysL.length;
+
+  for (let ch = 0; ch < 2; ch++) {
+    const data = buf.getChannelData(ch);
+    const combDelays = ch === 0 ? combDelaysL : combDelaysR;
+    const combBufs   = combDelays.map(d => new Float32Array(d));
+    const combPos    = new Int32Array(combDelays.length);
+    const combFilt   = new Float32Array(combDelays.length);
+    const apBufs     = apDelays.map(d => new Float32Array(d));
+    const apPos      = new Int32Array(apDelays.length);
+    // Buffers early reflections
+    const erBufs = erDelaysSamples.map(d => new Float32Array(d));
+    const erPos  = new Int32Array(erDelaysSamples.length);
+
+    for (let i = 0; i < totalSamples; i++) {
+      const input = (i === preDelaySamples) ? 1.0 : 0.0;
+
+      // Early reflections : sortie instantanée des 3 lignes de délai courtes
+      let erOut = 0;
+      const erGains = [0.7, 0.5, 0.4]; // amplitude décroissante
+      for (let e = 0; e < erBufs.length; e++) {
+        erOut += erBufs[e][erPos[e]] * erGains[e];
+        erBufs[e][erPos[e]] = input;
+        erPos[e] = (erPos[e] + 1) % erBufs[e].length;
+      }
+
+      // Schroeder : filtres en peigne
+      let combOut = 0;
+      for (let c = 0; c < nCombs; c++) {
+        const b = combBufs[c], pos = combPos[c];
+        const delayed = b[pos];
+        combFilt[c] = delayed * (1 - damp) + combFilt[c] * damp;
+        b[pos] = input + combFilt[c] * roomSize;
+        combPos[c] = (pos + 1) % b.length;
+        combOut += delayed;
+      }
+      // Normalisation correcte : facteur (1/N) au lieu de 0.015 fixe
+      combOut *= (1 / nCombs);
+
+      // Allpass
+      let apOut = combOut;
+      for (let a = 0; a < apBufs.length; a++) {
+        const b = apBufs[a], pos = apPos[a];
+        const delayed = b[pos];
+        const w = apOut + delayed * 0.5;
+        b[pos] = w;
+        apPos[a] = (pos + 1) % b.length;
+        apOut = delayed - 0.5 * w;
+      }
+
+      // Mix early reflections (50%) + queue Schroeder (50%)
+      data[i] = apOut * 0.5 + erOut * 0.5;
+    }
+  }
+  this.rv = buf;
+}
+```
+
+### 1b. Remplacer `updateReverb()` pour éviter le freeze UI Android
+```typescript
+updateReverb(decay: number, size: number, type = 'room') {
+  // Calcul différé : ne bloque pas le thread principal
+  clearTimeout((this as any)._rvPending);
+  (this as any)._rvPending = setTimeout(() => {
+    this._mkRv(decay, size, type);
+    if (this.gRvConv) {
+      try { this.gRvConv.buffer = this.rv; } catch (e) { /* ctx suspendu */ }
+    }
+  }, 0);
+}
+```
+
+### 1c. Dans `init()` — remplacer le bloc delay (lignes qui créent gDlBus, gDl, gDlFb, gDlLpf)
+
+Remplace uniquement ce bloc par la version stéréo avec wet/dry explicite. Ne touche à rien d'autre dans `init()`.
+```typescript
+// ── Delay bus — stereo avec wet/dry explicite ────────────────────────────
+this.gDlBus  = this.ctx.createGain();
+this.gDlDry  = this.ctx.createGain();  this.gDlDry.gain.value  = 1.0;
+this.gDlWet  = this.ctx.createGain();  this.gDlWet.gain.value  = 0.0; // off par défaut
+this.gDlL    = this.ctx.createDelay(2); this.gDlL.delayTime.value = 0.25;
+this.gDlR    = this.ctx.createDelay(2); this.gDlR.delayTime.value = 0.27;
+this.gDlFb   = this.ctx.createGain();  this.gDlFb.gain.value  = 0.35;
+this.gDlHpf  = this.ctx.createBiquadFilter();
+this.gDlHpf.type = 'highpass'; this.gDlHpf.frequency.value = 180;
+this.gDlLpf  = this.ctx.createBiquadFilter();
+this.gDlLpf.type = 'lowpass';  this.gDlLpf.frequency.value = 6500;
+this.gDlPanL = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : this.ctx.createGain();
+this.gDlPanR = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : this.ctx.createGain();
+if (this.gDlPanL.pan) this.gDlPanL.pan.value = -0.4;
+if (this.gDlPanR.pan) this.gDlPanR.pan.value =  0.4;
+
+// Routage
+this.gDlBus.connect(this.gDlDry);  this.gDlDry.connect(this.gOut);
+this.gDlBus.connect(this.gDlWet);
+this.gDlWet.connect(this.gDlL);    this.gDlWet.connect(this.gDlR);
+this.gDlL.connect(this.gDlLpf);    this.gDlLpf.connect(this.gDlHpf);
+this.gDlHpf.connect(this.gDlFb);   this.gDlFb.connect(this.gDlL);
+this.gDlL.connect(this.gDlPanL);   this.gDlPanL.connect(this.gOut);
+this.gDlR.connect(this.gDlPanR);   this.gDlPanR.connect(this.gOut);
+```
+
+### 1d. Dans `uGfx()` — remplacer le bloc `// ── Delay ──`
+```typescript
+// ── Delay ──
+const dlOn = gfx.delay?.on ?? false;
+if (this.gDlL)   this.gDlL.delayTime.setTargetAtTime(Math.min(1.9, gfx.delay?.time || 0.25), t, 0.01);
+if (this.gDlR)   this.gDlR.delayTime.setTargetAtTime(Math.min(1.9, (gfx.delay?.time || 0.25) * 1.006), t, 0.01);
+if (this.gDlFb)  this.gDlFb.gain.setTargetAtTime(Math.min(0.75, (gfx.delay?.fdbk || 35) / 100), t, 0.01);
+if (this.gDlWet) this.gDlWet.gain.setTargetAtTime(dlOn ? (gfx.delay?.mix ?? 35) / 100 : 0, t, 0.02);
+if (this.gDlLpf) this.gDlLpf.frequency.setTargetAtTime(dlOn ? (gfx.delay?.lpf ?? 6500) : 20000, t, 0.01);
+```
+
+---
+
+## SECTION 2 — BOTTOM SHEET per-track FX : ajouter REVERB + DELAY
+
+Dans le composant anonyme déclenché par `padFxTrack` (cherche le commentaire `{/* ── Global Track FX bottom sheet */}`), ajoute deux nouvelles sections **après `{/* DRIVE */}` et avant `{/* OUTPUT */}`**.
+
+Le pattern à suivre est identique aux sections PITCH, FILTER et DRIVE existantes : même composants `SlRow`, `ToggleBtn`, `PillGroup`, même variable `sec` pour le style de séparation. Ne modifie pas `DEFAULT_FX_VALS` — les clés `onReverb`, `rMix`, `rDecay`, `rSize`, `rType`, `onDelay`, `dMix`, `dTime`, `dFdbk`, `dSync`, `dDiv` y existent déjà.
+```tsx
+{/* REVERB */}
+<div style={sec}>
+  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}}>
+    <span style={{fontSize:7.5,fontWeight:800,color:'rgba(255,255,255,0.5)',letterSpacing:'0.1em'}}>REVERB</span>
+    <ToggleBtn on={f.onReverb??false} label={f.onReverb?'ON':'OFF'} color='#64D2FF'
+      onClick={()=>updFx({onReverb:!(f.onReverb??false)})}/>
+    <MidiTag id={`fx_rev_on_${tr.id}`}/>
+    <div style={{marginLeft:'auto'}}>
+      <PillGroup val={(f as any).rType||'room'} color='#64D2FF'
+        onSel={(k:string)=>updFx({rType:k,onReverb:true})}
+        opts={[{k:'room',l:'ROOM'},{k:'plate',l:'PLATE'},{k:'hall',l:'HALL'}]}/>
+    </div>
+  </div>
+  <div style={{display:'flex',flexDirection:'column',gap:8,opacity:f.onReverb?1:0.3,pointerEvents:f.onReverb?'auto':'none'}}>
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <SlRow label='Mix' keyName='rMix' min={0} max={100} step={1}
+        val={f.rMix??0} color='#64D2FF' fmt={(v:number)=>v+'%'}/>
+      <MidiTag id={`fx_rmix_${tr.id}`}/>
+    </div>
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <SlRow label='Decay' keyName='rDecay' min={0.1} max={6} step={0.1}
+        val={f.rDecay??1.5} color='#64D2FF' fmt={(v:number)=>v.toFixed(1)+'s'}/>
+      <MidiTag id={`fx_rdec_${tr.id}`}/>
+    </div>
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <SlRow label='Size' keyName='rSize' min={0} max={1} step={0.05}
+        val={(f as any).rSize??0.5} color='#64D2FF' fmt={(v:number)=>Math.round(v*100)+'%'}/>
+      <MidiTag id={`fx_rsz_${tr.id}`}/>
+    </div>
+  </div>
+</div>
+
+{/* DELAY */}
+<div style={sec}>
+  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8,flexWrap:'wrap'}}>
+    <span style={{fontSize:7.5,fontWeight:800,color:'rgba(255,255,255,0.5)',letterSpacing:'0.1em'}}>DELAY</span>
+    <ToggleBtn on={f.onDelay??false} label={f.onDelay?'ON':'OFF'} color='#30D158'
+      onClick={()=>updFx({onDelay:!(f.onDelay??false)})}/>
+    <MidiTag id={`fx_dly_on_${tr.id}`}/>
+    <button
+      onClick={()=>updFx({dSync:!(f.dSync??false)})}
+      style={{marginLeft:'auto',padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,
+        cursor:'pointer',fontFamily:'inherit',
+        border:`1px solid ${f.dSync?'#30D158':'rgba(48,209,88,0.3)'}`,
+        background:f.dSync?'rgba(48,209,88,0.15)':'transparent',
+        color:f.dSync?'#30D158':'rgba(48,209,88,0.5)'}}>
+      SYNC
+    </button>
+  </div>
+  <div style={{display:'flex',flexDirection:'column',gap:8,opacity:f.onDelay?1:0.3,pointerEvents:f.onDelay?'auto':'none'}}>
+    {f.dSync ? (
+      <div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:2,marginBottom:4}}>
+          {['1/4','1/8','1/16','1/4.','1/8t'].map(d=>(
+            <button key={d} onClick={()=>updFx({dDiv:d})}
+              style={{padding:'2px 5px',borderRadius:3,fontSize:6,fontWeight:700,cursor:'pointer',
+                fontFamily:'inherit',
+                border:`1px solid ${(f.dDiv||'1/4')===d?'#30D158':'rgba(48,209,88,0.2)'}`,
+                background:(f.dDiv||'1/4')===d?'rgba(48,209,88,0.15)':'transparent',
+                color:(f.dDiv||'1/4')===d?'#30D158':'rgba(255,255,255,0.3)'}}>
+              {d}
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <div style={{display:'flex',alignItems:'center',gap:6}}>
+        <SlRow label='Time' keyName='dTime' min={0.01} max={1.9} step={0.01}
+          val={f.dTime??0.25} color='#30D158' fmt={(v:number)=>v.toFixed(2)+'s'}/>
+        <MidiTag id={`fx_dtime_${tr.id}`}/>
+      </div>
+    )}
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <SlRow label='Feedback' keyName='dFdbk' min={0} max={75} step={1}
+        val={f.dFdbk??35} color='#30D158' fmt={(v:number)=>v+'%'}/>
+      <MidiTag id={`fx_dfdbk_${tr.id}`}/>
+    </div>
+    <div style={{display:'flex',alignItems:'center',gap:6}}>
+      <SlRow label='Mix' keyName='dMix' min={0} max={100} step={1}
+        val={f.dMix??0} color='#30D158' fmt={(v:number)=>v+'%'}/>
+      <MidiTag id={`fx_dmix_${tr.id}`}/>
+    </div>
+  </div>
+</div>
+```
+
+Mets aussi à jour `resetAllFx` pour inclure ces valeurs (elles y sont déjà dans `DEFAULT_FX_VALS`, vérifie juste que `rType:'room'` est présent).
+
+---
+
+## SECTION 3 — PERFORM FX (Live Pads) : corriger et compléter
+
+Dans la fonction IIFE du PERFORM FX (`// ── Perform FX v10 ──`), effectue les corrections suivantes.
+
+### 3a. Corriger `startRvHold` et `stopRvHold`
+
+Remplace les deux fonctions existantes par :
+```typescript
+const startRvHold = () => {
+  engine.init();
+  if (perfRvHold.current) return;
+  perfRvHold.current = true;
+  const f = R.fx[target] || { ...DEFAULT_FX };
+  // Sauvegarde des valeurs courantes
+  perfRvPrevRef.current = { mix: f.rMix ?? 0, decay: f.rDecay ?? 1.5, size: (f as any).rSize ?? 0.5 };
+  // Boost temporaire : +45 points de mix, decay légèrement allongé
+  const boostMix = Math.min(100, (f.rMix ?? 0) + 45);
+  if (!isMaster && target && engine.ch[target]?.rvSend) {
+    const t2 = engine.ctx?.currentTime ?? 0;
+    engine.ch[target].rvSend.gain.setTargetAtTime(boostMix / 100, t2, 0.02);
+  }
+  // Active la reverb globale si elle ne l'est pas
+  engine.updateReverb(f.rDecay ?? 1.5, (f as any).rSize ?? 0.5, (f as any).rType || 'room');
+};
+
+const stopRvHold = () => {
+  if (!perfRvHold.current) return;
+  perfRvHold.current = false;
+  const prev = perfRvPrevRef.current;
+  if (prev && target && engine.ch[target]?.rvSend && engine.ctx) {
+    const t2 = engine.ctx.currentTime;
+    // Retour progressif au niveau original (200ms)
+    engine.ch[target].rvSend.gain.setTargetAtTime(prev.mix / 100, t2, 0.08);
+  }
+  perfRvPrevRef.current = null;
+};
+```
+
+### 3b. Corriger `startDlHold` et `stopDlHold`
+```typescript
+const startDlHold = () => {
+  engine.init();
+  if (perfDlHold.current) return;
+  perfDlHold.current = true;
+  const f = R.fx[target] || { ...DEFAULT_FX };
+  perfDlPrevRef.current = { mix: f.dMix ?? 0, time: f.dTime ?? 0.25, fb: f.dFdbk ?? 35 };
+  const boostMix = Math.min(100, (f.dMix ?? 0) + 55);
+  const t2 = engine.ctx?.currentTime ?? 0;
+  if (!isMaster && target && engine.ch[target]?.dlSend) {
+    engine.ch[target].dlSend.gain.setTargetAtTime(boostMix / 100, t2, 0.02);
+  }
+  // Synchronise le delay time avec la subdivision live sélectionnée
+  const divMs = divToMs(stutterDiv); // réutilise stutterDiv pour la cohérence
+  if (engine.gDlL) engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9, divMs / 1000), t2, 0.01);
+  if (engine.gDlR) engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9, divMs / 1000 * 1.006), t2, 0.01);
+};
+
+const stopDlHold = () => {
+  if (!perfDlHold.current) return;
+  perfDlHold.current = false;
+  const prev = perfDlPrevRef.current;
+  if (prev && engine.ctx) {
+    const t2 = engine.ctx.currentTime;
+    if (target && engine.ch[target]?.dlSend) {
+      engine.ch[target].dlSend.gain.setTargetAtTime(prev.mix / 100, t2, 0.12);
+    }
+    if (engine.gDlL) engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9, prev.time), t2, 0.05);
+    if (engine.gDlR) engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9, prev.time * 1.006), t2, 0.05);
+  }
+  perfDlPrevRef.current = null;
+};
+```
+
+### 3c. Ajouter les boutons REVERB HOLD et DELAY HOLD dans le JSX du PERFORM FX
+
+Après le bloc `{/* STUTTER */}`, ajoute :
+```tsx
+{/* REVERB + DELAY live */}
+<div>
+  <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:'0.07em',marginBottom:5}}>
+    REVERB &amp; DELAY HOLD · {tIcon} {tLabel}
+  </div>
+  <div style={{display:'flex',gap:6}}>
+    {holdBtn('REV HOLD','#64D2FF', startRvHold, stopRvHold)}
+    {holdBtn('DLY HOLD','#30D158', startDlHold, stopDlHold)}
+  </div>
+  <div style={{display:'flex',gap:3,marginTop:6,flexWrap:'wrap'}}>
+    <span style={{fontSize:6,color:th.faint,alignSelf:'center',marginRight:2}}>DLY DIV</span>
+    {(['1/4','1/8','1/16','1/32'] as const).map(d=>(
+      <button key={d} onClick={()=>setStutterDiv(d)}
+        style={{padding:'3px 7px',borderRadius:4,
+          border:`1px solid ${stutterDiv===d?'#30D158':'rgba(48,209,88,0.2)'}`,
+          background:stutterDiv===d?'rgba(48,209,88,0.15)':'transparent',
+          color:stutterDiv===d?'#30D158':th.faint,
+          fontSize:7,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+        {d}
+      </button>
+    ))}
+  </div>
+</div>
+```
+
+Note : `stutterDiv` et `setStutterDiv` existent déjà et sont partagés avec le STUTTER — c'est voulu, la subdivision est cohérente entre les deux effets live.
+
+---
+
+## VÉRIFICATIONS FINALES
+
+Après toutes les modifications, vérifie les points suivants :
+1. `gDlBus` est toujours accessible dans le reste du code — il sert d'entrée pour les `dlSend` de chaque piste dans `_build()`. Ne le supprime pas.
+2. La propriété `gDl` (ancienne ligne de delay mono) est remplacée par `gDlL` et `gDlR`. Si d'autres références à `gDl` subsistent dans `uFx()` ou ailleurs, remplace-les par `gDlL`.
+3. `updateReverb` est appelé dans plusieurs endroits avec la signature `(decay, size, type)` — cette signature ne change pas, seule l'implémentation interne est modifiée.
+4. Ne touche pas à `_syn()`, aux kits, au scheduler, au looper, aux vues Euclidean, au PatternBank ni à aucun autre composant.

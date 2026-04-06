@@ -61,10 +61,26 @@ class Eng{
     this.gFltLfo.start();
     this.gRvBus=this.ctx.createGain();this.gRvConv=this.ctx.createConvolver();
     this.gRvBus.connect(this.gRvConv);this.gRvConv.connect(this.gOut);
-    this.gDlBus=this.ctx.createGain();this.gDl=this.ctx.createDelay(2);this.gDl.delayTime.value=0.25;
+    // ── Delay bus — stereo avec wet/dry explicite ────────────────────────────
+    this.gDlBus=this.ctx.createGain();
+    this.gDlDry=this.ctx.createGain();this.gDlDry.gain.value=1.0;
+    this.gDlWet=this.ctx.createGain();this.gDlWet.gain.value=0.0;
+    this.gDlL=this.ctx.createDelay(2);this.gDlL.delayTime.value=0.25;
+    this.gDlR=this.ctx.createDelay(2);this.gDlR.delayTime.value=0.27;
     this.gDlFb=this.ctx.createGain();this.gDlFb.gain.value=0.35;
-    this.gDlLpf=this.ctx.createBiquadFilter();this.gDlLpf.type='lowpass';this.gDlLpf.frequency.value=4500;
-    this.gDlBus.connect(this.gDl);this.gDl.connect(this.gDlFb);this.gDlFb.connect(this.gDlLpf);this.gDlLpf.connect(this.gDl);this.gDl.connect(this.gOut);
+    this.gDlHpf=this.ctx.createBiquadFilter();this.gDlHpf.type='highpass';this.gDlHpf.frequency.value=180;
+    this.gDlLpf=this.ctx.createBiquadFilter();this.gDlLpf.type='lowpass';this.gDlLpf.frequency.value=6500;
+    this.gDlPanL=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
+    this.gDlPanR=this.ctx.createStereoPanner?this.ctx.createStereoPanner():this.ctx.createGain();
+    if(this.gDlPanL.pan)this.gDlPanL.pan.value=-0.4;
+    if(this.gDlPanR.pan)this.gDlPanR.pan.value=0.4;
+    this.gDlBus.connect(this.gDlDry);this.gDlDry.connect(this.gOut);
+    this.gDlBus.connect(this.gDlWet);
+    this.gDlWet.connect(this.gDlL);this.gDlWet.connect(this.gDlR);
+    this.gDlL.connect(this.gDlLpf);this.gDlLpf.connect(this.gDlHpf);
+    this.gDlHpf.connect(this.gDlFb);this.gDlFb.connect(this.gDlL);
+    this.gDlL.connect(this.gDlPanL);this.gDlPanL.connect(this.gOut);
+    this.gDlR.connect(this.gDlPanR);this.gDlPanR.connect(this.gOut);
     this.gChoBus=this.ctx.createGain();this.gChoBus.gain.value=0;
     this.gChoDlL=this.ctx.createDelay(0.05);this.gChoDlR=this.ctx.createDelay(0.05);
     this.gChoDlL.delayTime.value=0.020;this.gChoDlR.delayTime.value=0.023;
@@ -143,11 +159,13 @@ class Eng{
     const cfg=cfgs[type]||cfgs.room;
     const{roomSize,damp}=cfg;
     const preDelaySamples=Math.floor(cfg.preDelay*sr);
+    const erDelaysSamples=[Math.floor(0.007*sr),Math.floor(0.013*sr),Math.floor(0.023*sr)];
     const totalSamples=Math.ceil(sr*(Math.min(8,decay)+cfg.preDelay+0.1));
     const buf=this.ctx.createBuffer(2,totalSamples,sr);
     const combDelaysL=[1116,1188,1277,1356,1422,1491,1557,1617].map(d=>Math.floor(d*scale));
     const combDelaysR=combDelaysL.map(d=>d+23);
     const apDelays=[556,441,341,225].map(d=>Math.floor(d*scale));
+    const nCombs=combDelaysL.length;
     for(let ch=0;ch<2;ch++){
       const data=buf.getChannelData(ch);
       const combDelays=ch===0?combDelaysL:combDelaysR;
@@ -156,10 +174,21 @@ class Eng{
       const combFilt=new Float32Array(combDelays.length);
       const apBufs=apDelays.map(d=>new Float32Array(d));
       const apPos=new Int32Array(apDelays.length);
+      const erBufs=erDelaysSamples.map(d=>new Float32Array(d));
+      const erPos=new Int32Array(erDelaysSamples.length);
       for(let i=0;i<totalSamples;i++){
         const input=(i===preDelaySamples)?1.0:0.0;
+        // Early reflections
+        let erOut=0;
+        const erGains=[0.7,0.5,0.4];
+        for(let e=0;e<erBufs.length;e++){
+          erOut+=erBufs[e][erPos[e]]*erGains[e];
+          erBufs[e][erPos[e]]=input;
+          erPos[e]=(erPos[e]+1)%erBufs[e].length;
+        }
+        // Schroeder combs
         let combOut=0;
-        for(let c=0;c<combBufs.length;c++){
+        for(let c=0;c<nCombs;c++){
           const b=combBufs[c],pos=combPos[c];
           const delayed=b[pos];
           combFilt[c]=delayed*(1-damp)+combFilt[c]*damp;
@@ -167,7 +196,8 @@ class Eng{
           combPos[c]=(pos+1)%b.length;
           combOut+=delayed;
         }
-        combOut*=0.015;
+        combOut*=(1/nCombs);
+        // Allpass
         let apOut=combOut;
         for(let a=0;a<apBufs.length;a++){
           const b=apBufs[a],pos=apPos[a];
@@ -177,12 +207,18 @@ class Eng{
           apPos[a]=(pos+1)%b.length;
           apOut=delayed-0.5*w;
         }
-        data[i]=apOut;
+        data[i]=apOut*0.5+erOut*0.5;
       }
     }
     this.rv=buf;
   }
-  updateReverb(decay,size,type='room'){this._mkRv(decay,size,type);if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}}
+  updateReverb(decay:number,size:number,type='room'){
+    clearTimeout((this as any)._rvPending);
+    (this as any)._rvPending=setTimeout(()=>{
+      this._mkRv(decay,size,type);
+      if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}
+    },0);
+  }
   rebuildChain(order=['drive','comp','filter'],sendPositions={}){
     if(!this.ctx)return;
     const seriesIn={drive:this.gDrv,comp:this.gCmp,filter:this.gFlt};
@@ -265,9 +301,13 @@ class Eng{
       const depth=fltLfoOn?(gfx.filter?.lfoDepth??0)/100*8000:0;
       this.gFltLfoDepth.gain.setTargetAtTime(depth,t,0.02);
     }
-    if(this.gDl)this.gDl.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay?.time||0.25),t,0.01);
-    if(this.gDlFb)this.gDlFb.gain.setTargetAtTime((gfx.delay?.fdbk||35)/100,t,0.01);
-    if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(gfx.delay?.on?4500:20000,t,0.01);
+    // ── Delay ──
+    const dlOn=gfx.delay?.on??false;
+    if(this.gDlL)  this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay?.time||0.25),t,0.01);
+    if(this.gDlR)  this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(gfx.delay?.time||0.25)*1.006),t,0.01);
+    if(this.gDlFb) this.gDlFb.gain.setTargetAtTime(Math.min(0.75,(gfx.delay?.fdbk||35)/100),t,0.01);
+    if(this.gDlWet)this.gDlWet.gain.setTargetAtTime(dlOn?(gfx.delay?.mix??35)/100:0,t,0.02);
+    if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(dlOn?(gfx.delay?.lpf??6500):20000,t,0.01);
     const choOn=gfx.chorus?.on??false;
     if(this.gChoBus)this.gChoBus.gain.setTargetAtTime(choOn?1:0,t,0.01);
     if(this.gChoFeed)this.gChoFeed.gain.setTargetAtTime(0,t,0.01);
@@ -379,9 +419,11 @@ class Eng{
       const dlAmt=dlOn?Math.max(0,Math.min(1,(f?.dMix??0)/100)):0;
       c.dlSend.gain.cancelScheduledValues(ct);
       c.dlSend.gain.setTargetAtTime(dlAmt,ct,0.02);
-      if(dlOn&&this.gDl){
-        this.gDl.delayTime.setTargetAtTime(Math.min(1.9,f?.dTime??0.25),ct,0.02);
-        if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.95,(f?.dFdbk??35)/100),ct,0.02);
+      if(dlOn&&this.gDlL){
+        this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,f?.dTime??0.25),ct,0.02);
+        if(this.gDlR)this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(f?.dTime??0.25)*1.006),ct,0.02);
+        if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.75,(f?.dFdbk??35)/100),ct,0.02);
+        if(this.gDlWet)this.gDlWet.gain.setTargetAtTime((f?.dMix??0)/100,ct,0.02);
       }
     }
     if(c.tsAtk){

@@ -3624,21 +3624,49 @@ export default function KickAndSnare(){
             };
             const startRvHold=()=>{
               engine.init();if(perfRvHold.current)return;perfRvHold.current=true;
-              const rv=gfx.reverb||{};perfRvPrevRef.current={mix:rv.mix??0.18,decay:rv.decay??2};
-              engine.updateReverb?.({...rv,mix:Math.min(1,(rv.mix??0.18)+0.45),decay:(rv.decay??2)*1.6});
+              const f=R.fx[target]||{...DEFAULT_FX};
+              perfRvPrevRef.current={mix:f.rMix??0,decay:f.rDecay??1.5,size:(f as any).rSize??0.5};
+              const boostMix=Math.min(100,(f.rMix??0)+45);
+              if(target&&engine.ch[target]?.rvSend){
+                const t2=engine.ctx?.currentTime??0;
+                engine.ch[target].rvSend.gain.setTargetAtTime(boostMix/100,t2,0.02);
+              }
+              engine.updateReverb(f.rDecay??1.5,(f as any).rSize??0.5,(f as any).rType||'room');
             };
             const stopRvHold=()=>{
               if(!perfRvHold.current)return;perfRvHold.current=false;
-              if(perfRvPrevRef.current){engine.updateReverb?.({...(gfx.reverb||{}),...perfRvPrevRef.current});perfRvPrevRef.current=null;}
+              const prev=perfRvPrevRef.current;
+              if(prev&&target&&engine.ch[target]?.rvSend&&engine.ctx){
+                const t2=engine.ctx.currentTime;
+                engine.ch[target].rvSend.gain.setTargetAtTime(prev.mix/100,t2,0.08);
+              }
+              perfRvPrevRef.current=null;
             };
             const startDlHold=()=>{
               engine.init();if(perfDlHold.current)return;perfDlHold.current=true;
-              const dl=gfx.delay||{};perfDlPrevRef.current={mix:dl.mix??0,time:dl.time??0.25,fb:dl.fb??0.3};
-              const t2=engine.ctx?.currentTime??0;engine.gDlBus?.gain.setTargetAtTime(Math.min(1,(dl.mix??0)+0.55),t2,0.02);
+              const f=R.fx[target]||{...DEFAULT_FX};
+              perfDlPrevRef.current={mix:f.dMix??0,time:f.dTime??0.25,fb:f.dFdbk??35};
+              const boostMix=Math.min(100,(f.dMix??0)+55);
+              const t2=engine.ctx?.currentTime??0;
+              if(target&&engine.ch[target]?.dlSend){
+                engine.ch[target].dlSend.gain.setTargetAtTime(boostMix/100,t2,0.02);
+              }
+              const divMs=divToMs(stutterDiv);
+              if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000),t2,0.01);
+              if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000*1.006),t2,0.01);
             };
             const stopDlHold=()=>{
               if(!perfDlHold.current)return;perfDlHold.current=false;
-              if(perfDlPrevRef.current&&engine.ctx){const t2=engine.ctx.currentTime;engine.gDlBus?.gain.setTargetAtTime(perfDlPrevRef.current.mix,t2,0.12);perfDlPrevRef.current=null;}
+              const prev=perfDlPrevRef.current;
+              if(prev&&engine.ctx){
+                const t2=engine.ctx.currentTime;
+                if(target&&engine.ch[target]?.dlSend){
+                  engine.ch[target].dlSend.gain.setTargetAtTime(prev.mix/100,t2,0.12);
+                }
+                if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,prev.time),t2,0.05);
+                if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,prev.time*1.006),t2,0.05);
+              }
+              perfDlPrevRef.current=null;
             };
             const startStutter=()=>{
               engine.init();
@@ -3731,6 +3759,29 @@ export default function KickAndSnare(){
                           onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startStutter();}}
                           onPointerUp={stopStutter} onPointerCancel={stopStutter} onPointerLeave={stopStutter}
                           style={{padding:"6px 16px",borderRadius:6,border:`1.5px solid rgba(94,92,230,0.5)`,background:"rgba(94,92,230,0.15)",color:"#5E5CE6",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>HOLD</button>
+                      </div>
+                    </div>
+                    {/* REVERB + DELAY live */}
+                    <div>
+                      <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>
+                        REVERB &amp; DELAY HOLD · {tIcon} {tLabel}
+                      </div>
+                      <div style={{display:"flex",gap:6}}>
+                        {holdBtn("REV HOLD","#64D2FF",startRvHold,stopRvHold)}
+                        {holdBtn("DLY HOLD","#30D158",startDlHold,stopDlHold)}
+                      </div>
+                      <div style={{display:"flex",gap:3,marginTop:6,flexWrap:"wrap"}}>
+                        <span style={{fontSize:6,color:th.faint,alignSelf:"center",marginRight:2}}>DLY DIV</span>
+                        {(["1/4","1/8","1/16","1/32"] as const).map(d=>(
+                          <button key={d} onClick={()=>setStutterDiv(d)}
+                            style={{padding:"3px 7px",borderRadius:4,
+                              border:`1px solid ${stutterDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,
+                              background:stutterDiv===d?"rgba(48,209,88,0.15)":"transparent",
+                              color:stutterDiv===d?"#30D158":th.faint,
+                              fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                            {d}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -4263,6 +4314,91 @@ export default function KickAndSnare(){
                 </div>
               </div>
 
+
+              {/* REVERB */}
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>REVERB</span>
+                  <ToggleBtn on={f.onReverb??false} label={f.onReverb?"ON":"OFF"} color="#64D2FF"
+                    onClick={()=>updFx({onReverb:!(f.onReverb??false)})}/>
+                  <MidiTag id={`fx_rev_on_${tr.id}`}/>
+                  <div style={{marginLeft:"auto"}}>
+                    <PillGroup val={(f as any).rType||"room"} color="#64D2FF"
+                      onSel={(k:string)=>updFx({rType:k,onReverb:true})}
+                      opts={[{k:"room",l:"ROOM"},{k:"plate",l:"PLATE"},{k:"hall",l:"HALL"}]}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,opacity:f.onReverb?1:0.3,pointerEvents:f.onReverb?"auto":"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Mix" keyName="rMix" min={0} max={100} step={1}
+                      val={f.rMix??0} color="#64D2FF" fmt={(v:number)=>v+"%"}/>
+                    <MidiTag id={`fx_rmix_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Decay" keyName="rDecay" min={0.1} max={6} step={0.1}
+                      val={f.rDecay??1.5} color="#64D2FF" fmt={(v:number)=>v.toFixed(1)+"s"}/>
+                    <MidiTag id={`fx_rdec_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Size" keyName="rSize" min={0} max={1} step={0.05}
+                      val={(f as any).rSize??0.5} color="#64D2FF" fmt={(v:number)=>Math.round(v*100)+"%"}/>
+                    <MidiTag id={`fx_rsz_${tr.id}`}/>
+                  </div>
+                </div>
+              </div>
+
+              {/* DELAY */}
+              <div style={sec}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em"}}>DELAY</span>
+                  <ToggleBtn on={f.onDelay??false} label={f.onDelay?"ON":"OFF"} color="#30D158"
+                    onClick={()=>updFx({onDelay:!(f.onDelay??false)})}/>
+                  <MidiTag id={`fx_dly_on_${tr.id}`}/>
+                  <button
+                    onClick={()=>updFx({dSync:!(f.dSync??false)})}
+                    style={{marginLeft:"auto",padding:"1px 6px",borderRadius:3,fontSize:6,fontWeight:800,
+                      cursor:"pointer",fontFamily:"inherit",
+                      border:`1px solid ${f.dSync?"#30D158":"rgba(48,209,88,0.3)"}`,
+                      background:f.dSync?"rgba(48,209,88,0.15)":"transparent",
+                      color:f.dSync?"#30D158":"rgba(48,209,88,0.5)"}}>
+                    SYNC
+                  </button>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,opacity:f.onDelay?1:0.3,pointerEvents:f.onDelay?"auto":"none"}}>
+                  {f.dSync?(
+                    <div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:2,marginBottom:4}}>
+                        {["1/4","1/8","1/16","1/4.","1/8t"].map(d=>(
+                          <button key={d} onClick={()=>updFx({dDiv:d})}
+                            style={{padding:"2px 5px",borderRadius:3,fontSize:6,fontWeight:700,cursor:"pointer",
+                              fontFamily:"inherit",
+                              border:`1px solid ${(f.dDiv||"1/4")===d?"#30D158":"rgba(48,209,88,0.2)"}`,
+                              background:(f.dDiv||"1/4")===d?"rgba(48,209,88,0.15)":"transparent",
+                              color:(f.dDiv||"1/4")===d?"#30D158":"rgba(255,255,255,0.3)"}}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ):(
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <SlRow label="Time" keyName="dTime" min={0.01} max={1.9} step={0.01}
+                        val={f.dTime??0.25} color="#30D158" fmt={(v:number)=>v.toFixed(2)+"s"}/>
+                      <MidiTag id={`fx_dtime_${tr.id}`}/>
+                    </div>
+                  )}
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Feedback" keyName="dFdbk" min={0} max={75} step={1}
+                      val={f.dFdbk??35} color="#30D158" fmt={(v:number)=>v+"%"}/>
+                    <MidiTag id={`fx_dfdbk_${tr.id}`}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Mix" keyName="dMix" min={0} max={100} step={1}
+                      val={f.dMix??0} color="#30D158" fmt={(v:number)=>v+"%"}/>
+                    <MidiTag id={`fx_dmix_${tr.id}`}/>
+                  </div>
+                </div>
+              </div>
 
               {/* OUTPUT */}
               <div style={sec}>
