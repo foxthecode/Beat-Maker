@@ -1062,8 +1062,8 @@ export default function KickAndSnare(){
   const perfSwipeRef=useRef<{startX:number,startIdx:number}|null>(null);
   const perfRvHold=useRef(false);
   const perfDlHold=useRef(false);
-  const perfRvPrevRef=useRef<{mix:number,decay:number}|null>(null);
-  const perfDlPrevRef=useRef<{mix:number,time:number,fb:number}|null>(null);
+  const perfRvPrevRef=useRef<{mix:number,decay:number,sends?:Record<string,number>}|null>(null);
+  const perfDlPrevRef=useRef<{mix:number,time:number,fb:number,sends?:Record<string,number>}|null>(null);
   const filterPosRef=useRef<Record<string,{x:number,y:number}>>({});
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
@@ -3626,17 +3626,19 @@ export default function KickAndSnare(){
             const startRvHold=()=>{
               engine.init();if(perfRvHold.current)return;perfRvHold.current=true;
               const t2=engine.ctx?.currentTime??0;
-              // Assure que le convolver a un buffer
               if(engine.gRvConv&&!engine.gRvConv.buffer&&engine.rv)engine.gRvConv.buffer=engine.rv;
               if(isMaster){
-                // Master : booste le bus global de reverb
-                const cur=engine.gRvBus?.gain.value??0.5;
-                perfRvPrevRef.current={mix:cur*100,decay:2,size:0.5};
-                engine.gRvBus?.gain.setTargetAtTime(Math.min(2,cur*2.5+0.4),t2,0.05);
+                // Master : booste gRvBus + force tous les rvSend actifs à 0.5 min
+                const curBus=engine.gRvBus?.gain.value??1;
+                const sends:Record<string,number>={};
+                Object.entries(engine.ch as Record<string,any>).forEach(([tid,c])=>{
+                  if(c?.rvSend){sends[tid]=c.rvSend.gain.value;c.rvSend.gain.setTargetAtTime(Math.max(c.rvSend.gain.value,0.45),t2,0.04);}
+                });
+                perfRvPrevRef.current={mix:curBus*100,decay:2,sends};
+                engine.gRvBus?.gain.setTargetAtTime(Math.min(2,curBus*2.0+0.6),t2,0.04);
               } else if(target&&engine.ch[target]?.rvSend){
-                // Track : booste le send de reverb de la piste
                 const cur=engine.ch[target].rvSend.gain.value;
-                perfRvPrevRef.current={mix:cur*100,decay:2,size:0.5};
+                perfRvPrevRef.current={mix:cur*100,decay:2};
                 engine.ch[target].rvSend.gain.setTargetAtTime(Math.min(1,cur+0.55),t2,0.02);
               }
             };
@@ -3645,7 +3647,13 @@ export default function KickAndSnare(){
               const t2=engine.ctx?.currentTime??0;
               const prev=perfRvPrevRef.current;
               if(isMaster){
-                engine.gRvBus?.gain.setTargetAtTime((prev?.mix??50)/100,t2,0.18);
+                engine.gRvBus?.gain.setTargetAtTime((prev?.mix??100)/100,t2,0.2);
+                if(prev?.sends){
+                  Object.entries(prev.sends).forEach(([tid,savedGain])=>{
+                    const c=(engine.ch as Record<string,any>)[tid];
+                    if(c?.rvSend)c.rvSend.gain.setTargetAtTime(savedGain,t2,0.18);
+                  });
+                }
               } else if(prev&&target&&engine.ch[target]?.rvSend){
                 engine.ch[target].rvSend.gain.setTargetAtTime(prev.mix/100,t2,0.08);
               }
@@ -3656,18 +3664,20 @@ export default function KickAndSnare(){
               const t2=engine.ctx?.currentTime??0;
               const divMs=divToMs(stutterDiv);
               if(isMaster){
-                // Master : booste le wet global du delay
-                const cur=engine.gDlWet?.gain.value??0;
-                perfDlPrevRef.current={mix:cur*100,time:engine.gDlL?.delayTime.value??0.25,fb:35};
-                engine.gDlWet?.gain.setTargetAtTime(Math.min(1,cur+0.65),t2,0.02);
+                // Master : booste gDlWet + force tous les dlSend actifs à 0.5 min
+                const curWet=engine.gDlWet?.gain.value??0;
+                const sends:Record<string,number>={};
+                Object.entries(engine.ch as Record<string,any>).forEach(([tid,c])=>{
+                  if(c?.dlSend){sends[tid]=c.dlSend.gain.value;c.dlSend.gain.setTargetAtTime(Math.max(c.dlSend.gain.value,0.45),t2,0.02);}
+                });
+                perfDlPrevRef.current={mix:curWet*100,time:engine.gDlL?.delayTime.value??0.25,fb:35,sends};
+                engine.gDlWet?.gain.setTargetAtTime(Math.min(1,curWet+0.7),t2,0.02);
               } else if(target&&engine.ch[target]?.dlSend){
-                // Track : booste le send de delay de la piste + active le wet
                 const cur=engine.ch[target].dlSend.gain.value;
                 perfDlPrevRef.current={mix:cur*100,time:engine.gDlL?.delayTime.value??0.25,fb:35};
                 engine.ch[target].dlSend.gain.setTargetAtTime(Math.min(1,cur+0.65),t2,0.02);
                 engine.gDlWet?.gain.setTargetAtTime(0.7,t2,0.02);
               }
-              // Sync delay time sur la subdivision stutter
               if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000),t2,0.01);
               if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000*1.006),t2,0.01);
             };
@@ -3676,7 +3686,13 @@ export default function KickAndSnare(){
               const t2=engine.ctx?.currentTime??0;
               const prev=perfDlPrevRef.current;
               if(isMaster){
-                engine.gDlWet?.gain.setTargetAtTime((prev?.mix??0)/100,t2,0.15);
+                engine.gDlWet?.gain.setTargetAtTime((prev?.mix??0)/100,t2,0.18);
+                if(prev?.sends){
+                  Object.entries(prev.sends).forEach(([tid,savedGain])=>{
+                    const c=(engine.ch as Record<string,any>)[tid];
+                    if(c?.dlSend)c.dlSend.gain.setTargetAtTime(savedGain,t2,0.15);
+                  });
+                }
               } else if(prev&&target&&engine.ch[target]?.dlSend){
                 engine.ch[target].dlSend.gain.setTargetAtTime(prev.mix/100,t2,0.12);
                 engine.gDlWet?.gain.setTargetAtTime((prev.mix??0)/100,t2,0.15);
