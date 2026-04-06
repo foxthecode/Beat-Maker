@@ -1709,7 +1709,7 @@ export default function KickAndSnare(){
     }
     // ── Linear / Pads: global step scheduler ──
     const cs=R.sig;const gr=cs.groups||[cs.steps];
-    if(nxtRef.current<ct-0.05)nxtRef.current=ct+0.02; // resync if stale (e.g. switching from Euclid)
+    if(nxtRef.current<ct-0.005)nxtRef.current=ct+0.01; // resync if >5ms late — avoids burst catchup (GC/Android OS pause → crackling)
     while(nxtRef.current<ct+LA){
       const prevStep=R.step;
       R.step=(R.step+1)%cs.steps;

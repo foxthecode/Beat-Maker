@@ -27,6 +27,13 @@ export default function TransportBar({
   const lastTapRef = useRef(0);
   const [bpmFlash, setBpmFlash] = useState(false);
   const bpmFlashTRef = useRef(null);
+  // Draft BPM — shows live slider position on mobile without changing audio until release
+  const [draftBpm, setDraftBpm] = useState(bpm);
+  const isDraggingBpm = useRef(false);
+  useEffect(() => {
+    // Sync draft when BPM changes externally (tap tempo, arrow keys, load, etc.)
+    if (!isDraggingBpm.current) setDraftBpm(bpm);
+  }, [bpm]);
   useEffect(() => {
     clearTimeout(bpmFlashTRef.current);
     setBpmFlash(true);
@@ -165,9 +172,33 @@ export default function TransportBar({
       <span style={{ fontSize: 7, color: th.dim, letterSpacing: "0.12em", flexShrink: 0 }}>BPM</span>
       <MidiTag id="__bpm__" />
       <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>‹</button>
-      <span className={bpmFlash ? "bpmFlash" : ""} style={{ fontSize: 22, fontWeight: 900, color: "#FF9500", display: "inline-block", minWidth: 30, textAlign: "center", flexShrink: 0 }}>{bpm}</span>
+      <span className={bpmFlash ? "bpmFlash" : ""} style={{ fontSize: 22, fontWeight: 900, color: "#FF9500", display: "inline-block", minWidth: 30, textAlign: "center", flexShrink: 0 }}>{isMobile ? draftBpm : bpm}</span>
       <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>›</button>
-      <input type="range" min={30} max={300} value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ flex: 1, minWidth: 50, height: 4, accentColor: "#FF9500" }} />
+      <input
+        type="range" min={30} max={300}
+        value={isMobile ? draftBpm : bpm}
+        onChange={e => {
+          const v = Number(e.target.value);
+          if (isMobile) {
+            // On mobile: only update visual draft, audio BPM commits on release
+            isDraggingBpm.current = true;
+            setDraftBpm(v);
+          } else {
+            setBpm(v);
+          }
+        }}
+        onPointerUp={isMobile ? e => {
+          const v = Number(e.target.value);
+          isDraggingBpm.current = false;
+          setBpm(v);
+        } : undefined}
+        onTouchEnd={isMobile ? e => {
+          // Fallback for browsers that don't fire pointerUp on touch
+          isDraggingBpm.current = false;
+          setBpm(draftBpm);
+        } : undefined}
+        style={{ flex: 1, minWidth: 50, height: 4, accentColor: "#FF9500" }}
+      />
     </div>
   );
 
