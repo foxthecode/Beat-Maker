@@ -288,7 +288,7 @@ export default function TransportBar({
   );
 
   const loadFileRef = useRef(null);
-  const SaveBtn = onSaveProject && (
+  const SaveBtn = !isMobile && onSaveProject && (
     <button
       data-hint="Save project · Exports all patterns, BPM, FX, kit and settings to a .ks.txt file · On mobile: copy-paste fallback if download is blocked"
       onClick={onSaveProject}
@@ -297,7 +297,7 @@ export default function TransportBar({
       <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>SAVE</span>
     </button>
   );
-  const LoadBtn = onLoadProject && (
+  const LoadBtn = !isMobile && onLoadProject && (
     <>
       <input ref={loadFileRef} type="file" accept=".ks.txt,.ks.json,.txt,application/json,text/plain" style={{ display: "none" }}
         onChange={e => { const f = e.target.files?.[0]; if (f) onLoadProject(f); e.target.value = ""; }} />
@@ -311,7 +311,7 @@ export default function TransportBar({
     </>
   );
 
-  const PasteBtn = onPasteProject && (
+  const PasteBtn = !isMobile && onPasteProject && (
     <button
       data-hint="Charger depuis texte · Colle le texte copié depuis SAUVEGARDER pour recharger ton projet · Utile si le téléchargement de fichier est bloqué"
       onClick={onPasteProject}
