@@ -759,6 +759,22 @@ export default function KickAndSnare(){
   const [hoverMsg,setHoverMsg]=useState<string|null>(null);
   const [hintMode,setHintMode]=useState(false);
   const [mousePos,setMousePos]=useState({x:0,y:0});
+  // Mobile inspect-mode state
+  const [mobileHintMsg,setMobileHintMsg]=useState<string|null>(null);
+  const [mobileHintPos,setMobileHintPos]=useState({x:0,y:0});
+  const hintOverlayRef=useRef<HTMLDivElement|null>(null);
+  const handleHintOverlayTap=(e:React.PointerEvent)=>{
+    const x=e.clientX;const y=e.clientY;
+    // Briefly hide the overlay so elementFromPoint can reach the element behind it
+    const ov=hintOverlayRef.current;
+    if(ov)ov.style.visibility='hidden';
+    const el=document.elementFromPoint(x,y)?.closest('[data-hint]') as HTMLElement|null;
+    if(ov)ov.style.visibility='visible';
+    setMobileHintMsg(el?.dataset.hint??null);
+    setMobileHintPos({x,y});
+  };
+  // When hint mode is deactivated clear mobile tooltip
+  useEffect(()=>{if(!hintMode)setMobileHintMsg(null);},[hintMode]);
   useEffect(()=>{
     const onOver=(e:MouseEvent)=>{
       const el=(e.target as HTMLElement).closest('[data-hint]') as HTMLElement|null;
@@ -4164,8 +4180,19 @@ export default function KickAndSnare(){
 
 
         <div style={{marginBottom:8}}/>
-        {/* ── Floating hint tooltip ── */}
-        {hintMode&&hoverMsg&&(()=>{
+        {/* ── Mobile inspect-mode overlay ── */}
+        {hintMode&&isMobileRef.current&&(
+          <div ref={hintOverlayRef} onPointerDown={handleHintOverlayTap} style={{position:"fixed",inset:0,zIndex:9990,background:"rgba(255,214,10,0.03)",cursor:"crosshair",touchAction:"none"}}>
+            {/* Banner at top — has its own pointer events for the close button */}
+            <div onPointerDown={e=>e.stopPropagation()} style={{position:"absolute",top:0,left:0,right:0,padding:"5px 12px",background:"rgba(255,214,10,0.14)",borderBottom:"1px solid rgba(255,214,10,0.25)",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+              <span style={{fontSize:9,color:"#FFD60A",fontWeight:800,letterSpacing:"0.10em"}}>INSPECT MODE</span>
+              <span style={{fontSize:9,color:"rgba(255,214,10,0.55)",letterSpacing:"0.04em"}}>· Tap any element</span>
+              <button onPointerDown={()=>setHintMode(false)} style={{marginLeft:8,padding:"2px 8px",background:"rgba(255,214,10,0.18)",border:"1px solid rgba(255,214,10,0.45)",borderRadius:6,color:"#FFD60A",fontSize:9,fontWeight:800,fontFamily:"inherit",cursor:"pointer",letterSpacing:"0.06em"}}>✕ EXIT</button>
+            </div>
+          </div>
+        )}
+        {/* ── Floating hint tooltip (desktop hover) ── */}
+        {hintMode&&!isMobileRef.current&&hoverMsg&&(()=>{
           const parts=hoverMsg.split("·");
           const title=parts[0]?.trim()||"";
           const desc=parts.slice(1).map(s=>s.trim()).filter(Boolean).join(" · ");
@@ -4177,6 +4204,24 @@ export default function KickAndSnare(){
             <div style={{position:"fixed",left:lx,top:ty,zIndex:9999,pointerEvents:"none",maxWidth:280,background:"rgba(18,18,22,0.97)",border:"1px solid rgba(255,214,10,0.35)",borderRadius:8,padding:"7px 11px 8px",backdropFilter:"blur(12px)",boxShadow:"0 4px 24px rgba(0,0,0,0.7)",transition:"left 0.05s,top 0.05s"}}>
               {title&&<div style={{fontSize:10,fontWeight:800,color:"#FFD60A",letterSpacing:"0.06em",marginBottom:desc?3:0}}>{title}</div>}
               {desc&&<div style={{fontSize:9,color:"rgba(255,255,255,0.62)",lineHeight:1.5,letterSpacing:"0.02em"}}>{desc}</div>}
+            </div>
+          );
+        })()}
+        {/* ── Mobile inspect tooltip (shown after tap) ── */}
+        {hintMode&&isMobileRef.current&&mobileHintMsg&&(()=>{
+          const parts=mobileHintMsg.split("·");
+          const title=parts[0]?.trim()||"";
+          const desc=parts.slice(1).map(s=>s.trim()).filter(Boolean).join(" · ");
+          const vw=window.innerWidth;const vh=window.innerHeight;
+          const TW=Math.min(vw-24,300);
+          let lx=mobileHintPos.x-TW/2;
+          let ty=mobileHintPos.y+24;
+          if(lx<12)lx=12;if(lx+TW>vw-12)lx=vw-TW-12;
+          if(ty+100>vh)ty=mobileHintPos.y-110;
+          return(
+            <div style={{position:"fixed",left:lx,top:ty,zIndex:9999,pointerEvents:"none",maxWidth:TW,width:TW,background:"rgba(18,18,22,0.97)",border:"1px solid rgba(255,214,10,0.5)",borderRadius:10,padding:"9px 13px 10px",backdropFilter:"blur(16px)",boxShadow:"0 6px 32px rgba(0,0,0,0.85)"}}>
+              {title&&<div style={{fontSize:11,fontWeight:800,color:"#FFD60A",letterSpacing:"0.06em",marginBottom:desc?4:0}}>{title}</div>}
+              {desc&&<div style={{fontSize:10,color:"rgba(255,255,255,0.72)",lineHeight:1.55,letterSpacing:"0.02em"}}>{desc}</div>}
             </div>
           );
         })()}
