@@ -1159,6 +1159,7 @@ export default function KickAndSnare(){
   const euclidGlobalRef=useRef<{nextTime:number|null,globalTick:number}>({nextTime:null,globalTick:0});
   // Write buffer for audio thread; display state for React re-render (one per scheduler tick)
   const euclidCurRef=useRef<Record<string,number>>({});
+  const euclidRAFRef=useRef<number|null>(null);
   const [euclidCurDisplay,setEuclidCurDisplay]=useState<Record<string,number>>({});
   const euclidMetroR=useRef<any>({nextTime:null,beat:0});
   // ── Looper ──
@@ -1387,7 +1388,7 @@ export default function KickAndSnare(){
   },[playing,linkConnected,linkSyncPlay]);
   // Cleanup
   useEffect(()=>()=>{if(linkWsRef.current)linkWsRef.current.close();},[]);
-
+  useEffect(()=>()=>{if(euclidRAFRef.current){cancelAnimationFrame(euclidRAFRef.current);euclidRAFRef.current=null;}},[]);
 
   // Keyboard shortcuts
   const trigPad=useCallback(async(tid,vel=1)=>{
@@ -1637,10 +1638,15 @@ export default function KickAndSnare(){
         dirty=true;
       }
 
-      // Mise à jour visuelle des aiguilles — une seule fois par tick scheduler
+      // Mise à jour visuelle des aiguilles — RAF throttle (pas de setState dans le scheduler)
       if(dirty){
         euclidCurRef.current=curSnapshot;
-        setEuclidCurDisplay({...curSnapshot});
+        if(!euclidRAFRef.current){
+          euclidRAFRef.current=requestAnimationFrame(()=>{
+            euclidRAFRef.current=null;
+            setEuclidCurDisplay({...euclidCurRef.current});
+          });
+        }
       }
 
       // ── Song mode ──────────────────────────────────────────────────────────────
