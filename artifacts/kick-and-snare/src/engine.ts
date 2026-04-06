@@ -19,12 +19,15 @@ class Eng{
   }
   init(){
     if(this.ctx)return;
-    const latHint=this._isAndroid?0.02:'interactive';
+    // Android WebView: 'playback' requests the largest stable buffer.
+    // With 300ms scheduler look-ahead the extra latency is inaudible, but underruns disappear.
+    // iOS: 'interactive' balances latency and stability; still safe with 300ms look-ahead.
+    const latHint=this._isAndroid?'playback':'interactive';
     const ctxOpts=this._isMobile?{latencyHint:latHint}:{latencyHint:latHint,sampleRate:44100};
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(ctxOpts);
     if(this._isMobile){
       const diagFn=()=>{
-        const hint=this._isAndroid?'0.02 (Android)':'interactive';
+        const hint=this._isAndroid?'playback (Android)':'interactive';
         const ol=this.ctx.outputLatency??0;
         if(ol>0.05){
           this._lookAhead=Math.max(this._lookAhead,ol+0.08);
