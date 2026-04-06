@@ -3960,6 +3960,7 @@ export default function KickAndSnare(){
                                   <span title={p.fold?"Expand":"Collapse"} style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,userSelect:"none"}}>{tr.label}</span>
                                   {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 3px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
                                 </div>
+                                <button data-hint={`FX · Open per-track effects for ${tr.label} · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay sends`} title="Track FX" onClick={()=>setPadFxTrack(p=>p===tr.id?null:tr.id)} style={{...btnSm,width:22,fontSize:9,background:padFxTrack===tr.id?"rgba(191,90,242,0.2)":"rgba(191,90,242,0.06)",color:"rgba(191,90,242,0.85)",border:`1px solid ${padFxTrack===tr.id?"rgba(191,90,242,0.6)":"rgba(191,90,242,0.3)"}`}}>🎛</button>
                                 <button data-hint={isM?`MUTE active · Track ${tr.label} silenced · Click to re-enable`:`MUTE · Silence track ${tr.label} without clearing the Euclidean rhythm`} onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
                                 <button data-hint={isS?`SOLO active · Only track ${tr.label} is playing · Click to disable`:`SOLO · Isolate track ${tr.label} — all other tracks are silenced`} onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
                                 {(()=>{const hasSmp=!!smpN[tr.id];const hasWv=!!waveformCache[tr.id];return(<button data-hint={hasSmp?`Sample: ${smpN[tr.id]} · Click to change the audio file`:`Load an audio sample for track ${tr.label} (MP3, WAV, OGG)`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent",position:"relative",overflow:"hidden",minWidth:hasWv?28:undefined}}>{hasWv?(<svg viewBox="0 0 28 16" width="26" height="14" style={{position:"absolute",inset:0,margin:"auto",opacity:0.5,pointerEvents:"none"}} preserveAspectRatio="none"><path d={waveformCache[tr.id]} stroke="#FF9500" strokeWidth="1.2" fill="none"/></svg>):<span style={{position:"relative",zIndex:1}}>♪</span>}</button>);})()}
@@ -4030,27 +4031,6 @@ export default function KickAndSnare(){
                             <button data-hint={`Rotate right · Shift the ${tr.label} Euclidean pattern one step right`} onMouseDown={e=>{e.preventDefault();chR(tr.id,(p.rot+1)%Math.max(p.N,1));}} style={arw}>›</button>
                           </div>
                         )}
-                        {/* ── FX SAMPLE row ── */}
-                        {!p.fold&&(()=>{
-                          const f=fx[tr.id]||{...DEFAULT_FX};
-                          const uFxL=(k:string,v:any)=>{setFx((prev:any)=>{const nf={...(prev[tr.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(tr.id,nf);return{...prev,[tr.id]:nf};});};
-                          const rvOn=!!f.onReverb;const dlOn=!!f.onDelay;const drOn=!!f.onDrive;
-                          const tagBtn=(label:string,on:boolean,color:string,hint:string,onClick:()=>void)=>(
-                            <button data-hint={hint} onClick={onClick}
-                              style={{height:22,padding:"0 7px",borderRadius:5,border:`1px solid ${on?color+"88":th.sBorder}`,background:on?color+"18":"transparent",color:on?color:th.faint,fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",flexShrink:0}}>{label}</button>
-                          );
-                          return(
-                            <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap",paddingTop:1}}>
-                              <span style={{...lbl0,fontSize:6}}>FX</span>
-                              <button data-hint={`Preview · Trigger ${tr.label} sample`}
-                                onPointerDown={e=>{e.preventDefault();engine.init();engine.play(tr.id,0.85,0,f);}}
-                                style={{height:22,padding:"0 8px",borderRadius:5,border:`1px solid ${tr.color}55`,background:tr.color+"10",color:tr.color,fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.04em",flexShrink:0}}>▶ SMP</button>
-                              {tagBtn("REV",rvOn,"#64D2FF",rvOn?`REV active · Reverb send ON for ${tr.label} · Click to disable`:`REV · Send ${tr.label} to reverb bus`,()=>{uFxL("onReverb",!rvOn);if(!rvOn)uFxL("rMix",45);})}
-                              {tagBtn("DLY",dlOn,"#30D158",dlOn?`DLY active · Delay send ON for ${tr.label} · Click to disable`:`DLY · Send ${tr.label} to delay bus`,()=>{uFxL("onDelay",!dlOn);if(!dlOn){uFxL("dMix",40);uFxL("dTime",0.25);}})}
-                              {tagBtn("DIST",drOn,"#FF6B35",drOn?`DIST active · Drive ${f.drive??40}% on ${tr.label} · Click to disable`:`DIST · Add tape distortion to ${tr.label}`,()=>{uFxL("onDrive",!drOn);if(!drOn)uFxL("drive",40);})}
-                            </div>
-                          );
-                        })()}
                       </div>
                     );
                   })}
