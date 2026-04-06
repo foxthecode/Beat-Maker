@@ -3548,46 +3548,52 @@ export default function KickAndSnare(){
                     <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
                     {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
                   </button>
-                  {/* ── Delete button (top-left, absolute, frère du button → stopPropagation) ── */}
+                  {/* ── TOP-LEFT: Delete pad — 44×44 transparent tap zone ── */}
                   {atO.length>1&&(
-                    <button
-                      data-hint={`Retirer ${track.label} · Supprimer ce pad de la vue live · La piste reste disponible via "+ ADD TRACK"`}
+                    <div
+                      data-hint={`Remove ${track.label} · Remove this pad from the live view · Track is not deleted`}
                       onTouchStart={e=>{e.stopPropagation();e.preventDefault();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
                       onClick={e=>{e.stopPropagation();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
-                      onPointerDown={e=>{e.stopPropagation();}}
+                      onPointerDown={e=>e.stopPropagation()}
                       title={`Remove ${track.label}`}
-                      style={{position:"absolute",top:6,left:6,width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
-                    >×</button>
+                      style={{position:"absolute",top:0,left:0,minWidth:44,minHeight:44,display:"flex",alignItems:"flex-start",justifyContent:"flex-start",padding:6,zIndex:3,cursor:"pointer",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",background:"transparent"}}
+                    >
+                      <div style={{width:22,height:22,borderRadius:6,border:"1px solid rgba(255,55,95,0.35)",background:"rgba(255,55,95,0.12)",color:"rgba(255,55,95,0.75)",fontSize:12,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none",flexShrink:0}}>×</div>
+                    </div>
                   )}
-                  {/* ── ♪ Load sample — top-right ── */}
-                  <button
-                    data-hint={smpN[track.id]?`Sample : ${smpN[track.id]} · Cliquer pour changer le fichier audio de ce pad`:`Charger un sample · Importer un fichier audio (MP3, WAV, OGG) pour ${track.label}`}
+                  {/* ── TOP-RIGHT: Load sample — 44×44 transparent tap zone ── */}
+                  <div
+                    data-hint={smpN[track.id]?`Sample: ${smpN[track.id]} · Tap to change the audio file for this pad`:`Load sample · Import an audio file (MP3, WAV, OGG) for ${track.label}`}
                     onTouchStart={e=>{e.stopPropagation();e.preventDefault();ldFile(track.id);}}
                     onClick={e=>{e.stopPropagation();ldFile(track.id);}}
                     onPointerDown={e=>e.stopPropagation()}
                     title={smpN[track.id]||"Load sample"}
-                    style={{position:"absolute",top:6,right:6,width:22,height:22,borderRadius:6,border:`1px solid ${smpN[track.id]?"rgba(255,149,0,0.5)":"rgba(255,149,0,0.4)"}`,background:smpN[track.id]?"rgba(255,149,0,0.18)":"rgba(255,149,0,0.12)",color:"rgba(255,149,0,0.85)",fontSize:10,fontWeight:900,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2,overflow:"hidden"}}
+                    style={{position:"absolute",top:0,right:0,minWidth:44,minHeight:44,display:"flex",alignItems:"flex-start",justifyContent:"flex-end",padding:6,zIndex:3,cursor:"pointer",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",background:"transparent"}}
                   >
-                    {waveformCache[track.id]?(
-                      <svg viewBox="0 0 28 16" width="22" height="14" style={{position:"absolute",inset:0,margin:"auto",opacity:0.55,pointerEvents:"none"}} preserveAspectRatio="none">
-                        <path d={waveformCache[track.id]} stroke="#FF9500" strokeWidth="1.2" fill="none"/>
-                      </svg>
-                    ):<span style={{position:"relative",zIndex:1}}>♪</span>}
-                  </button>
-                  {midiLM&&<div style={{position:"absolute",top:32,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
-                  {/* ── 🎛 Sample FX — bottom-left ── */}
-                  <button
-                    data-hint={`FX Piste ${track.label} · Ouvrir les effets par piste · Pitch, Filtre, Drive, Volume, Pan, Reverb & Delay`}
-                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();const tid=track.id;setTimeout(()=>setPadFxTrack(p=>p===tid?null:tid),60);}}
+                    <div style={{width:22,height:22,borderRadius:6,border:`1px solid ${smpN[track.id]?"rgba(255,149,0,0.5)":"rgba(255,149,0,0.4)"}`,background:smpN[track.id]?"rgba(255,149,0,0.18)":"rgba(255,149,0,0.12)",color:"rgba(255,149,0,0.85)",fontSize:10,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none",position:"relative",overflow:"hidden",flexShrink:0}}>
+                      {waveformCache[track.id]?(
+                        <svg viewBox="0 0 28 16" width="22" height="14" style={{position:"absolute",inset:0,margin:"auto",opacity:0.55,pointerEvents:"none"}} preserveAspectRatio="none">
+                          <path d={waveformCache[track.id]} stroke="#FF9500" strokeWidth="1.2" fill="none"/>
+                        </svg>
+                      ):<span>♪</span>}
+                    </div>
+                  </div>
+                  {midiLM&&<div style={{position:"absolute",top:44,right:6,zIndex:3}}><MidiTag id={track.id}/></div>}
+                  {/* ── BOTTOM-LEFT: Track FX — 44×44 transparent tap zone (no setTimeout delay) ── */}
+                  <div
+                    data-hint={`FX track ${track.label} · Open per-track effects · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay`}
+                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();const tid=track.id;setPadFxTrack(p=>p===tid?null:tid);}}
                     onClick={e=>{e.stopPropagation();setPadFxTrack(p=>p===track.id?null:track.id);}}
                     onPointerDown={e=>e.stopPropagation()}
-                    title="Sample FX"
-                    style={{position:"absolute",bottom:6,left:6,width:22,height:22,borderRadius:6,border:`1px solid ${padFxTrack===track.id?"rgba(191,90,242,0.6)":"rgba(191,90,242,0.3)"}`,background:padFxTrack===track.id?"rgba(191,90,242,0.25)":"rgba(191,90,242,0.08)",color:`rgba(191,90,242,${padFxTrack===track.id?"1":"0.7"})`,fontSize:10,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontFamily:"inherit",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",zIndex:2}}
-                  >🎛</button>
-                  {/* ── VOL knob — bottom-right, frère du button → stopPropagation empêche tout conflit touch ── */}
+                    title="Track FX"
+                    style={{position:"absolute",bottom:0,left:0,minWidth:44,minHeight:44,display:"flex",alignItems:"flex-end",justifyContent:"flex-start",padding:6,zIndex:3,cursor:"pointer",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",background:"transparent"}}
+                  >
+                    <div style={{width:22,height:22,borderRadius:6,border:`1px solid ${padFxTrack===track.id?"rgba(191,90,242,0.6)":"rgba(191,90,242,0.3)"}`,background:padFxTrack===track.id?"rgba(191,90,242,0.25)":"rgba(191,90,242,0.08)",color:`rgba(191,90,242,${padFxTrack===track.id?"1":"0.7"})`,fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none",flexShrink:0}}>🎛</div>
+                  </div>
+                  {/* ── BOTTOM-RIGHT: VOL knob — 44×44 transparent drag zone ── */}
                   <div
-                    data-hint={`Volume ${track.label} · ${padVol}% · Drag ↕ pour ajuster · Double-clic = 80%`}
-                    style={{position:"absolute",bottom:6,right:6,zIndex:2,display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"rgba(0,0,0,0.4)",borderRadius:7,padding:"3px 5px",backdropFilter:"blur(4px)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",cursor:"ns-resize"}}
+                    data-hint={`Volume ${track.label} · ${padVol}% · Drag ↕ to adjust · Double-tap = 80%`}
+                    style={{position:"absolute",bottom:0,right:0,minWidth:44,minHeight:44,display:"flex",alignItems:"flex-end",justifyContent:"flex-end",padding:6,zIndex:3,touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",cursor:"ns-resize",background:"transparent"}}
                     onTouchStart={e=>{
                       e.stopPropagation();e.preventDefault();
                       const t0=e.touches[0];let sY=t0.clientY,sV=padVol;
@@ -3609,14 +3615,16 @@ export default function KickAndSnare(){
                     onDoubleClick={e=>{e.stopPropagation();updateVol(80);}}
                     title={`VOL: ${padVol} — drag ↕ · double-click = 80%`}
                   >
-                    <div style={{position:"relative",width:22,height:22}}>
-                      <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
-                        <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"30"} strokeWidth="3"/>
-                        <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
-                      </svg>
-                      <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"rgba(0,0,0,0.4)",borderRadius:7,padding:"3px 5px",backdropFilter:"blur(4px)",pointerEvents:"none"}}>
+                      <div style={{position:"relative",width:22,height:22}}>
+                        <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 28 28">
+                          <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color+"30"} strokeWidth="3"/>
+                          <circle cx="14" cy="14" r={pR} fill="none" stroke={track.color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${pC*padVol/100} ${pC}`}/>
+                        </svg>
+                        <span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:5,fontWeight:900,color:track.color,pointerEvents:"none"}}>VOL</span>
+                      </div>
+                      <span style={{fontSize:7,fontWeight:700,color:track.color,opacity:0.85,lineHeight:1}}>{padVol}</span>
                     </div>
-                    <span style={{fontSize:7,fontWeight:700,color:track.color,opacity:0.85,lineHeight:1}}>{padVol}</span>
                   </div>
                 </div>
               </div>
