@@ -1,0 +1,181 @@
+PHASE 0 — SCAN OBLIGATOIRE avant toute modification
+Lis intégralement artifacts/kick-and-snare/src/KickAndSnare.tsx puis réponds à ces questions avant d'écrire une seule ligne de code :
+
+Quelle est la valeur exacte de euclidCur / euclidCurDisplay / euclidCurRef — combien de ces variables existent, lesquelles sont utilisées dans le JSX des anneaux SVG pour positionner l'aiguille ?
+Où exactement dans le JSX est utilisé euclidCur[tr.id] ou son équivalent pour calculer headA (l'angle de l'aiguille) ?
+Quelle est la signature exacte de setEuclidCur / setEuclidCurDisplay — state ou ref ?
+Le bloc if(R.view==="euclid") dans schLoop — copie ses lignes exactes telles qu'elles sont dans le fichier.
+euclidClockR, euclidGlobalRef, euclidCurRef — lesquels sont encore réellement utilisés, lesquels sont des résidus de versions précédentes ?
+Y a-t-il des console.warn("[EUCLID DRIFT]") ou tout autre code de diagnostic temporaire encore présent ? Si oui, indique les numéros de lignes.
+Le visuel de l'aiguille (headA, curS, ligne SVG qui part du centre) — copie le code JSX exact qui le dessine.
+
+N'écris aucun code avant d'avoir répondu à ces 7 points.
+
+PHASE 1 — NETTOYAGE
+Après le scan, effectue ces suppressions propres :
+
+Supprime tous les console.warn("[EUCLID DRIFT]") et le code de diagnostic _diagLast s'ils existent encore.
+Supprime euclidGlobalRef s'il n'est utilisé nulle part dans la logique audio ou visuelle active.
+Supprime euclidClockR partout sauf s'il est encore référencé dans le song mode — dans ce cas garde uniquement les références song mode.
+Supprime euclidCurRef si le JSX utilise euclidCurDisplay ou vice versa — garde uniquement celui que le JSX utilise réellement pour l'aiguille.
+Garde euclidMetroR intact — il gère le métronome.
+
+
+PHASE 2 — NOUVEAU SCHEDULER EUCLID
+Remplace uniquement le bloc if(R.view==="euclid"){...return;} dans schLoop par ce qui suit. Ne touche à rien d'autre dans le fichier.
+typescriptif(R.view==="euclid"){
+  const sixteenth=(60/R.bpm)/4;
+  const at=R.at; const m=R.mut; const s=R.sol;
+
+  // ── Horloge globale ancrée ──────────────────────────────────────────────
+  // Une seule origine temporelle. Tous les sons = startTime + tick * sixteenth.
+  // Garantit que les intervalles sont toujours des multiples entiers de sixteenth.
+  // Le polyrhythme vient de tick % N — chaque piste a son propre N.
+  const eg = euclidGlobalRef.current;
+  if(eg.nextTime == null || eg.nextTime < ct - sixteenth){
+    // Premier tick ou reprise après pause — ancrage propre sans offset arbitraire
+    eg.nextTime = ct;
+    eg.globalTick = 0;
+    // Réinitialiser l'affichage des aiguilles
+    const resetCur: Record<string,number> = {};
+    (R.allT||ALL_TRACKS).forEach(tr=>{ resetCur[tr.id]=-1; });
+    setEuclidCurDisplay(resetCur);
+  }
+
+  // ── Boucle de scheduling ─────────────────────────────────────────────────
+  const eLA = Math.max(LA, 0.20); // 200ms minimum — absorbe les délais React
+  let dirty = false;
+  const curSnapshot: Record<string,number> = {...euclidCurRef.current};
+
+  while(eg.nextTime < ct + eLA){
+    const tickTime = eg.nextTime;
+    const globalTick = eg.globalTick;
+
+    (R.allT||ALL_TRACKS).forEach(tr=>{
+      if(!at.includes(tr.id)) return;
+      if(s && s !== tr.id) return;
+      if(m[tr.id]) return;
+
+      const N = R.pb[R.cp]?._steps?.[tr.id] || (R.pat?.[tr.id]?.length) || 16;
+      if(N <= 0) return;
+
+      // ── Polyrhythme : chaque piste lit son propre index dans le cycle global ──
+      const stepIndex = globalTick % N;
+      curSnapshot[tr.id] = stepIndex; // pour l'aiguille visuelle
+
+      if(R.pat?.[tr.id]?.[stepIndex]){
+        const sp = R.prob[tr.id]?.[stepIndex] ?? 100;
+        if(Math.random() * 100 < sp){
+          const v = (R.vel[tr.id]?.[stepIndex] ?? 100) / 100;
+          const r = R.ratch[tr.id]?.[stepIndex] || 1;
+          const nd = R.sn[tr.id]?.[stepIndex] || 0;
+          for(let ri=0; ri<r; ri++)
+            engine.play(
+              tr.id,
+              v * (ri===0 ? 1 : 0.65),
+              ri===0 ? nd : 0,
+              R.fx[tr.id] || {...DEFAULT_FX},
+              tickTime + ri*(sixteenth/r)
+            );
+          // Flash visuel synchronisé sur le temps audio réel
+          R.flashPad?.(tr.id, Math.max(0, Math.round((tickTime - ct)*1000) - 4));
+        }
+      }
+    });
+
+    eg.globalTick++;
+    eg.nextTime = eg.nextTime + sixteenth; // addition directe — jamais accumulée depuis 0
+    dirty = true;
+  }
+
+  // ── Mise à jour visuelle des aiguilles (une seule fois par tick scheduler) ──
+  if(dirty){
+    euclidCurRef.current = curSnapshot;
+    setEuclidCurDisplay({...curSnapshot});
+  }
+
+  // ── Song mode ─────────────────────────────────────────────────────────────
+  {
+    const em2 = euclidMetroR.current;
+    if(!em2.songNextTime || em2.songNextTime < ct - 0.5){
+      em2.songNextTime = ct + 0.05;
+      em2.songGlobalStep = 0;
+    }
+    const barSteps = R.sig?.steps || 16;
+    while(em2.songNextTime < ct + LA){
+      const prev = em2.songGlobalStep ?? 0;
+      em2.songGlobalStep = (prev + 1) % barSteps;
+      if(em2.songGlobalStep === 0 && prev >= 0 && R.songMode && R.songChain?.length > 0){
+        songPosRef.current = (songPosRef.current + 1) % R.songChain.length;
+        const nextPat = R.songChain[songPosRef.current];
+        if(nextPat !== R.cp){
+          R.cp = nextPat;
+          setCPat(nextPat);
+          // Réancrage du globalTick au changement de pattern
+          eg.globalTick = 0;
+          eg.nextTime = em2.songNextTime;
+        }
+      }
+      em2.songNextTime += sixteenth;
+    }
+  }
+
+  // ── Métronome ─────────────────────────────────────────────────────────────
+  if(R.metro){
+    const sxt = (60/R.bpm)/4;
+    const em = euclidMetroR.current;
+    if(!em.metroNext || em.metroNext < ct - 0.5){
+      em.metroNext = ct + 0.05;
+      em.metroBeat = 0;
+    }
+    while(em.metroNext < ct + eLA){
+      playClk(em.metroNext, em.metroBeat===0?"accent":em.metroBeat%2===0?"beat":"sub");
+      em.metroBeat = (em.metroBeat + 1) % 4;
+      em.metroNext += sxt;
+    }
+  }
+
+  {
+    const now = performance.now();
+    const drift = lastTickRef.current !== null ? (now - lastTickRef.current) - schDelay : 0;
+    lastTickRef.current = now;
+    schRef.current = setTimeout(schLoop, Math.max(5, schDelay - drift));
+  }
+  return;
+}
+
+PHASE 3 — ADAPTATION DES REFS
+Après avoir inséré le nouveau scheduler, vérifie et adapte :
+
+euclidGlobalRef doit être déclaré ainsi si ce n'est pas déjà le cas :
+
+typescriptconst euclidGlobalRef = useRef<{nextTime:number|null, globalTick:number}>({nextTime:null, globalTick:0});
+
+euclidCurRef doit être déclaré ainsi :
+
+typescriptconst euclidCurRef = useRef<Record<string,number>>({});
+
+euclidCurDisplay doit être le state React utilisé dans le JSX pour l'aiguille :
+
+typescriptconst [euclidCurDisplay, setEuclidCurDisplay] = useState<Record<string,number>>({});
+
+Dans le JSX des anneaux SVG, remplace toute référence à euclidCur[tr.id] par euclidCurDisplay[tr.id]. L'aiguille se calcule ainsi :
+
+typescriptconst curS = euclidCurDisplay[tr.id] ?? -1;
+const headA = curS >= 0 ? (2 * Math.PI * curS / N) - Math.PI/2 : -Math.PI/2;
+
+Dans startStop(), les resets doivent inclure :
+
+typescripteuclidGlobalRef.current = {nextTime: null, globalTick: 0};
+euclidCurRef.current = {};
+setEuclidCurDisplay({});
+
+PHASE 4 — GARDES-FOUS À VÉRIFIER
+Avant de terminer, vérifie chaque point :
+
+ euclidGlobalRef.current.nextTime est null au démarrage et au stop — jamais un résidu d'une session précédente.
+ eg.nextTime = eg.nextTime + sixteenth — l'addition est toujours sur la valeur précédente du ref, jamais sur une variable locale capturée dans une closure.
+ setEuclidCurDisplay est appelé une seule fois par tick scheduler, pas dans la forEach des pistes — sinon React re-render 8× par tick.
+ Le JSX de l'aiguille SVG utilise bien euclidCurDisplay[tr.id] et non une valeur stale du ref.
+ Les réinitialisations dans switchView() incluent bien euclidGlobalRef.current = {nextTime:null, globalTick:0}.
+ euclidClockR : si encore présent pour compatibilité song mode, ses références sont cohérentes avec le nouveau globalTick. Sinon, supprime-le entièrement.
