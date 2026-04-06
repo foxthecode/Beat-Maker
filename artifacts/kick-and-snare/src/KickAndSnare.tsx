@@ -1190,9 +1190,9 @@ export default function KickAndSnare(){
   R.songChain=songChain;   // ordered pattern indices — song mode iteration
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
   R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
-  R.loopRec=loopRec;        // looper record-armed state (true = recording pads to loop)
+  R.loopRec=false;          // LOOPER DISABLED
   R.silentTracks=silentTracksRef.current; // tracks with no sample in user kit → no sound
-  R.loopBars=loopBars;
+  // R.loopBars=loopBars;  // LOOPER DISABLED
   R.lastSeqView=lastSeqView; // E3: last active sequencer view for pads REC indicator
   R.mnMap=midiNoteMap;     // MIDI note→trackId map — MIDI handler lookup table
   R.mLearn=midiLearnTrack; // MIDI learn target id — incoming note assigns to this
@@ -1362,18 +1362,19 @@ export default function KickAndSnare(){
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
     flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
-    if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
-      const L=loopRef.current;
-      const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
-      const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
-      let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
-      const snapThresh=Math.min(120,L.lengthMs*0.04);
-      if(tOff>L.lengthMs-snapThresh)tOff=0;
-      if(autoQRef.current&&L.lengthMs>0){const snapMs=L.lengthMs/(R.loopBars*16);tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));}
-      const evId=`${Date.now()}-${Math.random()}`;
-      const ev={id:evId,tid,tOff,vel,pass:L.passId};
-      L.events.push(ev);setLoopDisp(d=>[...d,{tid,tOff,vel}]);
-    }
+    // LOOPER DISABLED
+    // if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
+    //   const L=loopRef.current;
+    //   const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
+    //   const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
+    //   let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
+    //   const snapThresh=Math.min(120,L.lengthMs*0.04);
+    //   if(tOff>L.lengthMs-snapThresh)tOff=0;
+    //   if(autoQRef.current&&L.lengthMs>0){const snapMs=L.lengthMs/(R.loopBars*16);tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));}
+    //   const evId=`${Date.now()}-${Math.random()}`;
+    //   const ev={id:evId,tid,tOff,vel,pass:L.passId};
+    //   L.events.push(ev);setLoopDisp(d=>[...d,{tid,tOff,vel}]);
+    // }
     // FREE-CAPTURE BPM DISABLED — conservé pour développement futur
     // if(R.uiView==='pads'&&!R.loopRec&&engine.ctx){ ... }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
@@ -3356,8 +3357,8 @@ export default function KickAndSnare(){
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"4px 0 0"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record into the sequencer" color="#5E5CE6"/>
-          {/* LOOPER PANEL */}
-          {(
+          {/* LOOPER DISABLED */}
+          {false && (
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
             {/* Header band — div (not button) so we can embed CAPTURE button without invalid nesting */}
             <div onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",cursor:"pointer",userSelect:"none"}}>
@@ -3462,7 +3463,7 @@ export default function KickAndSnare(){
               </div>
             )}
           </div>
-          )}
+          )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
             {atO.map((track)=>{
