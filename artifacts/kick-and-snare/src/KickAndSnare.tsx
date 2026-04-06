@@ -4019,17 +4019,8 @@ export default function KickAndSnare(){
                     const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                     return(
                       <div key={tr.id} style={{borderRadius:8,border:`1px solid ${tr.color}${aud?"44":"22"}`,background:tr.color+(aud?"0a":"05"),padding:"6px 10px",display:"flex",flexDirection:"column",gap:5,transition:"opacity 0.1s",opacity:aud?1:0.65}}>
-                        {/* ── Header: label row + knobs + dropdown ── */}
+                        {/* ── Header: label row + template dropdown ── */}
                         {(()=>{
-                          const f=fx[tr.id]||{...DEFAULT_FX};
-                          const vol=f.vol??80;const pan=f.pan??0;
-                          const uFxL=(k,v)=>{setFx(prev=>{const nf={...(prev[tr.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(tr.id,nf);return{...prev,[tr.id]:nf};});};
-                          const rk=9;const circ=2*Math.PI*rk;
-                          const volPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=vol;const mv=pe=>{const dy=sY-pe.clientY;uFxL("vol",Math.max(0,Math.min(100,Math.round(sV-dy*1.2))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                          const panPD=e=>{e.preventDefault();const el=e.currentTarget;el.setPointerCapture(e.pointerId);let sY=e.clientY,sV=pan;const mv=pe=>{const dy=sY-pe.clientY;uFxL("pan",Math.max(-100,Math.min(100,Math.round(sV-dy*2.5))));};const up=()=>{el.removeEventListener("pointermove",mv);};el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up,{once:true});el.addEventListener("pointercancel",up,{once:true});};
-                          const vDisp=`${vol}`;
-                          const pDisp=pan===0?"C":pan<0?`L${Math.abs(pan)}`:`R${pan}`;
-                          const panArc=pan===0?null:(()=>{const toRad=d=>d*Math.PI/180;const sa=-90;const ea=sa+(pan/100)*180;const x1=11+rk*Math.cos(toRad(sa));const y1=11+rk*Math.sin(toRad(sa));const x2=11+rk*Math.cos(toRad(ea));const y2=11+rk*Math.sin(toRad(ea));return`M${x1.toFixed(2)},${y1.toFixed(2)} A${rk},${rk} 0 0 ${pan>0?1:0} ${x2.toFixed(2)},${y2.toFixed(2)}`;})();
                           return(
                             <div style={{display:"flex",flexDirection:"column",gap:4}}>
                               {/* Row 1: [icon+label+cnt fixed-width] · M · S · ♪ · MIDI · CLR · × */}
@@ -4049,46 +4040,17 @@ export default function KickAndSnare(){
                                 <button data-hint={`RAND · Randomize N, HITS and ROT for track ${tr.label} · Generates a random Euclidean rhythm`} onClick={()=>{const rN=Math.max(6,Math.min(24,6+Math.floor(Math.random()*13)));const rH=1+Math.floor(Math.random()*(Math.ceil(rN/2)));const rR=Math.floor(Math.random()*rN);writeP(tr.id,{N:rN,hits:rH,rot:rR,tpl:""});applyE(tr.id,rN,rH,rR);}} title="Randomize" style={{...btnSm,color:"#FFD60A",border:"1px solid rgba(255,214,10,0.35)",background:"rgba(255,214,10,0.08)",fontSize:11}}>🎲</button>
                                 {act.length>1&&<button data-hint={`Remove track ${tr.label} from Euclidean view · The track is not permanently deleted`} onClick={()=>{R.at=R.at.filter(x=>x!==tr.id);setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==tr.id);setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
-                              {/* Row 2: VOL knob + PAN knob + template dropdown — hidden when folded */}
-                              <div style={{display:p.fold?"none":"flex",alignItems:"center",gap:6}}>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0}}>
-                                  <div onPointerDown={volPD} onDoubleClick={()=>uFxL("vol",80)} title={`VOL: ${vDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
-                                    <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                      <svg width="22" height="22" style={{position:"absolute",top:0,left:0,transform:"rotate(-90deg)"}} viewBox="0 0 22 22">
-                                        <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
-                                        <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ*vol/100} ${circ}`}/>
-                                      </svg>
-                                      <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>VOL</span>
-                                    </div>
-                                    <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{vDisp}</span>
-                                  </div>
-                                  <MidiTag id={`vol_${tr.id}`}/>
-                                </div>
-                                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,flexShrink:0}}>
-                                  <div onPointerDown={panPD} onDoubleClick={()=>uFxL("pan",0)} title={`PAN: ${pDisp} — drag ↕`} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,cursor:"ns-resize",userSelect:"none",touchAction:"none"}}>
-                                    <div style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                      <svg width="22" height="22" style={{position:"absolute",top:0,left:0}} viewBox="0 0 22 22">
-                                        <circle cx="11" cy="11" r={rk} fill="none" stroke={tr.color+"22"} strokeWidth="2.5"/>
-                                        {panArc&&<path d={panArc} fill="none" stroke={tr.color} strokeWidth="2.5" strokeLinecap="round"/>}
-                                        <circle cx="11" cy="11" r="1.5" fill={tr.color}/>
-                                      </svg>
-                                      <span style={{fontSize:6,fontWeight:900,color:tr.color,zIndex:1,pointerEvents:"none"}}>PAN</span>
-                                    </div>
-                                    <span style={{fontSize:6,color:tr.color,fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{pDisp}</span>
-                                  </div>
-                                  <MidiTag id={`pan_${tr.id}`}/>
-                                </div>
-                                <select value={p.tpl||""} onChange={e=>{const t=EUCLID_RHYTHMS.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,flex:1,fontSize:8}}>
-                                  <option value="">— Template —</option>
-                                  {EUCLID_REGIONS.map(reg=>(
-                                    <optgroup key={reg} label={reg}>
-                                      {EUCLID_RHYTHMS.filter(t=>t.region===reg).map(t=>(
-                                        <option key={t.name} value={t.name}>{t.name} · {t.N}st</option>
-                                      ))}
-                                    </optgroup>
-                                  ))}
-                                </select>
-                              </div>
+                              {/* Row 2: template dropdown — hidden when folded */}
+                              {!p.fold&&<select value={p.tpl||""} onChange={e=>{const t=EUCLID_RHYTHMS.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,width:"100%",fontSize:8}}>
+                                <option value="">— Template —</option>
+                                {EUCLID_REGIONS.map(reg=>(
+                                  <optgroup key={reg} label={reg}>
+                                    {EUCLID_RHYTHMS.filter(t=>t.region===reg).map(t=>(
+                                      <option key={t.name} value={t.name}>{t.name} · {t.N}st</option>
+                                    ))}
+                                  </optgroup>
+                                ))}
+                              </select>}
                             </div>
                           );
                         })()}
