@@ -1538,7 +1538,8 @@ export default function KickAndSnare(){
 
   const _stopScheduler=useCallback(()=>{
     if(workerRef.current){workerRef.current.postMessage({type:'stop'});workerRef.current.terminate();workerRef.current=null;}
-    clearTimeout(schRef.current);schRef.current=null;
+    // schRef may hold a setTimeout ID (fallback) or null — clear either way
+    clearTimeout(schRef.current);clearInterval(schRef.current as unknown as number);schRef.current=null;
   },[]);
 
   const _startScheduler=useCallback((interval:number)=>{
@@ -1556,8 +1557,8 @@ export default function KickAndSnare(){
       w.postMessage({type:'start',interval});
       workerRef.current=w;
     }catch{
-      // Fallback: use drift-compensated setTimeout if Worker creation fails
-      schRef.current=setTimeout(()=>schLoopRef.current(),interval);
+      // Bug fix: was setTimeout (fires once) — must be setInterval to keep the scheduler alive
+      schRef.current=setInterval(()=>{if(R.playing)schLoopRef.current();},interval) as unknown as ReturnType<typeof setTimeout>;
     }
   },[_stopScheduler]);
   const schSt=useCallback((sn,time)=>{
