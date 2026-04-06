@@ -1526,39 +1526,38 @@ export default function KickAndSnare(){
     const LA=engine._lookAhead;
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
-      // ── Euclid: SINGLE GLOBAL CLOCK — all tracks advance in lock-step ──
-      // One shared nextTime / globalStep, exactly like nxtRef in the linear scheduler.
-      // Each track fires at step = globalStep % N, so tracks with different N values
-      // cycle at their own rate while staying perfectly synchronized to the same grid.
+      // ── Euclid: per-track clocks — each track advances independently ──
+      // All tracks are initialized at the same ct+0.05 and advance by the same
+      // sixteenth-note duration, so they naturally stay in sync.
       const sixteenth=(60/R.bpm)/4;
       const at=R.at;const m=R.mut;const s=R.sol;
-      const eg=euclidGlobalRef.current;
-      // Init / resync: reinit if clock missing or stale (> 1 s behind)
-      if(!eg.nextTime||eg.nextTime<ct-1){
-        euclidGlobalRef.current={nextTime:ct+0.05,globalStep:0};
-      }
-      // Fast-forward: skip steps older than 80ms to avoid note burst after tab sleep
-      if(eg.nextTime<ct-0.08){
-        const skip=Math.ceil((ct-0.08-eg.nextTime)/sixteenth);
-        if(skip>0){eg.globalStep+=skip;eg.nextTime+=skip*sixteenth;}
-      }
-      while(eg.nextTime<ct+LA){
-        const stepTime=eg.nextTime;
-        const gs=eg.globalStep;
-        // All active tracks fire at the SAME instant — no per-track clock drift
-        (R.allT||ALL_TRACKS).forEach(tr=>{
-          if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-          const trPat=R.pat?.[tr.id];
-          const N=trPat?.length||0;
-          if(!N)return;
-          const si=gs%N;
+      (R.allT||ALL_TRACKS).forEach(tr=>{
+        if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
+        const trPat=R.pat?.[tr.id];
+        const N=trPat?.length||0;
+        if(!N)return;
+        const stepDur=sixteenth;
+        // Init / resync: create clock if missing, or reinit if stale (> 1 full cycle behind)
+        if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-N*stepDur){
+          euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05,curStep:-1};
+        }
+        const ec=euclidClockR.current[tr.id];
+        if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
+        // Fast-forward: skip steps older than 80ms to avoid note burst after tab sleep
+        if(ec.nextTime<ct-0.08){
+          const skip=Math.ceil((ct-0.08-ec.nextTime)/stepDur);
+          if(skip>0){ec.step=(ec.step+skip)%N;ec.nextTime+=skip*stepDur;}
+        }
+        while(ec.nextTime<ct+LA){
+          const si=ec.step;
+          const stepTime=ec.nextTime;
           if(trPat[si]){
             const sp=R.prob[tr.id]?.[si]??100;
             if(Math.random()*100<sp){
               const v=(R.vel[tr.id]?.[si]??100)/100;
               const r=R.ratch[tr.id]?.[si]||1;
               const nd=R.sn[tr.id]?.[si]||0;
-              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(sixteenth/r));
+              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(stepDur/r));
               R.flashPad?.(tr.id,Math.max(0,Math.round((stepTime-ct)*1000)-4));
             }
           }
@@ -1566,10 +1565,9 @@ export default function KickAndSnare(){
           const capTid=tr.id,capSi=si;
           const aheadMs=Math.max(0,Math.round((stepTime-ct)*1000)-4);
           setTimeout(()=>{if(!R.playing)return;euclidCurRef.current[capTid]=capSi;flushEuclidCur();},aheadMs);
-        });
-        eg.globalStep++;
-        eg.nextTime+=sixteenth;
-      }
+          ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;
+        }
+      });
       // Song mode cycle tracking — runs always, independent of metro
       // Advances the song chain every bar (gSt × sixteenth notes)
       {
@@ -1584,8 +1582,10 @@ export default function KickAndSnare(){
             const nextPat=R.songChain[songPosRef.current];
             if(nextPat!==R.cp){
               R.cp=nextPat;setCPat(nextPat);
-              // Reset global Euclid step counter so the new pattern starts from step 0.
-              euclidGlobalRef.current.globalStep=0;
+              // Reset all Euclid track step counters so the new pattern starts from step 0.
+              Object.keys(euclidClockR.current).forEach(tid=>{
+                if(euclidClockR.current[tid])euclidClockR.current[tid].step=0;
+              });
             }
           }
           em2.songNextTime+=sixteenth;

@@ -1,0 +1,57 @@
+Dans le fichier `artifacts/kick-and-snare/src/KickAndSnare.tsx`, trouve la boucle `while` du scheduler Euclid dans la fonction `schLoop`. Elle se trouve dans le bloc `if(R.view==="euclid")` et ressemble à ceci :
+
+```
+while(ec.nextTime<ct+LA){
+  const si=ec.step;
+  if(R.pat?.[tr.id]?.[si]){
+    const sp=R.prob[tr.id]?.[si]??100;
+    if(Math.random()*100<sp){
+      const v=(R.vel[tr.id]?.[si]??100)/100;
+      const r=R.ratch[tr.id]?.[si]||1;
+      const nd=R.sn[tr.id]?.[si]||0;
+      for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},ec.nextTime+ri*(stepDur/r));
+      R.flashPad?.(tr.id,Math.max(0,Math.round((ec.nextTime-ct)*1000)-4));
+    }
+  }
+  ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
+}
+```
+
+Remplace uniquement cette boucle par la version ci-dessous. Ne modifie rien d'autre dans le fichier — pas la logique du scheduler, pas les conditions de reset, pas les autres vues.
+
+```typescript
+while(ec.nextTime<ct+LA){
+  const si=ec.step;
+
+  // ── DIAGNOSTIC TIMING ──────────────────────────────────────────────────
+  if(typeof (ec as any)._diagLast === 'number'){
+    const interval=(ec.nextTime-(ec as any)._diagLast)*1000;
+    const expected=stepDur*1000;
+    const drift=interval-expected;
+    if(Math.abs(drift)>2){
+      console.warn(
+        `[EUCLID DRIFT] track=${tr.id} step=${si}/${N}` +
+        ` interval=${interval.toFixed(2)}ms expected=${expected.toFixed(2)}ms` +
+        ` drift=${drift>0?'+':''}${drift.toFixed(2)}ms` +
+        ` bpm=${R.bpm} ct=${ct.toFixed(4)}`
+      );
+    }
+  }
+  (ec as any)._diagLast = ec.nextTime;
+  // ── FIN DIAGNOSTIC ─────────────────────────────────────────────────────
+
+  if(R.pat?.[tr.id]?.[si]){
+    const sp=R.prob[tr.id]?.[si]??100;
+    if(Math.random()*100<sp){
+      const v=(R.vel[tr.id]?.[si]??100)/100;
+      const r=R.ratch[tr.id]?.[si]||1;
+      const nd=R.sn[tr.id]?.[si]||0;
+      for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},ec.nextTime+ri*(stepDur/r));
+      R.flashPad?.(tr.id,Math.max(0,Math.round((ec.nextTime-ct)*1000)-4));
+    }
+  }
+  ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
+}
+```
+
+Une fois la modification faite, lance l'app, ouvre la console du navigateur, va en vue Euclid, active un pattern simple (ex : kick N=8 tous les hits actifs), lance la lecture, et observe si des lignes `[EUCLID DRIFT]` apparaissent dans la console. Ne pas corriger quoi que ce soit pour l'instant — l'objectif est uniquement de collecter les logs.
