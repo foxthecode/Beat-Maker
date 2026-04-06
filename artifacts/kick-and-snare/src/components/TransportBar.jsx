@@ -259,7 +259,7 @@ export default function TransportBar({
   const loadFileRef = useRef(null);
   const SaveBtn = onSaveProject && (
     <button
-      data-hint="Save project · Exports all patterns, BPM, FX, active kit and settings to a .ks.json file · Can be reloaded at any time"
+      data-hint="Save project · Exports all patterns, BPM, FX, kit and settings to a .ks.txt file · On mobile: copy-paste fallback if download is blocked"
       onClick={onSaveProject}
       style={{ ...pill(false, "#30D158"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11, lineHeight: 1 }}>💾</span>
@@ -268,7 +268,7 @@ export default function TransportBar({
   );
   const LoadBtn = onLoadProject && (
     <>
-      <input ref={loadFileRef} type="file" accept=".ks.json,application/json" style={{ display: "none" }}
+      <input ref={loadFileRef} type="file" accept=".ks.txt,.ks.json,.txt,application/json,text/plain" style={{ display: "none" }}
         onChange={e => { const f = e.target.files?.[0]; if (f) onLoadProject(f); e.target.value = ""; }} />
       <button
         data-hint="Load project · Import a previously saved .ks.json file · Replaces the current project"

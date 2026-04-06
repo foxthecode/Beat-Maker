@@ -831,6 +831,8 @@ export default function KickAndSnare(){
   const [showPadsWelcome,setShowPadsWelcome]=useState(true);
   const [showSeqWelcome,setShowSeqWelcome]=useState(true);
   const [showEuclidWelcome,setShowEuclidWelcome]=useState(true);
+  const [saveFallback,setSaveFallback]=useState<string|null>(null);
+  const [saveCopied,setSaveCopied]=useState(false);
   const [customTracks,setCustomTracks]=useState([]);
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
@@ -1866,23 +1868,28 @@ export default function KickAndSnare(){
       themeName,
     };
     const json=JSON.stringify(project,null,2);
-    const blob=new Blob([json],{type:"application/octet-stream"});
+    // .ks.txt — MIUI/Android blocks .json downloads but allows .txt
+    const blob=new Blob([json],{type:"text/plain"});
     const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
-    const fname=`ks-project-${ts}.ks.json`;
-    const file=new File([blob],fname,{type:"application/octet-stream"});
-    const dlViaAnchor=()=>{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement("a");
-      a.href=url;a.download=fname;a.style.display="none";
-      document.body.appendChild(a);a.click();
-      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
-    };
-    // Web Share API with file support — works on iOS Safari and Android Chrome 89+
-    if(navigator.share&&navigator.canShare?.({files:[file]})){
-      navigator.share({files:[file],title:"Kick & Snare Project"}).catch(dlViaAnchor);
+    const fname=`ks-project-${ts}.ks.txt`;
+    const file=new File([blob],fname,{type:"text/plain"});
+    if(isMobile){
+      // Mobile: prefer native Share sheet → fallback to copy-paste modal (Option B)
+      if(navigator.share&&navigator.canShare?.({files:[file]})){
+        navigator.share({files:[file],title:"Kick & Snare Project"})
+          .catch(()=>setSaveFallback(json));
+        return;
+      }
+      // Share not supported or blocked → show text modal
+      setSaveFallback(json);
       return;
     }
-    dlViaAnchor();
+    // Desktop: standard anchor download — reliable on all desktop browsers
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=fname;a.style.display="none";
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
   };
 
   const loadProject=(file:File)=>{
@@ -4928,5 +4935,40 @@ export default function KickAndSnare(){
         );
       })}
     </div>
+  {/* ── Save Fallback Modal (Option B) — shown on mobile when file download is blocked ── */}
+  {saveFallback&&(
+    <div onClick={()=>{setSaveFallback(null);setSaveCopied(false);}}
+      style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.82)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:'#1c1c1e',border:'1px solid #38383a',borderRadius:18,padding:20,maxWidth:420,width:'100%',display:'flex',flexDirection:'column',gap:12,boxShadow:'0 24px 60px #000c'}}>
+        <div style={{color:'#fff',fontWeight:900,fontSize:13,letterSpacing:'0.1em'}}>💾 SAUVEGARDE PROJET</div>
+        <div style={{color:'#ababab',fontSize:11,lineHeight:1.5}}>
+          Si le fichier <code style={{color:'#ffd60a',fontSize:10}}>.ks.txt</code> n'est pas apparu dans Téléchargements,
+          copie ce texte dans une application de notes (Notes, Keep…) et colle-le pour recharger.
+        </div>
+        <textarea readOnly value={saveFallback}
+          onClick={e=>(e.currentTarget as HTMLTextAreaElement).select()}
+          style={{background:'#111',border:'1px solid #333',borderRadius:8,color:'#888',fontSize:9,
+            fontFamily:'monospace',padding:8,height:90,resize:'none',outline:'none'}}/>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>{
+            navigator.clipboard?.writeText(saveFallback)
+              .then(()=>{setSaveCopied(true);setTimeout(()=>setSaveCopied(false),2500);})
+              .catch(()=>{});
+          }} style={{flex:1,padding:'9px 12px',background:saveCopied?'#30D15830':'#30D15818',
+            border:`1px solid ${saveCopied?'#30D158':'#30D15866'}`,borderRadius:10,
+            color:saveCopied?'#30D158':'#30D158cc',fontWeight:900,fontSize:11,
+            cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em',transition:'all 0.2s'}}>
+            {saveCopied?'✓ COPIÉ !':'📋 COPIER LE TEXTE'}
+          </button>
+          <button onClick={()=>{setSaveFallback(null);setSaveCopied(false);}}
+            style={{padding:'9px 14px',background:'#ffffff0a',border:'1px solid #38383a',
+              borderRadius:10,color:'#888',fontWeight:800,fontSize:11,cursor:'pointer',fontFamily:'inherit'}}>
+            FERMER
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   </>);
 }
