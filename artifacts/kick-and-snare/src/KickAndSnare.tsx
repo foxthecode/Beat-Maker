@@ -4296,31 +4296,16 @@ export default function KickAndSnare(){
         });
       };
       const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
-      const SlRow=({label,keyName,min,max,step,val,color,fmt,dimmed=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;dimmed?:boolean})=>{
-        const pct=Math.max(0,Math.min(1,(val-min)/(max-min)));
-        const onPD=(e:React.PointerEvent<HTMLDivElement>)=>{
-          e.preventDefault();e.stopPropagation();
-          const el=e.currentTarget;
-          const snap=(raw:number)=>Math.max(min,Math.min(max,parseFloat((Math.round(raw/step)*step).toFixed(10))));
-          const setFromX=(cx:number)=>{const r=el.getBoundingClientRect();updFx({[keyName]:snap(min+(max-min)*Math.max(0,Math.min(1,(cx-r.left)/r.width)))});};
-          setFromX(e.clientX);
-          const onMv=(pe:PointerEvent)=>setFromX(pe.clientX);
-          const onUp=()=>{window.removeEventListener("pointermove",onMv);window.removeEventListener("pointerup",onUp);};
-          window.addEventListener("pointermove",onMv);window.addEventListener("pointerup",onUp,{once:true});
-        };
-        return(
-          <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-            <span style={{fontSize:7.5,fontWeight:800,color:dimmed?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
-            <div onPointerDown={onPD} style={{flex:1,height:28,cursor:"ew-resize",touchAction:"none",minWidth:0,display:"flex",flexDirection:"column",justifyContent:"center"}}>
-              <div style={{width:"100%",height:4,borderRadius:3,background:"rgba(255,255,255,0.12)",position:"relative",flexShrink:0}}>
-                <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${pct*100}%`,background:color,borderRadius:3,opacity:dimmed?0.4:1}}/>
-                <div style={{position:"absolute",top:"50%",left:`${pct*100}%`,transform:"translate(-50%,-50%)",width:14,height:14,borderRadius:"50%",background:dimmed?color+"66":color,boxShadow:dimmed?"none":`0 0 6px ${color}aa`,border:"2.5px solid #1c1c1e",pointerEvents:"none"}}/>
-              </div>
-            </div>
-            <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:dimmed?"rgba(255,255,255,0.22)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
-          </div>
-        );
-      };
+      const SlRow=({label,keyName,min,max,step,val,color,fmt,dimmed=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;dimmed?:boolean})=>(
+        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+          <span style={{fontSize:7.5,fontWeight:800,color:dimmed?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
+          <input type="range" min={min} max={max} step={step} value={val}
+            onChange={e=>updFx({[keyName]:Number(e.target.value)})}
+            style={{flex:1,minWidth:0,accentColor:color,opacity:dimmed?0.35:1,cursor:"pointer",height:18}}
+          />
+          <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:dimmed?"rgba(255,255,255,0.22)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
+        </div>
+      );
       const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
         <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s",touchAction:"manipulation"}}>
           {label}
