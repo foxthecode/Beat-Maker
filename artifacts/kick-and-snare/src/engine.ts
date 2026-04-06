@@ -12,6 +12,9 @@ class Eng{
     this._rQueue=[];
     this._rRunning=false;
     this._nodeCount=0;
+    // Voice stealing — stores the last BufferSource+GainNode per track so rapid
+    // retriggering of long samples (kick, crash, bass…) doesn't pile up and saturate.
+    this._lastVoice=new Map(); // id → {src, gain, stopAt}
     // PERFORM FX HOLD guards — set by React when a HOLD button is held.
     // While true, uFx() skips the matching send so the hold automation is not overwritten.
     this._rvHoldActive=false;
@@ -474,15 +477,29 @@ class Eng{
     if(this.buf[id]){
       if(this._isMobile&&this._nodeCount>=32){return;} // FIX D: raised from 24→32 (accurate releaseMs tracking makes the cap meaningful now)
       this._nodeCount++;
+      // ── Voice stealing (Fix L) ──────────────────────────────────────────────
+      // TR-808 hardware is monophonic per voice: new trigger cuts previous instance.
+      // Without this, fast-repeated long samples (kick ~1.2s, crash ~1.6s) pile up
+      // and their signals sum above 0 dB → saturation/clipping.
+      // Fade out over 3ms then stop — avoids the click that abrupt stop would cause.
+      const prev=this._lastVoice.get(id);
+      if(prev&&t<prev.stopAt){
+        try{
+          prev.gain.gain.cancelScheduledValues(t);
+          prev.gain.gain.setTargetAtTime(0,t,0.003); // ≈10ms to silence (3τ)
+          prev.src.stop(t+0.015);                    // release node after fade
+        }catch(_){}
+      }
       const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);
+      this._lastVoice.set(id,{src:s,gain:g,stopAt:t+s.buffer.duration/r});
       if(this._isMobile){
         // FIX C: use actual buffer duration so nodeCount decrements only when the node truly ends.
         // Previous: +80ms only covered lookahead, leaving the node counted as "free" while still playing.
         const releaseMs=Math.max(0,(t-this.ctx.currentTime)*1000)+(s.buffer.duration/r)*1000+50;
         setTimeout(()=>{this._nodeCount=Math.max(0,this._nodeCount-1);},releaseMs);
-        s.onended=()=>{s.disconnect();g.disconnect();};
+        s.onended=()=>{s.disconnect();g.disconnect();if(this._lastVoice.get(id)?.src===s)this._lastVoice.delete(id);};
       }else{
-        s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);};
+        s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);if(this._lastVoice.get(id)?.src===s)this._lastVoice.delete(id);};
       }
     }
     else{
