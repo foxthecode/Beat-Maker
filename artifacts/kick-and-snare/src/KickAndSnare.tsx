@@ -1574,11 +1574,9 @@ export default function KickAndSnare(){
         }
         const ec=euclidClockR.current[tr.id];
         if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
-        // Fast-forward: skip if more than 1 step behind (avoids burst after tab sleep)
-        if(ec.nextTime<ct-stepDur){
-          const skip=Math.ceil((ct-stepDur-ec.nextTime)/stepDur);
-          if(skip>0){ec.step=(ec.step+skip)%N;ec.nextTime+=skip*stepDur;}
-        }
+        // Re-anchor if very stale (init or pattern switch) — no step index skip
+        // The Worker fires every 25ms, so this only triggers on first run or after a hard reset
+        if(ec.nextTime<ct-LA)ec.nextTime=ct;
         while(ec.nextTime<ct+LA){
           const si=ec.step;
           if(R.pat?.[tr.id]?.[si]){
