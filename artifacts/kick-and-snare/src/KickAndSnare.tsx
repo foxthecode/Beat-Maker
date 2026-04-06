@@ -1866,26 +1866,23 @@ export default function KickAndSnare(){
       themeName,
     };
     const json=JSON.stringify(project,null,2);
-    const blob=new Blob([json],{type:"application/json"});
+    const blob=new Blob([json],{type:"application/octet-stream"});
     const ts=new Date().toISOString().slice(0,16).replace("T","-").replace(/:/g,"");
     const fname=`ks-project-${ts}.ks.json`;
-    const isIOS=/iP(hone|ad|od)/i.test(navigator.userAgent);
-    if(isIOS&&navigator.share){
-      // iOS Safari: <a download> silently fails — use Web Share API instead
-      const file=new File([blob],fname,{type:"application/json"});
-      navigator.share({files:[file],title:"Kick & Snare Project"}).catch(()=>{
-        // Share cancelled or not supported for files — open blob in new tab as fallback
-        const url=URL.createObjectURL(blob);window.open(url,'_blank');setTimeout(()=>URL.revokeObjectURL(url),10000);
-      });
+    const file=new File([blob],fname,{type:"application/octet-stream"});
+    const dlViaAnchor=()=>{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download=fname;a.style.display="none";
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    };
+    // Web Share API with file support — works on iOS Safari and Android Chrome 89+
+    if(navigator.share&&navigator.canShare?.({files:[file]})){
+      navigator.share({files:[file],title:"Kick & Snare Project"}).catch(dlViaAnchor);
       return;
     }
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;a.download=fname;
-    a.style.display="none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    dlViaAnchor();
   };
 
   const loadProject=(file:File)=>{
