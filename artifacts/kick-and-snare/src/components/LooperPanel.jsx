@@ -130,7 +130,7 @@ export default function LooperPanel({
         <button
           onClick={() => onQuantize && onQuantize(quantDiv)}
           disabled={!loopDisp || loopDisp.length === 0}
-          title={`Snap tous les hits à ${QUANT_LABELS[quantDiv]}${QUANT_TRIPLET.has(quantDiv) ? " (triolet)" : ""}`}
+          title={`Snap all hits to ${QUANT_LABELS[quantDiv]}${QUANT_TRIPLET.has(quantDiv) ? " (triplet)" : ""}`}
           style={{
             padding: "2px 9px", borderRadius: 4, cursor: (!loopDisp || !loopDisp.length) ? "not-allowed" : "pointer",
             fontFamily: "inherit", fontSize: 7, fontWeight: 800,
@@ -144,7 +144,7 @@ export default function LooperPanel({
         {setAutoQ && (
           <button
             onClick={() => setAutoQ(p => !p)}
-            title={autoQ ? "Auto-quantize activé au REC" : "Auto-quantize désactivé"}
+            title={autoQ ? "Auto-quantize enabled on REC" : "Auto-quantize disabled"}
             style={{
               padding: "2px 8px", borderRadius: 4, cursor: "pointer",
               fontFamily: "inherit", fontSize: 7, fontWeight: 700,
@@ -462,9 +462,9 @@ export default function LooperPanel({
       {!loopRec && (
         <div style={{ marginTop: 6, fontSize: 6.5, color: th.faint, letterSpacing: "0.04em", textAlign: "center" }}>
           {canEdit
-            ? "Clic = ajouter · Drag = déplacer · Scroll↕ = vélocité · Double-clic = supprimer"
+            ? "Click = add · Drag = move · Scroll↕ = velocity · Double-click = delete"
             : loopDisp && loopDisp.length > 0
-              ? "Drag = repositionner · Scroll↕ sur une note = vélocité · APPLY pour snapper"
+              ? "Drag = reposition · Scroll↕ on a note = velocity · APPLY to snap"
               : null}
         </div>
       )}

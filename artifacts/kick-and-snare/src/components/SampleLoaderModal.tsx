@@ -53,7 +53,7 @@ export default function SampleLoaderModal({
       // Check HTTPS
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       if (!isSecure) {
-        setRecError('⚠️ Enregistrement impossible en HTTP.\nAccède à l\'app via son URL https:// ou via localhost.');
+        setRecError('⚠️ Recording unavailable over HTTP.\nAccess the app via its https:// URL or via localhost.');
         return;
       }
 
@@ -121,18 +121,18 @@ export default function SampleLoaderModal({
 
     recorder.onerror = () => {
       stream.getTracks().forEach(t => t.stop());
-      setRecError("Erreur pendant l'enregistrement. Réessayez.");
+      setRecError("Recording error. Please try again.");
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
     };
 
     recorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
-      if (!chunksRef.current.length) { setRecError('Aucun audio capturé.'); return; }
+      if (!chunksRef.current.length) { setRecError('No audio captured.'); return; }
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
       try {
         const ctx = initAudioCtx();
-        if (!ctx) { setRecError('Contexte audio non disponible.'); return; }
+        if (!ctx) { setRecError('Audio context unavailable.'); return; }
         if (ctx.state === 'suspended') await ctx.resume();
         const ab = await blob.arrayBuffer();
         const abCopy = ab.slice(0);
@@ -143,7 +143,7 @@ export default function SampleLoaderModal({
         setStep('trim');
       } catch (e) {
         console.error('[SampleLoaderModal] decodeAudioData failed', e);
-        setRecError("Décodage audio échoué. Réessayez ou utilisez Firefox.");
+        setRecError("Audio decoding failed. Try again or use Firefox.");
       }
     };
 
@@ -166,67 +166,67 @@ export default function SampleLoaderModal({
     if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
       if (isChromeiOS) {
         return (
-          "🎤 Accès micro refusé sur Chrome iOS.\n\n" +
-          "Réglages iOS → Chrome → Microphone → Activer\n" +
-          "Puis revenez sur l'app et réessayez.\n\n" +
-          "💡 Ou ouvrez l'app dans Safari (meilleur support iOS)."
+          "🎤 Microphone access denied on Chrome iOS.\n\n" +
+          "iOS Settings → Chrome → Microphone → Enable\n" +
+          "Then come back to the app and try again.\n\n" +
+          "💡 Or open the app in Safari (better iOS support)."
         );
       }
       if (isIOS && isSafari) {
         return (
-          "🎤 Accès micro refusé sur Safari iOS.\n\n" +
-          "Réglages iOS → Safari → Microphone → Autoriser\n" +
-          "Ou autorisez dans la popup qui apparaît au clic REC.\n\n" +
-          "⚠️ Safari redemande la permission à chaque rechargement, c'est normal."
+          "🎤 Microphone access denied on Safari iOS.\n\n" +
+          "iOS Settings → Safari → Microphone → Allow\n" +
+          "Or allow in the popup that appears when you tap REC.\n\n" +
+          "⚠️ Safari re-prompts permission on each reload — that's normal."
         );
       }
       if (isMac && isSafari) {
         return (
-          "🎤 Micro refusé (Safari macOS).\n\n" +
-          "Safari → Préférences → Sites web → Microphone → Autoriser\n" +
-          "macOS : Préférences Système → Confidentialité → Micro → cochez Safari."
+          "🎤 Microphone denied (Safari macOS).\n\n" +
+          "Safari → Preferences → Websites → Microphone → Allow\n" +
+          "macOS: System Preferences → Privacy → Microphone → check Safari."
         );
       }
       if (isMac && isFirefox) {
         return (
-          "🎤 Micro refusé (Firefox macOS).\n\n" +
-          "Cliquez sur l'icône 🎤 dans la barre d'adresse → Autoriser\n" +
-          "macOS : Préférences Système → Confidentialité → Micro → cochez Firefox\n" +
-          "Puis redémarrez Firefox."
+          "🎤 Microphone denied (Firefox macOS).\n\n" +
+          "Click the 🎤 icon in the address bar → Allow\n" +
+          "macOS: System Preferences → Privacy → Microphone → check Firefox\n" +
+          "Then restart Firefox."
         );
       }
       // Chrome desktop (Windows/Linux/Mac) — most common desktop case
       return (
-        "🎤 Accès micro refusé.\n\n" +
-        "1. Cliquez sur l'icône 🔒 (ou 🎤) dans la barre d'adresse\n" +
-        "2. Microphone → Autoriser\n" +
-        "3. Rechargez la page\n\n" +
-        (isMac ? "macOS : Préférences Système → Confidentialité → Micro → cochez Chrome\n\n" : "") +
-        "💡 Si vous êtes dans la preview Replit, ouvrez l'app dans un nouvel onglet (lien ↗ ci-dessous)."
+        "🎤 Microphone access denied.\n\n" +
+        "1. Click the 🔒 (or 🎤) icon in the address bar\n" +
+        "2. Microphone → Allow\n" +
+        "3. Reload the page\n\n" +
+        (isMac ? "macOS: System Preferences → Privacy → Microphone → check Chrome\n\n" : "") +
+        "💡 If you're in the Replit preview, open the app in a new tab (link ↗ below)."
       );
     }
 
     if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
-      return "🎤 Aucun microphone détecté.\nBranchez un micro ou vérifiez vos réglages audio.";
+      return "🎤 No microphone detected.\nPlug in a mic or check your audio settings.";
     }
     if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
-      return "🎤 Le microphone est utilisé par une autre application.\nFermez les autres onglets ou apps qui utilisent le micro.";
+      return "🎤 Microphone is in use by another application.\nClose other tabs or apps using the mic.";
     }
     if (err?.name === 'SecurityError') {
       return (
-        "🎤 Micro bloqué par la sécurité du navigateur.\n\n" +
-        "Cela arrive dans les iframes. Ouvrez l'app dans un nouvel onglet\n" +
-        "(lien ↗ ci-dessous) pour autoriser le micro directement."
+        "🎤 Microphone blocked by browser security.\n\n" +
+        "This happens in iframes. Open the app in a new tab\n" +
+        "(link ↗ below) to allow mic access directly."
       );
     }
-    return "🎤 Micro indisponible : " + (err?.message || err?.name || String(err));
+    return "🎤 Microphone unavailable: " + (err?.message || err?.name || String(err));
   };
 
   const startRecording = async () => {
     setRecError(null);
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setRecError("Votre navigateur ne supporte pas l'enregistrement audio.\nUtilisez Chrome, Firefox ou Safari récent.");
+      setRecError("Your browser does not support audio recording.\nUse Chrome, Firefox, or a recent Safari.");
       return;
     }
 
@@ -407,18 +407,18 @@ export default function SampleLoaderModal({
               onClick={() => { setRecError(null); setStep('recording'); }}
               style={{ background: surface, border: `1px solid rgba(255,45,85,0.25)`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: '#FF2D55' }}
             >
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>🎤 Enregistrer avec le micro</div>
+              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>🎤 Record with microphone</div>
               <div style={{ fontSize: 9, color: dim }}>
-                Battements, voix, percussions live · Trimming waveform inclus
+                Beats, voice, live percussion · Waveform trimming included
                 {/* FIX: show pre-emptive warning if permission already denied */}
                 {permState === 'denied' && (
                   <span style={{ color: '#FF9500', display: 'block', marginTop: 4 }}>
-                    ⚠️ Permission micro refusée — autorisez-la dans les réglages du navigateur
+                    ⚠️ Microphone permission denied — allow it in browser settings
                   </span>
                 )}
                 {permState === 'granted' && (
                   <span style={{ color: '#30D158', display: 'block', marginTop: 4 }}>
-                    ✓ Micro autorisé
+                    ✓ Microphone allowed
                   </span>
                 )}
               </div>
@@ -433,7 +433,7 @@ export default function SampleLoaderModal({
             {/* FIX: always show direct URL link — useful for iframe/Replit context */}
             {!isRecording && (
               <div style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: 'rgba(30,30,40,0.6)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <div style={{ fontSize: 8, color: dim, letterSpacing: '0.08em' }}>PROBLÈME DE MICRO ? OUVRIR L'APP DIRECTEMENT</div>
+                <div style={{ fontSize: 8, color: dim, letterSpacing: '0.08em' }}>MIC ISSUE? OPEN THE APP DIRECTLY</div>
                 <a
                   href={appUrl}
                   target="_blank"
@@ -441,7 +441,7 @@ export default function SampleLoaderModal({
                   style={{ fontSize: 9, color: '#64D2FF', wordBreak: 'break-all', textDecoration: 'underline', cursor: 'pointer' }}
                 >{appUrl} ↗</a>
                 <div style={{ fontSize: 8, color: dim, lineHeight: 1.5 }}>
-                  Dans la preview Replit, le navigateur peut bloquer le micro. Ouvre ce lien dans un nouvel onglet pour un accès direct.
+                  In the Replit preview, the browser may block mic access. Open this link in a new tab for direct access.
                 </div>
               </div>
             )}
@@ -491,7 +491,7 @@ export default function SampleLoaderModal({
             </div>
             <div style={{ fontSize: 9, color: dim, fontFamily: 'monospace', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#30D158' }}>▶ {(buffer.duration * startPct).toFixed(2)}s</span>
-              <span>{(buffer.duration * (endPct - startPct)).toFixed(2)}s sélectionnés</span>
+              <span>{(buffer.duration * (endPct - startPct)).toFixed(2)}s selected</span>
               <span style={{ color: '#FF2D55' }}>{(buffer.duration * endPct).toFixed(2)}s ◀</span>
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>

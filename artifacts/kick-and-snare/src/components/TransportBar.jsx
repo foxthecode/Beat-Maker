@@ -80,7 +80,7 @@ export default function TransportBar({
 
   const VolKnob = (
     <div
-      data-hint={`VOL MASTER · Volume général : ${masterVol}% · Drag ↕ pour ajuster · Double-tap = 80%`}
+      data-hint={`VOL MASTER · Master volume: ${masterVol}% · Drag ↕ to adjust · Double-tap = 80%`}
       onPointerDown={onVolDown}
       title="VOL MASTER (drag ↕, double-tap = 80)"
       style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none", position: "relative", overflow: "hidden", padding: "4px 8px", borderRadius: 6, border: `1px solid rgba(255,255,255,0.12)`, minWidth: 50 }}>
@@ -92,7 +92,7 @@ export default function TransportBar({
 
   const PatIndicator = pBank && SEC_COL && (
     <div
-      data-hint={`Pattern actif : ${pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`} · Clic pour afficher la Pattern Bank`}
+      data-hint={`Active pattern: ${pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`} · Click to show the Pattern Bank`}
       onClick={() => setShowSong && setShowSong(false)}
       title="Tap to show pattern bank"
       style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -115,9 +115,9 @@ export default function TransportBar({
       <button
         data-hint={isPads
           ? (looperActive
-              ? (loopPlaying ? "STOP LOOPER · Arrête le looper" : "LOOPER EN COURS · Enregistrement en attente")
-              : (playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace"))
-          : (playing ? "STOP · Arrête le séquenceur · Raccourci : Espace" : "PLAY · Lance le séquenceur · Raccourci : Espace")}
+              ? (loopPlaying ? "STOP LOOPER · Stop the looper" : "LOOPER PENDING · Recording queued")
+              : (playing ? "STOP · Stop the sequencer · Shortcut: Space" : "PLAY · Start the sequencer · Shortcut: Space"))
+          : (playing ? "STOP · Stop the sequencer · Shortcut: Space" : "PLAY · Start the sequencer · Shortcut: Space")}
         onClick={isPads ? padsPlayAction : startStop}
         style={{
           width: 44, height: 44, borderRadius: "50%", border: "none",
@@ -141,7 +141,7 @@ export default function TransportBar({
   const RecBtn = (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
-        data-hint={rec ? "REC actif · Frappe les pads ou le clavier pour enregistrer en live · Raccourci : Alt" : playing ? "REC · Active l'enregistrement live · Raccourci : Alt" : "REC · Lance la lecture + l'enregistrement simultanément · Raccourci : Alt"}
+        data-hint={rec ? "REC active · Hit pads or keyboard to record live · Shortcut: Alt" : playing ? "REC · Enable live recording · Shortcut: Alt" : "REC · Start playback + recording simultaneously · Shortcut: Alt"}
         onClick={() => { onRecClick ? onRecClick() : setRec(p => !p); }}
         style={{
           width: 44, height: 44, borderRadius: "50%",
@@ -160,7 +160,7 @@ export default function TransportBar({
   const LooperControls = null;
 
   const BpmCtrl = (
-    <div data-hint={`BPM · Tempo actuel : ${bpm} BPM · ‹ › ou slider pour ajuster · Raccourci : ← →`}
+    <div data-hint={`BPM · Current tempo: ${bpm} BPM · ‹ › or slider to adjust · Shortcut: ← →`}
       style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 80px", minWidth: 80 }}>
       <span style={{ fontSize: 7, color: th.dim, letterSpacing: "0.12em", flexShrink: 0 }}>BPM</span>
       <MidiTag id="__bpm__" />
@@ -174,7 +174,7 @@ export default function TransportBar({
   const TapBtn = (
     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
       <button
-        data-hint="TAP · Taper 4× en rythme pour détecter le BPM automatiquement · Aussi assignable en MIDI"
+        data-hint="TAP · Tap 4× in rhythm to auto-detect BPM · Also assignable via MIDI"
         onClick={handleTap}
         style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(255,149,0,0.15)", color: "#FF9500", border: "1px solid rgba(255,149,0,0.3)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>TAP</button>
       <MidiTag id="__tap__" />
@@ -182,7 +182,7 @@ export default function TransportBar({
   );
 
   const SwingCtrl = view !== "euclid" && (
-    <div data-hint={`SWING · Décale les "ET" en retard pour le groove shuffle · 0 = droit · ~67% = swing triolet (jazz/hip-hop) · 100% = dotted shuffle max · Actuellement ${swing}%`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+    <div data-hint={`SWING · Delays the off-beats for a shuffle groove · 0 = straight · ~67% = triplet swing (jazz/hip-hop) · 100% = max dotted shuffle · Currently ${swing}%`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
         <span style={{ fontSize: 7, color: th.dim }}>SWING</span>
         <MidiTag id="__swing__" />
@@ -194,14 +194,14 @@ export default function TransportBar({
 
   const TSBtn = view !== "euclid" && view !== "pads" && (
     <button
-      data-hint={`Time Signature · Mesure actuelle : ${sig?.label || "4/4"} · Clic pour changer (3/4, 5/4, 6/8…) · Définit les accents du métronome`}
+      data-hint={`Time Signature · Current: ${sig?.label || "4/4"} · Click to change (3/4, 5/4, 6/8…) · Sets the metronome accents`}
       onClick={() => setShowTS(!showTS)}
       style={pill(showTS, "#30D158")}>{sig.label}</button>
   );
 
   const MetroBtn = (
     <div
-      data-hint={metro ? `METRO actif · Volume : ${metroVol}% · Clic pour désactiver · Drag ↕ pour régler le volume` : `METRO · Métronome de référence · ${metroVol}% · Clic pour activer · Drag ↕ pour régler le volume`}
+      data-hint={metro ? `METRO active · Volume: ${metroVol}% · Click to disable · Drag ↕ to adjust volume` : `METRO · Reference metronome · ${metroVol}% · Click to enable · Drag ↕ to adjust volume`}
       onMouseDown={onMDown} onTouchStart={onMDown}
       style={{ ...pill(metro, "#FF9500"), position: "relative", overflow: "hidden", touchAction: "none", userSelect: "none", cursor: "pointer" }}>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${metroVol}%`, background: metro ? "rgba(255,149,0,0.12)" : "transparent", borderRadius: 6, transition: "height 0.15s", pointerEvents: "none" }} />
@@ -211,22 +211,22 @@ export default function TransportBar({
 
   const SubBtn = metro && (
     <button
-      data-hint={`SUB · Subdivisions du métronome · ${metroSub === "off" ? "Désactivé" : metroSub === "light" ? "Légères (croches)" : "Complètes (doubles croches)"} · Clic pour changer`}
+      data-hint={`SUB · Metronome subdivisions · ${metroSub === "off" ? "Disabled" : metroSub === "light" ? "Light (eighth notes)" : "Full (sixteenth notes)"} · Click to change`}
       onClick={() => setMetroSub(p => p === "off" ? "light" : p === "light" ? "full" : "off")}
       style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
   const ExportBtn = onExport && (
-    <div data-hint={`Export WAV · Rend ${exportBars} mesure${exportBars > 1 ? "s" : ""} en fichier audio 16-bit PCM · Choisir 1b/2b/4b puis ⬇ WAV`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+    <div data-hint={`Export WAV · Renders ${exportBars} bar${exportBars > 1 ? "s" : ""} to a 16-bit PCM audio file · Choose 1b/2b/4b then ⬇ WAV`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
       {[1,2,4].map(n => (
         <button key={n} onClick={() => setExportBars(n)}
-          data-hint={`Export ${n} mesure${n > 1 ? "s" : ""} · Clic pour sélectionner cette durée d'export WAV`}
+          data-hint={`Export ${n} bar${n > 1 ? "s" : ""} · Click to select this WAV export duration`}
           style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
           disabled={playing || exportState==="rendering"}
         >{n}b</button>
       ))}
       <button onClick={onExport}
-        data-hint={exportState === "rendering" ? "Rendu en cours… · Veuillez patienter" : `⬇ WAV · Exporte ${exportBars} mesure${exportBars > 1 ? "s" : ""} en fichier WAV · Désactivé pendant la lecture`}
+        data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportBars} bar${exportBars > 1 ? "s" : ""} to WAV file · Disabled during playback`}
         disabled={playing || exportState==="rendering"}
         style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
         title="Export WAV"
@@ -236,7 +236,7 @@ export default function TransportBar({
 
   const KeybBtn = (
     <button
-      data-hint={showK ? "Fermer le mapping clavier · Assigner des touches aux pistes" : "KEYB · Ouvrir le mapping clavier · Assigne une touche à chaque piste · Espace=Play · Alt=Rec · ←→=BPM"}
+      data-hint={showK ? "Close keyboard mapping · Assign keys to tracks" : "KEYB · Open keyboard mapping · Assign a key to each track · Space=Play · Alt=Rec · ←→=BPM"}
       onClick={() => setShowK(!showK)}
       style={{ ...pill(showK, "#FFD60A"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11, lineHeight: 1 }}>⌨</span>
@@ -246,7 +246,7 @@ export default function TransportBar({
 
   const MidiBtn = hasMidiApi && (
     <button
-      data-hint={midiLM ? "Mode MIDI LEARN actif · Touche un pad ou bouton puis frappe une note MIDI pour l'assigner · Clic pour terminer" : "MIDI · Active la connexion MIDI · Mode LEARN = assigner une note MIDI à chaque piste ou bouton"}
+      data-hint={midiLM ? "MIDI LEARN active · Touch a pad or button then hit a MIDI note to assign · Click to exit" : "MIDI · Enable MIDI connection · LEARN mode = assign a MIDI note to each track or button"}
       onClick={async () => {
         if (!midiNotes) { const ok = await initMidi(); if (!ok) return; setMidiNotes(true); }
         const entering = !midiLM; setMidiLM(entering); if (!entering) setMidiLearnTrack(null);
@@ -259,7 +259,7 @@ export default function TransportBar({
   const loadFileRef = useRef(null);
   const SaveBtn = onSaveProject && (
     <button
-      data-hint="Sauvegarder le projet · Exporte tous les patterns, BPM, FX, kit actif et paramètres en fichier .ks.json · Le fichier peut être rechargé à tout moment"
+      data-hint="Save project · Exports all patterns, BPM, FX, active kit and settings to a .ks.json file · Can be reloaded at any time"
       onClick={onSaveProject}
       style={{ ...pill(false, "#30D158"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11, lineHeight: 1 }}>💾</span>
@@ -271,7 +271,7 @@ export default function TransportBar({
       <input ref={loadFileRef} type="file" accept=".ks.json,application/json" style={{ display: "none" }}
         onChange={e => { const f = e.target.files?.[0]; if (f) onLoadProject(f); e.target.value = ""; }} />
       <button
-        data-hint="Charger un projet · Importe un fichier .ks.json précédemment sauvegardé · Remplace le projet courant"
+        data-hint="Load project · Import a previously saved .ks.json file · Replaces the current project"
         onClick={() => loadFileRef.current?.click()}
         style={{ ...pill(false, "#64D2FF"), display: "flex", alignItems: "center", gap: 4 }}>
         <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
@@ -282,7 +282,7 @@ export default function TransportBar({
 
   const LinkBtn = hasLinkApi && (
     <button
-      data-hint={linkConnected ? `Ableton LINK · Connecté · ${linkPeers} pair${linkPeers > 1 ? "s" : ""} · Synchronisation BPM réseau active` : "Ableton LINK · Synchroniser le BPM avec d'autres apps sur le réseau local (Ableton, Traktor…)"}
+      data-hint={linkConnected ? `Ableton LINK · Connected · ${linkPeers} peer${linkPeers > 1 ? "s" : ""} · Network BPM sync active` : "Ableton LINK · Sync BPM with other apps on the local network (Ableton, Traktor…)"}
       onClick={() => setShowLink(p => !p)}
       style={{ ...pill(showLink || linkConnected, "#BF5AF2"), fontSize: 8, display: "flex", alignItems: "center", gap: 3 }}>
       🔗{linkConnected ? ` ${linkPeers}p` : ' LINK'}

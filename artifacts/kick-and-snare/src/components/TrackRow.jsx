@@ -159,18 +159,18 @@ function TrackRow({
                 onClick={() => onFxOpen?.()}
                 style={{ ...btnSt, width: 22, fontSize: 6, background: "rgba(191,90,242,0.06)", color: "rgba(191,90,242,0.85)", border: "1px solid rgba(191,90,242,0.3)" }}
               >🎛</button>
-              <button data-hint={isMuted ? `MUTE actif · Piste ${track.label} silencieuse · Cliquer pour réactiver` : `MUTE · Rendre la piste ${track.label} silencieuse · Les steps sont conservés`} onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
-              <button data-hint={isSoloed ? `SOLO actif · Seule la piste ${track.label} est audible · Cliquer pour désactiver` : `SOLO · Isoler la piste ${track.label} · Toutes les autres pistes sont mises en sourdine`} onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
-              <button data-hint={`CLR · Effacer tous les steps de la piste ${track.label} · Les autres pistes ne sont pas affectées`} onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
-              <button data-hint={smpN ? `Sample : ${smpN} · Cliquer pour changer le fichier audio de cette piste` : `Charger un sample · Importer un fichier audio (MP3, WAV, OGG) pour cette piste`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: waveformPath ? 28 : 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim, position: "relative", overflow: "hidden" }}>
+              <button data-hint={isMuted ? `MUTE active · Track ${track.label} is silent · Click to unmute` : `MUTE · Silence track ${track.label} · Steps are preserved`} onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
+              <button data-hint={isSoloed ? `SOLO active · Only track ${track.label} is audible · Click to disable` : `SOLO · Isolate track ${track.label} · All other tracks are muted`} onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
+              <button data-hint={`CLR · Clear all steps on track ${track.label} · Other tracks are not affected`} onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
+              <button data-hint={smpN ? `Sample: ${smpN} · Click to change the audio file for this track` : `Load sample · Import an audio file (MP3, WAV, OGG) for this track`} onClick={onLoadSample} title={smpN ? smpN : "Load sample"} style={{ ...btnSt, width: waveformPath ? 28 : 20, background: smpN ? "rgba(255,149,0,0.2)" : th.btn, color: smpN ? "#FF9500" : th.dim, position: "relative", overflow: "hidden" }}>
                 {waveformPath ? (
                   <svg viewBox="0 0 28 16" width="26" height="14" style={{ position: "absolute", inset: 0, margin: "auto", opacity: 0.5, pointerEvents: "none" }} preserveAspectRatio="none">
                     <path d={waveformPath} stroke="#FF9500" strokeWidth="1.2" fill="none"/>
                   </svg>
                 ) : <span style={{ position: "relative", zIndex: 1 }}>♪</span>}
               </button>
-              {onRandomVel && <button data-hint={`🎲 Vélocités aléatoires · Randomiser la vélocité des steps actifs sur ${track.label} · Plage configurable · Annulable`} onClick={()=>onRandomVel(track.id)} title="Randomize velocity" style={{...btnSt,width:22,border:"1px solid rgba(255,149,0,0.25)",background:"rgba(255,149,0,0.06)",color:"#FF9500",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>🎲</button>}
-              {actLength > 1 && <button data-hint={`Retirer la piste ${track.label} de la vue active · La piste n'est pas supprimée définitivement`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
+              {onRandomVel && <button data-hint={`🎲 Random velocities · Randomize velocity of active steps on ${track.label} · Configurable range · Undoable`} onClick={()=>onRandomVel(track.id)} title="Randomize velocity" style={{...btnSt,width:22,border:"1px solid rgba(255,149,0,0.25)",background:"rgba(255,149,0,0.06)",color:"#FF9500",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>🎲</button>}
+              {actLength > 1 && <button data-hint={`Remove track ${track.label} from active view · The track is not permanently deleted`} onClick={onRemove} style={{ ...btnSt, width: 18, background: "rgba(255,55,95,0.08)", color: "#FF375F", fontSize: 9 }}>×</button>}
             </div>
             {smpN && <span style={{ fontSize: 6, color: th.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{smpN.substring(0, 14)}</span>}
           </div>
@@ -201,8 +201,8 @@ function TrackRow({
             const isDrag = dragInfo?.tid === track.id && dragInfo?.step === step;
             const dragAxis = isDrag ? dragInfo.axis : null;
             const stepHint = ac
-              ? `Step ${step + 1} actif · Vélocité: ${vel}% · Probabilité: ${prob}%${ratch > 1 ? ` · ×${ratch} répétitions` : ""}${sn !== 0 ? ` · Nudge: ${sn > 0 ? "+" : ""}${sn}` : ""} · Drag ↕ = vélocité · Drag ↔ = timing · Long-press = réglages · Clic = désactiver`
-              : `Step ${step + 1} vide · Clic pour activer · Drag immédiat ↕ = régler la vélocité dès l'activation`;
+              ? `Step ${step + 1} active · Velocity: ${vel}% · Probability: ${prob}%${ratch > 1 ? ` · ×${ratch} repeats` : ""}${sn !== 0 ? ` · Nudge: ${sn > 0 ? "+" : ""}${sn}` : ""} · Drag ↕ = velocity · Drag ↔ = timing · Long-press = settings · Click = disable`
+              : `Step ${step + 1} empty · Click to activate · Drag ↕ immediately = set velocity on activation`;
             return (
               <div key={step}
                 data-hint={stepHint}
