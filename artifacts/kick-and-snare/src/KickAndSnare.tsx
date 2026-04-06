@@ -1067,12 +1067,6 @@ export default function KickAndSnare(){
   const filterPosRef=useRef<Record<string,{x:number,y:number}>>({});
   const [recCountdown,setRecCountdown]=useState(false);
   const [recFeedback,setRecFeedback]=useState<{step:number,tid:string,color:string,label:string}|null>(null);
-  // ── Rec grid overlay (Live Pads + REC active) ──
-  const [showRecGrid,setShowRecGrid]=useState(false);
-  useEffect(()=>{
-    if(rec&&playing&&view==="pads")setShowRecGrid(true);
-    else if(!rec||!playing)setShowRecGrid(false);
-  },[rec,playing,view]);
   const [loopMetro,setLoopMetro]=useState(false);
   // masterVol → engine gain + localStorage (0d)
   useEffect(()=>{
@@ -4700,40 +4694,6 @@ export default function KickAndSnare(){
             ))}
           </div>
         </div>
-      </div>
-    )}
-    {/* ── REC Grid Overlay — slides up from bottom when REC is active in Live Pads ── */}
-    {view==="pads"&&(
-      <div style={{position:"fixed",bottom:54,left:0,right:0,zIndex:190,height:"56vh",background:"rgba(10,10,14,0.97)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",borderRadius:"14px 14px 0 0",borderTop:`1.5px solid ${showRecGrid?"rgba(255,45,85,0.45)":"rgba(255,45,85,0.08)"}`,boxShadow:"0 -8px 36px rgba(0,0,0,0.8)",transform:showRecGrid?"translateY(0)":"translateY(108%)",transition:"transform 0.28s cubic-bezier(0.4,0,0.2,1)",display:"flex",flexDirection:"column",overflow:"hidden",pointerEvents:showRecGrid?"auto":"none"}}>
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px 8px",borderBottom:"1px solid rgba(255,255,255,0.07)",flexShrink:0}}>
-          <span style={{fontSize:9,fontWeight:900,color:"#FF2D55",letterSpacing:"0.1em",animation:showRecGrid?"rb 0.8s infinite":"none"}}>⏺ REC</span>
-          <span style={{fontSize:8,fontWeight:700,color:"rgba(255,255,255,0.45)",letterSpacing:"0.07em"}}>→ {lastSeqView==="euclid"?"EUCLID":"SEQUENCER"} · P{cPat+1}</span>
-          <span style={{fontSize:8,color:"rgba(255,255,255,0.2)",marginLeft:2}}>step {cStep>=0?cStep+1:"—"} / {STEPS}</span>
-          <button onClick={()=>setShowRecGrid(false)} title="Hide grid (keeps recording)" style={{marginLeft:"auto",background:"none",border:"1px solid rgba(255,255,255,0.12)",borderRadius:5,color:"rgba(255,255,255,0.35)",fontSize:9,padding:"2px 9px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,flexShrink:0}}>▼</button>
-        </div>
-        {/* Mini step grid — read-only, live step highlight */}
-        <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:"8px 12px",display:"flex",flexDirection:"column",gap:5}}>
-          {atO.map(tr=>{
-            const steps:number[]=pBank[cPat][tr.id]||[];
-            const N=steps.length||STEPS;
-            return(
-              <div key={tr.id} style={{display:"flex",alignItems:"center",gap:6}}>
-                <span style={{fontSize:7,fontWeight:800,color:tr.color,letterSpacing:"0.06em",width:30,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tr.label}</span>
-                <div style={{flex:1,display:"flex",gap:1.5,overflow:"hidden"}}>
-                  {Array.from({length:N},(_,i)=>{
-                    const on=!!(steps[i]);const isCur=cStep===i;
-                    return(
-                      <div key={i} style={{flex:1,height:18,borderRadius:3,background:isCur?"rgba(255,255,255,0.95)":on?tr.color+"cc":"rgba(255,255,255,0.06)",border:isCur?`1.5px solid ${tr.color}`:"1px solid transparent",boxShadow:isCur?`0 0 6px ${tr.color}`:"none",transition:"background 0.04s",flexShrink:0,minWidth:0,maxWidth:24}}/>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {/* Footer hint */}
-        <div style={{textAlign:"center",padding:"6px",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:"0.05em",flexShrink:0}}>TAP A PAD TO RECORD · HITS SNAP TO NEAREST STEP</div>
       </div>
     )}
     {/* ── Live Pads Welcome Popup ── */}
