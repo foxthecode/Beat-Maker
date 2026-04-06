@@ -3378,7 +3378,7 @@ export default function KickAndSnare(){
             })}
           </div>
           <div style={{marginTop:6}}>
-            {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
+            {!showAdd?<button data-hint="Ajouter une piste · Réactiver une piste masquée ou créer une piste custom avec votre propre sample audio" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
                 {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                 {CustomTrackInput()}
@@ -3508,6 +3508,7 @@ export default function KickAndSnare(){
                 {/* ── Pad tile ── */}
                 <div style={{position:"relative",height:"100%"}}>
                   <button
+                    data-hint={`Pad ${track.label} · Appuyer pour déclencher le son${kMap[track.id]?` · Touche clavier : ${kMap[track.id].toUpperCase()}`:""}${smpN[track.id]?` · Sample : ${smpN[track.id]}`:" · Son du kit actif"}`}
                     onContextMenu={e=>e.preventDefault()}
                     onTouchStart={e=>{
                       e.preventDefault();
@@ -3535,6 +3536,7 @@ export default function KickAndSnare(){
                   {/* ── Delete button (top-left, absolute, frère du button → stopPropagation) ── */}
                   {atO.length>1&&(
                     <button
+                      data-hint={`Retirer ${track.label} · Supprimer ce pad de la vue live · La piste reste disponible via "+ ADD TRACK"`}
                       onTouchStart={e=>{e.stopPropagation();e.preventDefault();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
                       onClick={e=>{e.stopPropagation();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
                       onPointerDown={e=>{e.stopPropagation();}}
@@ -3544,6 +3546,7 @@ export default function KickAndSnare(){
                   )}
                   {/* ── ♪ Load sample — top-right ── */}
                   <button
+                    data-hint={smpN[track.id]?`Sample : ${smpN[track.id]} · Cliquer pour changer le fichier audio de ce pad`:`Charger un sample · Importer un fichier audio (MP3, WAV, OGG) pour ${track.label}`}
                     onTouchStart={e=>{e.stopPropagation();e.preventDefault();ldFile(track.id);}}
                     onClick={e=>{e.stopPropagation();ldFile(track.id);}}
                     onPointerDown={e=>e.stopPropagation()}
@@ -3559,6 +3562,7 @@ export default function KickAndSnare(){
                   {midiLM&&<div style={{position:"absolute",top:32,right:6,zIndex:2}}><MidiTag id={track.id}/></div>}
                   {/* ── 🎛 Sample FX — bottom-left ── */}
                   <button
+                    data-hint={`FX Piste ${track.label} · Ouvrir les effets par piste · Pitch, Filtre, Drive, Volume, Pan, Reverb & Delay`}
                     onTouchStart={e=>{e.stopPropagation();e.preventDefault();const tid=track.id;setTimeout(()=>setPadFxTrack(p=>p===tid?null:tid),60);}}
                     onClick={e=>{e.stopPropagation();setPadFxTrack(p=>p===track.id?null:track.id);}}
                     onPointerDown={e=>e.stopPropagation()}
@@ -3567,6 +3571,7 @@ export default function KickAndSnare(){
                   >🎛</button>
                   {/* ── VOL knob — bottom-right, frère du button → stopPropagation empêche tout conflit touch ── */}
                   <div
+                    data-hint={`Volume ${track.label} · ${padVol}% · Drag ↕ pour ajuster · Double-clic = 80%`}
                     style={{position:"absolute",bottom:6,right:6,zIndex:2,display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"rgba(0,0,0,0.4)",borderRadius:7,padding:"3px 5px",backdropFilter:"blur(4px)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",cursor:"ns-resize"}}
                     onTouchStart={e=>{
                       e.stopPropagation();e.preventDefault();
@@ -3745,8 +3750,8 @@ export default function KickAndSnare(){
               if(isMaster&&engine.ctx&&engine.mg)engine.mg.gain.setTargetAtTime(masterVol/100,engine.ctx.currentTime,0.02);
             };
             const fPos=filterPosRef.current[target]||{x:0.5,y:0.5};
-            const holdBtn=(label:string,color:string,onDown:()=>void,onUp:()=>void)=>(
-              <button onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);onDown();}}
+            const holdBtn=(label:string,color:string,onDown:()=>void,onUp:()=>void,hint:string)=>(
+              <button data-hint={hint} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);onDown();}}
                 onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
                 style={{flex:1,padding:"9px 4px",borderRadius:8,border:`1.5px solid ${color}55`,background:`${color}15`,color,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",transition:"all 0.1s"}}>
                 {label}
@@ -3756,8 +3761,8 @@ export default function KickAndSnare(){
               <div style={{marginTop:10,borderRadius:10,border:`1px solid ${showPerform?tColor+"44":"rgba(94,92,230,0.15)"}`,background:th.surface,overflow:"hidden",transition:"border-color 0.2s",borderLeft:`3px solid ${tColor}`}}>
                 {/* Header: left=toggle, center=label, right=target selector */}
                 <div style={{padding:"7px 10px",display:"flex",alignItems:"center",gap:6,userSelect:"none"}}>
-                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:"#5E5CE6",flexShrink:0,cursor:"pointer"}}>🎛</span>
-                  <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em",flex:1,cursor:"pointer"}}>PERFORM FX</span>
+                  <span data-hint={showPerform?"PERFORM FX · Masquer les effets de performance · Filtre XY, Stutter, Reverb/Delay Hold":"PERFORM FX · Afficher les effets de performance · Filtre XY, Stutter, Reverb/Delay Hold en temps réel"} onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:"#5E5CE6",flexShrink:0,cursor:"pointer"}}>🎛</span>
+                  <span data-hint={showPerform?"PERFORM FX · Masquer les effets de performance · Filtre XY, Stutter, Reverb/Delay Hold":"PERFORM FX · Afficher les effets de performance · Filtre XY, Stutter, Reverb/Delay Hold en temps réel"} onClick={()=>setShowPerform(p=>!p)} style={{fontSize:9,fontWeight:800,color:"#5E5CE6",letterSpacing:"0.08em",flex:1,cursor:"pointer"}}>PERFORM FX</span>
                   {/* Pill badge selector with swipe */}
                   <div style={{display:"flex",alignItems:"center",gap:2,touchAction:"none"}}
                     onPointerDown={e=>{perfSwipeRef.current={startX:e.clientX,startIdx:curIdx};}}
@@ -3766,12 +3771,12 @@ export default function KickAndSnare(){
                       if(Math.abs(dx)>30)navTo(perfSwipeRef.current.startIdx+(dx<0?1:-1));
                       perfSwipeRef.current=null;
                     }}>
-                    <button onClick={e=>{e.stopPropagation();navTo(curIdx-1);}} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",lineHeight:1,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-                    <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:12,background:isMaster?"rgba(255,255,255,0.08)":`${tColor}1A`,border:`1px solid ${tColor}55`,minWidth:68,justifyContent:"center",transition:"all 0.18s"}}>
+                    <button data-hint="Cible précédente · Changer la piste cible des effets de performance · ‹ piste précédente" onClick={e=>{e.stopPropagation();navTo(curIdx-1);}} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",lineHeight:1,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+                    <div data-hint={isMaster?"Cible : MASTER · Les effets s'appliquent au bus master · Glisser ←→ pour changer de piste":`Cible : ${tLabel} · Les effets s'appliquent à cette piste · Glisser ←→ pour changer`} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:12,background:isMaster?"rgba(255,255,255,0.08)":`${tColor}1A`,border:`1px solid ${tColor}55`,minWidth:68,justifyContent:"center",transition:"all 0.18s"}}>
                       <span style={{fontSize:11,lineHeight:1}}>{tIcon}</span>
                       <span style={{fontSize:8,fontWeight:800,color:tColor,letterSpacing:"0.07em",lineHeight:1}}>{tLabel}</span>
                     </div>
-                    <button onClick={e=>{e.stopPropagation();navTo(curIdx+1);}} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",lineHeight:1,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+                    <button data-hint="Cible suivante · Changer la piste cible des effets de performance · › piste suivante" onClick={e=>{e.stopPropagation();navTo(curIdx+1);}} style={{width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:th.dim,fontSize:14,cursor:"pointer",lineHeight:1,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
                   </div>
                   <span onClick={()=>setShowPerform(p=>!p)} style={{fontSize:10,color:th.dim,cursor:"pointer"}}>{showPerform?"▲":"▼"}</span>
                 </div>
@@ -3780,7 +3785,7 @@ export default function KickAndSnare(){
                     {/* FILTER XY */}
                     <div>
                       <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>FILTER SWEEP · {tIcon} {tLabel} · drag cutoff (←→) resonance (↑↓)</div>
-                      <div style={{height:80,borderRadius:8,background:`${tColor}08`,border:`1px solid ${tColor}33`,position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
+                      <div data-hint={`FILTER XY · ${tLabel} · Glisser horizontalement = fréquence de coupure · Vertical = résonance · Relâcher = reset au niveau normal`} style={{height:80,borderRadius:8,background:`${tColor}08`,border:`1px solid ${tColor}33`,position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
                         onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);engine.init();
                           const r=e.currentTarget.getBoundingClientRect();
                           const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
@@ -3806,9 +3811,10 @@ export default function KickAndSnare(){
                       <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>STUTTER · {tIcon} {tLabel} — {isMaster?"hold = mute/unmute master":"hold to repeat pad"}</div>
                       <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
                         {(['1/4','1/4t','1/8','1/8t','1/16','1/32'] as const).map(d=>(
-                          <button key={d} onClick={()=>setStutterDiv(d)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
+                          <button key={d} data-hint={`Subdivision stutter ${d} · ${isMaster?"Mute/unmute le master":"Répétition du pad"} toutes les ${d}`} onClick={()=>setStutterDiv(d)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
                         ))}
                         <button
+                          data-hint={`STUTTER HOLD · ${isMaster?"Maintenir = mute/unmute en boucle sur le master":"Maintenir = répétition rythmique du pad"} · Subdivision : ${stutterDiv} · Relâcher pour arrêter`}
                           onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startStutter();}}
                           onPointerUp={stopStutter} onPointerCancel={stopStutter} onPointerLeave={stopStutter}
                           style={{padding:"6px 16px",borderRadius:6,border:`1.5px solid rgba(94,92,230,0.5)`,background:"rgba(94,92,230,0.15)",color:"#5E5CE6",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>HOLD</button>
@@ -3820,13 +3826,13 @@ export default function KickAndSnare(){
                         REVERB &amp; DELAY HOLD · {tIcon} {tLabel}
                       </div>
                       <div style={{display:"flex",gap:6}}>
-                        {holdBtn("REV HOLD","#64D2FF",startRvHold,stopRvHold)}
-                        {holdBtn("DLY HOLD","#30D158",startDlHold,stopDlHold)}
+                        {holdBtn("REV HOLD","#64D2FF",startRvHold,stopRvHold,`REVERB HOLD · ${tLabel} · Maintenir pour booster la reverb · Relâcher pour revenir au niveau normal`)}
+                        {holdBtn("DLY HOLD","#30D158",startDlHold,stopDlHold,`DELAY HOLD · ${tLabel} · Maintenir pour activer le delay amplifié · Division : ${stutterDiv} · Relâcher pour revenir`)}
                       </div>
                       <div style={{display:"flex",gap:3,marginTop:6,flexWrap:"wrap"}}>
                         <span style={{fontSize:6,color:th.faint,alignSelf:"center",marginRight:2}}>DLY DIV</span>
                         {(["1/4","1/4t","1/8","1/8t","1/16","1/32"] as const).map(d=>(
-                          <button key={d} onClick={()=>setStutterDiv(d)}
+                          <button key={d} data-hint={`Division delay ${d} · Synchronise le DLY HOLD sur ${d} · Partagé avec la subdivision stutter`} onClick={()=>setStutterDiv(d)}
                             style={{padding:"3px 7px",borderRadius:4,
                               border:`1px solid ${stutterDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,
                               background:stutterDiv===d?"rgba(48,209,88,0.15)":"transparent",
@@ -3843,7 +3849,7 @@ export default function KickAndSnare(){
             );
           })()}
           <div style={{marginTop:10}}>
-            {!showAdd?<button data-hint="Add a track · Reactivate a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
+            {!showAdd?<button data-hint="Ajouter une piste · Réactiver une piste masquée ou créer une piste custom avec votre propre sample audio" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
                 {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                 {CustomTrackInput()}
