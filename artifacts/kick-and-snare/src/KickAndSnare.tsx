@@ -2065,6 +2065,15 @@ export default function KickAndSnare(){
       }
     };
     document.addEventListener('visibilitychange',onVis);
+    // FIX A — Persistent statechange listener: Android OS can suspend the AudioContext
+    // mid-playback without triggering visibilitychange (audio focus loss, Doze, phone call).
+    // Without this, nothing calls ctx.resume() and playback silently stalls.
+    const onCtxState=()=>{
+      if(engine.ctx?.state==='suspended'&&R.playing){
+        engine.ctx.resume().catch(()=>{});
+      }
+    };
+    engine.ctx?.addEventListener('statechange',onCtxState);
     // FIX PAD LATENCY — pre-resume AudioContext on FIRST touch so it's running
     // before the user's finger reaches a pad (avoids ctx.resume() delay in trigPad)
     const onFirstTouch=()=>{
@@ -2081,6 +2090,7 @@ export default function KickAndSnare(){
     document.addEventListener('pointerdown',onFirstTouch,{capture:true,passive:true});
     return()=>{
       document.removeEventListener('visibilitychange',onVis);
+      engine.ctx?.removeEventListener('statechange',onCtxState);
       document.removeEventListener('touchstart',onFirstTouch,true);
       document.removeEventListener('pointerdown',onFirstTouch,true);
     };

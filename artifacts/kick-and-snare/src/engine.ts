@@ -64,7 +64,7 @@ class Eng{
     this.gOut.connect(this.ctx.destination);
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'&&this.ctx?.state==='suspended'){
-        this.ctx.resume();
+        this.ctx.resume().catch(()=>{});
       }
     });
     this.gFltLfo=this.ctx.createOscillator();this.gFltLfo.type='sine';this.gFltLfo.frequency.value=1.0;
@@ -414,7 +414,11 @@ class Eng{
       const rvAmt=rvOn?Math.max(0,Math.min(1,(f?.rMix??0)/100)):0;
       c.rvSend.gain.cancelScheduledValues(ct);
       c.rvSend.gain.setTargetAtTime(rvAmt,ct,0.02);
-      if(rvOn)this.updateReverb(f?.rDecay??1.5,f?.rSize??0.5,f?.rType??'room');
+      // FIX B — IR update removed from per-note path: calling updateReverb() here
+      // caused gRvConv.buffer reassignment every step (different rDecay per track),
+      // which resets the ConvolverNode internal state and cuts the reverb tail mid-note.
+      // The reverb IR is now set exclusively from the global FX rack (engine.updateReverb()
+      // called directly from KickAndSnare.tsx). Per-track reverb AMOUNT (rvSend.gain) still works.
     }
     if(c.dlSend&&!this._dlHoldActive){
       const dlOn=f?.onDelay??false;
@@ -461,11 +465,13 @@ class Eng{
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
     if(this.buf[id]){
-      if(this._isMobile&&this._nodeCount>=24){return;}
+      if(this._isMobile&&this._nodeCount>=32){return;} // FIX D: raised from 24→32 (accurate releaseMs tracking makes the cap meaningful now)
       this._nodeCount++;
       const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);
       if(this._isMobile){
-        const releaseMs=Math.max(0,(t-this.ctx.currentTime)*1000)+80;
+        // FIX C: use actual buffer duration so nodeCount decrements only when the node truly ends.
+        // Previous: +80ms only covered lookahead, leaving the node counted as "free" while still playing.
+        const releaseMs=Math.max(0,(t-this.ctx.currentTime)*1000)+(s.buffer.duration/r)*1000+50;
         setTimeout(()=>{this._nodeCount=Math.max(0,this._nodeCount-1);},releaseMs);
         s.onended=()=>{s.disconnect();g.disconnect();};
       }else{
