@@ -2,7 +2,7 @@ import { TRACKS } from './constants';
 
 // ═══ Audio Engine ════════════════════════════════════════════════════════════
 class Eng{
-  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};
+  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};this._rvKey='';
     this._isMobile=/Android|iPhone|iPad/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
     this._isAndroid=/Android/i.test(typeof navigator!=='undefined'?navigator.userAgent:'');
     this._rInProg=new Set();
@@ -124,7 +124,7 @@ class Eng{
     this.gAnalyser=this.ctx.createAnalyser();
     this.gAnalyser.fftSize=512;this.gAnalyser.smoothingTimeConstant=0.8;
     this.gOut.connect(this.gAnalyser);
-    this._mkRv(2,0.5,'room');
+    this._mkRv(2,0.5,'room');this._rvKey='2|0.5|room';
     if(this.gRvConv)this.gRvConv.buffer=this.rv; // assigne immédiatement — sinon le convolver produit du silence
     TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();
     this._chainOrder=['drive','comp','filter'];this._sendPositions={};
@@ -179,7 +179,11 @@ class Eng{
     this.rv=buf;
   }
   updateReverb(decay:number,size:number,type='room'){
-    // Synchrone — _mkRv est maintenant trivial (< 3ms)
+    // Guard: changer gRvConv.buffer réinitialise l'état interne du ConvolverNode
+    // (coupe la queue de reverb en cours). On ne reconstruit l'IR que si les params changent.
+    const key=`${decay}|${size}|${type}`;
+    if(this._rvKey===key)return;
+    this._rvKey=key;
     this._mkRv(decay,size,type);
     if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}
   }
