@@ -3649,6 +3649,7 @@ export default function KickAndSnare(){
             };
             const startRvHold=()=>{
               engine.init();if(perfRvHold.current)return;perfRvHold.current=true;
+              engine._rvHoldActive=true;
               const t2=engine.ctx?.currentTime??0;
               if(engine.gRvConv&&!engine.gRvConv.buffer&&engine.rv)engine.gRvConv.buffer=engine.rv;
               if(isMaster){
@@ -3668,6 +3669,7 @@ export default function KickAndSnare(){
             };
             const stopRvHold=()=>{
               if(!perfRvHold.current)return;perfRvHold.current=false;
+              engine._rvHoldActive=false;
               const t2=engine.ctx?.currentTime??0;
               const prev=perfRvPrevRef.current;
               if(isMaster){
@@ -3685,6 +3687,7 @@ export default function KickAndSnare(){
             };
             const startDlHold=()=>{
               engine.init();if(perfDlHold.current)return;perfDlHold.current=true;
+              engine._dlHoldActive=true;
               const t2=engine.ctx?.currentTime??0;
               const divMs=divToMs(stutterDiv);
               if(isMaster){
@@ -3707,6 +3710,7 @@ export default function KickAndSnare(){
             };
             const stopDlHold=()=>{
               if(!perfDlHold.current)return;perfDlHold.current=false;
+              engine._dlHoldActive=false;
               const t2=engine.ctx?.currentTime??0;
               const prev=perfDlPrevRef.current;
               if(isMaster){

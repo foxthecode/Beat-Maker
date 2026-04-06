@@ -12,6 +12,10 @@ class Eng{
     this._rQueue=[];
     this._rRunning=false;
     this._nodeCount=0;
+    // PERFORM FX HOLD guards — set by React when a HOLD button is held.
+    // While true, uFx() skips the matching send so the hold automation is not overwritten.
+    this._rvHoldActive=false;
+    this._dlHoldActive=false;
     // 300ms look-ahead on mobile: absorbs browser jitter and iOS scheduler throttling
     this._lookAhead=this._isMobile?0.30:0.10;
     // 60ms tick interval: less main-thread pressure than 50ms, still plenty of margin
@@ -383,19 +387,21 @@ class Eng{
       const dMode=f?.driveMode||'tape';
       c.drv.curve=this._buildCurve(dMode,dAmt);
     }
-    if(c.rvSend){
+    // Skip reverb/delay send updates while a PERFORM FX HOLD is active —
+    // otherwise the per-note automation would overwrite the HOLD boost.
+    if(c.rvSend&&!this._rvHoldActive){
       const rvOn=f?.onReverb??false;
       const rvAmt=rvOn?Math.max(0,Math.min(1,(f?.rMix??0)/100)):0;
       c.rvSend.gain.cancelScheduledValues(ct);
       c.rvSend.gain.setTargetAtTime(rvAmt,ct,0.02);
       if(rvOn)this.updateReverb(f?.rDecay??1.5,f?.rSize??0.5,f?.rType??'room');
     }
-    if(c.dlSend){
+    if(c.dlSend&&!this._dlHoldActive){
       const dlOn=f?.onDelay??false;
       const dlAmt=dlOn?Math.max(0,Math.min(1,(f?.dMix??0)/100)):0;
       c.dlSend.gain.cancelScheduledValues(ct);
       c.dlSend.gain.setTargetAtTime(dlAmt,ct,0.02);
-      if(dlOn&&this.gDlL){
+      if(dlOn&&this.gDlL&&!this._dlHoldActive){
         this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,f?.dTime??0.25),ct,0.02);
         if(this.gDlR)this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(f?.dTime??0.25)*1.006),ct,0.02);
         if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.75,(f?.dFdbk??35)/100),ct,0.02);
@@ -434,16 +440,6 @@ class Eng{
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
-    if(this._isMobile&&this.gRvBus){
-      const ct2=this.ctx.currentTime;
-      if(this._nodeCount>=16&&this.gRvBus.gain.value>0.01){
-        this.gRvBus.gain.cancelScheduledValues(ct2);
-        this.gRvBus.gain.setTargetAtTime(0,ct2,0.015);
-      }else if(this._nodeCount<10&&this.gRvBus.gain.value<0.99){
-        this.gRvBus.gain.cancelScheduledValues(ct2);
-        this.gRvBus.gain.setTargetAtTime(1,ct2,0.15);
-      }
-    }
     if(this.buf[id]){
       if(this._isMobile&&this._nodeCount>=24){return;}
       this._nodeCount++;
