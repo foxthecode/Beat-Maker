@@ -1095,7 +1095,7 @@ export default function KickAndSnare(){
   const [sampleModalOpen,setSampleModalOpen]=useState(false);
   const [sampleModalTrack,setSampleModalTrack]=useState('');
   const [padFxTrack,setPadFxTrack]=useState<string|null>(null);
-  const [padFxTab,setPadFxTab]=useState<string>('REV');
+  const [padFxTab,setPadFxTab]=useState<string>('OUT');
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
   const [showPerform,setShowPerform]=useState(false);
@@ -4296,16 +4296,31 @@ export default function KickAndSnare(){
         });
       };
       const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
-      const SlRow=({label,keyName,min,max,step,val,color,fmt,disabled=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;disabled?:boolean})=>(
-        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-          <span style={{fontSize:7.5,fontWeight:800,color:disabled?"rgba(255,255,255,0.2)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
-          <input type="range" min={min} max={max} step={step} value={val} disabled={disabled}
-            onChange={e=>updFx({[keyName]:Number(e.target.value)})}
-            onTouchStart={e=>e.stopPropagation()}
-            style={{flex:1,accentColor:color,minWidth:0,opacity:disabled?0.25:1,cursor:disabled?"not-allowed":"pointer",touchAction:"none"}}/>
-          <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:disabled?"rgba(255,255,255,0.2)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
-        </div>
-      );
+      const SlRow=({label,keyName,min,max,step,val,color,fmt,dimmed=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;dimmed?:boolean})=>{
+        const pct=Math.max(0,Math.min(1,(val-min)/(max-min)));
+        const onPD=(e:React.PointerEvent<HTMLDivElement>)=>{
+          e.preventDefault();e.stopPropagation();
+          const el=e.currentTarget;
+          const snap=(raw:number)=>Math.max(min,Math.min(max,parseFloat((Math.round(raw/step)*step).toFixed(10))));
+          const setFromX=(cx:number)=>{const r=el.getBoundingClientRect();updFx({[keyName]:snap(min+(max-min)*Math.max(0,Math.min(1,(cx-r.left)/r.width)))});};
+          setFromX(e.clientX);
+          const onMv=(pe:PointerEvent)=>setFromX(pe.clientX);
+          const onUp=()=>{window.removeEventListener("pointermove",onMv);window.removeEventListener("pointerup",onUp);};
+          window.addEventListener("pointermove",onMv);window.addEventListener("pointerup",onUp,{once:true});
+        };
+        return(
+          <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+            <span style={{fontSize:7.5,fontWeight:800,color:dimmed?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
+            <div onPointerDown={onPD} style={{flex:1,position:"relative",height:28,cursor:"ew-resize",touchAction:"none",minWidth:0,display:"flex",alignItems:"center"}}>
+              <div style={{position:"absolute",left:0,right:0,height:3,borderRadius:2,background:"rgba(255,255,255,0.08)"}}>
+                <div style={{height:"100%",width:`${pct*100}%`,borderRadius:2,background:color,opacity:dimmed?0.35:1,transition:"width 0.05s"}}/>
+              </div>
+              <div style={{position:"absolute",left:`${pct*100}%`,transform:"translateX(-50%)",width:14,height:14,borderRadius:"50%",background:dimmed?"rgba(255,255,255,0.2)":color,boxShadow:dimmed?"none":`0 0 6px ${color}99`,border:"2px solid rgba(0,0,0,0.5)",pointerEvents:"none",flexShrink:0}}/>
+            </div>
+            <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:dimmed?"rgba(255,255,255,0.22)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
+          </div>
+        );
+      };
       const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
         <button onClick={onClick} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${on?color+"88":"rgba(255,255,255,0.12)"}`,background:on?color+"22":"transparent",color:on?color:"rgba(255,255,255,0.35)",fontSize:7.5,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",transition:"all 0.12s",touchAction:"manipulation"}}>
           {label}
@@ -4369,8 +4384,8 @@ export default function KickAndSnare(){
                     <ToggleBtn on={f.onPitch??false} label={f.onPitch?"ON":"OFF"} color={tr.color} onClick={()=>updFx({onPitch:!(f.onPitch??false)})}/>
                     <MidiTag id={`fx_pitch_on_${tr.id}`}/>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:6,opacity:f.onPitch?1:0.35,pointerEvents:f.onPitch?"auto":"none"}}>
-                    <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"}/>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Semitones" keyName="pitch" min={-12} max={12} step={1} val={f.pitch??0} color={tr.color} fmt={v=>(v>0?"+":"")+v+"st"} dimmed={!f.onPitch}/>
                     <MidiTag id={`fx_pitch_${tr.id}`}/>
                   </div>
                 </div>
@@ -4383,13 +4398,13 @@ export default function KickAndSnare(){
                     <MidiTag id={`fx_flt_on_${tr.id}`}/>
                     <PillGroup val={f.fType||"lowpass"} color="#64D2FF" onSel={k=>updFx({fType:k,onFilter:true})} opts={[{k:"lowpass",l:"LP"},{k:"highpass",l:"HP"},{k:"bandpass",l:"BP"},{k:"notch",l:"NOTCH"}]}/>
                   </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,opacity:f.onFilter?1:0.35,pointerEvents:f.onFilter?"auto":"none"}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"}/>
+                      <SlRow label="Cutoff" keyName="cut" min={80} max={20000} step={50} val={f.cut??5000} color="#64D2FF" fmt={v=>freqFmt(v)+"Hz"} dimmed={!f.onFilter}/>
                       <MidiTag id={`fx_cut_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Res" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"}/>
+                      <SlRow label="Res" keyName="res" min={0} max={20} step={0.5} val={f.res??0} color="#64D2FF" fmt={v=>Number(v).toFixed(1)+"Q"} dimmed={!f.onFilter}/>
                       <MidiTag id={`fx_res_${tr.id}`}/>
                     </div>
                   </div>
@@ -4403,8 +4418,8 @@ export default function KickAndSnare(){
                     <MidiTag id={`fx_drv_on_${tr.id}`}/>
                     <PillGroup val={f.driveMode||"tape"} color="#FF9500" onSel={k=>updFx({driveMode:k,onDrive:true})} opts={[{k:"tape",l:"TAPE"},{k:"tanh",l:"SOFT"},{k:"tube",l:"TUBE"},{k:"bit",l:"BIT"}]}/>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:6,opacity:f.onDrive?1:0.35,pointerEvents:f.onDrive?"auto":"none"}}>
-                    <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"}/>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <SlRow label="Amount" keyName="drive" min={0} max={100} step={1} val={f.drive??0} color="#FF9500" fmt={v=>v+"%"} dimmed={!f.onDrive}/>
                     <MidiTag id={`fx_drv_${tr.id}`}/>
                   </div>
                 </div>
@@ -4417,17 +4432,17 @@ export default function KickAndSnare(){
                     <MidiTag id={`fx_rev_on_${tr.id}`}/>
                     <PillGroup val={(f as any).rType||"room"} color="#64D2FF" onSel={(k:string)=>updFx({rType:k,onReverb:true})} opts={[{k:"room",l:"ROOM"},{k:"plate",l:"PLATE"},{k:"hall",l:"HALL"}]}/>
                   </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,opacity:f.onReverb?1:0.35,pointerEvents:f.onReverb?"auto":"none"}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Mix" keyName="rMix" min={0} max={100} step={1} val={f.rMix??0} color="#64D2FF" fmt={(v:number)=>v+"%"}/>
+                      <SlRow label="Mix" keyName="rMix" min={0} max={100} step={1} val={f.rMix??0} color="#64D2FF" fmt={(v:number)=>v+"%"} dimmed={!f.onReverb}/>
                       <MidiTag id={`fx_rmix_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Decay" keyName="rDecay" min={0.1} max={6} step={0.1} val={f.rDecay??1.5} color="#64D2FF" fmt={(v:number)=>v.toFixed(1)+"s"}/>
+                      <SlRow label="Decay" keyName="rDecay" min={0.1} max={6} step={0.1} val={f.rDecay??1.5} color="#64D2FF" fmt={(v:number)=>v.toFixed(1)+"s"} dimmed={!f.onReverb}/>
                       <MidiTag id={`fx_rdec_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Size" keyName="rSize" min={0} max={1} step={0.05} val={(f as any).rSize??0.5} color="#64D2FF" fmt={(v:number)=>Math.round(v*100)+"%"}/>
+                      <SlRow label="Size" keyName="rSize" min={0} max={1} step={0.05} val={(f as any).rSize??0.5} color="#64D2FF" fmt={(v:number)=>Math.round(v*100)+"%"} dimmed={!f.onReverb}/>
                       <MidiTag id={`fx_rsz_${tr.id}`}/>
                     </div>
                   </div>
@@ -4448,19 +4463,19 @@ export default function KickAndSnare(){
                       </div>
                     )}
                   </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,opacity:f.onDelay?1:0.35,pointerEvents:f.onDelay?"auto":"none"}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {!f.dSync&&(
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <SlRow label="Time" keyName="dTime" min={0.01} max={1.9} step={0.01} val={f.dTime??0.25} color="#30D158" fmt={(v:number)=>v.toFixed(2)+"s"}/>
+                        <SlRow label="Time" keyName="dTime" min={0.01} max={1.9} step={0.01} val={f.dTime??0.25} color="#30D158" fmt={(v:number)=>v.toFixed(2)+"s"} dimmed={!f.onDelay}/>
                         <MidiTag id={`fx_dtime_${tr.id}`}/>
                       </div>
                     )}
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Fdbk" keyName="dFdbk" min={0} max={75} step={1} val={f.dFdbk??35} color="#30D158" fmt={(v:number)=>v+"%"}/>
+                      <SlRow label="Fdbk" keyName="dFdbk" min={0} max={75} step={1} val={f.dFdbk??35} color="#30D158" fmt={(v:number)=>v+"%"} dimmed={!f.onDelay}/>
                       <MidiTag id={`fx_dfdbk_${tr.id}`}/>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <SlRow label="Mix" keyName="dMix" min={0} max={100} step={1} val={f.dMix??0} color="#30D158" fmt={(v:number)=>v+"%"}/>
+                      <SlRow label="Mix" keyName="dMix" min={0} max={100} step={1} val={f.dMix??0} color="#30D158" fmt={(v:number)=>v+"%"} dimmed={!f.onDelay}/>
                       <MidiTag id={`fx_dmix_${tr.id}`}/>
                     </div>
                   </div>
@@ -4475,12 +4490,23 @@ export default function KickAndSnare(){
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
                     <span style={{fontSize:7.5,fontWeight:800,color:"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>Pan</span>
-                    <div style={{flex:1,display:"flex",flexDirection:"column",gap:2,minWidth:0,position:"relative"}}>
-                      <input type="range" min={-100} max={100} step={1} value={f.pan??0}
-                        onChange={e=>updFx({pan:Number(e.target.value)})}
-                        onTouchStart={e=>e.stopPropagation()}
-                        style={{flex:1,accentColor:"#8E8E93",width:"100%",cursor:"pointer",touchAction:"none"}}/>
-                      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,2px)",width:2,height:6,background:"rgba(255,255,255,0.3)",borderRadius:1,pointerEvents:"none"}}/>
+                    <div onPointerDown={(e:React.PointerEvent<HTMLDivElement>)=>{
+                      e.preventDefault();e.stopPropagation();
+                      const el=e.currentTarget;
+                      const setFromX=(cx:number)=>{const r=el.getBoundingClientRect();const pct=(cx-r.left)/r.width;updFx({pan:Math.max(-100,Math.min(100,Math.round((pct*200)-100)))});};
+                      setFromX(e.clientX);
+                      const onMv=(pe:PointerEvent)=>setFromX(pe.clientX);
+                      const onUp=()=>{window.removeEventListener("pointermove",onMv);window.removeEventListener("pointerup",onUp);};
+                      window.addEventListener("pointermove",onMv);window.addEventListener("pointerup",onUp,{once:true});
+                    }} style={{flex:1,position:"relative",height:28,cursor:"ew-resize",touchAction:"none",minWidth:0,display:"flex",alignItems:"center"}}>
+                      {/* center tick */}
+                      <div style={{position:"absolute",left:"50%",transform:"translateX(-50%)",width:1,height:10,background:"rgba(255,255,255,0.2)",borderRadius:1,pointerEvents:"none"}}/>
+                      {/* track */}
+                      <div style={{position:"absolute",left:0,right:0,height:3,borderRadius:2,background:"rgba(255,255,255,0.08)"}}>
+                        {(()=>{const p=f.pan??0;const pct=(p+100)/200;const left=p<0?pct*100:50;const width=Math.abs(p)/2;return<div style={{position:"absolute",left:`${left}%`,width:`${width}%`,height:"100%",borderRadius:2,background:"#8E8E93"}}/>;})()}
+                      </div>
+                      {/* thumb */}
+                      <div style={{position:"absolute",left:`${((f.pan??0)+100)/200*100}%`,transform:"translateX(-50%)",width:14,height:14,borderRadius:"50%",background:"#8E8E93",boxShadow:"0 0 5px #8E8E9399",border:"2px solid rgba(0,0,0,0.5)",pointerEvents:"none"}}/>
                     </div>
                     <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:"#8E8E93",width:46,flexShrink:0,textAlign:"left"}}>{(f.pan??0)===0?"C":(f.pan??0)>0?`R${f.pan??0}`:`L${Math.abs(f.pan??0)}`}</span>
                     <MidiTag id={`pan_${tr.id}`}/>
