@@ -125,6 +125,7 @@ class Eng{
     this.gAnalyser.fftSize=512;this.gAnalyser.smoothingTimeConstant=0.8;
     this.gOut.connect(this.gAnalyser);
     this._mkRv(2,0.5,'room');
+    if(this.gRvConv)this.gRvConv.buffer=this.rv; // assigne immédiatement — sinon le convolver produit du silence
     TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();
     this._chainOrder=['drive','comp','filter'];this._sendPositions={};
     this.rebuildChain(this._chainOrder,this._sendPositions);
@@ -148,76 +149,39 @@ class Eng{
       await this._resumeP;
     }
   }
+  // Reverb IR par bruit blanc + décroissance exponentielle (approche Tone.js / Google Web Audio)
+  // Calcul < 3ms même pour 4s de decay — pas de boucle sample-par-sample complexe.
   _mkRv(decay=2,size=0.5,type='room'){
     const sr=this.ctx.sampleRate;
-    const scale=sr/44100;
-    const cfgs={
-      plate:{roomSize:0.52,damp:0.82,preDelay:0.002},
-      room: {roomSize:0.50+size*0.3,damp:0.5+size*0.3,preDelay:0.01+size*0.02},
-      hall: {roomSize:0.75+size*0.2,damp:0.3+size*0.2,preDelay:0.025+size*0.04},
-    };
-    const cfg=cfgs[type]||cfgs.room;
-    const{roomSize,damp}=cfg;
-    const preDelaySamples=Math.floor(cfg.preDelay*sr);
-    const erDelaysSamples=[Math.floor(0.007*sr),Math.floor(0.013*sr),Math.floor(0.023*sr)];
-    const totalSamples=Math.ceil(sr*(Math.min(8,decay)+cfg.preDelay+0.1));
+    // Pre-delay par type
+    const preDelayMs=type==='plate'?2:type==='hall'?(20+size*35):(8+size*15);
+    const preDelaySamples=Math.floor(preDelayMs/1000*sr);
+    // Durée de queue limitée à 4s
+    const tailSec=Math.min(4,decay*(type==='hall'?1.15:1.0));
+    const totalSamples=preDelaySamples+Math.ceil(sr*tailSec);
     const buf=this.ctx.createBuffer(2,totalSamples,sr);
-    const combDelaysL=[1116,1188,1277,1356,1422,1491,1557,1617].map(d=>Math.floor(d*scale));
-    const combDelaysR=combDelaysL.map(d=>d+23);
-    const apDelays=[556,441,341,225].map(d=>Math.floor(d*scale));
-    const nCombs=combDelaysL.length;
+    // RT60 → taux de décroissance : -60dB au bout de tailSec
+    const decayRate=Math.log(0.001)/tailSec;
     for(let ch=0;ch<2;ch++){
       const data=buf.getChannelData(ch);
-      const combDelays=ch===0?combDelaysL:combDelaysR;
-      const combBufs=combDelays.map(d=>new Float32Array(d));
-      const combPos=new Int32Array(combDelays.length);
-      const combFilt=new Float32Array(combDelays.length);
-      const apBufs=apDelays.map(d=>new Float32Array(d));
-      const apPos=new Int32Array(apDelays.length);
-      const erBufs=erDelaysSamples.map(d=>new Float32Array(d));
-      const erPos=new Int32Array(erDelaysSamples.length);
       for(let i=0;i<totalSamples;i++){
-        const input=(i===preDelaySamples)?1.0:0.0;
-        // Early reflections
-        let erOut=0;
-        const erGains=[0.7,0.5,0.4];
-        for(let e=0;e<erBufs.length;e++){
-          erOut+=erBufs[e][erPos[e]]*erGains[e];
-          erBufs[e][erPos[e]]=input;
-          erPos[e]=(erPos[e]+1)%erBufs[e].length;
-        }
-        // Schroeder combs
-        let combOut=0;
-        for(let c=0;c<nCombs;c++){
-          const b=combBufs[c],pos=combPos[c];
-          const delayed=b[pos];
-          combFilt[c]=delayed*(1-damp)+combFilt[c]*damp;
-          b[pos]=input+combFilt[c]*roomSize;
-          combPos[c]=(pos+1)%b.length;
-          combOut+=delayed;
-        }
-        combOut*=(1/nCombs);
-        // Allpass
-        let apOut=combOut;
-        for(let a=0;a<apBufs.length;a++){
-          const b=apBufs[a],pos=apPos[a];
-          const delayed=b[pos];
-          const w=apOut+delayed*0.5;
-          b[pos]=w;
-          apPos[a]=(pos+1)%b.length;
-          apOut=delayed-0.5*w;
-        }
-        data[i]=apOut*0.5+erOut*0.5;
+        if(i<preDelaySamples){data[i]=0;continue;}
+        const t=(i-preDelaySamples)/sr;
+        data[i]=(Math.random()*2-1)*Math.exp(decayRate*t);
+      }
+      // Décorrélation stéréo : décalage de 0.5ms sur ch1
+      if(ch===1){
+        const shift=Math.floor(sr*0.0005);
+        for(let i=totalSamples-1;i>=shift;i--)data[i]=data[i-shift];
+        for(let i=0;i<shift;i++)data[i]=0;
       }
     }
     this.rv=buf;
   }
   updateReverb(decay:number,size:number,type='room'){
-    clearTimeout((this as any)._rvPending);
-    (this as any)._rvPending=setTimeout(()=>{
-      this._mkRv(decay,size,type);
-      if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}
-    },0);
+    // Synchrone — _mkRv est maintenant trivial (< 3ms)
+    this._mkRv(decay,size,type);
+    if(this.gRvConv){try{this.gRvConv.buffer=this.rv;}catch(e){}}
   }
   rebuildChain(order=['drive','comp','filter'],sendPositions={}){
     if(!this.ctx)return;

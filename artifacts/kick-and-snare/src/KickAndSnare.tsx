@@ -3624,48 +3624,64 @@ export default function KickAndSnare(){
             };
             const startRvHold=()=>{
               engine.init();if(perfRvHold.current)return;perfRvHold.current=true;
-              const f=R.fx[target]||{...DEFAULT_FX};
-              perfRvPrevRef.current={mix:f.rMix??0,decay:f.rDecay??1.5,size:(f as any).rSize??0.5};
-              const boostMix=Math.min(100,(f.rMix??0)+45);
-              if(target&&engine.ch[target]?.rvSend){
-                const t2=engine.ctx?.currentTime??0;
-                engine.ch[target].rvSend.gain.setTargetAtTime(boostMix/100,t2,0.02);
+              const t2=engine.ctx?.currentTime??0;
+              // Assure que le convolver a un buffer
+              if(engine.gRvConv&&!engine.gRvConv.buffer&&engine.rv)engine.gRvConv.buffer=engine.rv;
+              if(isMaster){
+                // Master : booste le bus global de reverb
+                const cur=engine.gRvBus?.gain.value??0.5;
+                perfRvPrevRef.current={mix:cur*100,decay:2,size:0.5};
+                engine.gRvBus?.gain.setTargetAtTime(Math.min(2,cur*2.5+0.4),t2,0.05);
+              } else if(target&&engine.ch[target]?.rvSend){
+                // Track : booste le send de reverb de la piste
+                const cur=engine.ch[target].rvSend.gain.value;
+                perfRvPrevRef.current={mix:cur*100,decay:2,size:0.5};
+                engine.ch[target].rvSend.gain.setTargetAtTime(Math.min(1,cur+0.55),t2,0.02);
               }
-              engine.updateReverb(f.rDecay??1.5,(f as any).rSize??0.5,(f as any).rType||'room');
             };
             const stopRvHold=()=>{
               if(!perfRvHold.current)return;perfRvHold.current=false;
+              const t2=engine.ctx?.currentTime??0;
               const prev=perfRvPrevRef.current;
-              if(prev&&target&&engine.ch[target]?.rvSend&&engine.ctx){
-                const t2=engine.ctx.currentTime;
+              if(isMaster){
+                engine.gRvBus?.gain.setTargetAtTime((prev?.mix??50)/100,t2,0.18);
+              } else if(prev&&target&&engine.ch[target]?.rvSend){
                 engine.ch[target].rvSend.gain.setTargetAtTime(prev.mix/100,t2,0.08);
               }
               perfRvPrevRef.current=null;
             };
             const startDlHold=()=>{
               engine.init();if(perfDlHold.current)return;perfDlHold.current=true;
-              const f=R.fx[target]||{...DEFAULT_FX};
-              perfDlPrevRef.current={mix:f.dMix??0,time:f.dTime??0.25,fb:f.dFdbk??35};
-              const boostMix=Math.min(100,(f.dMix??0)+55);
               const t2=engine.ctx?.currentTime??0;
-              if(target&&engine.ch[target]?.dlSend){
-                engine.ch[target].dlSend.gain.setTargetAtTime(boostMix/100,t2,0.02);
-              }
               const divMs=divToMs(stutterDiv);
+              if(isMaster){
+                // Master : booste le wet global du delay
+                const cur=engine.gDlWet?.gain.value??0;
+                perfDlPrevRef.current={mix:cur*100,time:engine.gDlL?.delayTime.value??0.25,fb:35};
+                engine.gDlWet?.gain.setTargetAtTime(Math.min(1,cur+0.65),t2,0.02);
+              } else if(target&&engine.ch[target]?.dlSend){
+                // Track : booste le send de delay de la piste + active le wet
+                const cur=engine.ch[target].dlSend.gain.value;
+                perfDlPrevRef.current={mix:cur*100,time:engine.gDlL?.delayTime.value??0.25,fb:35};
+                engine.ch[target].dlSend.gain.setTargetAtTime(Math.min(1,cur+0.65),t2,0.02);
+                engine.gDlWet?.gain.setTargetAtTime(0.7,t2,0.02);
+              }
+              // Sync delay time sur la subdivision stutter
               if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000),t2,0.01);
               if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,divMs/1000*1.006),t2,0.01);
             };
             const stopDlHold=()=>{
               if(!perfDlHold.current)return;perfDlHold.current=false;
+              const t2=engine.ctx?.currentTime??0;
               const prev=perfDlPrevRef.current;
-              if(prev&&engine.ctx){
-                const t2=engine.ctx.currentTime;
-                if(target&&engine.ch[target]?.dlSend){
-                  engine.ch[target].dlSend.gain.setTargetAtTime(prev.mix/100,t2,0.12);
-                }
-                if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,prev.time),t2,0.05);
-                if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,prev.time*1.006),t2,0.05);
+              if(isMaster){
+                engine.gDlWet?.gain.setTargetAtTime((prev?.mix??0)/100,t2,0.15);
+              } else if(prev&&target&&engine.ch[target]?.dlSend){
+                engine.ch[target].dlSend.gain.setTargetAtTime(prev.mix/100,t2,0.12);
+                engine.gDlWet?.gain.setTargetAtTime((prev.mix??0)/100,t2,0.15);
               }
+              if(engine.gDlL)engine.gDlL.delayTime.setTargetAtTime(Math.min(1.9,prev?.time??0.25),t2,0.05);
+              if(engine.gDlR)engine.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(prev?.time??0.25)*1.006),t2,0.05);
               perfDlPrevRef.current=null;
             };
             const startStutter=()=>{
