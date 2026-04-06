@@ -1905,14 +1905,21 @@ export default function KickAndSnare(){
       }
     }
 
-    // 3. Classic anchor download — works on desktop, sometimes on mobile
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;a.download=fname;a.style.display="none";
-    document.body.appendChild(a);a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    // 3. Anchor download — data: URL instead of blob: to bypass MIUI download manager restriction.
+    // On Android/MIUI, blob: URLs are page-scoped and the system download manager (separate process)
+    // cannot resolve them → silent failure. data: URLs are self-contained and always work.
+    try{
+      const b64=btoa(unescape(encodeURIComponent(json)));
+      const a=document.createElement("a");
+      a.href=`data:text/plain;charset=utf-8;base64,${b64}`;
+      a.download=fname;a.style.display="none";
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{document.body.removeChild(a);},1000);
+    }catch{/* silent */}
 
-    // 4. Last resort — show copy-paste modal (always works)
+    // 4. On mobile: always show copy-paste modal alongside the download attempt.
+    // MIUI/Android silently drops downloads (blob: or data:) with no feedback —
+    // the modal guarantees the user always has the text available.
     if(isMobile) setSaveFallback(json);
   };
 
@@ -5007,29 +5014,34 @@ export default function KickAndSnare(){
     <div onClick={()=>{setSaveFallback(null);setSaveCopied(false);}}
       style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.82)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:'#1c1c1e',border:'1px solid #38383a',borderRadius:18,padding:20,maxWidth:420,width:'100%',display:'flex',flexDirection:'column',gap:12,boxShadow:'0 24px 60px #000c'}}>
+        style={{background:'#1c1c1e',border:'1px solid #38383a',borderRadius:18,padding:20,maxWidth:440,width:'100%',display:'flex',flexDirection:'column',gap:12,boxShadow:'0 24px 60px #000c'}}>
         <div style={{color:'#fff',fontWeight:900,fontSize:13,letterSpacing:'0.1em'}}>💾 SAUVEGARDE PROJET</div>
-        <div style={{color:'#ababab',fontSize:11,lineHeight:1.5}}>
-          Si le fichier <code style={{color:'#ffd60a',fontSize:10}}>.ks.txt</code> n'est pas apparu dans Téléchargements,
-          copie ce texte dans une application de notes (Notes, Keep…) et colle-le pour recharger.
+        <div style={{background:'#ffd60a18',border:'1px solid #ffd60a44',borderRadius:10,padding:'10px 12px',display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{color:'#ffd60a',fontWeight:800,fontSize:10,letterSpacing:'0.06em'}}>MIUI / ANDROID — 2 OPTIONS</div>
+          <div style={{color:'#ccc',fontSize:10,lineHeight:1.55}}>
+            <b style={{color:'#fff'}}>① Téléchargements</b> — Vérifie dans l'app <b style={{color:'#fff'}}>Téléchargements</b> ou le dossier <b style={{color:'#fff'}}>Download</b>. Le fichier <code style={{color:'#ffd60a'}}>ks-project-*.ks.txt</code> y est parfois enregistré sans notification.
+          </div>
+          <div style={{color:'#ccc',fontSize:10,lineHeight:1.55}}>
+            <b style={{color:'#fff'}}>② Copie-colle</b> — Appuie sur <b style={{color:'#30D158'}}>📋 COPIER</b> ci-dessous, colle dans Notes / Google Keep. Pour recharger : bouton <b style={{color:'#FF9F0A'}}>COLLER</b> dans la barre du haut.
+          </div>
         </div>
         <textarea readOnly value={saveFallback}
           onClick={e=>(e.currentTarget as HTMLTextAreaElement).select()}
           style={{background:'#111',border:'1px solid #333',borderRadius:8,color:'#888',fontSize:9,
-            fontFamily:'monospace',padding:8,height:90,resize:'none',outline:'none'}}/>
+            fontFamily:'monospace',padding:8,height:80,resize:'none',outline:'none'}}/>
         <div style={{display:'flex',gap:8}}>
           <button onClick={()=>{
-            navigator.clipboard?.writeText(saveFallback)
+            navigator.clipboard?.writeText(saveFallback!)
               .then(()=>{setSaveCopied(true);setTimeout(()=>setSaveCopied(false),2500);})
               .catch(()=>{});
-          }} style={{flex:1,padding:'9px 12px',background:saveCopied?'#30D15830':'#30D15818',
+          }} style={{flex:1,padding:'11px 12px',background:saveCopied?'#30D15830':'#30D15818',
             border:`1px solid ${saveCopied?'#30D158':'#30D15866'}`,borderRadius:10,
             color:saveCopied?'#30D158':'#30D158cc',fontWeight:900,fontSize:11,
             cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em',transition:'all 0.2s'}}>
             {saveCopied?'✓ COPIÉ !':'📋 COPIER LE TEXTE'}
           </button>
           <button onClick={()=>{setSaveFallback(null);setSaveCopied(false);}}
-            style={{padding:'9px 14px',background:'#ffffff0a',border:'1px solid #38383a',
+            style={{padding:'11px 14px',background:'#ffffff0a',border:'1px solid #38383a',
               borderRadius:10,color:'#888',fontWeight:800,fontSize:11,cursor:'pointer',fontFamily:'inherit'}}>
             FERMER
           </button>
