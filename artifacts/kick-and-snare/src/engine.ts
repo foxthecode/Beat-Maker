@@ -425,12 +425,10 @@ class Eng{
       const dlAmt=dlOn?Math.max(0,Math.min(1,(f?.dMix??0)/100)):0;
       c.dlSend.gain.cancelScheduledValues(ct);
       c.dlSend.gain.setTargetAtTime(dlAmt,ct,0.02);
-      if(dlOn&&this.gDlL&&!this._dlHoldActive){
-        this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,f?.dTime??0.25),ct,0.02);
-        if(this.gDlR)this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(f?.dTime??0.25)*1.006),ct,0.02);
-        if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.75,(f?.dFdbk??35)/100),ct,0.02);
-        if(this.gDlWet)this.gDlWet.gain.setTargetAtTime((f?.dMix??0)/100,ct,0.02);
-      }
+      // FIX H — Global delay params (delayTime, feedback, gDlWet) are ONLY written by uGfx()
+      // from the FX rack global settings. Writing them per-track here caused audible clicks:
+      // when two tracks had different dTime/dMix values, these global params jumped between
+      // values every step — creating amplitude spikes in the delay output each bar.
     }
     if(c.tsAtk){
       const nt=noteTime!=null&&noteTime>ct?noteTime:ct;
