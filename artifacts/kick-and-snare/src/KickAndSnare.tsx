@@ -1052,7 +1052,7 @@ export default function KickAndSnare(){
   const [showLooper,setShowLooper]=useState(false);
   const [showPerform,setShowPerform]=useState(false);
   const [showFxRack,setShowFxRack]=useState(false);
-  const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/8'|'1/16'|'1/32'>('1/8');
+  const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/4t'|'1/8'|'1/8t'|'1/16'|'1/32'>('1/8');
   const [perfTrack,setPerfTrack]=useState<string>('');
   const [waveformCache,setWaveformCache]=useState<Record<string,string>>({});
   const stutterRef=useRef<ReturnType<typeof setInterval>|null>(null);
@@ -3583,7 +3583,7 @@ export default function KickAndSnare(){
           </div>
           {/* ── PERFORM FX v10 ── */}
           {(()=>{
-            const divToMs=(div:string)=>{const b=60000/Math.max(30,bpm);const m:Record<string,number>={'1/4':b,'1/8':b/2,'1/16':b/4,'1/32':b/8};return m[div]??b/2;};
+            const divToMs=(div:string)=>{const b=60000/Math.max(30,bpm);const m:Record<string,number>={'1/4':b,'1/4t':b*2/3,'1/8':b/2,'1/8t':b/3,'1/16':b/4,'1/32':b/8};return m[div]??b/2;};
             const MASTER_ID='__master__';
             const isMaster=perfTrack===MASTER_ID;
             const target=isMaster?'':(perfTrack||atO[0]?.id||'');
@@ -3768,7 +3768,7 @@ export default function KickAndSnare(){
                     <div>
                       <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>STUTTER · {tIcon} {tLabel} — {isMaster?"hold = mute/unmute master":"hold to repeat pad"}</div>
                       <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-                        {(['1/4','1/8','1/16','1/32'] as const).map(d=>(
+                        {(['1/4','1/4t','1/8','1/8t','1/16','1/32'] as const).map(d=>(
                           <button key={d} onClick={()=>setStutterDiv(d)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${stutterDiv===d?"#5E5CE6":"rgba(255,255,255,0.12)"}`,background:stutterDiv===d?"rgba(94,92,230,0.2)":"transparent",color:stutterDiv===d?"#5E5CE6":th.dim,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>{d}</button>
                         ))}
                         <button
@@ -3788,7 +3788,7 @@ export default function KickAndSnare(){
                       </div>
                       <div style={{display:"flex",gap:3,marginTop:6,flexWrap:"wrap"}}>
                         <span style={{fontSize:6,color:th.faint,alignSelf:"center",marginRight:2}}>DLY DIV</span>
-                        {(["1/4","1/8","1/16","1/32"] as const).map(d=>(
+                        {(["1/4","1/4t","1/8","1/8t","1/16","1/32"] as const).map(d=>(
                           <button key={d} onClick={()=>setStutterDiv(d)}
                             style={{padding:"3px 7px",borderRadius:4,
                               border:`1px solid ${stutterDiv===d?"#30D158":"rgba(48,209,88,0.2)"}`,
