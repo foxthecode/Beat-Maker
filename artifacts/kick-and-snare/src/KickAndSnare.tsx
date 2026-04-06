@@ -1113,8 +1113,9 @@ export default function KickAndSnare(){
   const _pbRef=useRef(null);const _epRef=useRef(null);const _svRef=useRef(null);const _snRef=useRef(null);const _spRef=useRef(null);const _srRef=useRef(null);
   const _akRef=useRef<string>('');const _kiRef=useRef<number>(0);const _smRef=useRef<Record<string,string>>({});const _ctRef=useRef<any[]>([]);const _acRef=useRef<string[]>([]);const _ukRef=useRef<UserKit[]>([]);
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
-  // Euclid polyrhythm — independent per-track clocks
-  const euclidClockR=useRef({});
+  // Euclid polyrhythm — single global clock (all tracks advance together)
+  const euclidClockR=useRef({}); // kept for song-mode compat; actual timing via euclidGlobalRef
+  const euclidGlobalRef=useRef<{nextTime:number|null,globalStep:number}>({nextTime:null,globalStep:0});
   // Fix 1: decouple visual from scheduler — ref for audio thread, state only for display
   const euclidCurRef=useRef<Record<string,number>>({});
   const [euclidCurDisplay,setEuclidCurDisplay]=useState<Record<string,number>>({});
@@ -1525,54 +1526,50 @@ export default function KickAndSnare(){
     const LA=engine._lookAhead;
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
-      // ── Euclid: independent per-track polyrhythm clock ──
-      // Fixed step = 1/16th note — each track's cycle duration is N × (1/16th).
-      // N=16 → 1 bar, N=7 → 7/16 bar (faster), N=24 → 1.5 bars (slower).
-      // This gives genuinely different angular speeds per ring.
+      // ── Euclid: SINGLE GLOBAL CLOCK — all tracks advance in lock-step ──
+      // One shared nextTime / globalStep, exactly like nxtRef in the linear scheduler.
+      // Each track fires at step = globalStep % N, so tracks with different N values
+      // cycle at their own rate while staying perfectly synchronized to the same grid.
       const sixteenth=(60/R.bpm)/4;
       const at=R.at;const m=R.mut;const s=R.sol;
-      (R.allT||ALL_TRACKS).forEach(tr=>{
-        if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-          // N is derived from the ACTUAL pattern array (not async React state)
-        // to eliminate the stale-state race between applyE sync-write and the render.
-        const trPat=R.pat?.[tr.id];
-        const N=trPat?.length||0;
-        if(!N)return; // no pattern initialised yet → skip this track
-        const stepDur=sixteenth;
-        // Init / resync: reinit if clock missing or stale (> 1 full cycle behind)
-        if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-N*stepDur){
-          euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05,curStep:-1};
-        }
-        const ec=euclidClockR.current[tr.id];
-        // Clamp step to valid range (N may shrink mid-playback)
-        if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
-        // Fast-forward: skip steps older than 80ms to avoid burst after tab sleep
-        if(ec.nextTime<ct-0.08){
-          const skip=Math.ceil((ct-0.08-ec.nextTime)/stepDur);
-          if(skip>0){ec.step=(ec.step+skip)%N;ec.nextTime+=skip*stepDur;}
-        }
-        while(ec.nextTime<ct+LA){
-          const si=ec.step;
-          const stepTime=ec.nextTime;
+      const eg=euclidGlobalRef.current;
+      // Init / resync: reinit if clock missing or stale (> 1 s behind)
+      if(!eg.nextTime||eg.nextTime<ct-1){
+        euclidGlobalRef.current={nextTime:ct+0.05,globalStep:0};
+      }
+      // Fast-forward: skip steps older than 80ms to avoid note burst after tab sleep
+      if(eg.nextTime<ct-0.08){
+        const skip=Math.ceil((ct-0.08-eg.nextTime)/sixteenth);
+        if(skip>0){eg.globalStep+=skip;eg.nextTime+=skip*sixteenth;}
+      }
+      while(eg.nextTime<ct+LA){
+        const stepTime=eg.nextTime;
+        const gs=eg.globalStep;
+        // All active tracks fire at the SAME instant — no per-track clock drift
+        (R.allT||ALL_TRACKS).forEach(tr=>{
+          if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
+          const trPat=R.pat?.[tr.id];
+          const N=trPat?.length||0;
+          if(!N)return;
+          const si=gs%N;
           if(trPat[si]){
             const sp=R.prob[tr.id]?.[si]??100;
             if(Math.random()*100<sp){
               const v=(R.vel[tr.id]?.[si]??100)/100;
               const r=R.ratch[tr.id]?.[si]||1;
               const nd=R.sn[tr.id]?.[si]||0;
-              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(stepDur/r));
+              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(sixteenth/r));
               R.flashPad?.(tr.id,Math.max(0,Math.round((stepTime-ct)*1000)-4));
             }
           }
-          // Delay cursor update to match audio playback time — same as linear scheduler.
-          // Without this, the cursor is LA (100ms) ahead of the sound: on fast rings like
-          // hihat E(8,8) at 96BPM (step=156ms), 100ms early feels like missed beats.
+          // Delay cursor to match audio — cursor appears when sound plays, not when scheduled
           const capTid=tr.id,capSi=si;
           const aheadMs=Math.max(0,Math.round((stepTime-ct)*1000)-4);
           setTimeout(()=>{if(!R.playing)return;euclidCurRef.current[capTid]=capSi;flushEuclidCur();},aheadMs);
-          ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;
-        }
-      });
+        });
+        eg.globalStep++;
+        eg.nextTime+=sixteenth;
+      }
       // Song mode cycle tracking — runs always, independent of metro
       // Advances the song chain every bar (gSt × sixteenth notes)
       {
@@ -1587,13 +1584,8 @@ export default function KickAndSnare(){
             const nextPat=R.songChain[songPosRef.current];
             if(nextPat!==R.cp){
               R.cp=nextPat;setCPat(nextPat);
-              // Reset all Euclid track step counters so the new pattern starts from step 0.
-              // Without this, each track continues from its mid-cycle position in the old
-              // pattern — causing out-of-bounds access (skipped beat) or phase offset
-              // when the new pattern has a different N.
-              Object.keys(euclidClockR.current).forEach(tid=>{
-                if(euclidClockR.current[tid])euclidClockR.current[tid].step=0;
-              });
+              // Reset global Euclid step counter so the new pattern starts from step 0.
+              euclidGlobalRef.current.globalStep=0;
             }
           }
           em2.songNextTime+=sixteenth;
@@ -1603,8 +1595,9 @@ export default function KickAndSnare(){
       if(R.metro){
         const sxt=(60/R.bpm)/4; // sixteenth note
         const em=euclidMetroR.current;
-        // Resync on songNextTime if available (prevents drift vs tracks)
-        if(!em.metroNext||em.metroNext<ct-0.5){em.metroNext=em.songNextTime||(ct+0.05);em.metroBeat=0;}
+        // Init/resync to same origin as the global Euclid clock (ct+0.05).
+        // Previously used em.songNextTime which was already 1 step ahead → metro was 1/16th late.
+        if(!em.metroNext||em.metroNext<ct-0.5){em.metroNext=ct+0.05;em.metroBeat=0;}
         while(em.metroNext<ct+LA){
           playClk(em.metroNext,em.metroBeat===0?"accent":em.metroBeat%2===0?"beat":"sub");
           em.metroBeat=(em.metroBeat+1)%4;em.metroNext+=sxt;
@@ -1648,12 +1641,12 @@ export default function KickAndSnare(){
     // if(R.uiView==='pads'&&loopRef.current.events.length>0){ ... }
     if(playing){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
-      euclidClockR.current={};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
       R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
       // Song arranger: reset to first pattern in chain so display + playback are in sync
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
-      euclidClockR.current={};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);
     }
   };
@@ -1874,7 +1867,7 @@ export default function KickAndSnare(){
       if(engine.ctx?.state==='suspended'){setCtxSuspended(true);return;}
       R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
-      euclidClockR.current={};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidClockR.current={};euclidGlobalRef.current={nextTime:null,globalStep:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);setRec(true);
     });
   };
