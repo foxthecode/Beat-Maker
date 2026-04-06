@@ -4285,7 +4285,7 @@ export default function KickAndSnare(){
       </div>{/* end scrollable-content */}
     {/* ── Global Track FX bottom sheet (works from any view — sequencer, pads, euclid) ── */}
     {padFxTrack&&(()=>{
-      const tr=atO.find(t=>t.id===padFxTrack);
+      const tr=allT.find(t=>t.id===padFxTrack);
       if(!tr) return null;
       const f:any={...DEFAULT_FX,...(fx[tr.id]||{})};
       const updFx=(updates:Record<string,unknown>)=>{
@@ -4311,11 +4311,11 @@ export default function KickAndSnare(){
         return(
           <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
             <span style={{fontSize:7.5,fontWeight:800,color:dimmed?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
-            <div onPointerDown={onPD} style={{flex:1,position:"relative",height:28,cursor:"ew-resize",touchAction:"none",minWidth:0,display:"flex",alignItems:"center"}}>
-              <div style={{position:"absolute",left:0,right:0,height:3,borderRadius:2,background:"rgba(255,255,255,0.08)"}}>
-                <div style={{height:"100%",width:`${pct*100}%`,borderRadius:2,background:color,opacity:dimmed?0.35:1,transition:"width 0.05s"}}/>
+            <div onPointerDown={onPD} style={{flex:1,position:"relative",height:28,cursor:"ew-resize",touchAction:"none",minWidth:0}}>
+              <div style={{position:"absolute",left:0,right:0,top:"50%",height:3,marginTop:-1.5,borderRadius:2,background:"rgba(255,255,255,0.08)"}}>
+                <div style={{height:"100%",width:`${pct*100}%`,borderRadius:2,background:color,opacity:dimmed?0.35:1}}/>
               </div>
-              <div style={{position:"absolute",left:`${pct*100}%`,transform:"translateX(-50%)",width:14,height:14,borderRadius:"50%",background:dimmed?"rgba(255,255,255,0.2)":color,boxShadow:dimmed?"none":`0 0 6px ${color}99`,border:"2px solid rgba(0,0,0,0.5)",pointerEvents:"none",flexShrink:0}}/>
+              <div style={{position:"absolute",top:"50%",left:`${pct*100}%`,transform:"translate(-50%,-50%)",width:14,height:14,borderRadius:"50%",background:dimmed?"rgba(255,255,255,0.2)":color,boxShadow:dimmed?"none":`0 0 6px ${color}99`,border:"2px solid rgba(0,0,0,0.5)",pointerEvents:"none"}}/>
             </div>
             <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:dimmed?"rgba(255,255,255,0.22)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
           </div>
