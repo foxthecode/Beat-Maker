@@ -918,18 +918,32 @@ export default function KickAndSnare(){
   const [stVel,setStVel]=useState(mkV(16));
   const [stProb,setStProb]=useState(mkP(16));
   const [stRatch,setStRatch]=useState(mkR(16));
-  // Song arranger
-  const [songChain,setSongChain]=useState([0]);
+  // Song arranger — 2D grid: rows of 16 slots, each slot is pattern index or null
+  const [songRows,setSongRows]=useState<(number|null)[][]>([[...Array(16).fill(null)]]);
   const [songMode,setSongMode]=useState(false);
   const [showSong,setShowSong]=useState(false);
   const songPosRef=useRef(0);
   const cPatLocked=useRef(false); // true = user has manually pinned an edit-pat while song plays
 
+  // Helper: flat number[] → (number|null)[][] rows of 16
+  const toSongRows=(flat:number[],rowLen=16)=>{
+    if(!flat?.length)return[[...Array(rowLen).fill(null)]];
+    const rows:(number|null)[][]=[];
+    for(let i=0;i<flat.length;i+=rowLen){
+      const row=[...flat.slice(i,i+rowLen)] as (number|null)[];
+      while(row.length<rowLen)row.push(null);
+      rows.push(row);
+    }
+    return rows;
+  };
+  // Flat array for scheduler (null slots excluded)
+  const songChain=(songRows.flat().filter(v=>v!=null)) as number[];
+
   // ── Per-view independent snapshots ──
   // Each view (sequencer / euclid) owns its own pBank + cPat + song state.
   // Switching saves the outgoing state and restores the incoming state — no copy.
-  const seqSnap=useRef<{pBank:any[],cPat:number,songChain:number[],songMode:boolean}>({
-    pBank:[mkE(16)], cPat:0, songChain:[0], songMode:false,
+  const seqSnap=useRef<{pBank:any[],cPat:number,songRows:(number|null)[][],songMode:boolean}>({
+    pBank:[mkE(16)], cPat:0, songRows:[[...Array(16).fill(null)]], songMode:false,
   });
   const euclidSnap=useRef<{pBank:any[],cPat:number}>({
     pBank:[mkE(16)], cPat:0,
@@ -951,7 +965,7 @@ export default function KickAndSnare(){
       // ── Record which view we're coming from (scheduler needs it) ──
       padSrcViewRef.current=view;
       // ── Save current view's state before entering pads ──
-      if(view==="sequencer") seqSnap.current={pBank,cPat,songChain,songMode};
+      if(view==="sequencer") seqSnap.current={pBank,cPat,songRows,songMode};
       else if(view==="euclid") euclidSnap.current={pBank,cPat};
       // act stays untouched — pads show exactly the same tracks as the source view
     } else if(fromPads){
@@ -962,11 +976,11 @@ export default function KickAndSnare(){
         if(nextView==="euclid"){
           const snap=euclidSnap.current;
           setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(16);
-          setSongMode(false);setSongChain([0]);songPosRef.current=0;
+          setSongMode(false);setSongRows([[...Array(16).fill(null)]]);songPosRef.current=0;
         } else if(nextView==="sequencer"){
           const snap=seqSnap.current;
           setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(STEPS);
-          setSongMode(snap.songMode);setSongChain(snap.songChain);songPosRef.current=0;
+          setSongMode(snap.songMode);setSongRows(snap.songRows??[[...Array(16).fill(null)]]);songPosRef.current=0;
         }
       }
       // act stays untouched — deletions made in pads persist across all views
@@ -990,10 +1004,10 @@ export default function KickAndSnare(){
           }
         });
         setPBank(fresh);setCPat(0);R.pat=fresh[0];
-        setSongMode(false);setSongChain([0]);songPosRef.current=0;
+        setSongMode(false);setSongRows([[...Array(16).fill(null)]]);songPosRef.current=0;
       } else if(nextView==="sequencer"){
         const fresh=[mkE(STEPS)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
-        setSongMode(false);setSongChain([0]);songPosRef.current=0;
+        setSongMode(false);setSongRows([[...Array(16).fill(null)]]);songPosRef.current=0;
       }
     }
     setView(nextView);
@@ -1189,7 +1203,7 @@ export default function KickAndSnare(){
   R.uiView=view;
   R.view=view==="pads"?(padSrcViewRef.current||"sequencer"):view;
   R.songMode=songMode;     // song chain active — scheduler advances pattern list
-  R.songChain=songChain;   // ordered pattern indices — song mode iteration
+  R.songChain=songChain;   // flat ordered pattern indices (nulls excluded) — song mode iteration
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
   R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
   R.loopRec=false;          // LOOPER DISABLED
@@ -1790,7 +1804,7 @@ export default function KickAndSnare(){
       activeKitId,kitIdx,
       gfx,fx,
       fxChainOrder,fxSendPos,trackFx,
-      songChain,
+      songRows,
       velRange,
       themeName,
     };
@@ -1829,7 +1843,7 @@ export default function KickAndSnare(){
         if(p.fxChainOrder)setFxChainOrder(p.fxChainOrder);
         if(p.fxSendPos)setFxSendPos(p.fxSendPos);
         if(p.trackFx)setTrackFx(p.trackFx);
-        if(p.songChain)setSongChain(p.songChain);
+        if(p.songRows)setSongRows(p.songRows);else if(p.songChain)setSongRows(toSongRows(p.songChain));
         if(p.velRange)setVelRange(p.velRange);
         if(p.themeName)setThemeName(p.themeName);
         if(p.activeKitId!==undefined){
@@ -3236,7 +3250,7 @@ export default function KickAndSnare(){
         {/* ── Pattern Bank + Song Arranger ── */}
         {view!=="pads"&&<PatternBank
           themeName={themeName} pBank={pBank} setPBank={setPBank} cPat={cPat} setCPat={setCPat}
-          songChain={songChain} setSongChain={setSongChain} songMode={songMode} setSongMode={setSongMode}
+          songRows={songRows} setSongRows={setSongRows} songMode={songMode} setSongMode={setSongMode}
           showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
           cPatLocked={cPatLocked}
           STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}

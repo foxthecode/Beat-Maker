@@ -1,8 +1,11 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { THEMES } from "../theme.js";
 import { SEQUENCER_TEMPLATES } from "../sequencerTemplates.ts";
 import { EUCLID_TEMPLATES } from "../euclidTemplates.ts";
 
+/* ─────────────────────────────────────────────
+   Sub-components (unchanged from previous)
+───────────────────────────────────────────── */
 function MiniGrid({ steps = [], color, n = 16 }) {
   const sz = n > 16 ? 2.5 : 3.5;
   return (
@@ -82,15 +85,14 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
     <div ref={ref} style={{ position: "relative" }} onBlur={handleBlur} tabIndex={-1}>
       <button
         data-hint={isEuclid
-          ? `PRESETS Euclidian · ${EUCLID_TEMPLATES.length} ready-to-use polyrhythms · Click to browse and load a preset`
-          : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} TR-808 patterns (Hip-hop, Techno, Jazz…) · Click to browse · ${variant}-step variant`}
+          ? `PRESETS Euclidian · ${EUCLID_TEMPLATES.length} ready-to-use polyrhythms`
+          : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} TR-808 patterns · ${variant}-step variant`}
         onClick={toggle}
         style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 5, cursor: "pointer", border: `1px solid ${open ? accentColor + "99" : th.sBorder}`, background: open ? accentColor + "18" : "transparent", color: open ? accentColor : th.dim, fontSize: 8, fontWeight: open ? 800 : 500, letterSpacing: "0.06em", fontFamily: "inherit" }}
       >
         <span>{isEuclid ? "⬡ PRESETS" : "PRESETS"}</span>
         <span style={{ fontSize: 7 }}>{open ? "▲" : "▼"}</span>
       </button>
-
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 300, width: isEuclid ? 300 : 320, background: "#1a1a1e", border: `1px solid ${accentColor}44`, borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.7)", overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px 6px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
@@ -104,25 +106,26 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
               const stepsH = !isEuclid && (variant === "32" && tpl.steps32 ? (tpl.steps32.hihat || Object.values(tpl.steps32)[2]) : (tpl.steps.hihat || Object.values(tpl.steps)[2]));
               const disabled = !isEuclid && variant === "32" && !tpl.steps32;
               return (
-                <div key={tpl.id} data-hint={disabled ? `${tpl.name} · No 32-step variant available · Switch to 16 steps to load` : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · ${tpl.description || ""} · Click to load into current pattern`}
-                  onClick={() => !disabled && load(tpl)} title={disabled ? "No 32-step variant" : tpl.description || tpl.name}
+                <div key={tpl.id}
+                  data-hint={disabled ? `${tpl.name} · No 32-step variant` : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · Click to load`}
+                  onClick={() => !disabled && load(tpl)}
                   style={{ display: "flex", flexDirection: "column", gap: isEuclid ? 4 : 3, padding: "7px 10px", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.38 : 1, transition: "background 0.08s" }}
                   onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = `${tpl.color}10`; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: isEuclid ? 11 : 13, lineHeight: 1, opacity: 0.85 }}>{tpl.icon}</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, flex: 1, letterSpacing: "0.02em" }}>{tpl.name}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: tpl.color, flex: 1 }}>{tpl.name}</span>
                     <span style={{ fontSize: 7, color: tpl.color + "99", letterSpacing: "0.1em", fontWeight: 700 }}>{tpl.genre}</span>
-                    {tpl.bpm && <span style={{ fontSize: 7, color: th.faint, letterSpacing: "0.06em" }}>{tpl.bpm}</span>}
-                    {!isEuclid && <span style={{ fontSize: 7, color: "#30D15899", letterSpacing: "0.06em" }}>{Object.keys(variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps).length}trk</span>}
+                    {tpl.bpm && <span style={{ fontSize: 7, color: th.faint }}>{tpl.bpm}</span>}
+                    {!isEuclid && <span style={{ fontSize: 7, color: "#30D15899" }}>{Object.keys(variant === "32" && tpl.steps32 ? tpl.steps32 : tpl.steps).length}trk</span>}
                   </div>
                   {isEuclid ? (
                     <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                       {Object.entries(tpl.params).map(([tid, p]) => (
                         <div key={tid} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                           <EuclidDots hits={p.hits} N={p.N} rot={p.rot || 0} color={tpl.color} />
-                          <span style={{ fontSize: 5.5, color: tpl.color + "99", letterSpacing: "0.05em", fontFamily: "monospace" }}>E({p.hits},{p.N})</span>
+                          <span style={{ fontSize: 5.5, color: tpl.color + "99", fontFamily: "monospace" }}>E({p.hits},{p.N})</span>
                         </div>
                       ))}
                       {tpl.description && <span style={{ fontSize: 6, color: th.faint, flex: 1, lineHeight: 1.3, minWidth: 80 }}>{tpl.description.split('—')[1]?.trim() || ""}</span>}
@@ -138,8 +141,8 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
               );
             })}
           </div>
-          <div style={{ padding: "5px 10px", fontSize: 7, color: th.faint, textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.05)", letterSpacing: "0.04em" }}>
-            {isEuclid ? "Euclidean polyrhythms · Source: Toussaint 2005" : "Humanized velocities included · All tracks auto-enabled"}
+          <div style={{ padding: "5px 10px", fontSize: 7, color: th.faint, textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            {isEuclid ? "Euclidean polyrhythms · Source: Toussaint 2005" : "Humanized velocities · All tracks auto-enabled"}
           </div>
         </div>
       )}
@@ -147,86 +150,166 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
   );
 }
 
-/* ─── Insert-zone "+" button shown between/after tape blocks ─── */
-function InsertZone({ onClick, col }) {
+/* ─────────────────────────────────────────────
+   Pattern Picker — small popover shown on slot click
+   patIdx = current value (null = empty), onPick(pi|null), onClose
+───────────────────────────────────────────── */
+function SlotPicker({ patIdx, pBank, SEC_COL, th, onPick, onClose, anchorRef }) {
   return (
-    <button
-      onClick={onClick}
+    <div
       style={{
-        width: 18, height: 36, flexShrink: 0, borderRadius: 5,
-        border: `1.5px dashed ${col}88`,
-        background: col + "0d",
-        color: col, fontSize: 13, fontWeight: 900,
-        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 0, fontFamily: "inherit",
-        transition: "background 0.12s",
+        position: "fixed", inset: 0, zIndex: 400,
+        display: "flex", alignItems: "flex-start", justifyContent: "flex-start",
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = col + "22"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = col + "0d"; }}
-    >+</button>
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: anchorRef.current
+            ? Math.min(anchorRef.current.getBoundingClientRect().left, window.innerWidth - 200)
+            : 40,
+          top: anchorRef.current
+            ? anchorRef.current.getBoundingClientRect().bottom + 6
+            : 80,
+          background: "#1c1c20",
+          border: "1px solid rgba(255,255,255,0.14)",
+          borderRadius: 10,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.75)",
+          padding: "8px 10px",
+          minWidth: 180,
+          zIndex: 401,
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ fontSize: 7, color: th.faint, letterSpacing: "0.08em", marginBottom: 7, fontWeight: 700 }}>
+          {patIdx !== null ? `SLOT : P${patIdx + 1} — CHOISIR OU VIDER` : "CHOISIR UN PATTERN"}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: patIdx !== null ? 8 : 0 }}>
+          {pBank.map((pat, pi) => {
+            const col = SEC_COL[pi % SEC_COL.length];
+            const isCur = pi === patIdx;
+            return (
+              <button key={pi}
+                onClick={() => onPick(pi)}
+                style={{
+                  padding: "4px 9px", borderRadius: 6,
+                  border: `1.5px solid ${col + (isCur ? "cc" : "55")}`,
+                  background: isCur ? col + "33" : col + "11",
+                  color: col, fontSize: 9, fontWeight: 800,
+                  cursor: "pointer", fontFamily: "inherit",
+                  boxShadow: isCur ? `0 0 8px ${col}44` : "none",
+                }}>
+                {pat._name || `P${pi + 1}`}
+              </button>
+            );
+          })}
+        </div>
+        {patIdx !== null && (
+          <button
+            onClick={() => onPick(null)}
+            style={{
+              width: "100%", padding: "4px 0", borderRadius: 6,
+              border: "1px solid rgba(255,45,85,0.3)",
+              background: "rgba(255,45,85,0.08)",
+              color: "#FF2D55", fontSize: 8, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>✕ Vider ce slot</button>
+        )}
+      </div>
+    </div>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Main export
+───────────────────────────────────────────── */
 export default function PatternBank({
   themeName, pBank, setPBank, cPat, setCPat,
-  songChain, setSongChain, songMode, setSongMode, showSong, setShowSong,
+  songRows, setSongRows, songMode, setSongMode, showSong, setShowSong,
   playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait = false,
   patNameEdit, setPatNameEdit,
   onLoadTemplate, onLoadEuclidTemplate,
   view, onClear, cPatLocked,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
-  const longPressRef = useRef(null);       // for pattern rename
-  const blockLongRef = useRef(null);       // for tape block removal
-  const tapeRef = useRef(null);
+  const longPressRef = useRef(null);
   const [variant, setVariant] = useState("16");
   const isEuclid = view === "euclid";
 
-  // ── Pattern armed for tape placement (null = none) ──────────────────────────
-  const [placingPat, setPlacingPat] = useState(null);
-  const armedCol = placingPat !== null ? SEC_COL[placingPat % SEC_COL.length] : null;
+  // ── Slot picker state ──────────────────────────────────────────────────────
+  // { rowIdx, slotIdx } | null
+  const [picker, setPicker] = useState(null);
+  const pickerAnchorRef = useRef(null);
 
-  // ── Pattern card interaction ────────────────────────────────────────────────
-  const handlePatClick = (i) => {
-    // Edit / arm toggle
-    setCPat(i);
-    if (playing && songMode) {
-      const isPlayingNow = songChain[songPosRef.current] === i;
-      if (cPatLocked) cPatLocked.current = !isPlayingNow;
-    } else {
-      R.pat = pBank[i];
-    }
-    // Toggle placement arm
-    setPlacingPat(prev => (prev === i ? null : i));
-  };
+  // Derived flat chain for scheduler-position tracking
+  const songChain = (songRows || []).flat().filter(v => v !== null);
 
-  // ── Tape actions ────────────────────────────────────────────────────────────
-  const replaceSlot = (si) => {
-    if (placingPat === null) return;
-    setSongChain(p => { const n = [...p]; n[si] = placingPat; return n; });
-  };
+  // ── Row mutations ─────────────────────────────────────────────────────────
+  const setSlot = useCallback((rowIdx, slotIdx, patIdx) => {
+    setSongRows(prev => {
+      const rows = prev.map(r => [...r]);
+      rows[rowIdx][slotIdx] = patIdx; // null = clear
+      return rows;
+    });
+  }, [setSongRows]);
 
-  const insertAt = (si) => {
-    if (placingPat === null) return;
-    setSongChain(p => { const n = [...p]; n.splice(si, 0, placingPat); return n; });
-  };
+  const addRow = useCallback(() => {
+    setSongRows(prev => [...prev, [...Array(16).fill(null)]]);
+  }, [setSongRows]);
 
-  const appendToChain = () => {
-    if (placingPat === null) return;
-    setSongChain(p => [...p, placingPat]);
-  };
+  const duplicateRow = useCallback((rowIdx) => {
+    setSongRows(prev => {
+      const rows = [...prev];
+      rows.splice(rowIdx + 1, 0, [...rows[rowIdx]]);
+      return rows;
+    });
+  }, [setSongRows]);
 
-  const removeSlot = (si) => {
-    setSongChain(p => p.filter((_, j) => j !== si));
-  };
+  const deleteRow = useCallback((rowIdx) => {
+    setSongRows(prev => {
+      if (prev.length <= 1) return [[...Array(16).fill(null)]];
+      return prev.filter((_, i) => i !== rowIdx);
+    });
+  }, [setSongRows]);
 
-  // long-press rename
+  const clearAllRows = useCallback(() => {
+    setSongRows([[...Array(16).fill(null)]]);
+    songPosRef.current = 0;
+  }, [setSongRows, songPosRef]);
+
+  // ── Pattern rename long-press ────────────────────────────────────────────
   const startLongPress = (i) => { longPressRef.current = setTimeout(() => { setPatNameEdit && setPatNameEdit(i); }, 500); };
   const cancelLongPress = () => { if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; } };
 
-  // long-press tape block → remove
-  const startBlockLong = (si) => { blockLongRef.current = setTimeout(() => { removeSlot(si); blockLongRef.current = null; }, 450); };
-  const cancelBlockLong = () => { if (blockLongRef.current) { clearTimeout(blockLongRef.current); blockLongRef.current = null; } };
+  // ── Handle slot click ────────────────────────────────────────────────────
+  const openPicker = (rowIdx, slotIdx, e) => {
+    pickerAnchorRef.current = e.currentTarget;
+    setPicker({ rowIdx, slotIdx });
+  };
+
+  const handlePick = (pi) => {
+    if (!picker) return;
+    setSlot(picker.rowIdx, picker.slotIdx, pi);
+    setPicker(null);
+  };
+
+  // Which slot is currently playing? Find it in the 2D grid.
+  const playingPos = (() => {
+    if (!playing || !songMode || songChain.length === 0) return null;
+    let flatIdx = songPosRef.current;
+    let count = 0;
+    for (let ri = 0; ri < (songRows || []).length; ri++) {
+      for (let si = 0; si < 16; si++) {
+        const v = (songRows || [])[ri]?.[si];
+        if (v !== null && v !== undefined) {
+          if (count === flatIdx) return { ri, si };
+          count++;
+        }
+      }
+    }
+    return null;
+  })();
 
   return (
     <>
@@ -237,27 +320,12 @@ export default function PatternBank({
         marginBottom: 6, padding: "6px 10px 8px", borderRadius: 10,
         background: th.surface, border: `1px solid ${th.sBorder}`,
       }}>
-        {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
-          <span
-            data-hint={`PAT · ${pBank.length} pattern${pBank.length > 1 ? "s" : ""} available · Active: ${cPat + 1} · Click a clip to switch · Tap again to arm for Song placement`}
-            style={{ fontSize: 8, color: th.dim }}
-          >PAT</span>
-
-          {/* Arm hint */}
-          {placingPat !== null && (
-            <span style={{
-              fontSize: 7, color: armedCol, fontWeight: 800, letterSpacing: "0.05em",
-              animation: "rb 0.9s infinite", marginLeft: 4,
-            }}>
-              ✚ P{placingPat + 1} — tap a tape slot to place
-            </span>
-          )}
-
+          <span data-hint="PAT · Click a clip to switch pattern" style={{ fontSize: 8, color: th.dim }}>PAT</span>
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", position: "relative", zIndex: 10 }}>
             <TemplateDropdown onLoad={onLoadTemplate} onLoadEuclid={onLoadEuclidTemplate} th={th} view={view} variant={variant} setVariant={setVariant} />
             {pBank.length < MAX_PAT && (
-              <button data-hint={`DUP · Duplicate pattern ${cPat + 1} into slot ${cPat + 2}`}
+              <button data-hint={`DUP · Duplicate pattern ${cPat + 1}`}
                 onClick={() => {
                   const dup = JSON.parse(JSON.stringify(pBank[cPat]));
                   setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; });
@@ -266,7 +334,7 @@ export default function PatternBank({
                 style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>
             )}
             {onClear && (
-              <button data-hint={`CLR · Efface tous les hits du pattern ${cPat + 1} · Utilise Undo pour annuler`}
+              <button data-hint={`CLR · Clear all hits`}
                 onClick={onClear}
                 style={{ padding: "2px 6px", border: "1px solid rgba(255,45,85,0.3)", borderRadius: 5, background: "transparent", color: "#FF2D55", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>CLR</button>
             )}
@@ -282,8 +350,7 @@ export default function PatternBank({
         <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 0 2px", WebkitOverflowScrolling: "touch" }}>
           {pBank.map((pat, i) => {
             const isActive = cPat === i;
-            const isPlaying = playing && songMode && songPosRef.current != null && songChain[songPosRef.current] === i;
-            const isArmed = placingPat === i;
+            const isPlaying = playing && songMode && playingPos !== null && (songRows || [])[playingPos.ri]?.[playingPos.si] === i;
             const col = SEC_COL[i % SEC_COL.length];
             const isEditing = patNameEdit === i;
             const ks = pat.kick || []; const ss = pat.snare || pat.clap || []; const hs = pat.hihat || [];
@@ -303,12 +370,18 @@ export default function PatternBank({
                   />
                 ) : (
                   <div
-                    data-hint={isArmed
-                      ? `P${i + 1} armed · Tap a tape slot to place · Tap this card again to disarm`
-                      : isActive
-                        ? `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Tap to arm for Song placement · Long-press to rename`
-                        : `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Tap to switch + arm for placement · Long-press to rename`}
-                    onClick={() => handlePatClick(i)}
+                    data-hint={isActive
+                      ? `P${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Long-press to rename`
+                      : `P${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Click to switch · Long-press to rename`}
+                    onClick={() => {
+                      setCPat(i);
+                      if (playing && songMode) {
+                        const playingPat = playingPos !== null ? (songRows || [])[playingPos.ri]?.[playingPos.si] : null;
+                        if (cPatLocked) cPatLocked.current = (i !== playingPat);
+                      } else {
+                        R.pat = pBank[i];
+                      }
+                    }}
                     onMouseDown={() => startLongPress(i)}
                     onMouseUp={cancelLongPress}
                     onMouseLeave={cancelLongPress}
@@ -317,20 +390,14 @@ export default function PatternBank({
                     onTouchCancel={cancelLongPress}
                     style={{
                       minWidth: 60, padding: "5px 7px", borderRadius: 10, cursor: "pointer", textAlign: "center",
-                      border: isArmed
-                        ? `2px dashed ${col}`
-                        : `2px solid ${isActive ? col : "transparent"}`,
-                      background: isArmed ? col + "28" : isActive ? col + "18" : th.surface,
+                      border: `2px solid ${isActive ? col : "transparent"}`,
+                      background: isActive ? col + "18" : th.surface,
                       transition: "all 0.18s cubic-bezier(0.32,0.72,0,1)",
-                      boxShadow: isArmed
-                        ? `0 0 14px ${col}55, inset 0 0 8px ${col}18`
-                        : isPlaying ? `0 0 16px ${col}44` : "none",
-                      outline: isArmed ? `2px solid ${col}33` : "none",
-                      outlineOffset: 2,
+                      boxShadow: isPlaying ? `0 0 16px ${col}44` : "none",
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 900, color: col, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 54 }}>
-                      {isArmed ? "✚" : ""}{pat._name || `P${i + 1}`}
+                      {pat._name || `P${i + 1}`}
                     </div>
                     {isEuclid ? (
                       (() => {
@@ -351,16 +418,13 @@ export default function PatternBank({
                       <MiniGrid steps={ks} color={col} n={Math.min(n, 16)} />
                     )}
                     {isPlaying && <div style={{ height: 2, background: col, borderRadius: 1, marginTop: 3, animation: "rb 0.8s infinite" }} />}
-                    {isArmed && !isPlaying && <div style={{ height: 2, background: col + "88", borderRadius: 1, marginTop: 3, animation: "rb 0.6s infinite" }} />}
                   </div>
                 )}
               </div>
             );
           })}
-
-          {/* Add pattern button */}
           {pBank.length < MAX_PAT && (
-            <button data-hint={`+ Add empty pattern · Slot ${pBank.length + 1}`}
+            <button data-hint={`+ Add empty pattern`}
               onClick={() => { setPBank(p => [...p, mkE(STEPS)]); if (!(playing && songMode)) setCPat(pBank.length); }}
               style={{ minWidth: 40, height: 54, borderRadius: 10, border: `1px dashed ${th.sBorder}`, background: "transparent", color: th.dim, fontSize: 18, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>+</button>
           )}
@@ -368,7 +432,7 @@ export default function PatternBank({
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          SONG ARRANGER — always-visible tape
+          SONG ARRANGER — 16-slot grid
       ══════════════════════════════════════════════════════════ */}
       <div style={{
         marginBottom: 8, padding: "7px 10px 8px", borderRadius: 10,
@@ -376,41 +440,31 @@ export default function PatternBank({
         border: `1px solid ${songMode ? "rgba(191,90,242,0.35)" : th.sBorder}`,
         transition: "border-color 0.2s",
       }}>
-        {/* ── Header row ─────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        {/* ── Header ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
           <span style={{ fontSize: 9, fontWeight: 800, color: "#BF5AF2", letterSpacing: "0.1em" }}>SONG</span>
 
-          {/* Edit-lock indicator — visible when editing differs from playing */}
-          {playing && songMode && cPat !== (songChain[songPosRef.current ?? 0] ?? cPat) ? (
+          {/* Edit-lock indicator */}
+          {playing && songMode && cPat !== ((songRows || [])[playingPos?.ri ?? 0]?.[playingPos?.si ?? 0] ?? cPat) && playingPos !== null ? (
             <div style={{ display: "flex", alignItems: "center", gap: 5, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 8, color: "#FFD60A", fontWeight: 800, letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-                ✏ P{cPat + 1}
-              </span>
+              <span style={{ fontSize: 8, color: "#FFD60A", fontWeight: 800, whiteSpace: "nowrap" }}>✏ P{cPat + 1}</span>
               <span style={{ fontSize: 7, color: "rgba(255,255,255,0.25)" }}>·</span>
               <span style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", animation: "rb 1s infinite", whiteSpace: "nowrap" }}>
-                ▶ P{(songChain[songPosRef.current ?? 0] ?? 0) + 1}
+                ▶ P{((songRows || [])[playingPos.ri]?.[playingPos.si] ?? 0) + 1}
               </span>
-              <span style={{ fontSize: 6, color: "rgba(255,255,255,0.2)", marginLeft: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                changes audible next loop
+              <span style={{ fontSize: 6, color: "rgba(255,255,255,0.2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                changes next loop
               </span>
             </div>
           ) : (
             <span style={{ fontSize: 7, color: th.faint, flex: 1 }}>
-              {songMode
-                ? placingPat !== null
-                  ? `tap a slot to place P${placingPat + 1} · tap "+" to insert`
-                  : "playing chain · tap a pattern to arm it for placement"
-                : placingPat !== null
-                  ? `P${placingPat + 1} armed · tap a slot · enable SONG to play chain`
-                  : "tap a pattern card to arm it, then place it in the chain"}
+              {songMode ? "▶ joue les slots remplis · clic slot = choisir pattern" : "active SONG pour enchaîner les patterns"}
             </span>
           )}
 
-          {/* SONG ON/OFF toggle */}
+          {/* SONG ON/OFF */}
           <button
-            data-hint={songMode
-              ? "SONG mode ON · Transport auto-advances the chain · Click to disable"
-              : "SONG mode OFF · Enable to chain patterns in sequence"}
+            data-hint={songMode ? "SONG mode ON · Click to disable" : "SONG mode OFF · Click to enable"}
             onClick={() => setSongMode(p => !p)}
             style={{
               padding: "2px 8px", borderRadius: 6, flexShrink: 0,
@@ -425,144 +479,166 @@ export default function PatternBank({
           >{songMode ? (playing ? "▶ ON" : "ON") : "OFF"}</button>
         </div>
 
-        {/* ── Tape ───────────────────────────────────────────────── */}
-        <div
-          ref={tapeRef}
-          style={{
-            display: "flex", alignItems: "center", gap: 0,
-            overflowX: "auto", overflowY: "visible",
-            WebkitOverflowScrolling: "touch",
-            padding: "2px 0 4px",
-            minHeight: 44,
-          }}
-        >
-          {/* Empty-chain hint */}
-          {songChain.length === 0 && placingPat === null && (
-            <span style={{ fontSize: 8, color: th.faint, paddingLeft: 2, whiteSpace: "nowrap" }}>
-              Arm a pattern above, then tap here to build the chain →
-            </span>
-          )}
-
-          {/* Leading insert zone */}
-          {placingPat !== null && (
-            <InsertZone col={armedCol} onClick={() => insertAt(0)} />
-          )}
-
-          {songChain.map((patIdx, si) => {
-            const col = SEC_COL[patIdx % SEC_COL.length];
-            const isCurrent = songPosRef.current === si && playing && songMode;
-            const isReplaceTarget = placingPat !== null && placingPat !== patIdx;
-
+        {/* ── Grid rows ──────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {(songRows || []).map((row, ri) => {
+            const hasAny = row.some(v => v !== null);
             return (
-              <div key={`wrap-${si}`} style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
-                {/* Tape block */}
-                <div
-                  data-hint={
-                    placingPat !== null
-                      ? `Tap to replace with P${placingPat + 1} · Long-press to remove`
-                      : `Slot ${si + 1}: Pattern ${patIdx + 1}${pBank[patIdx]?._name ? ` "${pBank[patIdx]._name}"` : ""} · Long-press to remove`
-                  }
-                  onPointerDown={(e) => { e.preventDefault(); startBlockLong(si); }}
-                  onPointerUp={(e) => {
-                    e.preventDefault();
-                    cancelBlockLong();
-                    if (placingPat !== null) replaceSlot(si);
-                  }}
-                  onPointerLeave={cancelBlockLong}
-                  onPointerCancel={cancelBlockLong}
-                  style={{
-                    width: 36, height: 36, borderRadius: 7, flexShrink: 0,
-                    background: isReplaceTarget
-                      ? armedCol + "33"
-                      : col + (isCurrent ? "55" : "1a"),
-                    border: isReplaceTarget
-                      ? `1.5px dashed ${armedCol}99`
-                      : `1.5px solid ${col + (isCurrent ? "cc" : "44")}`,
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    cursor: "pointer",
-                    transition: "all 0.12s",
-                    boxShadow: isCurrent ? `0 0 10px ${col}55` : "none",
-                    userSelect: "none", touchAction: "none",
-                    position: "relative",
-                  }}
-                >
-                  {/* Replace overlay indicator */}
-                  {isReplaceTarget && (
-                    <span style={{
-                      position: "absolute", top: 1, right: 2,
-                      fontSize: 7, color: armedCol, fontWeight: 900,
-                    }}>↺</span>
-                  )}
-                  <span style={{ fontSize: 11, fontWeight: 900, color: isReplaceTarget ? armedCol : col, lineHeight: 1 }}>
-                    {isReplaceTarget ? placingPat + 1 : patIdx + 1}
-                  </span>
-                  <span style={{ fontSize: 5, fontWeight: 700, color: (isReplaceTarget ? armedCol : col) + "99", lineHeight: 1, maxWidth: 32, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {isReplaceTarget
-                      ? pBank[placingPat]?._name || `P${placingPat + 1}`
-                      : pBank[patIdx]?._name || `P${patIdx + 1}`}
-                  </span>
-                  {isCurrent && (
-                    <div style={{ position: "absolute", bottom: 0, left: 2, right: 2, height: 2, background: col, borderRadius: 1, animation: "rb 0.8s infinite" }} />
-                  )}
+              <div key={ri} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                {/* Row number */}
+                <span style={{
+                  fontSize: 7, color: th.faint, width: 12, textAlign: "right",
+                  flexShrink: 0, userSelect: "none",
+                }}>{ri + 1}</span>
+
+                {/* 16 slots — horizontally scrollable */}
+                <div style={{
+                  display: "flex", gap: 2, overflowX: "auto",
+                  WebkitOverflowScrolling: "touch", flex: 1,
+                  padding: "1px 0",
+                }}>
+                  {row.map((patIdx, si) => {
+                    const isEmpty = patIdx === null || patIdx === undefined;
+                    const col = isEmpty ? null : SEC_COL[patIdx % SEC_COL.length];
+                    const isCurrent = playingPos !== null && playingPos.ri === ri && playingPos.si === si;
+                    const isGroupSep = si > 0 && si % 4 === 0;
+
+                    return (
+                      <div key={si} style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                        {/* Thin separator every 4 slots */}
+                        {isGroupSep && (
+                          <div style={{ width: 1, height: 26, background: "rgba(255,255,255,0.08)", borderRadius: 1, flexShrink: 0, marginRight: 2 }} />
+                        )}
+                        {/* Slot cell */}
+                        <div
+                          data-hint={isEmpty
+                            ? `Slot ${si + 1} vide · clic pour assigner un pattern`
+                            : `Slot ${si + 1} : P${patIdx + 1}${pBank[patIdx]?._name ? ` "${pBank[patIdx]._name}"` : ""} · clic pour changer ou vider`}
+                          onClick={(e) => openPicker(ri, si, e)}
+                          style={{
+                            width: 30, height: 30, borderRadius: 6, flexShrink: 0,
+                            border: isEmpty
+                              ? `1px dashed ${isCurrent ? "#BF5AF2" : "rgba(255,255,255,0.1)"}`
+                              : `1.5px solid ${col + (isCurrent ? "cc" : "55")}`,
+                            background: isEmpty
+                              ? isCurrent ? "rgba(191,90,242,0.08)" : "transparent"
+                              : col + (isCurrent ? "44" : "18"),
+                            display: "flex", flexDirection: "column",
+                            alignItems: "center", justifyContent: "center",
+                            cursor: "pointer",
+                            transition: "all 0.12s",
+                            boxShadow: isCurrent && !isEmpty ? `0 0 8px ${col}55` : "none",
+                            position: "relative",
+                          }}
+                          onMouseEnter={e => {
+                            if (isEmpty) e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                          }}
+                          onMouseLeave={e => {
+                            if (isEmpty) e.currentTarget.style.background = isCurrent ? "rgba(191,90,242,0.08)" : "transparent";
+                          }}
+                        >
+                          {!isEmpty ? (
+                            <>
+                              <span style={{ fontSize: 10, fontWeight: 900, color: col, lineHeight: 1 }}>
+                                {patIdx + 1}
+                              </span>
+                              {pBank[patIdx]?._name && (
+                                <span style={{ fontSize: 4.5, color: col + "aa", lineHeight: 1, maxWidth: 28, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {pBank[patIdx]._name}
+                                </span>
+                              )}
+                              {isCurrent && (
+                                <div style={{ position: "absolute", bottom: 0, left: 2, right: 2, height: 2, background: col, borderRadius: 1, animation: "rb 0.8s infinite" }} />
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.1)", lineHeight: 1 }}>+</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Post-block insert zone */}
-                {placingPat !== null && (
-                  <InsertZone col={armedCol} onClick={() => insertAt(si + 1)} />
-                )}
+                {/* Row actions: ↺ duplicate + ✕ delete */}
+                <div style={{ display: "flex", gap: 3, flexShrink: 0, marginLeft: 2 }}>
+                  <button
+                    data-hint={`↺ Dupliquer la ligne ${ri + 1}`}
+                    onClick={() => duplicateRow(ri)}
+                    style={{
+                      width: 22, height: 30, borderRadius: 5,
+                      border: `1px solid rgba(255,255,255,0.1)`,
+                      background: "transparent", color: th.dim,
+                      fontSize: 11, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontFamily: "inherit", padding: 0,
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                  >↺</button>
+                  {(songRows || []).length > 1 && (
+                    <button
+                      data-hint={`✕ Supprimer la ligne ${ri + 1}`}
+                      onClick={() => deleteRow(ri)}
+                      style={{
+                        width: 22, height: 30, borderRadius: 5,
+                        border: "1px solid rgba(255,45,85,0.2)",
+                        background: "transparent", color: "#FF375F99",
+                        fontSize: 10, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontFamily: "inherit", padding: 0,
+                        transition: "all 0.1s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,45,85,0.1)"; e.currentTarget.style.color = "#FF375F"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#FF375F99"; }}
+                    >✕</button>
+                  )}
+                </div>
               </div>
             );
           })}
-
-          {/* Trailing append zone — always show when armed */}
-          {placingPat !== null && (
-            <div
-              onClick={appendToChain}
-              data-hint={`Append P${placingPat + 1} at end of chain`}
-              style={{
-                width: 36, height: 36, borderRadius: 7, flexShrink: 0,
-                border: `1.5px dashed ${armedCol}55`,
-                background: armedCol + "0a",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", marginLeft: songChain.length > 0 ? 0 : 4,
-                fontSize: 14, color: armedCol + "88", fontWeight: 900,
-                transition: "background 0.12s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = armedCol + "1e"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = armedCol + "0a"; }}
-            >+</div>
-          )}
         </div>
 
-        {/* ── Footer: clear + disarm ───────────────────────────── */}
-        {(songChain.length > 0 || placingPat !== null) && (
-          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: 4, alignItems: "center" }}>
-            {placingPat !== null && (
-              <button
-                onClick={() => setPlacingPat(null)}
-                style={{
-                  padding: "2px 9px", borderRadius: 5,
-                  border: `1px solid ${armedCol}44`,
-                  background: "transparent", color: armedCol + "bb",
-                  fontSize: 7, fontWeight: 700, cursor: "pointer",
-                  fontFamily: "inherit", letterSpacing: "0.06em",
-                }}>✕ DISARM</button>
-            )}
-            {songChain.length > 0 && (
-              <button
-                onClick={() => { setSongChain([]); songPosRef.current = 0; }}
-                style={{
-                  padding: "2px 9px", borderRadius: 5,
-                  border: "1px solid rgba(255,45,85,0.3)",
-                  background: "rgba(255,45,85,0.08)",
-                  color: "#FF2D55", fontSize: 7, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.06em",
-                }}>✕ CLEAR CHAIN</button>
-            )}
-          </div>
-        )}
+        {/* ── Footer: Add row + Clear ──────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+          <button
+            data-hint="+ Ajouter une ligne de 16 slots vides"
+            onClick={addRow}
+            style={{
+              padding: "3px 10px", borderRadius: 6,
+              border: "1px solid rgba(191,90,242,0.3)",
+              background: "rgba(191,90,242,0.07)",
+              color: "#BF5AF2", fontSize: 8, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+              letterSpacing: "0.05em",
+            }}>+ Ajouter une ligne</button>
+          <div style={{ flex: 1 }} />
+          <button
+            data-hint="Tout effacer"
+            onClick={clearAllRows}
+            style={{
+              padding: "3px 9px", borderRadius: 5,
+              border: "1px solid rgba(255,45,85,0.25)",
+              background: "rgba(255,45,85,0.06)",
+              color: "#FF2D55", fontSize: 7, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>✕ Tout effacer</button>
+        </div>
       </div>
+
+      {/* ── Pattern Picker overlay ─────────────────────────────── */}
+      {picker !== null && (
+        <SlotPicker
+          patIdx={(songRows || [])[picker.rowIdx]?.[picker.slotIdx] ?? null}
+          pBank={pBank}
+          SEC_COL={SEC_COL}
+          th={th}
+          onPick={handlePick}
+          onClose={() => setPicker(null)}
+          anchorRef={pickerAnchorRef}
+        />
+      )}
     </>
   );
 }
