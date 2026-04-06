@@ -1531,7 +1531,6 @@ export default function KickAndSnare(){
       // This gives genuinely different angular speeds per ring.
       const sixteenth=(60/R.bpm)/4;
       const at=R.at;const m=R.mut;const s=R.sol;
-      let dirty=false;
       (R.allT||ALL_TRACKS).forEach(tr=>{
         if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
           // N is derived from the ACTUAL pattern array (not async React state)
@@ -1554,24 +1553,26 @@ export default function KickAndSnare(){
         }
         while(ec.nextTime<ct+LA){
           const si=ec.step;
+          const stepTime=ec.nextTime;
           if(trPat[si]){
             const sp=R.prob[tr.id]?.[si]??100;
             if(Math.random()*100<sp){
               const v=(R.vel[tr.id]?.[si]??100)/100;
               const r=R.ratch[tr.id]?.[si]||1;
               const nd=R.sn[tr.id]?.[si]||0;
-              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},ec.nextTime+ri*(stepDur/r));
-              R.flashPad?.(tr.id,Math.max(0,Math.round((ec.nextTime-ct)*1000)-4));
+              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(stepDur/r));
+              R.flashPad?.(tr.id,Math.max(0,Math.round((stepTime-ct)*1000)-4));
             }
           }
-          ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
+          // Delay cursor update to match audio playback time — same as linear scheduler.
+          // Without this, the cursor is LA (100ms) ahead of the sound: on fast rings like
+          // hihat E(8,8) at 96BPM (step=156ms), 100ms early feels like missed beats.
+          const capTid=tr.id,capSi=si;
+          const aheadMs=Math.max(0,Math.round((stepTime-ct)*1000)-4);
+          setTimeout(()=>{if(!R.playing)return;euclidCurRef.current[capTid]=capSi;flushEuclidCur();},aheadMs);
+          ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;
         }
       });
-      if(dirty){
-        // Fix 1c: write to ref (no setState = no re-render during scheduler tick)
-        (R.allT||ALL_TRACKS).forEach(tr=>{if(euclidClockR.current[tr.id]!=null)euclidCurRef.current[tr.id]=euclidClockR.current[tr.id].curStep??-1;});
-        flushEuclidCur(); // schedules RAF — does NOT block the scheduler
-      }
       // Song mode cycle tracking — runs always, independent of metro
       // Advances the song chain every bar (gSt × sixteenth notes)
       {
@@ -2668,6 +2669,8 @@ export default function KickAndSnare(){
       return n;
     });
     // ── 4. Add preset tracks to active set — keep existing active tracks ──
+    // Sync-write R.at so the scheduler sees new tracks immediately on the next tick
+    R.at=[...new Set([...R.at,...newTids])];
     setAct(prev=>[...new Set([...prev,...newTids])]);
     // BPM preserved: euclid presets suggest BPM but never override user setting
     // Kit preserved: euclid presets never change the current kit
@@ -3818,6 +3821,8 @@ export default function KickAndSnare(){
               el.removeEventListener('pointerup',onUp);
               el.removeEventListener('pointercancel',onUp);
               if(!timerFired&&!moved){
+                // Sync-write R.pat so scheduler sees toggle immediately (no 1-render lag)
+                if(R.pat?.[tid]){R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;}
                 setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});
               }
             };
