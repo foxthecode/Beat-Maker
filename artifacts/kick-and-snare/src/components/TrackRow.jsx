@@ -186,8 +186,7 @@ function TrackRow({
           flex: "1 1 0", minWidth: 0, overflow: "hidden",
           alignSelf: "flex-start",
           display: "flex", gap: 0,
-          overflowX: "auto", scrollSnapType: "x mandatory",
-          WebkitOverflowScrolling: "touch", touchAction: "manipulation",
+          touchAction: "manipulation",
         }}>
           {Array(tSteps).fill(0).map((_, step) => {
             const ac = !!(pat?.[step]);
@@ -221,7 +220,7 @@ function TrackRow({
                   background: isCur && gi.first ? "rgba(200,169,110,0.42)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,
                   boxShadow: ac && isCur ? `0 0 18px ${track.color},0 0 40px ${track.color}66,inset 0 0 8px ${track.color}44` : "none",
                   transform: isDrag ? "scale(1.15)" : "scale(1)",
-                  transition: isDrag ? "none" : "all 0.08s",
+                  transition: isDrag ? "none" : "background 0.08s,box-shadow 0.08s,border-color 0.08s,transform 0.08s",
                   border: isDrag ? `1px solid ${dragAxis === "v" ? "#FFD60A" : dragAxis === "h" ? "#64D2FF" : "transparent"}` : ac ? `1px solid ${track.color}` : `1px solid ${th.sBorder}`,
                 }}>
                 {ac && <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${vel}%`, borderRadius: 3, background: track.color, transition: isDrag ? "none" : "height 0.15s" }} />}
