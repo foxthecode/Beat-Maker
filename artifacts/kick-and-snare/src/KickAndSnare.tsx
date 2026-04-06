@@ -972,7 +972,23 @@ export default function KickAndSnare(){
     } else {
       // ── Direct seq↔euclid: reset to fresh (no continuity) ──
       if(nextView==="euclid"){
-        const fresh=[mkE(16)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
+        const fresh=[mkE(16)];
+        // Re-apply euclidParams into the fresh pBank so the scheduler sees the correct
+        // patterns immediately — without this, R.pat contains all-zeros until the user
+        // moves a control (triggering applyE), causing silent beats from the start.
+        const ep=euclidParams;
+        Object.entries(ep).forEach(([tid,p])=>{
+          const N=(p as any).N||16;const h=(p as any).hits||0;const rot=(p as any).rot||0;
+          if(h>0){
+            const raw=euclidRhythm(h,N);
+            const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
+            const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+            fresh[0][tid]=rotated;
+            if(!fresh[0]._steps)fresh[0]._steps={};
+            (fresh[0]._steps as Record<string,number>)[tid]=N;
+          }
+        });
+        setPBank(fresh);setCPat(0);R.pat=fresh[0];
         setSongMode(false);setSongChain([0]);songPosRef.current=0;
       } else if(nextView==="sequencer"){
         const fresh=[mkE(STEPS)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
@@ -1518,28 +1534,27 @@ export default function KickAndSnare(){
       let dirty=false;
       (R.allT||ALL_TRACKS).forEach(tr=>{
         if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
-        const N=R.pb[R.cp]?._steps?.[tr.id]||16;
+          // N is derived from the ACTUAL pattern array (not async React state)
+        // to eliminate the stale-state race between applyE sync-write and the render.
+        const trPat=R.pat?.[tr.id];
+        const N=trPat?.length||0;
+        if(!N)return; // no pattern initialised yet → skip this track
         const stepDur=sixteenth;
-        if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-0.5){euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05};}
+        // Init / resync: reinit if clock missing or stale (> 1 full cycle behind)
+        if(!euclidClockR.current[tr.id]||euclidClockR.current[tr.id].nextTime<ct-N*stepDur){
+          euclidClockR.current[tr.id]={step:0,nextTime:ct+0.05,curStep:-1};
+        }
         const ec=euclidClockR.current[tr.id];
-        // Fix 1: guard ec.step against out-of-bounds when N changes mid-playback
-        if(ec.step>=N)ec.step=ec.step%Math.max(1,N);
-        // Fix 4: smart fast-forward — skip old steps (>80ms), keep recent ones
-        if(ec.nextTime<ct-stepDur){
-          const gapSec=ct-ec.nextTime;
-          if(gapSec>0.08){
-            // Skip steps older than 80ms to avoid burst, keep recent steps
-            const skipCount=Math.floor((gapSec-0.08)/stepDur);
-            if(skipCount>0){
-              ec.step=(ec.step+skipCount)%N;
-              ec.nextTime+=skipCount*stepDur;
-            }
-          }
-          // Steps within 80ms of lag fall through to the while loop — played slightly late
+        // Clamp step to valid range (N may shrink mid-playback)
+        if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
+        // Fast-forward: skip steps older than 80ms to avoid burst after tab sleep
+        if(ec.nextTime<ct-0.08){
+          const skip=Math.ceil((ct-0.08-ec.nextTime)/stepDur);
+          if(skip>0){ec.step=(ec.step+skip)%N;ec.nextTime+=skip*stepDur;}
         }
         while(ec.nextTime<ct+LA){
           const si=ec.step;
-          if(R.pat?.[tr.id]?.[si]){
+          if(trPat[si]){
             const sp=R.prob[tr.id]?.[si]??100;
             if(Math.random()*100<sp){
               const v=(R.vel[tr.id]?.[si]??100)/100;
@@ -2628,24 +2643,31 @@ export default function KickAndSnare(){
       });
       return next;
     });
-    // ── 2. Write preset tracks into pattern, keep non-preset tracks intact ──
+    // ── 2. Pre-compute all patterns so we can sync-write R.pat AND update pBank ──
+    const computed:Record<string,{rotated:number[],N:number}>={}; 
+    paramEntries.forEach(([tid,p])=>{
+      const N=p.N;const hits=p.hits;const rot=p.rot??0;
+      const raw=euclidRhythm(hits,N);
+      const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
+      const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+      computed[tid]={rotated,N};
+    });
+    // Sync-write R.pat so the scheduler sees the new pattern immediately (no stale-render lag)
+    if(R.pat){Object.entries(computed).forEach(([tid,{rotated}])=>{R.pat[tid]=[...rotated];});}
+    // ── 3. Write preset tracks into pattern, keep non-preset tracks intact ──
     setPBank(pb=>{
       const n=[...pb];
       const existing=n[cPat]||{};
       const cp:any={...existing,_steps:{...(existing._steps||{})}};
       // Write ONLY the preset's Euclidean rhythms (non-preset tracks unchanged)
-      paramEntries.forEach(([tid,p])=>{
-        const N=p.N;const hits=p.hits;const rot=p.rot??0;
-        const raw=euclidRhythm(hits,N);
-        const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
-        const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+      Object.entries(computed).forEach(([tid,{rotated,N}])=>{
         cp._steps[tid]=N;
         cp[tid]=[...rotated];
       });
       n[cPat]=cp;
       return n;
     });
-    // ── 3. Add preset tracks to active set — keep existing active tracks ──
+    // ── 4. Add preset tracks to active set — keep existing active tracks ──
     setAct(prev=>[...new Set([...prev,...newTids])]);
     // BPM preserved: euclid presets suggest BPM but never override user setting
     // Kit preserved: euclid presets never change the current kit
