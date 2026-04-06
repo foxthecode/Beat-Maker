@@ -477,28 +477,47 @@ class Eng{
     if(this.buf[id]){
       if(this._isMobile&&this._nodeCount>=32){return;} // FIX D: raised from 24→32 (accurate releaseMs tracking makes the cap meaningful now)
       this._nodeCount++;
-      // ── Voice stealing (Fix L) ──────────────────────────────────────────────
-      // TR-808 hardware is monophonic per voice: new trigger cuts previous instance.
-      // Without this, fast-repeated long samples (kick ~1.2s, crash ~1.6s) pile up
-      // and their signals sum above 0 dB → saturation/clipping.
-      // Fade out over 3ms then stop — avoids the click that abrupt stop would cause.
+      // ── Voice stealing (Fix L + Fix M) ──────────────────────────────────────
+      // Fix L: TR-808 monophonic retrigger — fade out previous voice in 3ms then stop.
+      //   Prevents N overlapping long samples summing above 0 dB → saturation.
+      // Fix M: Web Audio spec forbids calling stop() more than once on a BufferSource
+      //   (throws InvalidStateError). The original code called s.stop(t+duration) at
+      //   creation, then stop(t+0.015) when stealing → second call silently failed →
+      //   the stolen node kept running (in silence) as a "zombie" until its original
+      //   end time, consuming CPU. At 242 BPM this accumulated dozens of zombie nodes.
+      //   Solution: NO stop() at creation — let the buffer play to natural end via
+      //   onended. Voice stealing is then the ONLY stop() call → never throws.
+      // Fix M mobile: stolen nodes on mobile had their _nodeCount setTimeout still
+      //   scheduled for the full buffer duration after the node was stopped at 15ms.
+      //   _nodeCount stayed artificially high → hit the 32 cap → notes dropped.
+      //   Solution: store the setTimeout ID and cancel it on steal, then schedule a
+      //   fast decrement (20ms) matching the actual stop time.
       const prev=this._lastVoice.get(id);
       if(prev&&t<prev.stopAt){
         try{
           prev.gain.gain.cancelScheduledValues(t);
           prev.gain.gain.setTargetAtTime(0,t,0.003); // ≈10ms to silence (3τ)
-          prev.src.stop(t+0.015);                    // release node after fade
+          prev.src.stop(t+0.015);                    // first and only stop() call
+          if(this._isMobile&&prev.mobTid!==undefined){
+            clearTimeout(prev.mobTid); // cancel over-long decrement
+            setTimeout(()=>{this._nodeCount=Math.max(0,this._nodeCount-1);},20);
+          }
         }catch(_){}
       }
-      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);s.start(t);s.stop(t+s.buffer.duration/r+0.1);
-      this._lastVoice.set(id,{src:s,gain:g,stopAt:t+s.buffer.duration/r});
+      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);
+      // No s.stop() here — AudioBufferSourceNode auto-ends when buffer finishes (loop=false).
+      // Keeping stop() out means voice stealing's stop(t+0.015) is always the FIRST call → no exception.
+      s.start(t);
+      const bufEnd=t+s.buffer.duration/r;
       if(this._isMobile){
-        // FIX C: use actual buffer duration so nodeCount decrements only when the node truly ends.
-        // Previous: +80ms only covered lookahead, leaving the node counted as "free" while still playing.
+        // FIX C + M: accurate releaseMs so _nodeCount decrements only when node truly ends;
+        // store timeout ID so it can be cancelled if this node is later stolen.
         const releaseMs=Math.max(0,(t-this.ctx.currentTime)*1000)+(s.buffer.duration/r)*1000+50;
-        setTimeout(()=>{this._nodeCount=Math.max(0,this._nodeCount-1);},releaseMs);
+        const mobTid=setTimeout(()=>{this._nodeCount=Math.max(0,this._nodeCount-1);},releaseMs);
+        this._lastVoice.set(id,{src:s,gain:g,stopAt:bufEnd,mobTid});
         s.onended=()=>{s.disconnect();g.disconnect();if(this._lastVoice.get(id)?.src===s)this._lastVoice.delete(id);};
       }else{
+        this._lastVoice.set(id,{src:s,gain:g,stopAt:bufEnd});
         s.onended=()=>{s.disconnect();g.disconnect();this._nodeCount=Math.max(0,this._nodeCount-1);if(this._lastVoice.get(id)?.src===s)this._lastVoice.delete(id);};
       }
     }
