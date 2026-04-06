@@ -2565,9 +2565,13 @@ export default function KickAndSnare(){
       const kitSamples=fk.samples as Record<string,string>;
       ALL_TRACKS.forEach(tr=>{
         const tid=tr.id;const curFx=(R.fx as typeof fx)[tid]||{...DEFAULT_FX};
-        delete (engine.buf as any)[tid];
-        if(kitSamples[tid]){engine.loadUrl(tid,kitSamples[tid]).then(ok=>{if(!ok&&engine.ctx)engine.renderShape(tid,curFx,true).catch(()=>{});});}
-        else if(engine.ctx){engine.renderShape(tid,curFx,true).catch(()=>{});}
+        if(kitSamples[tid]){
+          // FIX F — Keep old buffer alive during load (no synthesis glitch).
+          engine.loadUrl(tid,kitSamples[tid]).then(ok=>{if(!ok&&engine.ctx)engine.renderShape(tid,curFx,true).catch(()=>{});});
+        } else {
+          delete (engine.buf as any)[tid];
+          if(engine.ctx){engine.renderShape(tid,curFx,true).catch(()=>{});}
+        }
       });
       return;
     }
@@ -2596,19 +2600,21 @@ export default function KickAndSnare(){
     const nextFx={...prevFx};
     Object.keys(nextFx).forEach(tid=>{nextFx[tid]={...nextFx[tid],...kit.shape};});
     setFx(nextFx);
-    // Audio: clear old buffers immediately so _syn uses new shape params right away,
-    // then re-render or load real samples asynchronously
+    // Audio: for sample-based tracks, keep old buffer playing during load (clean transition).
+    // For synthesis tracks, clear immediately so new shape params take effect right away.
     const allTids=Object.keys(nextFx);
     allTids.forEach(tid=>{
       const newFx=nextFx[tid];
       if(kitSamples[tid]){
-        // Real sample: clear buffer so synthesis plays with new params while loading
-        delete (engine.buf as any)[tid];
+        // FIX F — Real sample: do NOT delete buffer before loading.
+        // Old buffer plays during the loading window → clean transition, no synthesis glitch.
+        // loadUrl() atomically replaces buf[tid] when decodeAudioData completes.
         engine.loadUrl(tid,kitSamples[tid]).then(ok=>{
           if(!ok&&engine.ctx)engine.renderShape(tid,newFx,true).catch(()=>{});
         });
       } else {
-        // Synthesis: clear old buffer first (instant sonic change via _syn), then re-render
+        // Synthesis kit: delete immediately so _syn picks up new shape params right away,
+        // then queue a renderShape to pre-bake the new sound into a buffer.
         delete (engine.buf as any)[tid];
         if(engine.ctx)engine.renderShape(tid,newFx,true).catch(()=>{});
       }

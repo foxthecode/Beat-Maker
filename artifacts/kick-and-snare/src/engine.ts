@@ -463,7 +463,6 @@ class Eng{
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
-    if(this._isMobile&&!this.buf[id])this.renderShape(id,f).catch(()=>{});
     if(this.buf[id]){
       if(this._isMobile&&this._nodeCount>=32){return;} // FIX D: raised from 24→32 (accurate releaseMs tracking makes the cap meaningful now)
       this._nodeCount++;
@@ -479,6 +478,14 @@ class Eng{
       }
     }
     else{
+      if(this._isMobile){
+        // FIX E — No synthesis fallback on mobile when buffer is missing.
+        // _syn() creates 4-8 untracked audio nodes per call → DSP overload during loading window.
+        // Instead: trigger renderShape once (queued), return silently.
+        // _doRender will play a preview note when the buffer is ready.
+        if(!this._rInProg.has(id))this.renderShape(id,f).catch(()=>{});
+        return;
+      }
       const sh=f?{sDec:f.sDec??1,sTune:f.sTune??1,sPunch:f.sPunch??1,sSnap:f.sSnap??1,sBody:f.sBody??1,sTone:f.sTone??1}:undefined;
       this._syn(id,t,vel,c.in,undefined,sh);
     }
