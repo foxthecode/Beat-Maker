@@ -1499,7 +1499,11 @@ export default function KickAndSnare(){
     setFreeCaptureCount(0);setFreeBpm(null);
   },[view]);
   useEffect(()=>{
-    const down=e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+    const down=e=>{
+      // Use document.activeElement (not e.target) — on Android IME / swipe-typing
+      // key events can have e.target===document.body even when an input is focused.
+      const ae=document.activeElement;
+      if(ae&&(ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"||(ae as HTMLElement).isContentEditable))return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){e.preventDefault();R.undo?.();return;}
       if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==="y"||(e.key.toLowerCase()==="z"&&e.shiftKey))){e.preventDefault();R.redo?.();return;}
       if(e.code==="Space"){e.preventDefault();if(R.uiView==="pads"){R.toggleLoopRec?.();}else{ssRef.current?.();}return;}
@@ -2961,10 +2965,14 @@ export default function KickAndSnare(){
     setNewTrackName("");setShowCustomInput(false);setShowAdd(false);setSelectedCustomColor(null);
     setSmpN(p=>({...p,[id]:"808 Cowbell (synth)"}));
     engine.init();if(!engine.ch[id])engine._build(id);
-    (async()=>{
+    // Defer OfflineAudioContext rendering — running it synchronously during the React
+    // state-update batch causes a main-thread spike that starves the audio scheduler
+    // (Worker ticks pile up → burst scheduling → crackling). 200ms gives React time to
+    // commit the update and the audio thread to run at least one clean tick first.
+    setTimeout(async()=>{
       try{const sr=engine.ctx.sampleRate;const oCtx=new OfflineAudioContext(1,Math.ceil(sr*0.65),sr);engine._syn(id,0,1,oCtx.destination,oCtx);engine.buf[id]=await oCtx.startRendering();}catch(e){console.warn("Custom 808 prerender failed",e);}
       if(engine.buf[id]){engine.play(id,0.7,0,{...DEFAULT_FX});}
-    })();
+    },200);
   };
 
   // Shared custom track input UI (used in sequencer + euclid add panels)
