@@ -384,10 +384,18 @@ class Eng{
     const transTime = isPadTap
       ? 0.001
       : (this._isMobile ? 0.05 : 0.005);
-    c.vol.gain.cancelScheduledValues(ct);
+    // FIX I — On Android, cancelScheduledValues(currentTime) is quantized to the next
+    // audio buffer boundary (~11.6ms at 512 samples/44100Hz). Old automation continues
+    // until that boundary, then the parameter jumps → audible click every step.
+    // Fix: skip cancelScheduledValues for mobile sequencer notes (non-padTap).
+    // setTargetAtTime alone is sufficient — old events are at their target before the
+    // next note fires, so new events dominate from ct without discontinuity.
+    // Pad taps keep cancelScheduledValues for immediate response.
+    const doCancel = !this._isMobile || isPadTap;
+    if(doCancel)c.vol.gain.cancelScheduledValues(ct);
     c.vol.gain.setTargetAtTime((f?.vol??80)/100,ct,transTime);
     if(c.pan?.pan){
-      c.pan.pan.cancelScheduledValues(ct);
+      if(doCancel)c.pan.pan.cancelScheduledValues(ct);
       c.pan.pan.setTargetAtTime((f?.pan??0)/100,ct,transTime);
     }
     if(c.flt){
@@ -395,11 +403,13 @@ class Eng{
       const fType=fOn?(f?.fType||'lowpass'):'lowpass';
       const fCut=fOn?Math.max(20,Math.min(20000,f?.cut??5000)):20000;
       const fQ=fOn?Math.max(0,Math.min(25,f?.res??0)):0;
+      // FIX I — filter tau 0.01→0.04 on mobile: 10ms is below Android buffer size (11.6ms),
+      // causing an instant frequency jump at the buffer boundary instead of a smooth ramp.
+      const fTau=this._isMobile?0.04:0.01;
       c.flt.type=fType;
-      c.flt.frequency.cancelScheduledValues(ct);
-      c.flt.frequency.setTargetAtTime(fCut,ct,0.01);
-      c.flt.Q.cancelScheduledValues(ct);
-      c.flt.Q.setTargetAtTime(fQ,ct,0.01);
+      if(doCancel){c.flt.frequency.cancelScheduledValues(ct);c.flt.Q.cancelScheduledValues(ct);}
+      c.flt.frequency.setTargetAtTime(fCut,ct,fTau);
+      c.flt.Q.setTargetAtTime(fQ,ct,fTau);
     }
     if(c.drv){
       const dOn=f?.onDrive??false;
@@ -412,7 +422,7 @@ class Eng{
     if(c.rvSend&&!this._rvHoldActive){
       const rvOn=f?.onReverb??false;
       const rvAmt=rvOn?Math.max(0,Math.min(1,(f?.rMix??0)/100)):0;
-      c.rvSend.gain.cancelScheduledValues(ct);
+      if(doCancel)c.rvSend.gain.cancelScheduledValues(ct);
       c.rvSend.gain.setTargetAtTime(rvAmt,ct,0.02);
       // FIX B — IR update removed from per-note path: calling updateReverb() here
       // caused gRvConv.buffer reassignment every step (different rDecay per track),
