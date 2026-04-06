@@ -1797,8 +1797,19 @@ export default function KickAndSnare(){
   const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // Euclid polyrhythm — independent per-track clocks
   const euclidClockR=useRef({});
-  const [euclidCur,setEuclidCur]=useState({});
+  // Fix 1: decouple visual from scheduler — ref for audio thread, state only for display
+  const euclidCurRef=useRef<Record<string,number>>({});
+  const [euclidCurDisplay,setEuclidCurDisplay]=useState<Record<string,number>>({});
+  const euclidRAF=useRef<number|null>(null);
   const euclidMetroR=useRef({nextTime:null,beat:0});
+  // Fix 1b: RAF-throttled display flush — never blocks the scheduler
+  const flushEuclidCur=useCallback(()=>{
+    if(euclidRAF.current)return;
+    euclidRAF.current=requestAnimationFrame(()=>{
+      euclidRAF.current=null;
+      setEuclidCurDisplay({...euclidCurRef.current});
+    });
+  },[]);
   // ── Looper ──
   const [loopBars,setLoopBars]=useState(1);
   const [loopRec,setLoopRec]=useState(false);
@@ -2022,6 +2033,8 @@ export default function KickAndSnare(){
   },[playing,linkConnected,linkSyncPlay]);
   // Cleanup
   useEffect(()=>()=>{if(linkWsRef.current)linkWsRef.current.close();},[]);
+  // Fix 1c: cleanup euclidCur RAF on unmount
+  useEffect(()=>()=>{if(euclidRAF.current)cancelAnimationFrame(euclidRAF.current);},[]);
 
 
   // Keyboard shortcuts
@@ -2206,12 +2219,17 @@ export default function KickAndSnare(){
         const ec=euclidClockR.current[tr.id];
         // Fix 1: guard ec.step against out-of-bounds when N changes mid-playback
         if(ec.step>=N)ec.step=ec.step%Math.max(1,N);
-        // Fix 2: fast-forward over missed steps to prevent burst-then-gap glitch
-        // when the scheduler wakes up late (tab backgrounded / heavy render)
+        // Fix 2: play recent missed steps (<100ms), silently skip older ones
         if(ec.nextTime<ct-stepDur){
-          const missed=Math.floor((ct-ec.nextTime)/stepDur);
-          ec.step=(ec.step+missed)%N;
-          ec.nextTime+=missed*stepDur;
+          const gap=ct-ec.nextTime;
+          if(gap>0.1){
+            // >100ms late → skip silently (avoids burst)
+            const missed=Math.floor(gap/stepDur);
+            ec.step=(ec.step+missed)%N;
+            ec.nextTime+=missed*stepDur;
+          }
+          // Steps <100ms late fall through to the while loop below,
+          // played slightly late but audibly correct
         }
         while(ec.nextTime<ct+LA){
           const si=ec.step;
@@ -2228,7 +2246,11 @@ export default function KickAndSnare(){
           ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
         }
       });
-      if(dirty){const cur={};(R.allT||ALL_TRACKS).forEach(tr=>{if(euclidClockR.current[tr.id]!=null)cur[tr.id]=euclidClockR.current[tr.id].curStep??-1;});setEuclidCur(cur);}
+      if(dirty){
+        // Fix 1c: write to ref (no setState = no re-render during scheduler tick)
+        (R.allT||ALL_TRACKS).forEach(tr=>{if(euclidClockR.current[tr.id]!=null)euclidCurRef.current[tr.id]=euclidClockR.current[tr.id].curStep??-1;});
+        flushEuclidCur(); // schedules RAF — does NOT block the scheduler
+      }
       // Song mode cycle tracking — runs always, independent of metro
       // Advances the song chain every bar (gSt × sixteenth notes)
       {
@@ -2255,14 +2277,15 @@ export default function KickAndSnare(){
           em2.songNextTime+=sixteenth;
         }
       }
-      // Metro in Euclid: 1/16th-note pulse (the Euclid grid step), accent every 4th (quarter note)
+      // Metro in Euclid: Fix 3 — sync on same songNextTime base to prevent drift
       if(R.metro){
         const sxt=(60/R.bpm)/4; // sixteenth note
         const em=euclidMetroR.current;
-        if(!em.nextTime||em.nextTime<ct-0.5){em.nextTime=ct+0.05;em.beat=0;}
-        while(em.nextTime<ct+LA){
-          playClk(em.nextTime,em.beat===0?"accent":em.beat%2===0?"beat":"sub");
-          em.beat=(em.beat+1)%4;em.nextTime+=sxt;
+        // Resync on songNextTime if available (prevents drift vs tracks)
+        if(!em.metroNext||em.metroNext<ct-0.5){em.metroNext=em.songNextTime||(ct+0.05);em.metroBeat=0;}
+        while(em.metroNext<ct+LA){
+          playClk(em.metroNext,em.metroBeat===0?"accent":em.metroBeat%2===0?"beat":"sub");
+          em.metroBeat=(em.metroBeat+1)%4;em.metroNext+=sxt;
         }
       }
       {const now=performance.now();const drift=lastTickRef.current!==null?(now-lastTickRef.current)-schDelay:0;lastTickRef.current=now;schRef.current=setTimeout(schLoop,Math.max(5,schDelay-drift));}
@@ -2303,12 +2326,12 @@ export default function KickAndSnare(){
     // if(R.uiView==='pads'&&loopRef.current.events.length>0){ ... }
     if(playing){
       clearTimeout(schRef.current);setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
-      euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidClockR.current={};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
       R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
       // Song arranger: reset to first pattern in chain so display + playback are in sync
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
-      euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidClockR.current={};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);
     }
   };
@@ -2528,7 +2551,7 @@ export default function KickAndSnare(){
       if(engine.ctx?.state==='suspended'){setCtxSuspended(true);return;}
       R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
-      euclidClockR.current={};setEuclidCur({});euclidMetroR.current={nextTime:null,beat:0};
+      euclidClockR.current={};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoop();setPlaying(true);setRec(true);
     });
   };
@@ -3609,7 +3632,7 @@ export default function KickAndSnare(){
           <div style={{display:"flex",flex:1,alignItems:"center",justifyContent:"center"}}>
           {(()=>{
             const isAct=id=>act.includes(id)&&!muted[id];
-            const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCur[tid]]:!!pat[tid]?.[cStep];
+            const eHit=tid=>view==="euclid"?!!pat[tid]?.[euclidCurDisplay[tid]]:!!pat[tid]?.[cStep];
             const hK=(playing&&isAct("kick")&&eHit("kick"))||flashing.has("kick");
             const hS=(playing&&isAct("snare")&&eHit("snare"))||flashing.has("snare");
             const hH=(playing&&isAct("hihat")&&eHit("hihat"))||flashing.has("hihat");
@@ -4385,6 +4408,8 @@ export default function KickAndSnare(){
             const raw=baseArr||euclidRhythm(hits,N);
             const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
             const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
+            // Fix 4: update R.pat synchronously so scheduler sees new pattern immediately
+            if(R.pat)R.pat[tid]=[...rotated];
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=[...rotated];n[cPat]=cp;return n;});
           };
           const clearTrack=(tid)=>{const N=getP(tid).N;writeP(tid,{hits:0,rot:0,tpl:""});setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=Array(N).fill(0);n[cPat]=cp;return n;});};
@@ -4630,7 +4655,7 @@ export default function KickAndSnare(){
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
                       const p=getP(tr.id);const N=p.N;
-                      const curS=playing&&euclidCur[tr.id]!=null?euclidCur[tr.id]:-1;
+                      const curS=playing&&euclidCurDisplay[tr.id]!=null?euclidCurDisplay[tr.id]:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
                       const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
