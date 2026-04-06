@@ -3916,8 +3916,13 @@ export default function KickAndSnare(){
             };
             const fPos=filterPosRef.current[target]||{x:0.5,y:0.5};
             const holdBtn=(label:string,color:string,onDown:()=>void,onUp:()=>void,hint:string)=>(
-              <button data-hint={hint} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);onDown();}}
-                onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
+              <button data-hint={hint}
+                onTouchStart={e=>{e.preventDefault();onDown();}}
+                onTouchEnd={onUp} onTouchCancel={onUp}
+                onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);onDown();}}
+                onPointerUp={e=>{if(e.pointerType==="touch")return;onUp();}}
+                onPointerCancel={e=>{if(e.pointerType==="touch")return;onUp();}}
+                onPointerLeave={e=>{if(e.pointerType==="touch")return;onUp();}}
                 style={{flex:1,padding:"9px 4px",borderRadius:8,border:`1.5px solid ${color}55`,background:`${color}15`,color,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.06em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",transition:"all 0.1s"}}>
                 {label}
               </button>
@@ -3951,17 +3956,29 @@ export default function KickAndSnare(){
                     <div>
                       <div style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em",marginBottom:5}}>FILTER SWEEP · {tIcon} {tLabel} · drag cutoff (←→) resonance (↑↓)</div>
                       <div data-hint={`FILTER XY · ${tLabel} · Drag horizontally = cutoff frequency · Vertical = resonance · Release = reset to normal level`} style={{height:80,borderRadius:8,background:`${tColor}08`,border:`1px solid ${tColor}33`,position:"relative",cursor:"crosshair",touchAction:"none",userSelect:"none",overflow:"hidden"}}
-                        onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);engine.init();
+                        onTouchStart={e=>{e.preventDefault();engine.init();
+                          const t=e.touches[0];const r=e.currentTarget.getBoundingClientRect();
+                          const x=Math.max(0,Math.min(1,(t.clientX-r.left)/r.width));
+                          const y=Math.max(0,Math.min(1,1-(t.clientY-r.top)/r.height));
+                          filterPosRef.current[target]={x,y};applyFilter(x,y);}}
+                        onTouchMove={e=>{e.preventDefault();
+                          const t=e.touches[0];const r=e.currentTarget.getBoundingClientRect();
+                          const x=Math.max(0,Math.min(1,(t.clientX-r.left)/r.width));
+                          const y=Math.max(0,Math.min(1,1-(t.clientY-r.top)/r.height));
+                          filterPosRef.current[target]={x,y};applyFilter(x,y);}}
+                        onTouchEnd={resetFilter} onTouchCancel={resetFilter}
+                        onPointerDown={e=>{if(e.pointerType==="touch")return;e.currentTarget.setPointerCapture(e.pointerId);engine.init();
                           const r=e.currentTarget.getBoundingClientRect();
                           const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
                           const y=Math.max(0,Math.min(1,1-(e.clientY-r.top)/r.height));
                           filterPosRef.current[target]={x,y};applyFilter(x,y);}}
-                        onPointerMove={e=>{if(e.buttons===0)return;
+                        onPointerMove={e=>{if(e.pointerType==="touch"||e.buttons===0)return;
                           const r=e.currentTarget.getBoundingClientRect();
                           const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
                           const y=Math.max(0,Math.min(1,1-(e.clientY-r.top)/r.height));
                           filterPosRef.current[target]={x,y};applyFilter(x,y);}}
-                        onPointerUp={resetFilter} onPointerCancel={resetFilter}>
+                        onPointerUp={e=>{if(e.pointerType==="touch")return;resetFilter();}}
+                        onPointerCancel={e=>{if(e.pointerType==="touch")return;resetFilter();}}>
                         <div style={{position:"absolute",inset:0,background:`linear-gradient(90deg,rgba(100,210,255,0.07),${tColor}14)`}}/>
                         <div style={{position:"absolute",inset:0,background:"linear-gradient(0deg,rgba(255,149,0,0.06),transparent)"}}/>
                         {/* Crosshair dot */}
@@ -3980,8 +3997,12 @@ export default function KickAndSnare(){
                         ))}
                         <button
                           data-hint={`STUTTER HOLD · ${isMaster?"Hold = loop mute/unmute on master":"Hold = rhythmic pad repeat"} · Subdivision: ${stutterDiv} · Release to stop`}
-                          onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startStutter();}}
-                          onPointerUp={stopStutter} onPointerCancel={stopStutter} onPointerLeave={stopStutter}
+                          onTouchStart={e=>{e.preventDefault();startStutter();}}
+                          onTouchEnd={stopStutter} onTouchCancel={stopStutter}
+                          onPointerDown={e=>{if(e.pointerType==="touch")return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startStutter();}}
+                          onPointerUp={e=>{if(e.pointerType==="touch")return;stopStutter();}}
+                          onPointerCancel={e=>{if(e.pointerType==="touch")return;stopStutter();}}
+                          onPointerLeave={e=>{if(e.pointerType==="touch")return;stopStutter();}}
                           style={{padding:"6px 16px",borderRadius:6,border:`1.5px solid rgba(94,92,230,0.5)`,background:"rgba(94,92,230,0.15)",color:"#5E5CE6",fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.07em",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>HOLD</button>
                       </div>
                     </div>
