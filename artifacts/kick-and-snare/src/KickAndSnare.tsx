@@ -1574,9 +1574,6 @@ export default function KickAndSnare(){
         }
         const ec=euclidClockR.current[tr.id];
         if(ec.step<0||ec.step>=N)ec.step=((ec.step%N)+N)%N;
-        // Re-anchor if very stale (init or pattern switch) — no step index skip
-        // The Worker fires every 25ms, so this only triggers on first run or after a hard reset
-        if(ec.nextTime<ct-LA)ec.nextTime=ct;
         while(ec.nextTime<ct+LA){
           const si=ec.step;
           if(R.pat?.[tr.id]?.[si]){
