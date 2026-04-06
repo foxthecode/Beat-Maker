@@ -20,10 +20,6 @@ function TrackRow({
   onRandomVel,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
-  const f = fx || { vol: 80, pan: 0 };
-  const vol = f.vol ?? 80;
-  const pan = f.pan ?? 0;
-
 
   const leftW = isPortrait ? 160 : (typeof window !== "undefined" && window.innerWidth < 600 ? 160 : 220);
 
@@ -39,39 +35,6 @@ function TrackRow({
     display: "flex", alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   };
-  const r = 9; const circ = 2 * Math.PI * r;
-
-  const volOnPD = e => {
-    e.preventDefault();
-    const el = e.currentTarget;
-    el.setPointerCapture(e.pointerId);
-    let sY = e.clientY, sV = vol;
-    const mv = pe => { const dy = sY - pe.clientY; onFxChange("vol", Math.max(0, Math.min(100, Math.round(sV - dy * 1.2)))); };
-    const up = () => { el.removeEventListener("pointermove", mv); };
-    el.addEventListener("pointermove", mv);
-    el.addEventListener("pointerup", up, { once: true });
-    el.addEventListener("pointercancel", up, { once: true });
-  };
-
-  const panOnPD = e => {
-    e.preventDefault();
-    const el = e.currentTarget;
-    el.setPointerCapture(e.pointerId);
-    let sY = e.clientY, sV = pan;
-    const mv = pe => { const dy = sY - pe.clientY; onFxChange("pan", Math.max(-100, Math.min(100, Math.round(sV - dy * 2.5)))); };
-    const up = () => { el.removeEventListener("pointermove", mv); };
-    el.addEventListener("pointermove", mv);
-    el.addEventListener("pointerup", up, { once: true });
-    el.addEventListener("pointercancel", up, { once: true });
-  };
-
-  const panArc = pan === 0 ? null : (() => {
-    const toRad = d => d * Math.PI / 180;
-    const sa = -90; const ea = sa + (pan / 100) * 180;
-    const x1 = 11 + r * Math.cos(toRad(sa)); const y1 = 11 + r * Math.sin(toRad(sa));
-    const x2 = 11 + r * Math.cos(toRad(ea)); const y2 = 11 + r * Math.sin(toRad(ea));
-    return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0 ${pan > 0 ? 1 : 0} ${x2.toFixed(2)},${y2.toFixed(2)}`;
-  })();
 
   // ── Send knob ──
   const sIdx = sendCursor ?? 0;
@@ -111,41 +74,10 @@ function TrackRow({
         {/* ── Left: two sub-columns side by side ── */}
         <div style={{ width: leftW, flexShrink: 0, display: "flex", flexDirection: "row", gap: 3, alignItems: "flex-start" }}>
 
-          {/* Sub-col A: Row1 = icon+label  |  Row2 = VOL+PAN */}
-          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 2, minWidth: 60 }}>
-            {/* Row 1: icon · label */}
-            <div style={{ display: "flex", alignItems: "center", gap: 2, overflow: "hidden" }}>
-              <DrumSVG id={track.id} color={track.color} hit={flash} />
-              <span data-hint={`Track ${track.label} · Drag steps to program · Icon = hit animation · Color = unique identifier`} style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
-            </div>
-            {/* Row 2: VOL · PAN */}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              {/* VOL */}
-              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                <div data-hint={`VOL track ${track.label} · Value: ${vol}% · Drag ↕ to adjust · Double-click to reset to 80%`} onPointerDown={volOnPD} onDoubleClick={() => onFxChange("vol", 80)} title={`VOL: ${vol} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                  <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }} viewBox="0 0 22 22">
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${circ * vol / 100} ${circ}`} />
-                  </svg>
-                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>VOL</span>
-                </div>
-                <span style={{ fontSize: 6, fontWeight: 700, color: track.color, opacity: 0.75, lineHeight: 1 }}>{vol}</span>
-                <MidiTag id={`vol_${track.id}`} />
-              </div>
-              {/* PAN */}
-              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                <div data-hint={`PAN track ${track.label} · Value: ${pan === 0 ? "Center" : pan < 0 ? `Left ${Math.abs(pan)}%` : `Right ${pan}%`} · Drag ↕ to move in stereo field · Double-click = center`} onPointerDown={panOnPD} onDoubleClick={() => onFxChange("pan", 0)} title={`PAN: ${pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`} — drag ↕`} style={{ position: "relative", width: 18, height: 18, cursor: "ns-resize", userSelect: "none", touchAction: "none" }}>
-                  <svg width="18" height="18" style={{ position: "absolute", top: 0, left: 0 }} viewBox="0 0 22 22">
-                    <circle cx="11" cy="11" r={r} fill="none" stroke={track.color + "22"} strokeWidth="2.5" />
-                    {panArc && <path d={panArc} fill="none" stroke={track.color} strokeWidth="2.5" strokeLinecap="round" />}
-                    <circle cx="11" cy="11" r="1.5" fill={track.color} />
-                  </svg>
-                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 5, fontWeight: 900, color: track.color, pointerEvents: "none" }}>PAN</span>
-                </div>
-                <span style={{ fontSize: 6, fontWeight: 700, color: track.color, opacity: 0.75, lineHeight: 1 }}>{pan === 0 ? "C" : pan < 0 ? `L${Math.abs(pan)}` : `R${pan}`}</span>
-                <MidiTag id={`pan_${track.id}`} />
-              </div>
-            </div>
+          {/* Sub-col A: icon + label */}
+          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 2, overflow: "hidden", minWidth: 60 }}>
+            <DrumSVG id={track.id} color={track.color} hit={flash} />
+            <span data-hint={`Track ${track.label} · Drag steps to program · Icon = hit animation · Color = unique identifier`} style={{ fontSize: 10, fontWeight: 700, color: track.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{track.label}</span>
           </div>
 
           {/* Sub-col B: [M · S · CLR · ♪ · ×] then [16st + name] */}
@@ -154,11 +86,11 @@ function TrackRow({
             <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "nowrap" }}>
               <MidiTag id={track.id} />
               <button
-                data-hint={`FX · Open per-track effects for ${track.label} · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay sends`}
+                data-hint={`SFX · Open per-track effects for ${track.label} · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay sends`}
                 title="Track FX"
                 onClick={() => onFxOpen?.()}
-                style={{ ...btnSt, width: 22, fontSize: 6, background: "rgba(191,90,242,0.06)", color: "rgba(191,90,242,0.85)", border: "1px solid rgba(191,90,242,0.3)" }}
-              >🎛</button>
+                style={{ ...btnSt, width: 28, fontSize: 7, background: "rgba(191,90,242,0.06)", color: "rgba(191,90,242,0.85)", border: "1px solid rgba(191,90,242,0.3)", letterSpacing: "0.04em" }}
+              >SFX</button>
               <button data-hint={isMuted ? `MUTE active · Track ${track.label} is silent · Click to unmute` : `MUTE · Silence track ${track.label} · Steps are preserved`} onClick={onMuteToggle} style={{ ...btnSt, width: 18, background: isMuted ? "rgba(255,55,95,0.25)" : th.btn, color: isMuted ? "#FF375F" : th.faint }}>M</button>
               <button data-hint={isSoloed ? `SOLO active · Only track ${track.label} is audible · Click to disable` : `SOLO · Isolate track ${track.label} · All other tracks are muted`} onClick={onSoloToggle} style={{ ...btnSt, width: 18, background: isSoloed ? "rgba(255,214,10,0.25)" : th.btn, color: isSoloed ? "#FFD60A" : th.faint }}>S</button>
               <button data-hint={`CLR · Clear all steps on track ${track.label} · Other tracks are not affected`} onClick={onClear} style={{ ...btnSt, width: 22, background: th.btn, color: th.dim, fontSize: 6 }} title="Clear track">CLR</button>
