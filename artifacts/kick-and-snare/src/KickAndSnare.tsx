@@ -833,6 +833,9 @@ export default function KickAndSnare(){
   const [showEuclidWelcome,setShowEuclidWelcome]=useState(true);
   const [saveFallback,setSaveFallback]=useState<string|null>(null);
   const [saveCopied,setSaveCopied]=useState(false);
+  const [pasteModal,setPasteModal]=useState(false);
+  const [pasteText,setPasteText]=useState('');
+  const [pasteError,setPasteError]=useState('');
   const [customTracks,setCustomTracks]=useState([]);
   const [newTrackName,setNewTrackName]=useState("");const [showCustomInput,setShowCustomInput]=useState(false);
   const [selectedCustomColor,setSelectedCustomColor]=useState<string|null>(null);
@@ -1892,45 +1895,56 @@ export default function KickAndSnare(){
     setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
   };
 
+  // Shared parsing logic — used by file load AND paste-text load
+  const applyProjectJson=(json:string):boolean=>{
+    try{
+      const p=JSON.parse(json);
+      if(!p||p._ks!==1)return false;
+      if(p.bpm!==undefined)setBpm(p.bpm);
+      if(p.swing!==undefined)setSwing(p.swing);
+      if(p.masterVol!==undefined)setMasterVol(p.masterVol);
+      if(p.tSigLabel){const ts=TIME_SIGS.find(s=>s.label===p.tSigLabel);if(ts)setTSig(ts);}
+      if(p.grpIdx!==undefined)setGrpIdx(p.grpIdx);
+      if(p.pBank){setPBank(p.pBank);setCPat(Math.min(p.cPat??0,p.pBank.length-1));}
+      if(p.stVel)setStVel(p.stVel);
+      if(p.stNudge)setStNudge(p.stNudge);
+      if(p.stProb)setStProb(p.stProb);
+      if(p.stRatch)setStRatch(p.stRatch);
+      if(p.act)setAct(p.act);
+      if(p.muted)setMuted(p.muted);
+      if(p.soloed!==undefined)setSoloed(p.soloed);
+      if(p.customTracks)setCustomTracks(p.customTracks);
+      if(p.euclidParams)setEuclidParams(p.euclidParams);
+      if(p.gfx)setGfx(p.gfx);
+      if(p.fx)setFx(p.fx);
+      if(p.fxChainOrder)setFxChainOrder(p.fxChainOrder);
+      if(p.fxSendPos)setFxSendPos(p.fxSendPos);
+      if(p.trackFx)setTrackFx(p.trackFx);
+      if(p.songRows)setSongRows(p.songRows);else if(p.songChain)setSongRows(toSongRows(p.songChain));
+      if(p.velRange)setVelRange(p.velRange);
+      if(p.themeName)setThemeName(p.themeName);
+      if(p.activeKitId!==undefined){
+        setActiveKitId(p.activeKitId);
+        if(p.kitIdx!==undefined)setKitIdx(p.kitIdx);
+        const fk=DRUM_KITS.find(k=>k.id===p.activeKitId);
+        if(fk)applyKit(fk);
+      }
+      return true;
+    }catch{return false;}
+  };
   const loadProject=(file:File)=>{
     const reader=new FileReader();
     reader.onload=e=>{
-      try{
-        const p=JSON.parse(e.target?.result as string);
-        if(!p||p._ks!==1){alert("Fichier invalide — ce n'est pas un projet Kick & Snare.");return;}
-        if(p.bpm!==undefined)setBpm(p.bpm);
-        if(p.swing!==undefined)setSwing(p.swing);
-        if(p.masterVol!==undefined)setMasterVol(p.masterVol);
-        if(p.tSigLabel){const ts=TIME_SIGS.find(s=>s.label===p.tSigLabel);if(ts)setTSig(ts);}
-        if(p.grpIdx!==undefined)setGrpIdx(p.grpIdx);
-        if(p.pBank){setPBank(p.pBank);setCPat(Math.min(p.cPat??0,p.pBank.length-1));}
-        if(p.stVel)setStVel(p.stVel);
-        if(p.stNudge)setStNudge(p.stNudge);
-        if(p.stProb)setStProb(p.stProb);
-        if(p.stRatch)setStRatch(p.stRatch);
-        if(p.act)setAct(p.act);
-        if(p.muted)setMuted(p.muted);
-        if(p.soloed!==undefined)setSoloed(p.soloed);
-        if(p.customTracks)setCustomTracks(p.customTracks);
-        if(p.euclidParams)setEuclidParams(p.euclidParams);
-        if(p.gfx)setGfx(p.gfx);
-        if(p.fx)setFx(p.fx);
-        if(p.fxChainOrder)setFxChainOrder(p.fxChainOrder);
-        if(p.fxSendPos)setFxSendPos(p.fxSendPos);
-        if(p.trackFx)setTrackFx(p.trackFx);
-        if(p.songRows)setSongRows(p.songRows);else if(p.songChain)setSongRows(toSongRows(p.songChain));
-        if(p.velRange)setVelRange(p.velRange);
-        if(p.themeName)setThemeName(p.themeName);
-        if(p.activeKitId!==undefined){
-          setActiveKitId(p.activeKitId);
-          if(p.kitIdx!==undefined)setKitIdx(p.kitIdx);
-          // re-apply kit if factory
-          const fk=DRUM_KITS.find(k=>k.id===p.activeKitId);
-          if(fk)applyKit(fk);
-        }
-      }catch(err){alert("Impossible de lire le fichier projet.");console.error(err);}
+      const ok=applyProjectJson(e.target?.result as string);
+      if(!ok)alert("Fichier invalide — ce n'est pas un projet Kick & Snare.");
     };
     reader.readAsText(file);
+  };
+  const loadFromPaste=()=>{
+    if(!pasteText.trim()){setPasteError("Colle d'abord le texte du projet ici.");return;}
+    const ok=applyProjectJson(pasteText.trim());
+    if(ok){setPasteModal(false);setPasteText('');setPasteError('');}
+    else setPasteError("Texte invalide — vérifie d'avoir tout copié depuis SAUVEGARDER.");
   };
 
   // ── CP-B: Export Looper WAV ───────────────────────────────────────────────────
@@ -3226,7 +3240,7 @@ export default function KickAndSnare(){
           loopCanUndo={loopCanUndo} loopCanRedo={loopCanRedo}
           freeCaptureCount={freeCaptureCount} freeBpm={freeBpm}
           onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
-          onSaveProject={saveProject} onLoadProject={loadProject}
+          onSaveProject={saveProject} onLoadProject={loadProject} onPasteProject={()=>{setPasteModal(true);setPasteText('');setPasteError('');}}
         />
         </div>{/* end fixed-header maxWidth */}
       </div>{/* end fixed-header */}
@@ -4935,7 +4949,39 @@ export default function KickAndSnare(){
         );
       })}
     </div>
-  {/* ── Save Fallback Modal (Option B) — shown on mobile when file download is blocked ── */}
+  {/* ── Paste-to-Load Modal — reload project from copied text ── */}
+  {pasteModal&&(
+    <div onClick={()=>{setPasteModal(false);setPasteError('');}}
+      style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.82)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{background:'#1c1c1e',border:'1px solid #38383a',borderRadius:18,padding:20,maxWidth:420,width:'100%',display:'flex',flexDirection:'column',gap:12,boxShadow:'0 24px 60px #000c'}}>
+        <div style={{color:'#fff',fontWeight:900,fontSize:13,letterSpacing:'0.1em'}}>📋 CHARGER DEPUIS TEXTE</div>
+        <div style={{color:'#ababab',fontSize:11,lineHeight:1.5}}>
+          Colle ici le texte copié depuis <strong style={{color:'#FF9F0A'}}>SAUVEGARDER</strong> pour recharger ton projet.
+        </div>
+        <textarea
+          value={pasteText}
+          onChange={e=>{setPasteText(e.target.value);setPasteError('');}}
+          placeholder='Colle le texte du projet ici...'
+          autoFocus
+          style={{background:'#111',border:`1px solid ${pasteError?'#ff453a':'#333'}`,borderRadius:8,color:'#ddd',fontSize:9,
+            fontFamily:'monospace',padding:8,height:120,resize:'none',outline:'none'}}/>
+        {pasteError&&<div style={{color:'#ff453a',fontSize:10,fontWeight:700}}>{pasteError}</div>}
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={loadFromPaste}
+            style={{flex:1,padding:'9px 12px',background:'#FF9F0A18',border:'1px solid #FF9F0A88',
+              borderRadius:10,color:'#FF9F0A',fontWeight:900,fontSize:11,cursor:'pointer',fontFamily:'inherit',letterSpacing:'0.06em'}}>
+            CHARGER LE PROJET
+          </button>
+          <button onClick={()=>{setPasteModal(false);setPasteError('');}}
+            style={{padding:'9px 14px',background:'#ffffff0a',border:'1px solid #38383a',
+              borderRadius:10,color:'#888',fontWeight:800,fontSize:11,cursor:'pointer',fontFamily:'inherit'}}>
+            ANNULER
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   {saveFallback&&(
     <div onClick={()=>{setSaveFallback(null);setSaveCopied(false);}}
       style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.82)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>

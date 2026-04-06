@@ -20,7 +20,7 @@ export default function TransportBar({
   loopMetro, setLoopMetro, recCountdown, showLooper,
   onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
   freeCaptureCount, freeBpm, onLoopCapture, onClearCapture,
-  onSaveProject, onLoadProject,
+  onSaveProject, onLoadProject, onPasteProject,
   onShowFxRack,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
@@ -280,6 +280,16 @@ export default function TransportBar({
     </>
   );
 
+  const PasteBtn = onPasteProject && (
+    <button
+      data-hint="Charger depuis texte · Colle le texte copié depuis SAUVEGARDER pour recharger ton projet · Utile si le téléchargement de fichier est bloqué"
+      onClick={onPasteProject}
+      style={{ ...pill(false, "#FF9F0A"), display: "flex", alignItems: "center", gap: 4 }}>
+      <span style={{ fontSize: 11, lineHeight: 1 }}>📋</span>
+      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>COLLER</span>
+    </button>
+  );
+
   const LinkBtn = hasLinkApi && (
     <button
       data-hint={linkConnected ? `Ableton LINK · Connected · ${linkPeers} peer${linkPeers > 1 ? "s" : ""} · Network BPM sync active` : "Ableton LINK · Sync BPM with other apps on the local network (Ableton, Traktor…)"}
@@ -311,6 +321,7 @@ export default function TransportBar({
           {MidiBtn}
           {SaveBtn}
           {LoadBtn}
+          {PasteBtn}
           {LinkBtn}
           {ExportBtn}
         </div>
@@ -334,6 +345,7 @@ export default function TransportBar({
       {MidiBtn}
       {SaveBtn}
       {LoadBtn}
+      {PasteBtn}
       {LinkBtn}
       {ExportBtn}
     </div>
