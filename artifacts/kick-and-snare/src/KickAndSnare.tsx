@@ -945,8 +945,8 @@ export default function KickAndSnare(){
   const seqSnap=useRef<{pBank:any[],cPat:number,songRows:(number|null)[][],songMode:boolean}>({
     pBank:[mkE(16)], cPat:0, songRows:[[...Array(16).fill(null)]], songMode:false,
   });
-  const euclidSnap=useRef<{pBank:any[],cPat:number}>({
-    pBank:[mkE(16)], cPat:0,
+  const euclidSnap=useRef<{pBank:any[],cPat:number,songRows:(number|null)[][],songMode:boolean}>({
+    pBank:[mkE(16)], cPat:0, songRows:[[...Array(16).fill(null)]], songMode:false,
   });
   // Tracks which view was active when entering pads — keeps the scheduler in the right branch
   const padSrcViewRef=useRef<string>("sequencer");
@@ -966,7 +966,7 @@ export default function KickAndSnare(){
       padSrcViewRef.current=view;
       // ── Save current view's state before entering pads ──
       if(view==="sequencer") seqSnap.current={pBank,cPat,songRows,songMode};
-      else if(view==="euclid") euclidSnap.current={pBank,cPat};
+      else if(view==="euclid") euclidSnap.current={pBank,cPat,songRows,songMode};
       // act stays untouched — pads show exactly the same tracks as the source view
     } else if(fromPads){
       const crossView=nextView!==padSrcViewRef.current;
@@ -976,7 +976,7 @@ export default function KickAndSnare(){
         if(nextView==="euclid"){
           const snap=euclidSnap.current;
           setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(16);
-          setSongMode(false);setSongRows([[...Array(16).fill(null)]]);songPosRef.current=0;
+          setSongMode(snap.songMode||false);setSongRows(snap.songRows??[[...Array(16).fill(null)]]);songPosRef.current=0;
         } else if(nextView==="sequencer"){
           const snap=seqSnap.current;
           setPBank(snap.pBank);setCPat(snap.cPat);R.pat=snap.pBank[snap.cPat]??mkE(STEPS);
@@ -985,12 +985,12 @@ export default function KickAndSnare(){
       }
       // act stays untouched — deletions made in pads persist across all views
     } else {
-      // ── Direct seq↔euclid: reset to fresh (no continuity) ──
+      // ── Direct seq↔euclid: save current song, restore target song ──
       if(nextView==="euclid"){
+        // Save SEQ state (song arrangement preserved)
+        seqSnap.current={pBank,cPat,songRows,songMode};
+        // Fresh euclid pBank with euclidParams applied — pBank is always derived from params
         const fresh=[mkE(16)];
-        // Re-apply euclidParams into the fresh pBank so the scheduler sees the correct
-        // patterns immediately — without this, R.pat contains all-zeros until the user
-        // moves a control (triggering applyE), causing silent beats from the start.
         const ep=euclidParams;
         Object.entries(ep).forEach(([tid,p])=>{
           const N=(p as any).N||16;const h=(p as any).hits||0;const rot=(p as any).rot||0;
@@ -1004,10 +1004,22 @@ export default function KickAndSnare(){
           }
         });
         setPBank(fresh);setCPat(0);R.pat=fresh[0];
-        setSongMode(false);setSongRows([[...Array(16).fill(null)]]);songPosRef.current=0;
+        // Restore euclid's own song arrangement
+        const esnap=euclidSnap.current;
+        setSongMode(esnap.songMode||false);
+        setSongRows(esnap.songRows?.length?esnap.songRows:[[...Array(16).fill(null)]]);
+        songPosRef.current=0;
       } else if(nextView==="sequencer"){
-        const fresh=[mkE(STEPS)];setPBank(fresh);setCPat(0);R.pat=fresh[0];
-        setSongMode(false);setSongRows([[...Array(16).fill(null)]]);songPosRef.current=0;
+        // Save EUCLID state (song arrangement preserved)
+        euclidSnap.current={...euclidSnap.current,pBank,cPat,songRows,songMode};
+        // Restore SEQ state
+        const ssnap=seqSnap.current;
+        const freshPB=ssnap.pBank?.length?ssnap.pBank:[mkE(STEPS)];
+        const freshCp=ssnap.cPat||0;
+        setPBank(freshPB);setCPat(freshCp);R.pat=freshPB[freshCp]??mkE(STEPS);
+        setSongMode(ssnap.songMode||false);
+        setSongRows(ssnap.songRows?.length?ssnap.songRows:[[...Array(16).fill(null)]]);
+        songPosRef.current=0;
       }
     }
     setView(nextView);
