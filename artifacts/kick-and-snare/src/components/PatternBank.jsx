@@ -85,8 +85,8 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
     <div ref={ref} style={{ position: "relative" }} onBlur={handleBlur} tabIndex={-1}>
       <button
         data-hint={isEuclid
-          ? `PRESETS Euclidian · ${EUCLID_TEMPLATES.length} ready-to-use polyrhythms`
-          : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} TR-808 patterns · ${variant}-step variant`}
+          ? `PRESETS Euclidien · ${EUCLID_TEMPLATES.length} polyrythmes prêts à l'emploi · Cliquer pour ouvrir`
+          : `TEMPLATES · ${SEQUENCER_TEMPLATES.length} patterns TR-808 disponibles · Variante ${variant} pas`}
         onClick={toggle}
         style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 5, cursor: "pointer", border: `1px solid ${open ? accentColor + "99" : th.sBorder}`, background: open ? accentColor + "18" : "transparent", color: open ? accentColor : th.dim, fontSize: 8, fontWeight: open ? 800 : 500, letterSpacing: "0.06em", fontFamily: "inherit" }}
       >
@@ -107,7 +107,7 @@ function TemplateDropdown({ onLoad, onLoadEuclid, th, view, variant, setVariant 
               const disabled = !isEuclid && variant === "32" && !tpl.steps32;
               return (
                 <div key={tpl.id}
-                  data-hint={disabled ? `${tpl.name} · No 32-step variant` : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · Click to load`}
+                  data-hint={disabled ? `${tpl.name} · Pas de variante 32 pas disponible` : `${tpl.name} · ${tpl.genre}${tpl.bpm ? ` · ${tpl.bpm}` : ""} · Cliquer pour charger dans le slot actif`}
                   onClick={() => !disabled && load(tpl)}
                   style={{ display: "flex", flexDirection: "column", gap: isEuclid ? 4 : 3, padding: "7px 10px", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.38 : 1, transition: "background 0.08s" }}
                   onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = `${tpl.color}10`; }}
@@ -321,11 +321,11 @@ export default function PatternBank({
         background: th.surface, border: `1px solid ${th.sBorder}`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
-          <span data-hint="PAT · Click a clip to switch pattern" style={{ fontSize: 8, color: th.dim }}>PAT</span>
+          <span data-hint="PAT · Cliquer une miniature pour changer le pattern actif · Appui long pour renommer" style={{ fontSize: 8, color: th.dim }}>PAT</span>
           <div style={{ display: "flex", gap: 4, marginLeft: "auto", position: "relative", zIndex: 10 }}>
             <TemplateDropdown onLoad={onLoadTemplate} onLoadEuclid={onLoadEuclidTemplate} th={th} view={view} variant={variant} setVariant={setVariant} />
             {pBank.length < MAX_PAT && (
-              <button data-hint={`DUP · Duplicate pattern ${cPat + 1}`}
+              <button data-hint={`DUP · Dupliquer le pattern ${cPat + 1} · Inséré juste après le pattern actif`}
                 onClick={() => {
                   const dup = JSON.parse(JSON.stringify(pBank[cPat]));
                   setPBank(p => { const n = [...p]; n.splice(cPat + 1, 0, dup); return n; });
@@ -334,12 +334,12 @@ export default function PatternBank({
                 style={{ padding: "2px 6px", border: `1px solid ${th.sBorder}`, borderRadius: 5, background: "transparent", color: th.dim, fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DUP</button>
             )}
             {onClear && (
-              <button data-hint={`CLR · Clear all hits`}
+              <button data-hint={`CLR · Effacer toutes les frappes du pattern actif · Ne supprime pas le pattern`}
                 onClick={onClear}
                 style={{ padding: "2px 6px", border: "1px solid rgba(255,45,85,0.3)", borderRadius: 5, background: "transparent", color: "#FF2D55", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>CLR</button>
             )}
             {pBank.length > 1 && (
-              <button data-hint={`DEL · Delete pattern ${cPat + 1}`}
+              <button data-hint={`DEL · Supprimer le pattern ${cPat + 1} · Les autres patterns ne sont pas affectés`}
                 onClick={() => { setPBank(p => p.filter((_, j) => j !== cPat)); if (cPat > 0) setCPat(cPat - 1); }}
                 style={{ padding: "2px 6px", border: "1px solid rgba(255,55,95,0.2)", borderRadius: 5, background: "transparent", color: "#FF375F", fontSize: 8, cursor: "pointer", fontFamily: "inherit" }}>DEL</button>
             )}
@@ -371,8 +371,8 @@ export default function PatternBank({
                 ) : (
                   <div
                     data-hint={isActive
-                      ? `P${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Long-press to rename`
-                      : `P${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Click to switch · Long-press to rename`}
+                      ? `P${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Pattern actif · Appui long pour renommer`
+                      : `P${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Cliquer pour basculer · Appui long pour renommer`}
                     onClick={() => {
                       setCPat(i);
                       if (playing && songMode) {
@@ -464,7 +464,7 @@ export default function PatternBank({
 
           {/* SONG ON/OFF */}
           <button
-            data-hint={songMode ? "SONG mode ON · Click to disable" : "SONG mode OFF · Click to enable"}
+            data-hint={songMode ? "SONG ON · Mode song actif · Enchaîne les patterns dans l'ordre des lignes · Cliquer pour désactiver" : "SONG OFF · Activer le mode song · Arrange les patterns en une timeline de 16 slots par ligne"}
             onClick={() => setSongMode(p => !p)}
             style={{
               padding: "2px 8px", borderRadius: 6, flexShrink: 0,
@@ -563,7 +563,7 @@ export default function PatternBank({
                 {/* Row actions: ↺ duplicate + ✕ delete */}
                 <div style={{ display: "flex", gap: 3, flexShrink: 0, marginLeft: 2 }}>
                   <button
-                    data-hint={`↺ Dupliquer la ligne ${ri + 1}`}
+                    data-hint={`↺ Dupliquer · Copier la ligne ${ri + 1} juste en dessous · Les slots sont copiés à l'identique`}
                     onClick={() => duplicateRow(ri)}
                     style={{
                       width: 22, height: 30, borderRadius: 5,
@@ -579,7 +579,7 @@ export default function PatternBank({
                   >↺</button>
                   {(songRows || []).length > 1 && (
                     <button
-                      data-hint={`✕ Supprimer la ligne ${ri + 1}`}
+                      data-hint={`✕ Supprimer · Effacer la ligne ${ri + 1} · Les patterns ne sont pas supprimés`}
                       onClick={() => deleteRow(ri)}
                       style={{
                         width: 22, height: 30, borderRadius: 5,
@@ -603,7 +603,7 @@ export default function PatternBank({
         {/* ── Footer: Add row + Clear ──────────────────────────── */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
           <button
-            data-hint="+ Ajouter une ligne de 16 slots vides"
+            data-hint="+ Nouvelle ligne · Ajouter une ligne de 16 slots vides en bas de la timeline song"
             onClick={addRow}
             style={{
               padding: "3px 10px", borderRadius: 6,
@@ -615,7 +615,7 @@ export default function PatternBank({
             }}>+ Ajouter une ligne</button>
           <div style={{ flex: 1 }} />
           <button
-            data-hint="Tout effacer"
+            data-hint="Tout effacer · Vider tous les slots de toutes les lignes · Ne supprime pas les patterns"
             onClick={clearAllRows}
             style={{
               padding: "3px 9px", borderRadius: 5,
