@@ -153,7 +153,7 @@ export default function PatternBank({
   playing, songPosRef, STEPS, MAX_PAT, SEC_COL, mkE, R, isPortrait = false,
   patNameEdit, setPatNameEdit,
   onLoadTemplate, onLoadEuclidTemplate,
-  view, onClear,
+  view, onClear, cPatLocked,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const longPressRef = useRef(null);
@@ -219,7 +219,15 @@ export default function PatternBank({
                 ) : (
                   <div
                     data-hint={isActive ? `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Active · Long-press to rename` : `Pattern ${i + 1}${pat._name ? ` "${pat._name}"` : ""} · Click to switch · Long-press to rename`}
-                    onClick={() => { setCPat(i); if (!(playing && songMode)) R.pat = pBank[i]; }}
+                    onClick={() => {
+                      setCPat(i);
+                      if (playing && songMode) {
+                        const isPlayingNow = songChain[songPosRef.current] === i;
+                        if (cPatLocked) cPatLocked.current = !isPlayingNow;
+                      } else {
+                        R.pat = pBank[i];
+                      }
+                    }}
                     onDoubleClick={() => { setCPat(i); if (playing && songMode) { const idx = songChain.indexOf(i); if (idx >= 0) songPosRef.current = idx; } }}
                     onMouseDown={() => startLongPress(i)}
                     onMouseUp={cancelLongPress}
@@ -282,34 +290,52 @@ export default function PatternBank({
         {/* Collapsible body */}
         {songOpen && (
           <div style={{ padding: "0 10px 10px" }}>
-            {songMode && <div style={{ fontSize: 8, color: th.dim, marginBottom: 6 }}>Auto-advances chaque cycle · clic-droit sur un bloc pour retirer</div>}
+            {/* Edit-lock indicator: editing a different pattern than the one playing */}
+            {playing && songMode && cPat !== (songChain[songPosRef.current ?? 0] ?? cPat) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, padding: "4px 8px", borderRadius: 6, background: "rgba(255,214,10,0.08)", border: "1px solid rgba(255,214,10,0.25)" }}>
+                <span style={{ fontSize: 8, color: "#FFD60A", fontWeight: 800, letterSpacing: "0.06em" }}>✏ EDIT P{cPat + 1}</span>
+                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)" }}>·</span>
+                <span style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", animation: "rb 1s infinite" }}>▶ P{(songChain[songPosRef.current ?? 0] ?? 0) + 1}</span>
+                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.25)", marginLeft: "auto" }}>Les modifications seront audibles à la prochaine occurrence</span>
+              </div>
+            )}
+            {songMode && !( playing && cPat !== (songChain[songPosRef.current ?? 0] ?? cPat)) && <div style={{ fontSize: 8, color: th.dim, marginBottom: 6 }}>Auto-advances chaque cycle · clic pour retirer un bloc</div>}
 
-            {/* Timeline — blocks already in chain */}
-            <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: "4px 0 6px", WebkitOverflowScrolling: "touch", minHeight: 38 }}>
+            {/* Timeline — blocks in rows of 16, group separator every 4 */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "2px 0 6px" }}>
               {songChain.length === 0 && (
-                <span style={{ fontSize: 8, color: th.faint, alignSelf: "center", paddingLeft: 2 }}>Chaîne vide — ajoute des patterns ci-dessous</span>
+                <span style={{ fontSize: 8, color: th.faint, paddingLeft: 2 }}>Chaîne vide — ajoute des patterns ci-dessous</span>
               )}
-              {songChain.map((patIdx, si) => {
-                const col = SEC_COL[patIdx % SEC_COL.length];
-                const isCurrent = songPosRef.current === si && playing && songMode;
-                return (
-                  <div key={si}
-                    onClick={() => { setSongChain(p => p.filter((_, j) => j !== si)); }}
-                    data-hint={`Slot ${si + 1} : Pattern ${patIdx + 1} · Clic pour retirer de la chaîne`}
-                    title={`Retirer Pattern ${patIdx + 1}`}
-                    style={{
-                      minWidth: 34, height: 34, borderRadius: 7, flexShrink: 0,
-                      background: col + (isCurrent ? "55" : "1a"),
-                      border: `1.5px solid ${col + (isCurrent ? "cc" : "44")}`,
-                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", transition: "all 0.15s",
-                      boxShadow: isCurrent ? `0 0 10px ${col}55` : "none",
-                    }}>
-                    <span style={{ fontSize: 11, fontWeight: 900, color: col, lineHeight: 1 }}>{patIdx + 1}</span>
-                    <span style={{ fontSize: 5, fontWeight: 700, color: col + "99", lineHeight: 1 }}>{pBank[patIdx]?._name || `P${patIdx + 1}`}</span>
-                  </div>
-                );
-              })}
+              {Array.from({ length: Math.max(1, Math.ceil(songChain.length / 16)) }, (_, row) => (
+                <div key={row} style={{ display: "flex", gap: 3, alignItems: "center", flexWrap: "nowrap" }}>
+                  {songChain.slice(row * 16, (row + 1) * 16).flatMap((patIdx, localSi) => {
+                    const si = row * 16 + localSi;
+                    const col = SEC_COL[patIdx % SEC_COL.length];
+                    const isCurrent = songPosRef.current === si && playing && songMode;
+                    const sep = localSi > 0 && localSi % 4 === 0 ? (
+                      <div key={`s-${si}`} style={{ width: 1.5, alignSelf: "stretch", background: "rgba(255,255,255,0.12)", borderRadius: 1, flexShrink: 0, margin: "0 1px" }} />
+                    ) : null;
+                    const block = (
+                      <div key={`b-${si}`}
+                        onClick={() => { setSongChain(p => p.filter((_, j) => j !== si)); }}
+                        data-hint={`Slot ${si + 1} : Pattern ${patIdx + 1} · Clic pour retirer`}
+                        title={`Retirer Pattern ${patIdx + 1}`}
+                        style={{
+                          minWidth: 34, height: 34, borderRadius: 7, flexShrink: 0,
+                          background: col + (isCurrent ? "55" : "1a"),
+                          border: `1.5px solid ${col + (isCurrent ? "cc" : "44")}`,
+                          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", transition: "all 0.15s",
+                          boxShadow: isCurrent ? `0 0 10px ${col}55` : "none",
+                        }}>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: col, lineHeight: 1 }}>{patIdx + 1}</span>
+                        <span style={{ fontSize: 5, fontWeight: 700, color: col + "99", lineHeight: 1 }}>{pBank[patIdx]?._name || `P${patIdx + 1}`}</span>
+                      </div>
+                    );
+                    return sep ? [sep, block] : [block];
+                  })}
+                </div>
+              ))}
             </div>
 
             {/* Pattern picker — one button per pattern to add to chain */}

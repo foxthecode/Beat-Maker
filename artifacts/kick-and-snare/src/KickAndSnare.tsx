@@ -923,6 +923,7 @@ export default function KickAndSnare(){
   const [songMode,setSongMode]=useState(false);
   const [showSong,setShowSong]=useState(false);
   const songPosRef=useRef(0);
+  const cPatLocked=useRef(false); // true = user has manually pinned an edit-pat while song plays
 
   // ── Per-view independent snapshots ──
   // Each view (sequencer / euclid) owns its own pBank + cPat + song state.
@@ -1159,7 +1160,8 @@ export default function KickAndSnare(){
   const tapTimesRef=useRef([]);
   const touchSwipeRef=useRef<{x:number,y:number,target:EventTarget|null}>({x:0,y:0,target:null});
 
-  R.pat=pat;          // current pattern — scheduler reads per-track step arrays
+  // In song mode, scheduler always plays R.cp (not the editor's cPat which may be different)
+  R.pat=(playing&&songMode)?(R.pb?.[R.cp]??pat):pat;
   R.mut=muted;        // muted track map — scheduler skips muted tracks
   R.sol=soloed;       // soloed track id — scheduler enforces solo
   R.fx=fx;            // per-track FX config — passed to engine.play() on each hit
@@ -1188,9 +1190,9 @@ export default function KickAndSnare(){
   R.songChain=songChain;   // ordered pattern indices — song mode iteration
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
   R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
-  R.loopRec=false;          // LOOPER DISABLED — force false, prevents any loop scheduling
+  R.loopRec=loopRec;        // looper record-armed state (true = recording pads to loop)
   R.silentTracks=silentTracksRef.current; // tracks with no sample in user kit → no sound
-  // R.loopBars=loopBars;  // LOOPER DISABLED
+  R.loopBars=loopBars;
   R.lastSeqView=lastSeqView; // E3: last active sequencer view for pads REC indicator
   R.mnMap=midiNoteMap;     // MIDI note→trackId map — MIDI handler lookup table
   R.mLearn=midiLearnTrack; // MIDI learn target id — incoming note assigns to this
@@ -1360,19 +1362,18 @@ export default function KickAndSnare(){
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     setFlashing(s=>{const n=new Set(s);n.add(tid);return n;});
     flashTimers.current[tid]=setTimeout(()=>{setFlashing(s=>{const n=new Set(s);n.delete(tid);return n;});delete flashTimers.current[tid];},130);
-    // LOOPER DISABLED — conservé pour développement futur
-    // if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
-    //   const L=loopRef.current;
-    //   const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
-    //   const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
-    //   let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
-    //   const snapThresh=Math.min(120,L.lengthMs*0.04);
-    //   if(tOff>L.lengthMs-snapThresh)tOff=0;
-    //   if(autoQRef.current&&L.lengthMs>0){const snapMs=L.lengthMs/(R.loopBars*16);tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));}
-    //   const evId=`${Date.now()}-${Math.random()}`;
-    //   const ev={id:evId,tid,tOff,vel,pass:L.passId};
-    //   L.events.push(ev);setLoopDisp(d=>[...d,{tid,tOff,vel}]);
-    // }
+    if(R.loopRec&&loopRef.current.audioStart!==null&&engine.ctx){
+      const L=loopRef.current;
+      const latSec=(engine.ctx.outputLatency||0)+(engine.ctx.baseLatency||0);
+      const rawSec=engine.ctx.currentTime-L.audioStart-latSec;
+      let tOff=((rawSec*1000)%L.lengthMs+L.lengthMs)%L.lengthMs;
+      const snapThresh=Math.min(120,L.lengthMs*0.04);
+      if(tOff>L.lengthMs-snapThresh)tOff=0;
+      if(autoQRef.current&&L.lengthMs>0){const snapMs=L.lengthMs/(R.loopBars*16);tOff=Math.max(0,Math.min(L.lengthMs-snapMs,Math.round(tOff/snapMs)*snapMs));}
+      const evId=`${Date.now()}-${Math.random()}`;
+      const ev={id:evId,tid,tOff,vel,pass:L.passId};
+      L.events.push(ev);setLoopDisp(d=>[...d,{tid,tOff,vel}]);
+    }
     // FREE-CAPTURE BPM DISABLED — conservé pour développement futur
     // if(R.uiView==='pads'&&!R.loopRec&&engine.ctx){ ... }
     // F.1b: REC mode with quantization snap + timing feedback + retap erase
@@ -1605,8 +1606,7 @@ export default function KickAndSnare(){
             songPosRef.current=(songPosRef.current+1)%R.songChain.length;
             const nextPat=R.songChain[songPosRef.current];
             if(nextPat!==R.cp){
-              R.cp=nextPat;setCPat(nextPat);
-              // Réancrage du globalTick au changement de pattern
+              R.cp=nextPat;if(!cPatLocked.current)setCPat(nextPat);
               eg.globalTick=0;
               eg.nextTime=em2.songNextTime;
             }
@@ -1636,7 +1636,7 @@ export default function KickAndSnare(){
       if(R.step===0&&prevStep>=0&&R.songMode&&R.songChain.length>0){
         songPosRef.current=(songPosRef.current+1)%R.songChain.length;
         const nextPat=R.songChain[songPosRef.current];
-        if(nextPat!==R.cp){R.cp=nextPat;setCPat(nextPat);}
+        if(nextPat!==R.cp){R.cp=nextPat;if(!cPatLocked.current)setCPat(nextPat);}
       }
       const st=nxtRef.current;schSt(R.step,st);
       if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);const sd=cs.subDiv||0;if(gs.y)playClk(st,gs.f?"accent":"beat");else if(sd>0&&R.step%sd===0)playClk(st,"sub");}
@@ -1662,11 +1662,10 @@ export default function KickAndSnare(){
     // LOOPER DISABLED — looper routing removed, pads PLAY goes to sequencer
     // if(R.uiView==='pads'&&loopRef.current.events.length>0){ ... }
     if(playing){
-      _stopScheduler();setPlaying(false);setCStep(-1);R.step=-1;setRec(false);
+      _stopScheduler();setPlaying(false);setCStep(-1);R.step=-1;setRec(false);cPatLocked.current=false;
       euclidGlobalRef.current={nextTime:null,globalTick:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
     }else{
-      R.step=-1;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
-      // Song arranger: reset to first pattern in chain so display + playback are in sync
+      R.step=-1;cPatLocked.current=false;songPosRef.current=0;nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidGlobalRef.current={nextTime:null,globalTick:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoopRef.current=schLoop;_startScheduler(engine._schedInterval);schLoop();setPlaying(true);
@@ -1887,7 +1886,7 @@ export default function KickAndSnare(){
     // Click REC while stopped → immediate play + rec (no countdown)
     engine.ensureRunning().then(()=>{
       if(engine.ctx?.state==='suspended'){setCtxSuspended(true);return;}
-      R.step=-1;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
+      R.step=-1;cPatLocked.current=false;songPosRef.current=0;if(engine.ctx)nxtRef.current=engine.ctx.currentTime+0.05;
       if(R.songMode&&R.songChain.length>0){const fp=R.songChain[0];setCPat(fp);R.cp=fp;}
       euclidGlobalRef.current={nextTime:null,globalTick:0};euclidCurRef.current={};setEuclidCurDisplay({});euclidMetroR.current={nextTime:null,beat:0};
       schLoopRef.current=schLoop;_startScheduler(engine._schedInterval);schLoop();setPlaying(true);setRec(true);
@@ -2670,7 +2669,7 @@ export default function KickAndSnare(){
       computed[tid]={rotated,N};
     });
     // Sync-write R.pat so the scheduler sees the new pattern immediately (no stale-render lag)
-    if(R.pat){Object.entries(computed).forEach(([tid,{rotated}])=>{R.pat[tid]=[...rotated];});}
+    if(R.pat&&!(R.playing&&R.songMode&&R.cp!==cPat)){Object.entries(computed).forEach(([tid,{rotated}])=>{R.pat[tid]=[...rotated];});}
     // ── 3. Write preset tracks into pattern, keep non-preset tracks intact ──
     setPBank(pb=>{
       const n=[...pb];
@@ -3236,6 +3235,7 @@ export default function KickAndSnare(){
           themeName={themeName} pBank={pBank} setPBank={setPBank} cPat={cPat} setCPat={setCPat}
           songChain={songChain} setSongChain={setSongChain} songMode={songMode} setSongMode={setSongMode}
           showSong={showSong} setShowSong={setShowSong} playing={playing} songPosRef={songPosRef}
+          cPatLocked={cPatLocked}
           STEPS={STEPS} MAX_PAT={MAX_PAT} SEC_COL={SEC_COL} mkE={mkE} R={R} isPortrait={isPortrait}
           patNameEdit={patNameEdit} setPatNameEdit={setPatNameEdit}
           onLoadTemplate={loadTemplate} onLoadEuclidTemplate={loadEuclidTemplate} view={view}
@@ -3356,8 +3356,8 @@ export default function KickAndSnare(){
         {/* ── LIVE PADS ── */}
         {view==="pads"&&(<div style={{padding:"4px 0 0"}}>
           <TipBadge id="pads_tap" text="Play live! Tap a pad to trigger a sound · REC to record into the sequencer" color="#5E5CE6"/>
-          {/* LOOPER DISABLED — conservé pour développement futur */}
-          {false && (
+          {/* LOOPER PANEL */}
+          {(
           <div style={{marginBottom:10,borderRadius:10,border:`1px solid ${showLooper||loopRec||loopPlaying?"rgba(191,90,242,0.35)":"rgba(191,90,242,0.15)"}`,overflow:"hidden",background:th.surface}}>
             {/* Header band — div (not button) so we can embed CAPTURE button without invalid nesting */}
             <div onClick={()=>setShowLooper(p=>!p)} style={{width:"100%",display:"flex",alignItems:"center",gap:6,padding:"8px 12px",cursor:"pointer",userSelect:"none"}}>
@@ -3462,7 +3462,7 @@ export default function KickAndSnare(){
               </div>
             )}
           </div>
-          )} {/* end LOOPER DISABLED */}
+          )}
           {/* ─ Pads grid ─ */}
           <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
             {atO.map((track)=>{
@@ -3832,10 +3832,10 @@ export default function KickAndSnare(){
             const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
             const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
             // Fix 4: update R.pat synchronously so scheduler sees new pattern immediately
-            if(R.pat)R.pat[tid]=[...rotated];
+            if(R.pat&&!(R.playing&&R.songMode&&R.cp!==cPat))R.pat[tid]=[...rotated];
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=[...rotated];n[cPat]=cp;return n;});
           };
-          const clearTrack=(tid)=>{const N=getP(tid).N;writeP(tid,{hits:0,rot:0,tpl:""});if(R.pat)R.pat[tid]=Array(N).fill(0);setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=Array(N).fill(0);n[cPat]=cp;return n;});};
+          const clearTrack=(tid)=>{const N=getP(tid).N;writeP(tid,{hits:0,rot:0,tpl:""});if(R.pat&&!(R.playing&&R.songMode&&R.cp!==cPat))R.pat[tid]=Array(N).fill(0);setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:N}};cp[tid]=Array(N).fill(0);n[cPat]=cp;return n;});};
           const chN=(tid,newN)=>{
             const p=getP(tid);
             const h=Math.min(p.hits,newN);
@@ -3855,7 +3855,7 @@ export default function KickAndSnare(){
             // Re-apply manual overrides that still fit within the new length
             manualOn.forEach(i=>{if(i<newN)merged[i]=curPat[i]||100;});
             writeP(tid,{N:newN,hits:h,rot:r});
-            if(R.pat)R.pat[tid]=[...merged];
+            if(R.pat&&!(R.playing&&R.songMode&&R.cp!==cPat))R.pat[tid]=[...merged];
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:newN}};cp[tid]=[...merged];n[cPat]=cp;return n;});
           };
           const chH=(tid,h)=>{const p=getP(tid);writeP(tid,{hits:h,tpl:""});applyE(tid,p.N,h,p.rot);};
@@ -3869,7 +3869,7 @@ export default function KickAndSnare(){
           const applyTplTo=(tid,t)=>{
             writeP(tid,{N:t.N,hits:t.hits.length,rot:0,tpl:t.name});
             const pp=Array(t.N).fill(0);t.hits.forEach(h=>{pp[h]=100;});
-            if(R.pat)R.pat[tid]=[...pp];
+            if(R.pat&&!(R.playing&&R.songMode&&R.cp!==cPat))R.pat[tid]=[...pp];
             setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[tid]:t.N}};cp[tid]=[...pp];n[cPat]=cp;return n;});
           };
           const selStyle={width:"100%",background:th.surface,border:`1px solid ${th.sBorder}`,borderRadius:5,color:th.text,fontSize:9,fontFamily:"inherit",padding:"4px 6px",cursor:"pointer",colorScheme:themeName==="dark"?"dark":"light"};
@@ -3912,8 +3912,7 @@ export default function KickAndSnare(){
               el.removeEventListener('pointerup',onUp);
               el.removeEventListener('pointercancel',onUp);
               if(!timerFired&&!moved){
-                // Sync-write R.pat so scheduler sees toggle immediately (no 1-render lag)
-                if(R.pat?.[tid]){R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;}
+                if(R.pat?.[tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;}
                 setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});
               }
             };
