@@ -23,15 +23,15 @@ class Eng{
   }
   init(){
     if(this.ctx)return;
-    // Android WebView: 'playback' requests the largest stable buffer.
-    // With 300ms scheduler look-ahead the extra latency is inaudible, but underruns disappear.
-    // iOS: 'interactive' balances latency and stability; still safe with 300ms look-ahead.
-    const latHint=this._isAndroid?'playback':'interactive';
+    // 'interactive' on all platforms — 300ms scheduler lookahead gives enough margin to prevent
+    // underruns even on Android. 'playback' added 200-400ms fixed latency which made live pads
+    // feel completely unresponsive on Android. Bluetooth adaptation is handled by diagFn below.
+    const latHint='interactive';
     const ctxOpts={latencyHint:latHint};
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(ctxOpts);
     if(this._isMobile){
       const diagFn=()=>{
-        const hint=this._isAndroid?'playback (Android)':'interactive';
+        const hint='interactive';
         const ol=this.ctx.outputLatency??0;
         if(ol>0.05){
           this._lookAhead=Math.max(this._lookAhead,ol+0.08);
