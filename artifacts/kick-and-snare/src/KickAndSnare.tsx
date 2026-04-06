@@ -1521,7 +1521,7 @@ export default function KickAndSnare(){
   },[]);
 
   const schLoop=useCallback(()=>{
-    if(!engine.ctx)return;const ct=engine.ctx.currentTime;
+    if(!engine.ctx)return;const ct=engine.ctx.currentTime;let dirty=false;
     // H.1a: adaptive look-ahead + tick interval for mobile (from engine properties)
     const LA=engine._lookAhead;
     const schDelay=engine._schedInterval;
@@ -1551,28 +1551,37 @@ export default function KickAndSnare(){
           const skip=Math.ceil((ct-stepDur-ec.nextTime)/stepDur);
           if(skip>0){ec.step=(ec.step+skip)%N;ec.nextTime+=skip*stepDur;}
         }
-        while(ec.nextTime<ct+eLA){
+        while(ec.nextTime<ct+LA){
           const si=ec.step;
-          const stepTime=ec.nextTime;
-          // Skip notes already in the past — a missing beat is less disruptive than
-          // a note that fires immediately at the wrong time (the cause of jitter).
-          if(stepTime>=ct-0.005){
-            if(trPat[si]){
-              const sp=R.prob[tr.id]?.[si]??100;
-              if(Math.random()*100<sp){
-                const v=(R.vel[tr.id]?.[si]??100)/100;
-                const r=R.ratch[tr.id]?.[si]||1;
-                const nd=R.sn[tr.id]?.[si]||0;
-                for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},stepTime+ri*(stepDur/r));
-                R.flashPad?.(tr.id,Math.max(0,Math.round((stepTime-ct)*1000)-4));
-              }
+
+          // ── DIAGNOSTIC TIMING ──────────────────────────────────────────────────
+          if(typeof (ec as any)._diagLast === 'number'){
+            const interval=(ec.nextTime-(ec as any)._diagLast)*1000;
+            const expected=stepDur*1000;
+            const drift=interval-expected;
+            if(Math.abs(drift)>2){
+              console.warn(
+                `[EUCLID DRIFT] track=${tr.id} step=${si}/${N}` +
+                ` interval=${interval.toFixed(2)}ms expected=${expected.toFixed(2)}ms` +
+                ` drift=${drift>0?'+':''}${drift.toFixed(2)}ms` +
+                ` bpm=${R.bpm} ct=${ct.toFixed(4)}`
+              );
             }
-            // Delay cursor to match audio — cursor appears when sound plays, not when scheduled
-            const capTid=tr.id,capSi=si;
-            const aheadMs=Math.max(0,Math.round((stepTime-ct)*1000)-4);
-            setTimeout(()=>{if(!R.playing)return;euclidCurRef.current[capTid]=capSi;flushEuclidCur();},aheadMs);
           }
-          ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;
+          (ec as any)._diagLast = ec.nextTime;
+          // ── FIN DIAGNOSTIC ─────────────────────────────────────────────────────
+
+          if(R.pat?.[tr.id]?.[si]){
+            const sp=R.prob[tr.id]?.[si]??100;
+            if(Math.random()*100<sp){
+              const v=(R.vel[tr.id]?.[si]??100)/100;
+              const r=R.ratch[tr.id]?.[si]||1;
+              const nd=R.sn[tr.id]?.[si]||0;
+              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?nd:0),R.fx[tr.id]||{...DEFAULT_FX},ec.nextTime+ri*(stepDur/r));
+              R.flashPad?.(tr.id,Math.max(0,Math.round((ec.nextTime-ct)*1000)-4));
+            }
+          }
+          ec.curStep=si;ec.step=(ec.step+1)%N;ec.nextTime+=stepDur;dirty=true;
         }
       });
       // Song mode cycle tracking — runs always, independent of metro
