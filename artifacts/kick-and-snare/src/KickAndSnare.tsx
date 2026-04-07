@@ -1673,13 +1673,17 @@ export default function KickAndSnare(){
     // Anti-burst guard: if Worker messages piled up during a heavy React render (e.g. modal open),
     // they all fire back-to-back in the same event-loop drain. Allow at most one run per
     // (interval * 0.4) ms so queued duplicates are silently dropped without affecting scheduling.
+    // EXCEPTION: if the audio buffer is running low (Safari iframe throttling can delay the Worker
+    // so long that nxtRef falls behind ct+LA/2), bypass the guard and schedule immediately to
+    // prevent the gap that causes crackling and perceived beat slowdown.
     const nowMs=performance.now();
     const minGapMs=(engine._schedInterval??25)*0.4;
-    if(nowMs-lastSchRunRef.current<minGapMs)return;
-    lastSchRunRef.current=nowMs;
-    const ct=engine.ctx.currentTime;let dirty=false;
-    // H.1a: adaptive look-ahead + tick interval for mobile (from engine properties)
+    const ct=engine.ctx.currentTime;
     const LA=engine._lookAhead;
+    const audioIsLow=nxtRef.current<ct+(LA*0.5); // buffer < half lookahead → urgent
+    if(!audioIsLow&&nowMs-lastSchRunRef.current<minGapMs)return;
+    lastSchRunRef.current=nowMs;
+    let dirty=false;
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
       const sixteenth=(60/R.bpm)/4;

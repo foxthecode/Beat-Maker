@@ -22,7 +22,11 @@ class Eng{
     this._rvHoldActive=false;
     this._dlHoldActive=false;
     // 300ms look-ahead on mobile: absorbs browser jitter and iOS scheduler throttling
-    this._lookAhead=this._isMobile?0.30:0.10;
+    // Desktop lookahead 250ms: Safari throttles Workers inside cross-origin iframes
+    // (Replit preview) more aggressively than Chrome. 100ms was too tight — a 120ms
+    // delayed Worker tick left <0ms of pre-scheduled audio → gap → crackling.
+    // 250ms gives 10 tick-intervals of margin; still well below any perceptible latency.
+    this._lookAhead=this._isMobile?0.30:0.25;
     // 60ms tick interval: less main-thread pressure than 50ms, still plenty of margin
     this._schedInterval=this._isMobile?60:25;
     // KeepAlive AudioWorklet state — prevents audio thread from sleeping between hits
