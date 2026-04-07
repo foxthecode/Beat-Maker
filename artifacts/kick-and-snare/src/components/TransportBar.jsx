@@ -20,7 +20,6 @@ export default function TransportBar({
   loopMetro, setLoopMetro, recCountdown, showLooper,
   onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
   freeCaptureCount, freeBpm, onLoopCapture, onClearCapture,
-  onSaveProject, onLoadProject, onPasteProject,
   onShowFxRack,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
@@ -287,40 +286,6 @@ export default function TransportBar({
     </button>
   );
 
-  const loadFileRef = useRef(null);
-  const SaveBtn = !isMobile && onSaveProject && (
-    <button
-      data-hint="Save project · Exports all patterns, BPM, FX, kit and settings to a .ks.txt file · On mobile: copy-paste fallback if download is blocked"
-      onClick={onSaveProject}
-      style={{ ...pill(false, "#30D158"), display: "flex", alignItems: "center", gap: 4 }}>
-      <span style={{ fontSize: 11, lineHeight: 1 }}>💾</span>
-      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>SAVE</span>
-    </button>
-  );
-  const LoadBtn = !isMobile && onLoadProject && (
-    <>
-      <input ref={loadFileRef} type="file" accept=".ks.txt,.ks.json,.txt,application/json,text/plain" style={{ display: "none" }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) onLoadProject(f); e.target.value = ""; }} />
-      <button
-        data-hint="Load project · Import a previously saved .ks.json file · Replaces the current project"
-        onClick={() => loadFileRef.current?.click()}
-        style={{ ...pill(false, "#64D2FF"), display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ fontSize: 11, lineHeight: 1 }}>📂</span>
-        <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>LOAD</span>
-      </button>
-    </>
-  );
-
-  const PasteBtn = !isMobile && onPasteProject && (
-    <button
-      data-hint="Charger depuis texte · Colle le texte copié depuis SAUVEGARDER pour recharger ton projet · Utile si le téléchargement de fichier est bloqué"
-      onClick={onPasteProject}
-      style={{ ...pill(false, "#FF9F0A"), display: "flex", alignItems: "center", gap: 4 }}>
-      <span style={{ fontSize: 11, lineHeight: 1 }}>📋</span>
-      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>COLLER</span>
-    </button>
-  );
-
   const LinkBtn = hasLinkApi && (
     <button
       data-hint={linkConnected ? `Ableton LINK · Connected · ${linkPeers} peer${linkPeers > 1 ? "s" : ""} · Network BPM sync active` : "Ableton LINK · Sync BPM with other apps on the local network (Ableton, Traktor…)"}
@@ -343,16 +308,13 @@ export default function TransportBar({
           {TapBtn}
           {MetroBtn}
         </div>
-        {/* Row 2 : VOL · SWING · TS · SUB · MIDI · SAVE · LOAD · LINK · EXPORT */}
+        {/* Row 2 : VOL · SWING · TS · SUB · MIDI · LINK · EXPORT */}
         <div style={{ ...rowStyle, flexWrap: "wrap" }}>
           {VolKnob}
           {SwingCtrl}
           {TSBtn}
           {SubBtn}
           {MidiBtn}
-          {SaveBtn}
-          {LoadBtn}
-          {PasteBtn}
           {LinkBtn}
           {ExportBtn}
         </div>
@@ -374,9 +336,6 @@ export default function TransportBar({
       {SubBtn}
       {!isPortrait && !isMobile && KeybBtn}
       {MidiBtn}
-      {SaveBtn}
-      {LoadBtn}
-      {PasteBtn}
       {LinkBtn}
       {ExportBtn}
     </div>
