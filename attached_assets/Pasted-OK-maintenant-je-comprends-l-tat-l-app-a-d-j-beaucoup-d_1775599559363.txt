@@ -1,0 +1,56 @@
+OK — maintenant je comprends l'état : l'app a déjà beaucoup d'optimisations (voice stealing, BPM-adaptive cap, keep-alive worklet, releaseMs précis, RAF throttle, lazy rendering, etc.) et pourtant il y a encore des craquements occasionnels sur tablette Android. C'est exactement le stade où il faut arrêter d'ajouter du code à l'aveugle et passer à l'investigation mesurée.Web recherché, a exécuté une commandeWeb recherché, a exécuté une commandeJ'ai ce qu'il me faut. Voici ma réponse :
+
+Pourquoi c'est le moment de passer en mode investigation et pas en mode "ajout de code"
+Ton engine v8 est déjà très optimisé. Tu as :
+
+Voice stealing par track avec tracking précis des buffer sources
+BPM-adaptive duration cap (fix N) pour éviter l'empilement à haut BPM
+_lastVoice / _lastSynthVg maps pour éviter les zombies
+releaseMs précis (fix C) avec clearTimeout sur steal (fix M)
+Cap de 32 voix (fix D)
+KeepAlive AudioWorklet pour empêcher Android de suspendre le thread audio
+RAF throttle pour euclidCurDisplay
+Lazy rendering avec queue
+No-synth fallback sur mobile (fix E)
+Lookahead 300ms / tick 60ms adaptatifs Bluetooth
+
+Ajouter encore du code "à l'aveugle" n'aura que deux effets : casser quelque chose qui marche déjà, ou rajouter de la complexité sans mesurer si ça résout le vrai problème. Il faut passer en mode diagnostic.
+La méthodologie que je propose — 3 phases
+Phase 1 : Instrumenter l'app pour qu'elle TE DISE quand ça craque
+Tu as besoin que l'app logge elle-même les événements suspects pendant que tu joues sur la tablette. Les craquements sont intermittents, donc tu dois les capturer quand ils arrivent. Il y a plusieurs signaux que Web Audio expose et que tu n'utilises pas encore :
+
+ctx.baseLatency et ctx.outputLatency au fil du temps — si outputLatency change pendant la session, c'est un signal fort
+ctx.state — détecter quand il passe en interrupted (Android le fait silencieusement sur notifications, Bluetooth, etc.)
+Le drift du scheduler (lastTickRef.current vs attendu) — déjà calculé mais pas loggé
+Le _nodeCount max atteint pendant la session
+performance.now() vs ctx.currentTime — si l'écart diverge, le thread audio rame
+Long Tasks API (PerformanceObserver avec longtask) — détecter les blocages du main thread >50ms
+Memory pressure — via performance.memory.usedJSHeapSize
+
+Un petit panel de diagnostic discret (accessible via un tap secret par exemple) qui affiche ces métriques en temps réel et garde un log des 30 dernières secondes. Tu joues, ça craque, tu ouvres le panel et tu vois ce qui s'est passé AU MOMENT du craquement.
+Phase 2 : Utiliser les outils natifs Chrome Android
+Tu connectes ta tablette à un PC en USB, tu ouvres chrome://inspect sur le PC, et tu accèdes aux DevTools de l'app Android. De là :
+
+Performance panel — capture 10 secondes pendant que tu joues. Tu vois les frames rouges (long tasks), les GC pauses, le thread audio
+Memory panel — détecter les fuites et les pics d'allocation qui déclenchent le GC (qui est LA cause principale des craquements selon web.dev : "si ton code fait de l'allocation/désallocation mémoire, ça déclenche un garbage collection qui bloque le thread")
+chrome://tracing sur le PC avec les catégories audio, webaudio, blink_gc — c'est l'outil officiel Chrome pour diagnostiquer les glitches Web Audio
+
+Phase 3 : Tests d'isolation
+Une fois que tu as des mesures, tu peux isoler la cause en désactivant par branches :
+
+Un pattern minimal (1 track, 1 step) → si ça craque, c'est système (Android, Bluetooth, WebView)
+Tous les FX off → si ça arrête de craquer, c'est un des FX nodes
+Track par track → identifier si un sample spécifique cause le problème
+Mode pads vs euclid vs séquenceur → isoler le scheduler
+Metro on/off, song mode on/off
+Comparer Chrome vs WebView Capacitor (le WebView Android peut avoir un buffer différent de Chrome)
+
+Les suspects prioritaires selon mon analyse
+Sans mesures, voici ce que je regarderais en premier (par probabilité décroissante) :
+
+Allocation mémoire dans le scheduler — le (R.allT||ALL_TRACKS).forEach crée-t-il des objets à chaque tick ? Les {...R.fx[tr.id]} dans les spreads ? Chaque allocation alimente le GC qui bloque le thread audio périodiquement
+Le WebView Android Capacitor utilise un buffer différent du Chrome standard — peut-être que latencyHint: 'interactive' donne un buffer trop petit sur ton device spécifique
+Les samples utilisés — si ce sont des WAV 44.1k mais que la tablette est à 48k, le resampling à chaque decodeAudioData est OK mais peut y avoir des edge cases
+Le ConvolverNode (reverb) — toujours dans le graphe, très coûteux en CPU. Si le craquement arrive surtout quand la reverb est active, c'est là
+
+Je te propose de préparer un prompt pour Replit qui ajoute un panel de diagnostic audio — un bouton caché (triple tap sur un coin par exemple) qui ouvre un overlay avec toutes les métriques clés en temps réel + un log glissant des 30 dernières secondes. Ça te permettrait de "capturer" un craquement quand il arrive et de voir EXACTEMENT ce qui se passait au moment T.
