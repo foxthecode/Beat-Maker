@@ -1915,16 +1915,23 @@ export default function KickAndSnare(){
       const rd=await offCtx.startRendering();
       const wav=encodeWAV(rd);
       const blob=new Blob([wav],{type:"audio/wav"});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement("a");
-      a.href=url;
       const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
       const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
-      a.download=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
-      a.style.display="none";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+      const fileName=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
+      // iOS Safari ignores <a download> on blob: URLs — use Web Share API with a File
+      // object instead, which opens the native share/save sheet on iOS 15+.
+      const wavFile=new File([blob],fileName,{type:"audio/wav"});
+      if(navigator.share&&navigator.canShare?.({files:[wavFile]})){
+        try{await navigator.share({files:[wavFile],title:"Kick & Snare — WAV export"});}
+        catch(e:any){if(e?.name==="AbortError"){setExportState("idle");return;}}
+      }else{
+        // Desktop / Android: standard anchor download
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;a.download=fileName;a.style.display="none";
+        document.body.appendChild(a);a.click();
+        setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+      }
     }catch(e){console.error("Export WAV error",e);} // skipcq: JS-0002
     setExportState("idle");
   };
@@ -3196,7 +3203,10 @@ export default function KickAndSnare(){
         <div style={{height:"100%",background:"linear-gradient(90deg,#FF2D55,#FF9500)",animation:"audioload 0.5s ease-out forwards",willChange:"width"}}/>
       </div>}
       {/* ═══ Fixed header: logo + kit + mascot + transport (always visible) ═══ */}
-      <div style={{flexShrink:0,background:th.bg,zIndex:100,borderBottom:`1.5px solid ${th.sBorder}`,boxShadow:"0 2px 20px rgba(0,0,0,0.5)"}}>
+      {/* paddingTop: env(safe-area-inset-top) pushes content below the iOS notch /
+          Dynamic Island when viewport-fit=cover is active. Falls back to 0 on Android
+          and desktop where safe-area-inset-top is always 0. */}
+      <div style={{flexShrink:0,background:th.bg,zIndex:100,borderBottom:`1.5px solid ${th.sBorder}`,boxShadow:"0 2px 20px rgba(0,0,0,0.5)",paddingTop:"env(safe-area-inset-top,0px)"}}>
         <div style={{maxWidth:960,margin:"0 auto",padding:"4px 12px 0"}}>
 
         {/* ── Header ── */}
