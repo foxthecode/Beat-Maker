@@ -1802,6 +1802,10 @@ export default function KickAndSnare(){
 
   const startStop=async()=>{
     await engine.ensureRunning();
+    // Wait for 808 pre-render to finish before starting the scheduler.
+    // If already resolved (subsequent presses, or acoustic kit) this is instant.
+    // Prevents _syn() fallback on first play → eliminates startup crackling on 808.
+    if(engine._readyP)await engine._readyP;
     // Android WebView: AudioContext may be suspended after ensureRunning on older browsers
     if(engine.ctx.state==='suspended'){
       engine.ctx.onstatechange=()=>{if(engine.ctx.state==='running')setCtxSuspended(false);};

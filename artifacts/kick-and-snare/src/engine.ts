@@ -143,7 +143,11 @@ class Eng{
     this.gOut.connect(this.gAnalyser);
     this._mkRv(2,0.5,'room');this._rvKey='2|0.5|room';
     if(this.gRvConv)this.gRvConv.buffer=this.rv; // assigne immédiatement — sinon le convolver produit du silence
-    TRACKS.forEach(t=>this._build(t.id));this._loadDefaults();
+    TRACKS.forEach(t=>this._build(t.id));
+    // Store the pre-render Promise so startStop() can await it before starting the
+    // scheduler. Without this, pressing Play before all 808 OfflineAudioContexts
+    // finish causes buf[id]=undefined → _syn() fallback → 4–8 nodes/trigger → crackling.
+    this._readyP=this._loadDefaults();
     this._chainOrder=['drive','comp','filter'];this._sendPositions={};
     this.rebuildChain(this._chainOrder,this._sendPositions);
   }
