@@ -180,7 +180,7 @@ const CHAIN_META:{[k:string]:{label:string,color:string,short:string}}={
 const GFX_DRY={
   reverb:{on:false,decay:1.5,size:0.5,type:'room',sends:{}},
   delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
-  filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,sends:{}},
+  filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,lfoSync:false,lfoDiv:'1/4',sends:{}},
   comp:{on:false,thr:-12,ratio:4,attack:5,release:80,sends:{}},
   drive:{on:false,amt:0,mode:'tanh',sends:{}},
   chorus:{on:false,rate:0.8,depth:30,sends:{}},
@@ -193,7 +193,7 @@ const FX_PRESETS=[
   {name:'Trap',color:'#FF2D55',gfx:{
     reverb: {on:true, decay:0.8,size:0.3,type:'plate',sends:{snare:true,clap:true}},
     delay:  {on:true, time:0.25,fdbk:25,sends:{hihat:true},sync:true,syncDiv:'1/8'},
-    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-18,ratio:6,attack:3,release:60},
     drive:  {on:true, amt:15,mode:'tanh'},
     chorus: {on:false,rate:0.8,depth:30,sends:{}},
@@ -203,7 +203,7 @@ const FX_PRESETS=[
   {name:'Boom Bap',color:'#FF9500',gfx:{
     reverb: {on:true, decay:1.2,size:0.4,type:'room',sends:{snare:true}},
     delay:  {on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
-    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-12,ratio:4,attack:8,release:100},
     drive:  {on:true, amt:8,mode:'tape'},
     chorus: {on:true, rate:0.5,depth:20,sends:{kick:true,snare:true}},
@@ -213,7 +213,7 @@ const FX_PRESETS=[
   {name:'Techno',color:'#64D2FF',gfx:{
     reverb: {on:true, decay:2.0,size:0.6,type:'hall',sends:{crash:true,ride:true}},
     delay:  {on:true, time:0.25,fdbk:40,sends:{hihat:true},sync:true,syncDiv:'1/4'},
-    filter: {on:true, type:'highpass',cut:80,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:true, type:'highpass',cut:80,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-8,ratio:8,attack:2,release:50},
     drive:  {on:false,amt:0,mode:'tanh'},
     chorus: {on:false,rate:0.8,depth:30,sends:{}},
@@ -223,7 +223,7 @@ const FX_PRESETS=[
   {name:'Lo-Fi',color:'#BF5AF2',gfx:{
     reverb: {on:true, decay:0.6,size:0.2,type:'room',sends:{snare:true,hihat:true}},
     delay:  {on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
-    filter: {on:true, type:'lowpass',cut:8000,res:2,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:true, type:'lowpass',cut:8000,res:2,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-6,ratio:3,attack:15,release:200},
     drive:  {on:true, amt:35,mode:'bit'},
     chorus: {on:true, rate:1.2,depth:60,sends:{snare:true,hihat:true}},
@@ -233,7 +233,7 @@ const FX_PRESETS=[
   {name:'Afro',color:'#30D158',gfx:{
     reverb: {on:true, decay:1.0,size:0.4,type:'room',sends:{perc:true,clap:true}},
     delay:  {on:true, time:0.375,fdbk:30,sends:{hihat:true},sync:true,syncDiv:'1/8'},
-    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-14,ratio:3,attack:10,release:120},
     drive:  {on:false,amt:0,mode:'tanh'},
     chorus: {on:false,rate:0.8,depth:30,sends:{}},
@@ -243,7 +243,7 @@ const FX_PRESETS=[
   {name:'Stadium',color:'#BF5AF2',gfx:{
     reverb: {on:true, decay:4.2,size:0.9,type:'hall',sends:{snare:true,clap:true,crash:true}},
     delay:  {on:true, time:0.5,fdbk:35,sends:{},sync:false,syncDiv:'1/2'},
-    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-16,ratio:4,attack:5,release:80},
     drive:  {on:false,amt:0,mode:'tanh'},
     chorus: {on:false,rate:0.8,depth:30,sends:{}},
@@ -253,7 +253,7 @@ const FX_PRESETS=[
   {name:'Pumping',color:'#5E5CE6',gfx:{
     reverb: {on:false,decay:1.5,size:0.5,type:'room',sends:{}},
     delay:  {on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
-    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine'},
+    filter: {on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoRate:1,lfoDepth:0,lfoShape:'sine',lfoSync:false,lfoDiv:'1/4'},
     comp:   {on:true, thr:-28,ratio:14,attack:2,release:40},
     drive:  {on:true, amt:8,mode:'tanh'},
     chorus: {on:false,rate:0.8,depth:30,sends:{}},
@@ -644,7 +644,7 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                   <Knob label="RES" value={gfx.filter.res} min={0} max={25} color="#FF9500" fmt={(v:number)=>v.toFixed(1)} onChange={(v:number)=>upSec('filter','res',v)}/>
                 </div>
                 {/* LFO */}
-                <div style={{marginTop:6,display:'flex',alignItems:'center',gap:4}}>
+                <div style={{marginTop:6,display:'flex',alignItems:'center',gap:3,flexWrap:'wrap'}}>
                   <button onClick={()=>upSec('filter','lfo',!(gfx.filter as any).lfo)}
                     style={{padding:'1px 6px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${(gfx.filter as any).lfo?'#FF9500':'rgba(255,149,0,0.3)'}`,background:(gfx.filter as any).lfo?'rgba(255,149,0,0.15)':'transparent',color:(gfx.filter as any).lfo?'#FF9500':'rgba(255,149,0,0.5)'}}>
                     LFO {(gfx.filter as any).lfo?'ON':'OFF'}
@@ -655,10 +655,28 @@ function FXRack({gfx,setGfx,tracks,themeName="dark",bpm=120,midiLM=false,MidiTag
                       {sh==='sine'?'∿':sh==='triangle'?'△':'□'}
                     </button>
                   ))}
+                  {(gfx.filter as any).lfo&&(
+                    <button onClick={()=>upSec('filter','lfoSync',!(gfx.filter as any).lfoSync)}
+                      style={{padding:'1px 5px',borderRadius:3,fontSize:6,fontWeight:800,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${(gfx.filter as any).lfoSync?'#FF9500':'rgba(255,149,0,0.3)'}`,background:(gfx.filter as any).lfoSync?'rgba(255,149,0,0.18)':'transparent',color:(gfx.filter as any).lfoSync?'#FF9500':'rgba(255,149,0,0.5)'}}>
+                      ♩SYNC
+                    </button>
+                  )}
                 </div>
+                {(gfx.filter as any).lfo&&(gfx.filter as any).lfoSync&&(
+                  <div style={{marginTop:4,display:'flex',gap:2,flexWrap:'wrap',opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?'auto':'none'}}>
+                    {(['1/1','1/2','1/4','1/8','1/16','1/32'] as const).map(div=>(
+                      <button key={div} onClick={()=>upSec('filter','lfoDiv',div)}
+                        style={{padding:'2px 4px',borderRadius:3,fontSize:6.5,fontWeight:700,cursor:'pointer',fontFamily:'inherit',border:`1px solid ${(gfx.filter as any).lfoDiv===div?'#FF9500':'rgba(255,149,0,0.25)'}`,background:(gfx.filter as any).lfoDiv===div?'rgba(255,149,0,0.18)':'transparent',color:(gfx.filter as any).lfoDiv===div?'#FF9500':'rgba(255,149,0,0.5)'}}>
+                        {div}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {(gfx.filter as any).lfo&&(
                   <div style={{display:'flex',gap:8,marginTop:4,opacity:gfx.filter.on?1:0.3,pointerEvents:gfx.filter.on?'auto':'none'}}>
-                    <Knob label="L.RATE" value={(gfx.filter as any).lfoRate??1.0} min={0.05} max={8} color="#FF9500" unit="Hz" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('filter','lfoRate',v)}/>
+                    {!(gfx.filter as any).lfoSync&&(
+                      <Knob label="L.RATE" value={(gfx.filter as any).lfoRate??1.0} min={0.05} max={8} color="#FF9500" unit="Hz" fmt={(v:number)=>v.toFixed(2)} onChange={(v:number)=>upSec('filter','lfoRate',v)}/>
+                    )}
                     <Knob label="L.DEPTH" value={(gfx.filter as any).lfoDepth??0} min={0} max={100} color="#FF9500" unit="%" fmt={(v:number)=>Math.round(v)} onChange={(v:number)=>upSec('filter','lfoDepth',v)}/>
                   </div>
                 )}
@@ -849,7 +867,7 @@ export default function KickAndSnare(){
   const [gfx,setGfx]=useState({
     reverb:{on:false,decay:1.5,size:0.5,type:'room',sends:{}},
     delay:{on:false,time:0.25,fdbk:35,sends:{},sync:false,syncDiv:'1/4'},
-    filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,sends:{}},
+    filter:{on:false,type:'lowpass',cut:18000,res:0,lfo:false,lfoShape:'sine',lfoRate:1.0,lfoDepth:0,lfoSync:false,lfoDiv:'1/4',sends:{}},
     comp:{on:false,thr:-12,ratio:4,attack:5,release:80,sends:{}},
     drive:{on:false,amt:0,mode:'tanh',sends:{}},
     chorus:{on:false,rate:0.8,depth:30,sends:{}},
@@ -879,8 +897,9 @@ export default function KickAndSnare(){
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
   },[]);
   useEffect(()=>{if(engine.ctx)engine.uGfx(gfx);},[gfx]);
-  // Fix N — keep engine BPM in sync so _syn() can cap synthesis durations at high BPM
-  useEffect(()=>{engine.setBpm(bpm);},[bpm]);
+  // Fix N — keep engine BPM in sync so _syn() can cap synthesis durations at high BPM.
+  // Also re-apply uGfx so Filter LFO BPM-sync updates instantly when BPM changes.
+  useEffect(()=>{engine.setBpm(bpm);if(engine.ctx)engine.uGfx(gfxRef.current);},[bpm]);
   // Apply gfx the moment the audio engine first becomes ready (e.g. preset loaded before first play)
   const gfxRef=useRef(gfx);
   useEffect(()=>{gfxRef.current=gfx;},[gfx]);
@@ -1382,11 +1401,13 @@ export default function KickAndSnare(){
       engine.ensureRunning().catch(()=>{});
     }
     if(!R.silentTracks?.has(tid)){
-      engine.play(tid,vel,0,R.fx[tid]||{...DEFAULT_FX});
+      engine.play(tid,vel,0,R.fx[tid]||DEFAULT_FX);
     }
     // animation & haptic always run, even for silent tracks
     lastTrigRef.current=tid;
-    if(navigator.vibrate)setTimeout(()=>navigator.vibrate(15),0);
+    // Vibrate BEFORE audio output (no setTimeout): haptic fires at ~0ms, audio at ~outputLatency (20-40ms).
+    // This anchors the tap perception so audio feels immediate rather than delayed.
+    if(navigator.vibrate)navigator.vibrate(15);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     if(R.uiView==="pads"){
       // DOM-direct flash — zero React re-render, instant visual on mobile

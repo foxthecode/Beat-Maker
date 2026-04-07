@@ -320,7 +320,12 @@ class Eng{
       const shape=gfx.filter?.lfoShape||'sine';
       if(this.gFltLfo.type!==shape)this.gFltLfo.type=shape;
       cancel(this.gFltLfo.frequency);
-      this.gFltLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.filter?.lfoRate??1.0),t,0.02);
+      const _lfoSync=gfx.filter?.lfoSync??false;
+      const _divMult:Record<string,number>={'1/1':0.25,'1/2':0.5,'1/4':1,'1/8':2,'1/16':4,'1/32':8};
+      const _lfoHz=_lfoSync
+        ?Math.max(0.05,(this._bpm/60)*(_divMult[gfx.filter?.lfoDiv??'1/4']??1))
+        :Math.max(0.05,gfx.filter?.lfoRate??1.0);
+      this.gFltLfo.frequency.setTargetAtTime(_lfoHz,t,0.02);
     }
     if(this.gFltLfoDepth){
       const depth=fltLfoOn?(gfx.filter?.lfoDepth??0)/100*8000:0;
