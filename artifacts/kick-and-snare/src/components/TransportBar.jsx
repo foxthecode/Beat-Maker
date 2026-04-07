@@ -7,10 +7,10 @@ export default function TransportBar({
   themeName, bpm, setBpm, playing, startStop,
   rec, setRec, handleTap, onRecClick,
   swing, setSwing, metro, setMetro, metroVol, setMetroVol, metroSub, setMetroSub,
-  midiLM, setMidiLM, linkConnected, linkPeers, showLink, setShowLink,
+  midiLM, setMidiLM,
   MidiTag,
   view, sig, showTS, setShowTS, showK, setShowK,
-  hasMidiApi, hasLinkApi, midiNotes, setMidiNotes, initMidi, midiLearnTrack, setMidiLearnTrack,
+  hasMidiApi, midiNotes, setMidiNotes, initMidi, midiLearnTrack, setMidiLearnTrack,
   isPortrait, isAudioReady, isMobile,
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
@@ -286,14 +286,6 @@ export default function TransportBar({
     </button>
   );
 
-  const LinkBtn = hasLinkApi && (
-    <button
-      data-hint={linkConnected ? `Ableton LINK · Connected · ${linkPeers} peer${linkPeers > 1 ? "s" : ""} · Network BPM sync active` : "Ableton LINK · Sync BPM with other apps on the local network (Ableton, Traktor…)"}
-      onClick={() => setShowLink(p => !p)}
-      style={{ ...pill(showLink || linkConnected, "#BF5AF2"), fontSize: 8, display: "flex", alignItems: "center", gap: 3 }}>
-      🔗{linkConnected ? ` ${linkPeers}p` : ' LINK'}
-    </button>
-  );
 
   const rowStyle = { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" };
 
@@ -308,14 +300,13 @@ export default function TransportBar({
           {TapBtn}
           {MetroBtn}
         </div>
-        {/* Row 2 : VOL · SWING · TS · SUB · MIDI · LINK · EXPORT */}
+        {/* Row 2 : VOL · SWING · TS · SUB · MIDI · EXPORT */}
         <div style={{ ...rowStyle, flexWrap: "wrap" }}>
           {VolKnob}
           {SwingCtrl}
           {TSBtn}
           {SubBtn}
           {MidiBtn}
-          {LinkBtn}
           {ExportBtn}
         </div>
       </div>
@@ -336,7 +327,6 @@ export default function TransportBar({
       {SubBtn}
       {!isPortrait && !isMobile && KeybBtn}
       {MidiBtn}
-      {LinkBtn}
       {ExportBtn}
     </div>
   );

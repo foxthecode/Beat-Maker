@@ -1166,7 +1166,6 @@ export default function KickAndSnare(){
   // Android WebView / PWA compat
   const [ctxSuspended,setCtxSuspended]=useState(false);
   const hasMidiApi=typeof navigator!=='undefined'&&typeof navigator.requestMIDIAccess==='function';
-  const [hasLinkApi,setHasLinkApi]=useState(true);
   const lastTickRef=useRef(null);
   const midiRef=useRef({access:null,ins:[]});
   // MIDI Note Input (independent of clock sync)
@@ -1176,21 +1175,11 @@ export default function KickAndSnare(){
   const [midiNotes,setMidiNotes]=useState(false);
   const [midiErr,setMidiErr]=useState(null); // null|'noapi'|'blocked'|'denied'
   const [midiInsVer,setMidiInsVer]=useState(0); // bumped whenever port list changes
-  // Ableton Link Bridge (WebSocket)
-  const [linkUrl,setLinkUrl]=useState('ws://localhost:9898');
-  const [linkConnected,setLinkConnected]=useState(false);
-  const [linkPeers,setLinkPeers]=useState(0);
-  const [showLink,setShowLink]=useState(false);
-  const [linkSyncPlay,setLinkSyncPlay]=useState(false);
-  const [linkStatus,setLinkStatus]=useState('idle'); // 'idle'|'connecting'|'connected'|'failed'
-  const linkWsRef=useRef(null);
-  const linkBpmRef=useRef(null);
   // ── Undo / Redo ──
   const histRef=useRef({past:[],future:[]});
   const [histLen,setHistLen]=useState({past:0,future:0});
   const _pbRef=useRef(null);const _epRef=useRef(null);const _svRef=useRef(null);const _snRef=useRef(null);const _spRef=useRef(null);const _srRef=useRef(null);
   const _akRef=useRef<string>('');const _kiRef=useRef<number>(0);const _smRef=useRef<Record<string,string>>({});const _ctRef=useRef<any[]>([]);const _acRef=useRef<string[]>([]);const _ukRef=useRef<UserKit[]>([]);
-  const linkBpmSentAt=useRef(0); // timestamp of last BPM we sent to Carabiner
   // Euclid polyrhythm — single global clock (all tracks advance in lock-step)
   const euclidGlobalRef=useRef<{nextTime:number|null,globalTick:number}>({nextTime:null,globalTick:0});
   // Write buffer for audio thread; display state for React re-render (one per scheduler tick)
@@ -1274,7 +1263,6 @@ export default function KickAndSnare(){
   R.songMode=songMode;     // song chain active — scheduler advances pattern list
   R.songChain=songChain;   // flat ordered pattern indices (nulls excluded) — song mode iteration
   R.ts=trackSteps;         // per-track step count overrides — scheduler wrap point
-  R.lkSync=linkSyncPlay;   // Ableton Link sync-on-play — start on beat boundary
   R.loopRec=false;          // LOOPER DISABLED
   R.silentTracks=silentTracksRef.current; // tracks with no sample in user kit → no sound
   // R.loopBars=loopBars;  // LOOPER DISABLED
@@ -1379,51 +1367,6 @@ export default function KickAndSnare(){
   },[midiNotes,onMidiAll,midiInsVer]);
 
 
-  // Ableton Link Bridge — connect / disconnect
-  const linkConnect=()=>{
-    if(linkWsRef.current)linkWsRef.current.close();
-    setLinkStatus('connecting');setLinkConnected(false);
-    let ws;
-    try{ws=new WebSocket(linkUrl.trim());}catch(e){setLinkStatus('failed');return;}
-    const timeout=setTimeout(()=>{
-      if(ws.readyState!==1){ws.close();setLinkStatus('failed');}
-    },5000);
-    ws.onopen=()=>{clearTimeout(timeout);setLinkConnected(true);setLinkStatus('connected');};
-    ws.onclose=()=>{clearTimeout(timeout);setLinkConnected(false);setLinkPeers(0);linkWsRef.current=null;
-      setLinkStatus(s=>s==='connected'?'idle':'failed');};
-    ws.onerror=()=>{clearTimeout(timeout);setLinkStatus('failed');};
-    ws.onmessage=e=>{
-      try{
-        const msg=JSON.parse(e.data);
-        if(msg.peers!==undefined)setLinkPeers(msg.peers);
-        if(msg.bpm!=null&&Math.abs(msg.bpm-R.bpm)>0.09&&Date.now()-linkBpmSentAt.current>3000){
-          linkBpmRef.current=Math.round(msg.bpm);setBpm(Math.round(msg.bpm));
-        }
-        if(R.lkSync&&msg.playing!==undefined&&msg.playing!==R.playing)ssRef.current?.();
-      }catch{}
-    };
-    linkWsRef.current=ws;
-  };
-  const linkDisconnect=()=>{
-    if(linkWsRef.current){linkWsRef.current.close();linkWsRef.current=null;}
-    setLinkConnected(false);setLinkPeers(0);setLinkStatus('idle');
-  };
-  // Sync BPM changes to bridge (skip echo from bridge)
-  useEffect(()=>{
-    if(!linkConnected||!linkWsRef.current)return;
-    if(linkBpmRef.current===bpm){linkBpmRef.current=null;return;}
-    if(linkWsRef.current.readyState===1){
-      linkBpmSentAt.current=Date.now();
-      linkWsRef.current.send(JSON.stringify({type:'setBpm',bpm}));
-    }
-  },[bpm,linkConnected]);
-  // Sync play state to bridge
-  useEffect(()=>{
-    if(!linkConnected||!linkSyncPlay||!linkWsRef.current)return;
-    if(linkWsRef.current.readyState===1)linkWsRef.current.send(JSON.stringify({type:'setPlaying',playing}));
-  },[playing,linkConnected,linkSyncPlay]);
-  // Cleanup
-  useEffect(()=>()=>{if(linkWsRef.current)linkWsRef.current.close();},[]);
   useEffect(()=>()=>{if(euclidRAFRef.current){cancelAnimationFrame(euclidRAFRef.current);euclidRAFRef.current=null;}},[]);
 
   // Keyboard shortcuts
@@ -3279,10 +3222,9 @@ export default function KickAndSnare(){
           rec={rec} setRec={setRec} handleTap={handleTap} onRecClick={onRecClick}
           swing={swing} setSwing={setSwing} metro={metro} setMetro={setMetro}
           metroVol={metroVol} setMetroVol={setMetroVol} metroSub={metroSub} setMetroSub={setMetroSub}
-          midiLM={midiLM} setMidiLM={setMidiLM} linkConnected={linkConnected} linkPeers={linkPeers}
-          showLink={showLink} setShowLink={setShowLink} MidiTag={MidiTag}
+          midiLM={midiLM} setMidiLM={setMidiLM} MidiTag={MidiTag}
           view={view} sig={sig} showTS={showTS} setShowTS={setShowTS} showK={showK} setShowK={setShowK}
-          hasMidiApi={hasMidiApi} hasLinkApi={hasLinkApi}
+          hasMidiApi={hasMidiApi}
           midiNotes={midiNotes} setMidiNotes={setMidiNotes} initMidi={initMidi}
           midiLearnTrack={midiLearnTrack} setMidiLearnTrack={setMidiLearnTrack}
           isPortrait={isPortrait} isAudioReady={isAudioReady} isMobile={isMobileRef.current}
@@ -3351,45 +3293,6 @@ export default function KickAndSnare(){
           <button onClick={()=>{setMidiLM(false);setMidiLearnTrack(null);}} style={{width:20,height:20,borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",background:"transparent",color:"#FF9500",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>×</button>
         </div>)}
 
-        {/* ── Ableton Link Panel ── */}
-        {showLink&&(<div style={{marginBottom:10,padding:12,borderRadius:10,background:th.surface,border:`1px solid ${linkConnected?"#BF5AF2":th.sBorder}`}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <span style={{fontSize:9,fontWeight:800,color:"#BF5AF2",letterSpacing:"0.12em"}}>🔗 ABLETON LINK BRIDGE</span>
-            {linkConnected&&<span style={{fontSize:9,fontWeight:700,color:"#30D158"}}>● {linkPeers} peer{linkPeers!==1?"s":""} connected</span>}
-          </div>
-          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8}}>
-            <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}
-              onKeyDown={e=>{if(e.key==='Enter'&&linkStatus!=='connecting'&&!linkConnected)linkConnect();}}
-              disabled={linkConnected||linkStatus==='connecting'}
-              style={{flex:1,background:"transparent",border:`1px solid ${linkStatus==='failed'?"rgba(255,45,85,0.5)":th.sBorder}`,borderRadius:5,padding:"5px 8px",color:th.text,fontSize:10,fontFamily:"inherit",opacity:linkConnected||linkStatus==='connecting'?0.5:1}}
-              placeholder="ws://localhost:9898"/>
-            <button onClick={linkConnected?linkDisconnect:linkStatus==='connecting'?undefined:linkConnect}
-              disabled={linkStatus==='connecting'}
-              style={{padding:"5px 14px",borderRadius:5,border:`1px solid ${linkConnected?"rgba(255,45,85,0.3)":linkStatus==='failed'?"rgba(255,149,0,0.4)":"rgba(191,90,242,0.4)"}`,background:linkConnected?"rgba(255,45,85,0.1)":linkStatus==='failed'?"rgba(255,149,0,0.1)":"rgba(191,90,242,0.15)",color:linkConnected?"#FF375F":linkStatus==='failed'?"#FF9500":"#BF5AF2",fontSize:9,fontWeight:700,cursor:linkStatus==='connecting'?"default":"pointer",fontFamily:"inherit",whiteSpace:"nowrap",opacity:linkStatus==='connecting'?0.6:1}}>
-              {linkConnected?"DISCONNECT":linkStatus==='connecting'?"...":"CONNECT"}
-            </button>
-          </div>
-          {/* Status row */}
-          <div style={{marginBottom:6,padding:"6px 8px",borderRadius:5,background:
-            linkStatus==='connected'?"rgba(48,209,88,0.08)":
-            linkStatus==='failed'?"rgba(255,149,0,0.08)":
-            linkStatus==='connecting'?"rgba(191,90,242,0.08)":"transparent",
-            border:`1px solid ${linkStatus==='connected'?"rgba(48,209,88,0.2)":linkStatus==='failed'?"rgba(255,149,0,0.2)":linkStatus==='connecting'?"rgba(191,90,242,0.2)":"transparent"}`}}>
-            <span style={{fontSize:8,color:
-              linkStatus==='connected'?"#30D158":linkStatus==='failed'?"#FF9500":linkStatus==='connecting'?"#BF5AF2":th.dim}}>
-              {linkStatus==='connected'&&`● ${linkPeers} peer${linkPeers!==1?"s":""} — BPM synced with Ableton Link`}
-              {linkStatus==='connecting'&&"⏳ Connecting..."}
-              {linkStatus==='failed'&&"⚠ Failed — is the bridge running? (node bridge.js in link-bridge/)"}
-              {linkStatus==='idle'&&"Run the bridge: cd link-bridge && npm i && node bridge.js"}
-            </span>
-          </div>
-          <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
-            <label style={{display:"flex",gap:5,alignItems:"center",cursor:"pointer"}}>
-              <input type="checkbox" checked={linkSyncPlay} onChange={e=>setLinkSyncPlay(e.target.checked)} style={{accentColor:"#BF5AF2"}}/>
-              <span style={{fontSize:8,color:th.dim,whiteSpace:"nowrap"}}>Sync Play/Stop</span>
-            </label>
-          </div>
-        </div>)}
 
 
         {/* ── Pattern Bank + Song Arranger ── */}
