@@ -2785,12 +2785,15 @@ export default function KickAndSnare(){
         }
       }
     }
-    // Single batched React state update — no per-track setState calls during loading
-    setSmpN(prev=>({...prev,...newSmpN}));
-    setWaveformCache(prev=>({...prev,...newWaveforms}));
     silentTracksRef.current=newSilent;R.silentTracks=newSilent;
-    setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);
-    setAct(DEFAULT_ACTIVE);setUserKitLabelOverride(kit.trackLabels||{});
+    // Batch all React state in startTransition — 7+ setState calls during playback must
+    // not block the audio scheduler (user kit load can happen while sequencer is running)
+    startTransition(()=>{
+      setSmpN(prev=>({...prev,...newSmpN}));
+      setWaveformCache(prev=>({...prev,...newWaveforms}));
+      setFx(nextFx);setActiveKitId(kit.id);setKitIdx(-1);
+      setAct(DEFAULT_ACTIVE);setUserKitLabelOverride(kit.trackLabels||{});
+    });
   };
 
   const renameKit=(kitId:string,newName:string)=>{
@@ -3031,8 +3034,35 @@ export default function KickAndSnare(){
     for(let x=0;x<w;x++){let mn=1,mx=-1;for(let j=0;j<step&&x*step+j<data.length;j++){const v=data[x*step+j];if(v<mn)mn=v;if(v>mx)mx=v;}d+=`M${x},${(((1+mn)/2)*h).toFixed(1)}L${x},${(((1+mx)/2)*h).toFixed(1)}`;}
     return d;
   };
-  const onFile=async e=>{const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;pushHistory();engine.init();const ok=await engine.load(tid,f);if(ok){setSmpN(p=>({...p,[tid]:f.name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});if(engine.buf[tid]){const wp=miniWaveformPath(engine.buf[tid],28,16);setWaveformCache(p=>({...p,[tid]:wp}));}}ldRef.current=null;};
-  const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{pushHistory();setSampleModalOpen(false);engine.init();engine.loadBuffer(tid,buffer);setSmpN(p=>({...p,[tid]:name}));engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});const wp=miniWaveformPath(buffer,28,16);setWaveformCache(p=>({...p,[tid]:wp}));};
+  const onFile=async e=>{
+    const f=e.target.files?.[0];const tid=ldRef.current;if(!f||!tid)return;
+    pushHistory();engine.init();
+    const ok=await engine.load(tid,f);
+    if(ok){
+      // Play immediately — audio-critical path, no defer
+      engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});
+      const wp=engine.buf[tid]?miniWaveformPath(engine.buf[tid],28,16):undefined;
+      // UI state update is non-urgent — defer so it doesn't block the audio thread
+      startTransition(()=>{
+        setSmpN(p=>({...p,[tid]:f.name}));
+        if(wp)setWaveformCache(p=>({...p,[tid]:wp}));
+      });
+    }
+    ldRef.current=null;
+  };
+  const onSampleBuffer=(tid:string,buffer:AudioBuffer,name:string)=>{
+    pushHistory();
+    engine.init();engine.loadBuffer(tid,buffer);
+    // Play immediately — audio-critical path, no defer
+    engine.play(tid,1,0,R.fx[tid]||{...DEFAULT_FX});
+    const wp=miniWaveformPath(buffer,28,16);
+    // Defer all UI state updates — they're display-only and must not block the thread
+    startTransition(()=>{
+      setSampleModalOpen(false);
+      setSmpN(p=>({...p,[tid]:name}));
+      setWaveformCache(p=>({...p,[tid]:wp}));
+    });
+  };
 
   const pill=(on,c)=>({padding:"8px 16px",border:`1.5px solid ${on?c+"66":th.sBorder}`,borderRadius:8,background:on?c+"22":"rgba(255,255,255,0.03)",color:on?c:c+'77',fontSize:11,fontWeight:800,cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"inherit",transition:"all 0.2s cubic-bezier(0.32,0.72,0,1)",boxShadow:on?`0 0 12px ${c}22`:"none"});
 
@@ -3567,13 +3597,18 @@ export default function KickAndSnare(){
                   onLoadSample={()=>ldFile(track.id)}
                   waveformPath={waveformCache[track.id]}
                   onRemove={()=>{R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
-                  onFxChange={(k,v)=>{setFx(prev=>{const nf={...(prev[track.id]||{...DEFAULT_FX}),[k]:v};engine.uFx(track.id,nf);return{...prev,[track.id]:nf};});}}
+                  onFxChange={(k,v)=>{
+                    // Compute new fx from R.fx (always-current ref) — avoids stale closure
+                    const nf={...(R.fx as typeof fx)[track.id]||{...DEFAULT_FX},[k]:v};
+                    engine.uFx(track.id,nf); // immediate audio — never inside setState updater
+                    startTransition(()=>setFx(prev=>({...prev,[track.id]:nf})));
+                  }}
                   onSendCursorChange={(dir)=>setTrackSendCursor(p=>({...p,[track.id]:((p[track.id]??0)+dir+FX_SECS.length)%FX_SECS.length}))}
                   onSendAmtChange={(amt)=>{const idx=trackSendCursor[track.id]??0;const sec=FX_SECS[idx].sec;upSend(sec,track.id,amt);}}
                   onRandomVel={randomizeVelocity}
                   onStepCountChange={(nt)=>{const remap=(arr,from,to)=>{const r=Array(to).fill(0);(arr||Array(from).fill(0)).forEach((v,i)=>{if(v){const d=Math.min(to-1,Math.round(i*to/from));r[d]=Math.max(r[d],v);}});return r;};setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[track.id]:nt}};cp[track.id]=remap(cp[track.id],tSteps,nt);n[cPat]=cp;return n;});}}
                   onClear={()=>{setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};const s={...(cp._steps||{})};delete s[track.id];cp._steps=s;cp[track.id]=Array(STEPS).fill(0);n[cPat]=cp;return n;});setEuclidParams(p=>{const n={...p};delete n[track.id];return n;});}}
-                  onFxOpen={()=>setPadFxTrack(p=>p===track.id?null:track.id)}
+                  onFxOpen={()=>startTransition(()=>setPadFxTrack(p=>p===track.id?null:track.id))}
                 />
               );
             })}
@@ -3769,8 +3804,8 @@ export default function KickAndSnare(){
                   {/* ── BOTTOM-LEFT: Track FX — 44×44 transparent tap zone (no setTimeout delay) ── */}
                   <div
                     data-hint={`FX track ${track.label} · Open per-track effects · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay`}
-                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();const tid=track.id;setPadFxTrack(p=>p===tid?null:tid);}}
-                    onClick={e=>{e.stopPropagation();setPadFxTrack(p=>p===track.id?null:track.id);}}
+                    onTouchStart={e=>{e.stopPropagation();e.preventDefault();const tid=track.id;startTransition(()=>setPadFxTrack(p=>p===tid?null:tid));}}
+                    onClick={e=>{e.stopPropagation();startTransition(()=>setPadFxTrack(p=>p===track.id?null:track.id));}}
                     onPointerDown={e=>e.stopPropagation()}
                     title="Track FX"
                     style={{position:"absolute",bottom:0,left:0,minWidth:44,minHeight:44,display:"flex",alignItems:"flex-end",justifyContent:"flex-start",padding:6,zIndex:3,cursor:"pointer",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",background:"transparent"}}
@@ -4259,7 +4294,7 @@ export default function KickAndSnare(){
                                   <span title={p.fold?"Expand":"Collapse"} style={{fontSize:9,fontWeight:800,color:aud?tr.color:th.dim,letterSpacing:"0.07em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,userSelect:"none"}}>{tr.label}</span>
                                   {cnt>0&&<span style={{background:tr.color+"33",color:tr.color,borderRadius:4,padding:"1px 3px",fontSize:6,fontWeight:700,flexShrink:0}}>{cnt}h</span>}
                                 </div>
-                                <button data-hint={`SFX track ${tr.label} · Open per-track effects · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay`} title="Track FX" onClick={()=>setPadFxTrack(p=>p===tr.id?null:tr.id)} style={{...btnSm,width:30,fontSize:7,letterSpacing:"0.04em",fontWeight:800,background:padFxTrack===tr.id?"rgba(191,90,242,0.2)":"rgba(191,90,242,0.06)",color:"rgba(191,90,242,0.85)",border:`1px solid ${padFxTrack===tr.id?"rgba(191,90,242,0.6)":"rgba(191,90,242,0.3)"}`}}>SFX</button>
+                                <button data-hint={`SFX track ${tr.label} · Open per-track effects · Pitch, Filter, Drive, Volume, Pan, Reverb & Delay`} title="Track FX" onClick={()=>startTransition(()=>setPadFxTrack(p=>p===tr.id?null:tr.id))} style={{...btnSm,width:30,fontSize:7,letterSpacing:"0.04em",fontWeight:800,background:padFxTrack===tr.id?"rgba(191,90,242,0.2)":"rgba(191,90,242,0.06)",color:"rgba(191,90,242,0.85)",border:`1px solid ${padFxTrack===tr.id?"rgba(191,90,242,0.6)":"rgba(191,90,242,0.3)"}`}}>SFX</button>
                                 <button data-hint={isM?`MUTE active · Track ${tr.label} is silent · Click to unmute`:`MUTE · Silence track ${tr.label} · Euclidean rhythm is preserved`} onClick={()=>setMuted(m=>({...m,[tr.id]:!m[tr.id]}))} style={{...btnSm,color:isM?"#FF375F":th.faint,border:`1px solid ${isM?"rgba(255,55,95,0.4)":th.sBorder}`,background:isM?"rgba(255,55,95,0.12)":"transparent"}}>M</button>
                                 <button data-hint={isS?`SOLO active · Only track ${tr.label} plays · Click to disable`:`SOLO · Isolate track ${tr.label} · All other tracks are muted`} onClick={()=>setSoloed(s=>s===tr.id?null:tr.id)} style={{...btnSm,color:isS?"#FFD60A":th.faint,border:`1px solid ${isS?"rgba(255,214,10,0.4)":th.sBorder}`,background:isS?"rgba(255,214,10,0.12)":"transparent"}}>S</button>
                                 {(()=>{const hasSmp=!!smpN[tr.id];const hasWv=!!waveformCache[tr.id];return(<button data-hint={hasSmp?`Active sample: ${smpN[tr.id]} · Click to change the audio file`:`Load a sample for ${tr.label} · Accepted formats: MP3, WAV, OGG`} onClick={()=>ldFile(tr.id)} title={hasSmp?smpN[tr.id]:"Load sample"} style={{...btnSm,color:hasSmp?"#FF9500":th.faint,border:`1px solid ${hasSmp?"rgba(255,149,0,0.4)":th.sBorder}`,background:hasSmp?"rgba(255,149,0,0.15)":"transparent",position:"relative",overflow:"hidden",minWidth:hasWv?28:undefined}}>{hasWv?(<svg viewBox="0 0 28 16" width="26" height="14" style={{position:"absolute",inset:0,margin:"auto",opacity:0.5,pointerEvents:"none"}} preserveAspectRatio="none"><path d={waveformCache[tr.id]} stroke="#FF9500" strokeWidth="1.2" fill="none"/></svg>):<span style={{position:"relative",zIndex:1}}>♪</span>}</button>);})()}
@@ -4518,22 +4553,23 @@ export default function KickAndSnare(){
       const f:any={...DEFAULT_FX,...(fx[tr.id]||{})};
       const SYNC_DIV_MAP:Record<string,number>={"1/1":4,"1/2":2,"1/4":1,"1/8":0.5,"1/16":0.25,"1/4.":1.5,"1/8.":0.75,"1/4t":2/3,"1/8t":1/3};
       const updFx=(updates:Record<string,unknown>)=>{
-        setFx((prev:any)=>{
-          const nf={...DEFAULT_FX,...(prev[tr.id]||{}), ...updates};
-          engine.uFx(tr.id,nf);
-          // Reverb IR params: rebuild only when user explicitly changes them (not per sequencer step)
-          if(engine.ctx&&('rDecay' in updates||'rSize' in updates||'rType' in updates)){
-            engine.updateReverb(nf.rDecay??1.5,(nf as any).rSize??0.5,(nf as any).rType||'room');
-          }
-          // Delay time/feedback: update global delay nodes (shared, not per-note)
-          if(engine.ctx&&('dTime' in updates||'dFdbk' in updates||'dSync' in updates||'dDiv' in updates)){
-            const dTime=(nf as any).dSync
-              ? Math.min(1.9,(SYNC_DIV_MAP[(nf as any).dDiv||"1/4"]||1)*(60/Math.max(30,bpm)))
-              : (nf.dTime??0.25);
-            engine.setDelayParams(dTime,nf.dFdbk??35);
-          }
-          return{...prev,[tr.id]:nf};
-        });
+        // Compute from R.fx (always-current ref) to avoid stale closure
+        const nf={...DEFAULT_FX,...(R.fx as any)[tr.id]||{}, ...updates};
+        // Apply audio immediately — never inside a setState updater
+        engine.uFx(tr.id,nf);
+        // Reverb IR params: rebuild only when user explicitly changes them (not per sequencer step)
+        if(engine.ctx&&('rDecay' in updates||'rSize' in updates||'rType' in updates)){
+          engine.updateReverb(nf.rDecay??1.5,(nf as any).rSize??0.5,(nf as any).rType||'room');
+        }
+        // Delay time/feedback: update global delay nodes (shared, not per-note)
+        if(engine.ctx&&('dTime' in updates||'dFdbk' in updates||'dSync' in updates||'dDiv' in updates)){
+          const dTime=(nf as any).dSync
+            ? Math.min(1.9,(SYNC_DIV_MAP[(nf as any).dDiv||"1/4"]||1)*(60/Math.max(30,bpm)))
+            : (nf.dTime??0.25);
+          engine.setDelayParams(dTime,nf.dFdbk??35);
+        }
+        // Defer React state update — display-only, must not block the audio scheduler
+        startTransition(()=>setFx((prev:any)=>({...prev,[tr.id]:nf})));
       };
       const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
       const SlRow=({label,keyName,min,max,step,val,color,fmt,dimmed=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;dimmed?:boolean})=>(
