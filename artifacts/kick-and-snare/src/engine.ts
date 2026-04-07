@@ -471,6 +471,12 @@ class Eng{
   }
   loadBuffer(id,buffer){this.init();if(!this.ch[id])this._build(id);this.buf[id]=buffer;}
   setBpm(bpm){this._bpm=Math.max(30,bpm||120);}
+  setDelayParams(time:number,fdbk:number){
+    if(!this.ctx)return;const t=this.ctx.currentTime;
+    if(this.gDlL)this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,time),t,0.01);
+    if(this.gDlR)this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,time*1.006),t,0.01);
+    if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.75,fdbk/100),t,0.01);
+  }
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
     if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));}

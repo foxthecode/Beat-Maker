@@ -4465,22 +4465,34 @@ export default function KickAndSnare(){
       const tr=allT.find(t=>t.id===padFxTrack);
       if(!tr) return null;
       const f:any={...DEFAULT_FX,...(fx[tr.id]||{})};
+      const SYNC_DIV_MAP:Record<string,number>={"1/1":4,"1/2":2,"1/4":1,"1/8":0.5,"1/16":0.25,"1/4.":1.5,"1/8.":0.75,"1/4t":2/3,"1/8t":1/3};
       const updFx=(updates:Record<string,unknown>)=>{
         setFx((prev:any)=>{
           const nf={...DEFAULT_FX,...(prev[tr.id]||{}), ...updates};
           engine.uFx(tr.id,nf);
+          // Reverb IR params: rebuild only when user explicitly changes them (not per sequencer step)
+          if(engine.ctx&&('rDecay' in updates||'rSize' in updates||'rType' in updates)){
+            engine.updateReverb(nf.rDecay??1.5,(nf as any).rSize??0.5,(nf as any).rType||'room');
+          }
+          // Delay time/feedback: update global delay nodes (shared, not per-note)
+          if(engine.ctx&&('dTime' in updates||'dFdbk' in updates||'dSync' in updates||'dDiv' in updates)){
+            const dTime=(nf as any).dSync
+              ? Math.min(1.9,(SYNC_DIV_MAP[(nf as any).dDiv||"1/4"]||1)*(60/Math.max(30,bpm)))
+              : (nf.dTime??0.25);
+            engine.setDelayParams(dTime,nf.dFdbk??35);
+          }
           return{...prev,[tr.id]:nf};
         });
       };
       const freqFmt=(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(Math.round(v));
       const SlRow=({label,keyName,min,max,step,val,color,fmt,dimmed=false}:{label:string;keyName:string;min:number;max:number;step:number;val:number;color:string;fmt:(v:number)=>string;dimmed?:boolean})=>(
-        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-          <span style={{fontSize:7.5,fontWeight:800,color:dimmed?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.45)",width:56,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
+        <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0,flex:1,width:"100%"}}>
+          <span style={{fontSize:7.5,fontWeight:800,color:dimmed?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.45)",width:36,flexShrink:0,textAlign:"right",letterSpacing:"0.06em",textTransform:"uppercase"}}>{label}</span>
           <input type="range" min={min} max={max} step={step} value={val}
             onChange={e=>updFx({[keyName]:Number(e.target.value)})}
             style={{flex:1,minWidth:0,accentColor:color,opacity:dimmed?0.35:1,cursor:"pointer",height:18}}
           />
-          <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:dimmed?"rgba(255,255,255,0.22)":color,width:46,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
+          <span style={{fontSize:9,fontFamily:"monospace",fontWeight:700,color:dimmed?"rgba(255,255,255,0.22)":color,width:36,flexShrink:0,textAlign:"left"}}>{fmt(val)}</span>
         </div>
       );
       const ToggleBtn=({on,label,color,onClick}:{on:boolean;label:string;color:string;onClick:()=>void})=>(
