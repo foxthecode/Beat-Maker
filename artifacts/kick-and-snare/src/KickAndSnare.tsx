@@ -1634,7 +1634,9 @@ export default function KickAndSnare(){
       if(p?.[tr.id]?.[psn]){
         const v=(vel[tr.id]?.[psn]??100)/100;
         const r=ratch[tr.id]?.[psn]||1;
-        for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[psn]||0):0),f[tr.id]||{...DEFAULT_FX},ptime+ri*(bd/r));
+        // Pass f[tr.id] ref directly; DEFAULT_FX is a frozen constant — no spread needed.
+        // {…DEFAULT_FX} was allocating a new object every step → GC pressure → crackling.
+        for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),(ri===0?(nudge[tr.id]?.[psn]||0):0),f[tr.id]||DEFAULT_FX,ptime+ri*(bd/r));
         if(R.flashPad){const _now=engine.ctx?.currentTime??ptime;R.flashPad(tr.id,Math.max(0,Math.round((ptime-_now)*1000)-4));}
       }
     };
@@ -1718,8 +1720,8 @@ export default function KickAndSnare(){
               const v=(R.vel[tr.id]?.[stepIndex]??100)/100;
               const r=R.ratch[tr.id]?.[stepIndex]||1;
               const nd=R.sn[tr.id]?.[stepIndex]||0;
-              for(let ri=0;ri<r;ri++)
-                engine.play(tr.id,v*(ri===0?1:0.65),ri===0?nd:0,R.fx[tr.id]||{...DEFAULT_FX},tickTime+ri*(sixteenth/r));
+              // Same GC-reduction pattern: pass constant ref, never spread in hot path.
+              for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),ri===0?nd:0,R.fx[tr.id]||DEFAULT_FX,tickTime+ri*(sixteenth/r));
               R.flashPad?.(tr.id,Math.max(0,Math.round((tickTime-ct)*1000)-4));
             }
           }
