@@ -2010,19 +2010,6 @@ export default function KickAndSnare(){
     acquire();
   },[playing,loopPlaying]);
 
-  // Probe Ableton Link WebSocket — hide button if localhost refuses immediately (Android WebView)
-  useEffect(()=>{
-    if(typeof WebSocket==='undefined'){setHasLinkApi(false);return;}
-    let gone=false;
-    try{
-      const probe=new WebSocket('ws://localhost:9898');
-      const t=setTimeout(()=>{if(!gone){gone=true;probe.close();}},800);
-      probe.onopen=()=>{clearTimeout(t);gone=true;probe.close();setHasLinkApi(true);};
-      probe.onerror=()=>{if(!gone){clearTimeout(t);gone=true;setHasLinkApi(false);}};
-      probe.onclose=(e)=>{if(!gone){clearTimeout(t);gone=true;if(e.code===1006)setHasLinkApi(false);}};
-    }catch(e){setHasLinkApi(false);}
-  },[]);
-
   // ── Looper engine ──
   const loopSchedFn=()=>{
     const L=loopRef.current;const ctx=engine.ctx;
