@@ -82,7 +82,11 @@ class Eng{
     this.gRvBus.connect(this.gRvConv);this.gRvConv.connect(this.gOut);
     // ── Delay bus — stereo avec wet/dry explicite ────────────────────────────
     this.gDlBus=this.ctx.createGain();
-    this.gDlDry=this.ctx.createGain();this.gDlDry.gain.value=1.0;
+    // gDlDry MUST stay at 0: the per-track dry signal is already routed through
+    // c.dry → mg → drive/comp/filter → gOut.  A non-zero gDlDry would add a
+    // second, unprocessed copy of every track that has dlSend > 0 — bypassing
+    // the entire master FX chain and boosting perceived volume when delay is on.
+    this.gDlDry=this.ctx.createGain();this.gDlDry.gain.value=0;
     this.gDlWet=this.ctx.createGain();this.gDlWet.gain.value=0.0;
     this.gDlL=this.ctx.createDelay(2);this.gDlL.delayTime.value=0.25;
     this.gDlR=this.ctx.createDelay(2);this.gDlR.delayTime.value=0.27;
@@ -270,76 +274,96 @@ class Eng{
   uGfx(gfx){
     if(!this.ctx||!this.gDrv)return;
     const t=this.ctx.currentTime;
+    // cancelScheduledValues(t) before every setTargetAtTime: prevents AudioParam
+    // event-queue accumulation when uGfx() is called at MIDI-CC rates (≤60 Hz).
+    // Without cancel, each call adds a new event; after thousands of calls the
+    // internal linked-list grows → slower parameter lookups on the audio thread.
+    // cancelScheduledValues is safe here because uGfx() is never called from the
+    // per-note scheduler — it originates from UI/MIDI events at currentTime, so
+    // there are no future scheduled events to protect.
+    const cancel=(p:AudioParam)=>{try{p.cancelScheduledValues(t);}catch(_){}};
     const driveMode=gfx.drive?.mode||'tanh';
     const driveAmt=gfx.drive?.on?(gfx.drive.amt/100):0;
     this.gDrv.curve=this._buildCurve(driveMode,driveAmt);
     const cThr=gfx.comp?.on?(gfx.comp.thr??-12):0;
     const cRatio=gfx.comp?.on?Math.max(1,gfx.comp.ratio??4):1;
-    this.gCmp.threshold.setTargetAtTime(cThr,t,0.008);
-    this.gCmp.ratio.setTargetAtTime(cRatio,t,0.008);
+    cancel(this.gCmp.threshold);this.gCmp.threshold.setTargetAtTime(cThr,t,0.008);
+    cancel(this.gCmp.ratio);    this.gCmp.ratio.setTargetAtTime(cRatio,t,0.008);
     if(gfx.comp?.on){
       const att=Math.max(0.001,Math.min(0.1,(gfx.comp.attack??5)/1000));
       const rel=Math.max(0.02,Math.min(0.5,(gfx.comp.release??80)/1000));
-      this.gCmp.attack.setTargetAtTime(att,t,0.008);
-      this.gCmp.release.setTargetAtTime(rel,t,0.008);
+      cancel(this.gCmp.attack);  this.gCmp.attack.setTargetAtTime(att,t,0.008);
+      cancel(this.gCmp.release); this.gCmp.release.setTargetAtTime(rel,t,0.008);
     }else{
-      this.gCmp.attack.setTargetAtTime(0.005,t,0.008);
-      this.gCmp.release.setTargetAtTime(0.08,t,0.008);
+      cancel(this.gCmp.attack);  this.gCmp.attack.setTargetAtTime(0.005,t,0.008);
+      cancel(this.gCmp.release); this.gCmp.release.setTargetAtTime(0.08,t,0.008);
     }
     if(this.gCmpMakeup){
       const mkDb=gfx.comp?.on?Math.max(0,-cThr*(1-1/cRatio)*0.5):0;
+      cancel(this.gCmpMakeup.gain);
       this.gCmpMakeup.gain.setTargetAtTime(Math.min(6,Math.pow(10,mkDb/20)),t,0.01);
     }
     const fType=gfx.filter?.on?(gfx.filter.type||'lowpass'):'lowpass';
     const fCut=gfx.filter?.on?Math.max(20,gfx.filter.cut||18000):20000;
     const fQ=gfx.filter?.on?(gfx.filter.res||0):0;
     this.gFlt.type=fType;this.gFlt2.type=fType;
-    this.gFlt.frequency.setTargetAtTime(fCut,t,0.004);this.gFlt2.frequency.setTargetAtTime(fCut,t,0.004);
-    this.gFlt.Q.setTargetAtTime(fQ,t,0.004);this.gFlt2.Q.setTargetAtTime(fQ,t,0.004);
+    // Note: cancel on gFlt.frequency ONLY cancels the intrinsic event queue.
+    // The LFO connection (gFltLfoDepth → gFlt.frequency) is audio-rate and
+    // is unaffected — it continues modulating the computed value additively.
+    cancel(this.gFlt.frequency); this.gFlt.frequency.setTargetAtTime(fCut,t,0.004);
+    cancel(this.gFlt2.frequency);this.gFlt2.frequency.setTargetAtTime(fCut,t,0.004);
+    cancel(this.gFlt.Q);  this.gFlt.Q.setTargetAtTime(fQ,t,0.004);
+    cancel(this.gFlt2.Q); this.gFlt2.Q.setTargetAtTime(fQ,t,0.004);
     const fltLfoOn=gfx.filter?.on&&(gfx.filter?.lfo??false);
     if(this.gFltLfo){
       const shape=gfx.filter?.lfoShape||'sine';
       if(this.gFltLfo.type!==shape)this.gFltLfo.type=shape;
+      cancel(this.gFltLfo.frequency);
       this.gFltLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.filter?.lfoRate??1.0),t,0.02);
     }
     if(this.gFltLfoDepth){
       const depth=fltLfoOn?(gfx.filter?.lfoDepth??0)/100*8000:0;
+      cancel(this.gFltLfoDepth.gain);
       this.gFltLfoDepth.gain.setTargetAtTime(depth,t,0.02);
     }
     // ── Delay ──
     const dlOn=gfx.delay?.on??false;
-    if(this.gDlL)  this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay?.time||0.25),t,0.01);
-    if(this.gDlR)  this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(gfx.delay?.time||0.25)*1.006),t,0.01);
-    if(this.gDlFb) this.gDlFb.gain.setTargetAtTime(Math.min(0.75,(gfx.delay?.fdbk||35)/100),t,0.01);
-    if(this.gDlWet)this.gDlWet.gain.setTargetAtTime(dlOn?(gfx.delay?.mix??35)/100:0,t,0.02);
-    if(this.gDlLpf)this.gDlLpf.frequency.setTargetAtTime(dlOn?(gfx.delay?.lpf??6500):20000,t,0.01);
+    if(this.gDlL){cancel(this.gDlL.delayTime);this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,gfx.delay?.time||0.25),t,0.01);}
+    if(this.gDlR){cancel(this.gDlR.delayTime);this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,(gfx.delay?.time||0.25)*1.006),t,0.01);}
+    if(this.gDlFb){cancel(this.gDlFb.gain); this.gDlFb.gain.setTargetAtTime(Math.min(0.75,(gfx.delay?.fdbk||35)/100),t,0.01);}
+    if(this.gDlWet){cancel(this.gDlWet.gain);this.gDlWet.gain.setTargetAtTime(dlOn?(gfx.delay?.mix??35)/100:0,t,0.02);}
+    if(this.gDlLpf){cancel(this.gDlLpf.frequency);this.gDlLpf.frequency.setTargetAtTime(dlOn?(gfx.delay?.lpf??6500):20000,t,0.01);}
     const choOn=gfx.chorus?.on??false;
-    if(this.gChoBus)this.gChoBus.gain.setTargetAtTime(choOn?1:0,t,0.01);
-    if(this.gChoFeed)this.gChoFeed.gain.setTargetAtTime(0,t,0.01);
-    if(this.gChoLfo)this.gChoLfo.frequency.setTargetAtTime(Math.max(0.1,gfx.chorus?.rate??0.8),t,0.01);
+    if(this.gChoBus){cancel(this.gChoBus.gain);this.gChoBus.gain.setTargetAtTime(choOn?1:0,t,0.01);}
+    if(this.gChoFeed){cancel(this.gChoFeed.gain);this.gChoFeed.gain.setTargetAtTime(0,t,0.01);}
+    if(this.gChoLfo){cancel(this.gChoLfo.frequency);this.gChoLfo.frequency.setTargetAtTime(Math.max(0.1,gfx.chorus?.rate??0.8),t,0.01);}
     if(this.gChoDepthL&&this.gChoDepthR){
       const depth=(gfx.chorus?.depth??30)/100*0.007;
-      this.gChoDepthL.gain.setTargetAtTime(choOn?depth:0,t,0.01);
-      this.gChoDepthR.gain.setTargetAtTime(choOn?-depth:0,t,0.01);
+      cancel(this.gChoDepthL.gain);this.gChoDepthL.gain.setTargetAtTime(choOn?depth:0,t,0.01);
+      cancel(this.gChoDepthR.gain);this.gChoDepthR.gain.setTargetAtTime(choOn?-depth:0,t,0.01);
     }
     const flaOn=gfx.flanger?.on??false;
-    if(this.gFlaBus)this.gFlaBus.gain.setTargetAtTime(flaOn?1:0,t,0.01);
-    if(this.gFlaFeed)this.gFlaFeed.gain.setTargetAtTime(0,t,0.01);
-    if(this.gFlaLfo)this.gFlaLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.flanger?.rate??0.3),t,0.01);
-    if(this.gFlaDepth){const depth=(gfx.flanger?.depth??50)/100*0.004;this.gFlaDepth.gain.setTargetAtTime(flaOn?depth:0,t,0.01);}
-    if(this.gFlaFb)this.gFlaFb.gain.setTargetAtTime(flaOn?Math.min(0.9,(gfx.flanger?.feedback??60)/100):0,t,0.01);
+    if(this.gFlaBus){cancel(this.gFlaBus.gain);this.gFlaBus.gain.setTargetAtTime(flaOn?1:0,t,0.01);}
+    if(this.gFlaFeed){cancel(this.gFlaFeed.gain);this.gFlaFeed.gain.setTargetAtTime(0,t,0.01);}
+    if(this.gFlaLfo){cancel(this.gFlaLfo.frequency);this.gFlaLfo.frequency.setTargetAtTime(Math.max(0.05,gfx.flanger?.rate??0.3),t,0.01);}
+    if(this.gFlaDepth){const depth=(gfx.flanger?.depth??50)/100*0.004;cancel(this.gFlaDepth.gain);this.gFlaDepth.gain.setTargetAtTime(flaOn?depth:0,t,0.01);}
+    if(this.gFlaFb){cancel(this.gFlaFb.gain);this.gFlaFb.gain.setTargetAtTime(flaOn?Math.min(0.9,(gfx.flanger?.feedback??60)/100):0,t,0.01);}
     const ppOn=gfx.pingpong?.on??false;
-    if(this.gPpBus)this.gPpBus.gain.setTargetAtTime(ppOn?1:0,t,0.01);
+    if(this.gPpBus){cancel(this.gPpBus.gain);this.gPpBus.gain.setTargetAtTime(ppOn?1:0,t,0.01);}
     if(this.gPpDlL&&this.gPpDlR){
       const ppTime=gfx.pingpong?.time??0.25;
-      this.gPpDlL.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.01);
-      this.gPpDlR.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.01);
+      cancel(this.gPpDlL.delayTime);this.gPpDlL.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.01);
+      cancel(this.gPpDlR.delayTime);this.gPpDlR.delayTime.setTargetAtTime(Math.min(1.9,ppTime),t,0.01);
     }
     if(this.gPpFbLR&&this.gPpFbRL){
-      const fb=Math.min(0.85,(gfx.pingpong?.fdbk??50)/100);
-      this.gPpFbLR.gain.setTargetAtTime(fb,t,0.01);this.gPpFbRL.gain.setTargetAtTime(fb,t,0.01);
+      // Bug 3 fix: zero the ping-pong feedback gain when disabled.
+      // gPpBus.gain=0 prevents audio entry, but non-zero feedback lets denormal
+      // numbers circulate through the delay↔gain loop indefinitely.
+      const fb=ppOn?Math.min(0.85,(gfx.pingpong?.fdbk??50)/100):0;
+      cancel(this.gPpFbLR.gain);this.gPpFbLR.gain.setTargetAtTime(fb,t,0.01);
+      cancel(this.gPpFbRL.gain);this.gPpFbRL.gain.setTargetAtTime(fb,t,0.01);
     }
-    if(this.gPpLpf)this.gPpLpf.frequency.setTargetAtTime(ppOn?5000:20000,t,0.01);
+    if(this.gPpLpf){cancel(this.gPpLpf.frequency);this.gPpLpf.frequency.setTargetAtTime(ppOn?5000:20000,t,0.01);}
     Object.keys(this.ch).forEach(id=>{
       const c=this.ch[id];if(!c)return;
       const ppS=ppOn&&!!gfx.pingpong?.sends?.[id];
@@ -473,9 +497,10 @@ class Eng{
   setBpm(bpm){this._bpm=Math.max(30,bpm||120);}
   setDelayParams(time:number,fdbk:number){
     if(!this.ctx)return;const t=this.ctx.currentTime;
-    if(this.gDlL)this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,time),t,0.01);
-    if(this.gDlR)this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,time*1.006),t,0.01);
-    if(this.gDlFb)this.gDlFb.gain.setTargetAtTime(Math.min(0.75,fdbk/100),t,0.01);
+    const cancel=(p:AudioParam)=>{try{p.cancelScheduledValues(t);}catch(_){}};
+    if(this.gDlL){cancel(this.gDlL.delayTime);this.gDlL.delayTime.setTargetAtTime(Math.min(1.9,time),t,0.01);}
+    if(this.gDlR){cancel(this.gDlR.delayTime);this.gDlR.delayTime.setTargetAtTime(Math.min(1.9,time*1.006),t,0.01);}
+    if(this.gDlFb){cancel(this.gDlFb.gain);this.gDlFb.gain.setTargetAtTime(Math.min(0.75,fdbk/100),t,0.01);}
   }
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
