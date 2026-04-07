@@ -59,7 +59,7 @@ const clients   = new Set();
 
 function broadcast(obj) {
   const frame = wsFrame(JSON.stringify(obj));
-  for (const s of clients) { try { s.write(frame); } catch {} }
+  for (const s of clients) { try { s.write(frame); } catch { /* empty */ } }
 }
 
 /* ═══ Carabiner ══════════════════════════════════════════ */
@@ -198,7 +198,9 @@ server.on('upgrade', (req, socket) => {
           const msg = JSON.parse(text);
           if (msg.type === 'setBpm')     sendBpm(msg.bpm);
           if (msg.type === 'setPlaying') sendPlaying(msg.playing);
-        } catch {}
+        } catch {
+          // empty
+        }
       },
       () => { clients.delete(socket); socket.destroy(); }
     );
