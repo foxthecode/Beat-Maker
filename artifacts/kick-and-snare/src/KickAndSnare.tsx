@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, startTransition } from "react";
 import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 import { THEMES } from "./theme.js";
 import { DrumSVG } from "./drumSVG.tsx";
@@ -1561,7 +1561,7 @@ export default function KickAndSnare(){
   };
   const isGS=(step,groups,accents=[0])=>{let a=0;for(let g=0;g<groups.length;g++){if(step===a)return{y:true,f:accents.includes(g)};a+=groups[g];}return{y:false,f:false};};
 
-  const nxtRef=useRef(0);const schRef=useRef(null);
+  const nxtRef=useRef(0);const schRef=useRef(null);const lastSchRunRef=useRef(0);
   // Worker-based scheduler: immune to iframe timer throttling by the browser
   const workerRef=useRef<Worker|null>(null);
   const schLoopRef=useRef<()=>void>(()=>{});
@@ -1570,6 +1570,7 @@ export default function KickAndSnare(){
     if(workerRef.current){workerRef.current.postMessage({type:'stop'});workerRef.current.terminate();workerRef.current=null;}
     // schRef may hold a setTimeout ID (fallback) or null — clear either way
     clearTimeout(schRef.current);clearInterval(schRef.current as unknown as number);schRef.current=null;
+    lastSchRunRef.current=0; // reset burst guard so first run after restart is never skipped
   },[]);
 
   const _startScheduler=useCallback((interval:number)=>{
@@ -1635,7 +1636,15 @@ export default function KickAndSnare(){
   },[]);
 
   const schLoop=useCallback(()=>{
-    if(!engine.ctx)return;const ct=engine.ctx.currentTime;let dirty=false;
+    if(!engine.ctx)return;
+    // Anti-burst guard: if Worker messages piled up during a heavy React render (e.g. modal open),
+    // they all fire back-to-back in the same event-loop drain. Allow at most one run per
+    // (interval * 0.4) ms so queued duplicates are silently dropped without affecting scheduling.
+    const nowMs=performance.now();
+    const minGapMs=(engine._schedInterval??25)*0.4;
+    if(nowMs-lastSchRunRef.current<minGapMs)return;
+    lastSchRunRef.current=nowMs;
+    const ct=engine.ctx.currentTime;let dirty=false;
     // H.1a: adaptive look-ahead + tick interval for mobile (from engine properties)
     const LA=engine._lookAhead;
     const schDelay=engine._schedInterval;
@@ -2973,7 +2982,7 @@ export default function KickAndSnare(){
 
 
   const fileRef=useRef(null);const ldRef=useRef(null);
-  const ldFile=(tid:string)=>{setTimeout(()=>{setSampleModalTrack(tid);setSampleModalOpen(true);},60);};
+  const ldFile=(tid:string)=>{setTimeout(()=>{startTransition(()=>{setSampleModalTrack(tid);setSampleModalOpen(true);});},60);};
   const ldFileLocal=(tid:string)=>{ldRef.current=tid;if(fileRef.current){(fileRef.current as HTMLInputElement).value="";(fileRef.current as HTMLInputElement).click();}};
   const miniWaveformPath=(buffer:AudioBuffer,w:number,h:number):string=>{
     const data=buffer.getChannelData(0);const step=Math.max(1,Math.ceil(data.length/w));let d='';
