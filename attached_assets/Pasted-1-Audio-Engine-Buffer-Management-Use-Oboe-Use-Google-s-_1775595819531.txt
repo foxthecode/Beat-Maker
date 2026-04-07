@@ -1,0 +1,28 @@
+1. Audio Engine & Buffer Management
+Use Oboe: Use Google’s Oboe C++ library, which automatically selects the best audio API (AAudio on newer devices, OpenSL ES on older) to minimize latency.
+Increase Buffer Size: If the buffer is too small, the audio will stutter. Increase the buffer size in your AudioStreamBuilder to allow for more safety margin, acknowledging this will slightly increase latency.
+Use Proper Audio APIs: Use AAudio for low-latency requirements on Android 8.0+.
+Fix Sample Rate Mismatch: Ensure your audio source sample rate matches the native output sample rate of the device (typically 48kHz or 44.1kHz). Mismatches require Android to sample-rate convert in real-time, which can cause glitches. 
+Broadcom Community
+Broadcom Community
+ +4
+2. Threading & Performance Optimization
+Prioritize Audio Thread: The callback function filling the audio buffer must have a high priority to prevent interruptions from other tasks.
+Avoid Blocking Calls: Never perform disk I/O, networking, or memory allocation inside the audio callback function.
+Use Audio Manager: Use AudioManager.getProperty() to determine the best buffer size and sample rate to request at runtime. 
+Stack Overflow
+Stack Overflow
+3. Application-Level Fixes
+Pre-buffer Data: For streaming, ensure you have a reasonable amount of data buffered before playback begins to handle spikes in network latency.
+Manage SoundPool Wisely: If using SoundPool for short sounds, set maxStreams carefully and avoid calling play() in rapid succession, which can cause overlapping, distorted sounds.
+Disable Unnecessary DSP: Disable Dolby Atmos or other audio post-processing if it causes conflicts on specific devices. 
+Reddit
+Reddit
+ +4
+4. Device/System Level Troubleshooting
+Disable "Game Mode": Android's game optimization modes can sometimes cause audio threading issues. Ask users to remove the app from Game Mode.
+Check Wifi/Bluetooth: Sometimes 2.4GHz Wi-Fi interference causes Bluetooth audio to crackle. Turning off Wi-Fi or moving away from routers can identify this, particularly on older devices.
+Turn off "Bluetooth Absolute Volume": In Developer Options, disable "Bluetooth absolute volume" to stop it from acting as a bottleneck. 
+Unity Discussions
+Unity Discussions
+ +3
