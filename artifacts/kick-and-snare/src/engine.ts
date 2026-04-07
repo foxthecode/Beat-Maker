@@ -531,7 +531,11 @@ class Eng{
           }
         }catch(_){}
       }
-      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();g.gain.setValueAtTime(vel,t);s.connect(g);g.connect(c.in);
+      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();
+      // Micro-fade 2 ms: prevents click when sample starts on a non-zero waveform frame.
+      // setValueAtTime(0) anchors the ramp; linearRamp reaches full vel by t+2ms.
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+0.002);
+      s.connect(g);g.connect(c.in);
       // No s.stop() here — AudioBufferSourceNode auto-ends when buffer finishes (loop=false).
       // Keeping stop() out means voice stealing's stop(t+0.015) is always the FIRST call → no exception.
       s.start(t);
