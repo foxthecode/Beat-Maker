@@ -1,0 +1,190 @@
+⚠️ PROBLÈMES IDENTIFIÉS (prioritaires)
+1. 🚨 Création de nodes à chaque hit (critique)
+
+Même si tu fais du voice stealing, tu fais encore :
+
+AudioBufferSourceNode
+GainNode
+
+👉 à chaque trigger
+
+Pourquoi c’est un problème :
+Allocation JS → GC → spike → glitch
+Android (MIUI surtout) = GC agressif
+
+👉 C’est probablement TA cause n°1 de crackle
+
+2. ⚠️ Lookahead bon… mais scheduler pas assez agressif
+
+Tu utilises :
+
+_schedInterval = 60ms mobile
+
+👉 problème :
+
+60ms = trop large pour Android instable
+si un tick est raté → trou audible
+3. ⚠️ LatencyHint = "interactive"
+
+Tu forces :
+
+latencyHint = 'interactive'
+
+👉 sur Android :
+
+buffer très petit → fragile
+4. ⚠️ Effets actifs en permanence
+
+Dans ton engine :
+
+compressor
+waveshaper (drive)
+double filter
+
+👉 même si neutres → coût CPU réel
+
+5. ⚠️ AudioWorklet keep-alive (bonne idée… mais)
+_keepAliveWorklet
+
+👉 problème :
+
+ça garde thread actif
+MAIS augmente consommation CPU globale → paradoxalement peut provoquer glitch
+6. ⚠️ Possible absence de micro-fades
+
+Je n’ai pas encore vu clairement :
+
+fade-in 1–2 ms
+fade-out
+
+👉 sans ça = clicks numériques
+
+🔧 AMÉLIORATIONS CIBLÉES (à faire dans TON code)
+🥇 1. Implémenter un POOL de nodes (gros gain)
+
+Remplace :
+
+new AudioBufferSourceNode()
+
+Par :
+👉 pool réutilisable
+
+Exemple simplifié :
+getVoice() {
+  if (this._pool.length) return this._pool.pop();
+  return {
+    src: this.ctx.createBufferSource(),
+    gain: this.ctx.createGain()
+  };
+}
+
+releaseVoice(v) {
+  this._pool.push(v);
+}
+
+👉 Gain attendu :
+
+❌ moins de GC
+❌ moins de spikes
+✅ audio stable
+🥈 2. Réduire _schedInterval
+
+Passe de :
+
+60ms → 25ms
+
+👉 même sur mobile
+
+Et garde :
+
+lookAhead = 300ms
+
+👉 combo optimal :
+
+scheduler fréquent
+buffer large
+🥉 3. Adapter latencyHint dynamiquement
+
+Change :
+
+const latHint = 'interactive';
+
+👉 en :
+
+const latHint = this._isAndroid ? 'playback' : 'interactive';
+
+👉 sur Android :
+
+plus de buffer = moins de glitch
+⚙️ 4. Bypass réel des effets
+
+Actuellement :
+
+tes nodes restent dans la chaîne
+
+👉 fais plutôt :
+
+if (!driveActive) bypassNode(gDrv)
+
+ou :
+
+reconnecter dynamiquement
+
+👉 gain CPU significatif
+
+⚙️ 5. Micro-fade obligatoire (anti-click)
+
+Ajoute systématiquement :
+
+gain.gain.setValueAtTime(0, t);
+gain.gain.linearRampToValueAtTime(1, t + 0.002);
+
+et :
+
+gain.gain.linearRampToValueAtTime(0, t + duration - 0.005);
+⚙️ 6. Limiter polyphonie HARD
+
+Même avec voice stealing :
+
+👉 ajoute limite globale :
+
+maxVoices = 16 (mobile)
+⚙️ 7. Désactiver keepAlive sur Android
+
+Teste :
+
+if (this._isAndroid) disableKeepAlive()
+
+👉 souvent améliore stabilité
+
+⚙️ 8. Détection surcharge CPU
+
+Ajoute :
+
+if (currentTime - lastTick > threshold)
+  downgradeQuality()
+
+👉 ex :
+
+désactiver FX
+réduire voices
+🧪 Optimisation avancée (optionnel mais puissant)
+👉 Pré-render pattern (game changer)
+tu génères une boucle en buffer
+playback = 1 seul node
+
+👉 utilisé par :
+
+Groovebox
+Koala Sampler
+📊 Conclusion
+
+Ton moteur est déjà solide, mais :
+
+👉 Android + Web Audio = environnement hostile
+
+Les 3 fixes qui vont vraiment changer la donne :
+
+POOL de nodes (CRITIQUE)
+scheduler plus fréquent (25ms)
+latencyHint = playback sur Android
