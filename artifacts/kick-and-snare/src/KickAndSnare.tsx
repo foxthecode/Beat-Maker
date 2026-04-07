@@ -867,7 +867,8 @@ export default function KickAndSnare(){
   const onTrackFxChange=(id:string,k:string,v:any)=>setTrackFx(p=>({...p,[id]:{...p[id],[k]:v}}));
   // Per-track send cursor: index into FX_SECS (0=reverb … 4=drive)
   const [trackSendCursor,setTrackSendCursor]=useState<{[tid:string]:number}>({});
-  const upSend=(sec:string,tid:string,v:number)=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}}));
+  // upSend is triggered by slider drags — non-urgent, defer via startTransition
+  const upSend=(sec:string,tid:string,v:number)=>startTransition(()=>setGfx((p:any)=>({...p,[sec]:{...p[sec],sends:{...p[sec].sends,[tid]:v}}})));
   useEffect(()=>{
     engine.onReady=()=>setIsAudioReady(true);
     engine.isMobile=isMobileRef.current;
@@ -888,6 +889,36 @@ export default function KickAndSnare(){
   // Apply gfx the moment the audio engine first becomes ready (e.g. preset loaded before first play)
   const gfxRef=useRef(gfx);
   useEffect(()=>{gfxRef.current=gfx;},[gfx]);
+  // ── MIDI CC throttle ─────────────────────────────────────────────────────────
+  // MIDI CC can fire at ~100 Hz during automation. Each R.sGfx/R.sFx call would
+  // normally queue a React setState → ~100 renders/sec → main thread saturated.
+  // Fix: apply audio immediately (no latency), batch React state updates to rAF (~60Hz).
+  const midiGfxRafRef=useRef<number|null>(null);
+  const midiGfxPendingRef=useRef<any>(null);
+  const midiFxRafRef=useRef<number|null>(null);
+  const midiFxPendingRef=useRef<any>(null);
+  const setGfxMidi=useCallback((updater:(p:any)=>any)=>{
+    // Apply to current known state (gfxRef stays in sync via useEffect)
+    const next=updater(midiGfxPendingRef.current??gfxRef.current);
+    midiGfxPendingRef.current=next;
+    gfxRef.current=next;
+    if(engine.ctx)engine.uGfx(next); // immediate audio — no wait for React
+    if(!midiGfxRafRef.current)midiGfxRafRef.current=requestAnimationFrame(()=>{
+      if(midiGfxPendingRef.current){setGfx({...midiGfxPendingRef.current});midiGfxPendingRef.current=null;}
+      midiGfxRafRef.current=null;
+    });
+  },[]);
+  const setFxMidi=useCallback((updater:(p:any)=>any)=>{
+    const next=updater(midiFxPendingRef.current??R.fx);
+    midiFxPendingRef.current=next;
+    R.fx=next; // keep ref fresh for schLoop & engine calls
+    // Apply audio for every changed track immediately
+    if(engine.ctx){Object.keys(next).forEach(tid=>{if(engine.ch[tid])engine.uFx(tid,next[tid]);});}
+    if(!midiFxRafRef.current)midiFxRafRef.current=requestAnimationFrame(()=>{
+      if(midiFxPendingRef.current){setFx({...midiFxPendingRef.current});midiFxPendingRef.current=null;}
+      midiFxRafRef.current=null;
+    });
+  },[]);
   // Prefetch 808 WAV files immediately on mount (no AudioContext needed — just fetch)
   useEffect(()=>{
     const kit808=DRUM_KITS[0];
@@ -1256,8 +1287,8 @@ export default function KickAndSnare(){
   R.mnMap=midiNoteMap;     // MIDI note→trackId map — MIDI handler lookup table
   R.mLearn=midiLearnTrack; // MIDI learn target id — incoming note assigns to this
   R.mNotes=midiNotes;      // MIDI notes mode active — enables note-on triggering
-  R.sGfx=setGfx;  // setGfx setter — MIDI CC handler updates global FX rack state
-  R.sFx=setFx;    // setFx setter — MIDI CC handler updates per-track FX state
+  R.sGfx=setGfxMidi; // throttled: audio immediate, React state batched to rAF (~60Hz max)
+  R.sFx=setFxMidi;   // throttled: audio immediate, React state batched to rAF (~60Hz max)
   R.isPortrait=isPortrait; // H.2a — portrait flag for scheduler / components
   R.isMobile=isMobileRef.current; // H.1a — mobile flag for scheduler
   R.euclidEdit=euclidEditMode; // I.1d — edit mode flag
@@ -2614,10 +2645,16 @@ export default function KickAndSnare(){
     if(uk)loadUserKit(uk);
   };
   const _applySnap=(s:ReturnType<typeof _snap>)=>{
-    setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);
-    setSmpN(s.smpN);setAct(s.act);setCustomTracks(s.customTracks);
-    if(s.kitIdx!==_kiRef.current)setKitIdx(s.kitIdx);
-    if(s.activeKitId!==_akRef.current){setActiveKitId(s.activeKitId);_restoreKitAudio(s.activeKitId);}
+    // Restore audio state immediately (not deferred) — buffers need to be ready for next hit
+    if(s.activeKitId!==_akRef.current)_restoreKitAudio(s.activeKitId);
+    // Batch all React state updates in a single startTransition — prevents a 11+ setState
+    // cascade from blocking the audio scheduler thread during undo/redo
+    startTransition(()=>{
+      setPBank(s.pBank);setEuclidParams(s.euclidParams);setStVel(s.stVel);setStNudge(s.stNudge);setStProb(s.stProb);setStRatch(s.stRatch);
+      setSmpN(s.smpN);setAct(s.act);setCustomTracks(s.customTracks);
+      if(s.kitIdx!==_kiRef.current)setKitIdx(s.kitIdx);
+      if(s.activeKitId!==_akRef.current)setActiveKitId(s.activeKitId);
+    });
   };
   const undo=()=>{const h=histRef.current;if(!h.past.length)return;h.future.push(_snap());const s=h.past.pop();_applySnap(s);_updHL();};
   const redo=()=>{const h=histRef.current;if(!h.future.length)return;h.past.push(_snap());const s=h.future.pop();_applySnap(s);_updHL();};
@@ -2634,8 +2671,8 @@ export default function KickAndSnare(){
     const prevFx=R.fx as typeof fx;
     const nextFx={...prevFx};
     Object.keys(nextFx).forEach(tid=>{nextFx[tid]={...nextFx[tid],...kit.shape};});
-    setFx(nextFx);
-    // Audio: for sample-based tracks, keep old buffer playing during load (clean transition).
+    // Audio: start loading immediately (before React state update)
+    // For sample-based tracks, keep old buffer playing during load (clean transition).
     // For synthesis tracks, clear immediately so new shape params take effect right away.
     const allTids=Object.keys(nextFx);
     allTids.forEach(tid=>{
@@ -2654,19 +2691,24 @@ export default function KickAndSnare(){
         if(engine.ctx)engine.renderShape(tid,newFx,true).catch(()=>{});
       }
     });
-    // Update display labels
-    setSmpN(prev=>{
-      const next={...prev};
-      ALL_TRACKS.forEach(tr=>{
-        next[tr.id]=kitSamples[tr.id]
-          ?`${tr.label} · ${kit.name} [sample]`
-          :`${tr.label} · ${kit.name}`;
+    // Batch all React state updates in startTransition — kit switch during playback must
+    // not block the audio scheduler (6+ setState calls → large synchronous re-render)
+    startTransition(()=>{
+      setFx(nextFx);
+      // Update display labels
+      setSmpN(prev=>{
+        const next={...prev};
+        ALL_TRACKS.forEach(tr=>{
+          next[tr.id]=kitSamples[tr.id]
+            ?`${tr.label} · ${kit.name} [sample]`
+            :`${tr.label} · ${kit.name}`;
+        });
+        return next;
       });
-      return next;
+      setActiveKitId(kit.id);
+      setAct(DEFAULT_ACTIVE);
+      setUserKitLabelOverride({});
     });
-    setActiveKitId(kit.id);
-    setAct(DEFAULT_ACTIVE);
-    setUserKitLabelOverride({});
   };
 
   // ── User kit management ───────────────────────────────────────────────────
