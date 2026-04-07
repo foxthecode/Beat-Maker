@@ -80,7 +80,7 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
           wf.push(mx);
         }
         setWaveform(wf);
-      }catch(e){console.warn('TrimModal decode',e);}
+      }catch(e){console.warn('TrimModal decode',e);} // skipcq: JS-0002
     })();
     return()=>{cancelled=true;previewSrcRef.current?.stop();previewCtxRef.current?.close();};
   },[blob]);
@@ -172,7 +172,7 @@ function TrimModal({blob,name,category,onConfirm,onCancel,themeName}:TrimModalPr
       await idbPut(key,wav);
       const entry:SampleBankEntry={id:`trim_${Date.now()}`,name,category,source:'user',blobKey:key};
       onConfirm(entry);
-    }catch(e){console.warn('TrimModal confirm',e);}
+    }catch(e){console.warn('TrimModal confirm',e);} // skipcq: JS-0002
     finally{setSaving(false);}
   };
 
@@ -312,7 +312,7 @@ export function KitComposer({open,onClose,factoryKits,userKits,tracks,onPreview,
       setRecording(true);setRecSeconds(0);
       recTimerRef.current=setInterval(()=>setRecSeconds(s=>s+1),1000);
     }catch(e){
-      console.warn('Mic denied',e);
+      console.warn('Mic denied',e); // skipcq: JS-0002
       alert('Microphone access denied. Please allow mic access to record.');
     }
   }

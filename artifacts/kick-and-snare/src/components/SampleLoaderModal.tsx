@@ -142,7 +142,7 @@ export default function SampleLoaderModal({
         setEndPct(1);
         setStep('trim');
       } catch (e) {
-        console.error('[SampleLoaderModal] decodeAudioData failed', e);
+        console.error('[SampleLoaderModal] decodeAudioData failed', e); // skipcq: JS-0002
         setRecError("Audio decoding failed. Try again or use Firefox.");
       }
     };
@@ -243,7 +243,7 @@ export default function SampleLoaderModal({
       setPermState('granted');
       startRecordingWithStream(stream);
     } catch (e: any) {
-      console.error('[SampleLoaderModal] getUserMedia error:', e.name, e.message);
+      console.error('[SampleLoaderModal] getUserMedia error:', e.name, e.message); // skipcq: JS-0002
 
       if (e?.name === 'OverconstrainedError') {
         try {

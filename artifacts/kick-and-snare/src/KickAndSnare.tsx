@@ -76,7 +76,7 @@ function encodeWAV(buffer:AudioBuffer):ArrayBuffer{
 // ── Kit persistence helpers ───────────────────────────────────────────────────
 const USER_KITS_META_KEY='ks_user_kits_meta';
 function saveUserKitsMeta(kits:UserKit[]):void{
-  try{localStorage.setItem(USER_KITS_META_KEY,JSON.stringify(kits));}catch(e){console.warn('kit meta save failed',e);}
+  try{localStorage.setItem(USER_KITS_META_KEY,JSON.stringify(kits));}catch(e){console.warn('kit meta save failed',e);} // skipcq: JS-0002
 }
 function loadUserKitsMeta():UserKit[]{
   try{return JSON.parse(localStorage.getItem(USER_KITS_META_KEY)||'[]');}catch{return [];}
@@ -1919,7 +1919,7 @@ export default function KickAndSnare(){
       document.body.appendChild(a);
       a.click();
       setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
-    }catch(e){console.error("Export WAV error",e);}
+    }catch(e){console.error("Export WAV error",e);} // skipcq: JS-0002
     setExportState("idle");
   };
 
@@ -2081,7 +2081,7 @@ export default function KickAndSnare(){
       a.href=url;
       a.download=`ks-looper-${bpm}bpm-${loopBars}bar${loopExportReps>1?`x${loopExportReps}`:""}.wav`;
       a.click();URL.revokeObjectURL(url);
-    }catch(e){console.error("Looper export error",e);}
+    }catch(e){console.error("Looper export error",e);} // skipcq: JS-0002
     setLoopExportState("idle");
   };
 
@@ -2723,7 +2723,7 @@ export default function KickAndSnare(){
       if(buf){
         const blobKey=`ks_blob_${kitId}_${tid}`;
         try{await idbPut(blobKey,bufferToWAVArrayBuffer(buf));samples[tid]={type:'blob',blobKey,originalName:smpN[tid]||tid};}
-        catch(e){console.warn('idb save failed',tid,e);samples[tid]={type:'synth'};}
+        catch(e){console.warn('idb save failed',tid,e);samples[tid]={type:'synth'};} // skipcq: JS-0002
       } else {
         samples[tid]={type:'synth'};
       }
@@ -2754,7 +2754,7 @@ export default function KickAndSnare(){
           tempBufs[tid]=audioBuf;
           newSmpN[tid]=info.originalName||'User sample';
           newWaveforms[tid]=miniWaveformPathUtil(audioBuf,28,16);
-        }catch(e){console.warn('load user sample failed',tid,e);}
+        }catch(e){console.warn('load user sample failed',tid,e);} // skipcq: JS-0002
       } else if(info.type==='url'&&info.url){
         try{
           const resp=await fetch(info.url);const ab=await resp.arrayBuffer();
@@ -2764,7 +2764,7 @@ export default function KickAndSnare(){
           tempBufs[tid]=audioBuf;
           newSmpN[tid]=info.originalName||tid;
         }catch(e){
-          console.warn('loadUserKit URL fetch failed',tid,e);
+          console.warn('loadUserKit URL fetch failed',tid,e); // skipcq: JS-0002
           tempBufs[tid]='synth';newSmpN[tid]=`${tid} · ${kit.name}`;
         }
       } else if(info.type==='none'){
@@ -2821,7 +2821,7 @@ export default function KickAndSnare(){
     try{
       if(entry.url){const resp=await fetch(entry.url);const ab=await resp.arrayBuffer();buf=await engine.ctx.decodeAudioData(ab);}
       else if(entry.blobKey){const ab=await idbGet(entry.blobKey);if(ab)buf=await engine.ctx.decodeAudioData(ab.slice(0));}
-    }catch(e){console.warn('preview failed',e);}
+    }catch(e){console.warn('preview failed',e);} // skipcq: JS-0002
     if(!buf||!engine.ctx)return;
     const src=engine.ctx.createBufferSource();src.buffer=buf;src.connect(engine.mg);src.start();
     previewNodeRef.current=src;
@@ -3098,7 +3098,7 @@ export default function KickAndSnare(){
     // (Worker ticks pile up → burst scheduling → crackling). 200ms gives React time to
     // commit the update and the audio thread to run at least one clean tick first.
     setTimeout(async()=>{
-      try{const sr=engine.ctx.sampleRate;const oCtx=new OfflineAudioContext(1,Math.ceil(sr*0.65),sr);engine._syn(id,0,1,oCtx.destination,oCtx);engine.buf[id]=await oCtx.startRendering();}catch(e){console.warn("Custom 808 prerender failed",e);}
+      try{const sr=engine.ctx.sampleRate;const oCtx=new OfflineAudioContext(1,Math.ceil(sr*0.65),sr);engine._syn(id,0,1,oCtx.destination,oCtx);engine.buf[id]=await oCtx.startRendering();}catch(e){console.warn("Custom 808 prerender failed",e);} // skipcq: JS-0002
       if(engine.buf[id]){engine.play(id,0.7,0,{...DEFAULT_FX});}
     },200);
   };

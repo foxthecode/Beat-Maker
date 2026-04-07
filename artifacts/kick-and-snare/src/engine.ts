@@ -32,27 +32,21 @@ class Eng{
     if(this.ctx)return;
     // 'interactive' on all platforms — 300ms scheduler lookahead gives enough margin to prevent
     // underruns even on Android. 'playback' added 200-400ms fixed latency which made live pads
-    // feel completely unresponsive on Android. Bluetooth adaptation is handled by diagFn below.
+    // feel completely unresponsive on Android. Bluetooth adaptation is handled by adaptBluetooth below.
     const latHint='interactive';
     const ctxOpts={latencyHint:latHint};
     this.ctx=new(window.AudioContext||window.webkitAudioContext)(ctxOpts);
     if(this._isMobile){
-      const diagFn=()=>{
-        const hint='interactive';
+      // Bluetooth adaptation: widen look-ahead and scheduler interval when output
+      // latency indicates a BT sink (>50ms). Runs once on first 'running' state.
+      const adaptBluetooth=()=>{
         const ol=this.ctx.outputLatency??0;
         if(ol>0.05){
           this._lookAhead=Math.max(this._lookAhead,ol+0.08);
           this._schedInterval=Math.max(this._schedInterval,Math.round(ol*1000*0.6));
-          console.info(`[Audio] Bluetooth detected — lookAhead→${(this._lookAhead*1000).toFixed(0)}ms, schInterval→${this._schedInterval}ms`);
         }
-        console.info(
-          `[Audio] latencyHint:${hint} | sampleRate:${this.ctx.sampleRate}Hz`+
-          ` | base:${(this.ctx.baseLatency*1000).toFixed(1)}ms`+
-          ` | output:${(ol*1000).toFixed(1)}ms`+
-          ` | total:${((this.ctx.baseLatency+ol)*1000).toFixed(1)}ms`
-        );
       };
-      this.ctx.addEventListener('statechange',()=>{if(this.ctx.state==='running')diagFn();},{once:true});
+      this.ctx.addEventListener('statechange',()=>{if(this.ctx.state==='running')adaptBluetooth();},{once:true});
     }
     this.mg=this.ctx.createGain();this.mg.gain.value=0.8;
     this.gDrv=this.ctx.createWaveShaper();this.gDrv.oversample=this._isMobile?'2x':'4x';
@@ -161,7 +155,7 @@ class Eng{
         const oCtx=new OfflineAudioContext(1,Math.ceil(sr*dur),sr);
         this._syn(id,0,1,oCtx.destination,oCtx);
         this.buf[id]=await oCtx.startRendering();
-      }catch(e){console.warn("808 prerender failed:",id,e);}
+      }catch(e){console.warn("808 prerender failed:",id,e);} // skipcq: JS-0002
     }));
     this.onReady?.();
   }
@@ -185,9 +179,8 @@ class Eng{
       await this.ctx.audioWorklet.addModule(url);
       this._kaNode=new AudioWorkletNode(this.ctx,'ks-keepalive');
       this._kaNode.connect(this.ctx.destination);
-      console.info('[Audio] KeepAlive worklet active — audio thread pinned');
     }catch(e){
-      console.warn('[Audio] KeepAlive worklet unavailable (AudioWorklet not supported or blocked):',e);
+      console.warn('[Audio] KeepAlive worklet unavailable (AudioWorklet not supported or blocked):',e); // skipcq: JS-0002
     }
   }
   // Reverb IR par bruit blanc + décroissance exponentielle (approche Tone.js / Google Web Audio)
@@ -491,7 +484,7 @@ class Eng{
       const ab=await resp.arrayBuffer();
       this.buf[id]=await this.ctx.decodeAudioData(ab);
       return true;
-    }catch(e){console.warn('[Kit] loadUrl failed',id,url,e);return false;}
+    }catch(e){console.warn('[Kit] loadUrl failed',id,url,e);return false;} // skipcq: JS-0002
   }
   loadBuffer(id,buffer){this.init();if(!this.ch[id])this._build(id);this.buf[id]=buffer;}
   setBpm(bpm){this._bpm=Math.max(30,bpm||120);}
@@ -504,7 +497,7 @@ class Eng{
   }
   play(id,vel=1,dMs=0,f=null,at=null){
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
-    if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));}
+    if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));} // skipcq: JS-0002
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
     const t=Math.max(this.ctx.currentTime+0.001,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
@@ -685,7 +678,7 @@ class Eng{
       this._syn(id,0,1,oCtx.destination,oCtx,sh);
       this.buf[id]=await oCtx.startRendering();
       if(!silent)this.play(id,0.7,0,fxObj);
-    }catch(e){console.warn("renderShape failed",id,e);}
+    }catch(e){console.warn("renderShape failed",id,e);} // skipcq: JS-0002
     finally{this._rInProg.delete(id);}
   }
 }
