@@ -3076,18 +3076,23 @@ export default function KickAndSnare(){
     const finalColor=selectedCustomColor||autoColor;
     const t={id,label:name.toUpperCase().slice(0,10),icon:CUST_ICONS[customTracks.length%CUST_ICONS.length],color:finalColor};
     const newCustomTracks=[...customTracks,t];
+    // Update refs immediately — scheduler and engine.play() need them before next tick
     R.allT=[...ALL_TRACKS,...newCustomTracks];
-    setCustomTracks(p=>[...p,t]);
-    setPBank(pb=>pb.map(pat=>({...pat,[id]:Array(N).fill(0),_steps:{...(pat._steps||{}),[id]:N}})));
-    setStVel(p=>({...p,[id]:Array(N).fill(100)}));
-    setStNudge(p=>({...p,[id]:Array(N).fill(0)}));
-    setStProb(p=>({...p,[id]:Array(N).fill(100)}));
-    setStRatch(p=>({...p,[id]:Array(N).fill(1)}));
-    setFx(p=>({...p,[id]:{...DEFAULT_FX}}));
-    setAct(a=>[...a,id]);
-    setNewTrackName("");setShowCustomInput(false);setShowAdd(false);setSelectedCustomColor(null);
-    setSmpN(p=>({...p,[id]:"808 Cowbell (synth)"}));
     engine.init();if(!engine.ch[id])engine._build(id);
+    // Batch all 8 React state updates in startTransition — prevents a large synchronous
+    // re-render from blocking the audio scheduler during playback
+    startTransition(()=>{
+      setCustomTracks(p=>[...p,t]);
+      setPBank(pb=>pb.map(pat=>({...pat,[id]:Array(N).fill(0),_steps:{...(pat._steps||{}),[id]:N}})));
+      setStVel(p=>({...p,[id]:Array(N).fill(100)}));
+      setStNudge(p=>({...p,[id]:Array(N).fill(0)}));
+      setStProb(p=>({...p,[id]:Array(N).fill(100)}));
+      setStRatch(p=>({...p,[id]:Array(N).fill(1)}));
+      setFx(p=>({...p,[id]:{...DEFAULT_FX}}));
+      setAct(a=>[...a,id]);
+      setNewTrackName("");setShowCustomInput(false);setShowAdd(false);setSelectedCustomColor(null);
+      setSmpN(p=>({...p,[id]:"808 Cowbell (synth)"}));
+    });
     // Defer OfflineAudioContext rendering — running it synchronously during the React
     // state-update batch causes a main-thread spike that starves the audio scheduler
     // (Worker ticks pile up → burst scheduling → crackling). 200ms gives React time to
@@ -3596,7 +3601,7 @@ export default function KickAndSnare(){
                   onSoloToggle={()=>setSoloed(p=>p===track.id?null:track.id)}
                   onLoadSample={()=>ldFile(track.id)}
                   waveformPath={waveformCache[track.id]}
-                  onRemove={()=>{R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
+                  onRemove={()=>{R.at=R.at.filter(x=>x!==track.id);if(track.id.startsWith("ct_"))R.allT=(R.allT||[]).filter(t=>t.id!==track.id);startTransition(()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));});}}
                   onFxChange={(k,v)=>{
                     // Compute new fx from R.fx (always-current ref) — avoids stale closure
                     const nf={...(R.fx as typeof fx)[track.id]||{...DEFAULT_FX},[k]:v};
@@ -3616,7 +3621,7 @@ export default function KickAndSnare(){
           <div style={{marginTop:6}}>
             {!showAdd?<button data-hint="Add track · Re-enable a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
-                {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
+                {inact.map(t=>(<button key={t.id} onClick={()=>{startTransition(()=>{setAct(p=>[...p,t.id]);setShowAdd(false);});}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                 {CustomTrackInput()}
                 <button onClick={()=>{setShowAdd(false);setShowCustomInput(false);setNewTrackName("");}} style={{marginLeft:"auto",padding:"4px 8px",border:"none",borderRadius:4,background:"rgba(255,55,95,0.1)",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
               </div>)}
@@ -3774,8 +3779,8 @@ export default function KickAndSnare(){
                   {atO.length>1&&(
                     <div
                       data-hint={`Remove ${track.label} · Remove this pad from the live view · Track is not deleted`}
-                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
-                      onClick={e=>{e.stopPropagation();R.at=R.at.filter(x=>x!==track.id);setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==track.id);setCustomTracks(p=>p.filter(x=>x.id!==track.id));}}}
+                      onTouchStart={e=>{e.stopPropagation();e.preventDefault();R.at=R.at.filter(x=>x!==track.id);if(track.id.startsWith("ct_"))R.allT=(R.allT||[]).filter(t=>t.id!==track.id);startTransition(()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));});}}
+                      onClick={e=>{e.stopPropagation();R.at=R.at.filter(x=>x!==track.id);if(track.id.startsWith("ct_"))R.allT=(R.allT||[]).filter(t=>t.id!==track.id);startTransition(()=>{setAct(p=>p.filter(x=>x!==track.id));if(track.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==track.id));});}}
                       onPointerDown={e=>e.stopPropagation()}
                       title={`Remove ${track.label}`}
                       style={{position:"absolute",top:0,left:0,minWidth:44,minHeight:44,display:"flex",alignItems:"flex-start",justifyContent:"flex-start",padding:6,zIndex:3,cursor:"pointer",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent",background:"transparent"}}
@@ -4147,7 +4152,7 @@ export default function KickAndSnare(){
           <div style={{marginTop:10}}>
             {!showAdd?<button data-hint="Add track · Re-enable a hidden track or create a custom track with your own audio sample" onClick={()=>{setShowAdd(true);setShowCustomInput(false);setNewTrackName("");}} style={{width:"100%",padding:"8px",border:`1px dashed ${th.sBorder}`,borderRadius:8,background:"transparent",color:th.dim,fontSize:10,cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>+ ADD TRACK</button>:(
               <div style={{padding:"8px 10px",borderRadius:8,background:th.surface,border:`1px solid ${th.sBorder}`,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
-                {inact.map(t=>(<button key={t.id} onClick={()=>{setAct(p=>[...p,t.id]);setShowAdd(false);}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
+                {inact.map(t=>(<button key={t.id} onClick={()=>{startTransition(()=>{setAct(p=>[...p,t.id]);setShowAdd(false);});}} style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${t.color}33`,background:t.color+"10",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                 {CustomTrackInput()}
                 <button onClick={()=>{setShowAdd(false);setShowCustomInput(false);setNewTrackName("");}} style={{marginLeft:"auto",padding:"4px 8px",border:"none",borderRadius:4,background:"rgba(255,55,95,0.1)",color:"#FF375F",fontSize:8,cursor:"pointer",fontFamily:"inherit"}}>CANCEL</button>
               </div>)}
@@ -4301,7 +4306,7 @@ export default function KickAndSnare(){
                                 <MidiTag id={tr.id}/>
                                 <button data-hint={`CLR · Clear all Euclidean hits on ${tr.label} · Resets hits=0 for N=${p.N}`} onClick={()=>clearTrack(tr.id)} title="Clear hits" style={{...btnSm,color:"#FF2D55",border:"1px solid rgba(255,45,85,0.3)",fontSize:7}}>CLR</button>
                                 <button data-hint={`RAND · Randomize N, HITS and ROT for track ${tr.label} · Generates a random Euclidean rhythm`} onClick={()=>{const rN=Math.max(6,Math.min(24,6+Math.floor(Math.random()*13)));const rH=1+Math.floor(Math.random()*(Math.ceil(rN/2)));const rR=Math.floor(Math.random()*rN);writeP(tr.id,{N:rN,hits:rH,rot:rR,tpl:""});applyE(tr.id,rN,rH,rR);}} title="Randomize" style={{...btnSm,color:"#FFD60A",border:"1px solid rgba(255,214,10,0.35)",background:"rgba(255,214,10,0.08)",fontSize:11}}>🎲</button>
-                                {act.length>1&&<button data-hint={`Remove track ${tr.label} from Euclidean view · The track is not permanently deleted`} onClick={()=>{R.at=R.at.filter(x=>x!==tr.id);setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_")){R.allT=(R.allT||[]).filter(t=>t.id!==tr.id);setCustomTracks(p=>p.filter(x=>x.id!==tr.id));}}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
+                                {act.length>1&&<button data-hint={`Remove track ${tr.label} from Euclidean view · The track is not permanently deleted`} onClick={()=>{R.at=R.at.filter(x=>x!==tr.id);if(tr.id.startsWith("ct_"))R.allT=(R.allT||[]).filter(t=>t.id!==tr.id);startTransition(()=>{setAct(a=>a.filter(x=>x!==tr.id));if(tr.id.startsWith("ct_"))setCustomTracks(p=>p.filter(x=>x.id!==tr.id));});}} style={{...btnSm,color:"#FF375F",border:"1px solid rgba(255,55,95,0.3)"}}>×</button>}
                               </div>
                               {/* Row 2: template dropdown — hidden when folded */}
                               {!p.fold&&<select value={p.tpl||""} onChange={e=>{const t=EUCLID_RHYTHMS.find(x=>x.name===e.target.value);if(t)applyTplTo(tr.id,t);}} style={{...selStyle,width:"100%",fontSize:8}}>
@@ -4346,9 +4351,11 @@ export default function KickAndSnare(){
                       <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:5}}>
                         {inact.map(t=>(<button key={t.id} onClick={()=>{
                           const defN=STEPS;
-                          setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:0,rot:0,tpl:"",fold:false}}));
-                          setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=Array(defN).fill(0);n[cPat]=cp;return n;});
-                          setAct(a=>[...a,t.id]);setShowAdd(false);
+                          startTransition(()=>{
+                            setEuclidParams(p=>({...p,[t.id]:{N:defN,hits:0,rot:0,tpl:"",fold:false}}));
+                            setPBank(pb=>{const n=[...pb];const cp={...n[cPat],_steps:{...(n[cPat]._steps||{}),[t.id]:defN}};cp[t.id]=Array(defN).fill(0);n[cPat]=cp;return n;});
+                            setAct(a=>[...a,t.id]);setShowAdd(false);
+                          });
                         }} style={{padding:"4px 10px",borderRadius:5,border:`1px solid ${t.color}44`,background:t.color+"14",color:t.color,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{t.icon} {t.label}</button>))}
                         {CustomTrackInput()}
                       </div>
