@@ -41,26 +41,20 @@ export default function TransportBar({
 
   const onMDown = e => {
     e.preventDefault();
-    const startY = e.touches ? e.touches[0].clientY : e.clientY;
+    const startY = e.clientY;
     const startVol = metroVol;
     let moved = false;
     const mv = ev => {
-      ev.preventDefault();
-      const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
-      const dy = cy - startY;
+      const dy = ev.clientY - startY;
       if (Math.abs(dy) > 5) { moved = true; setMetroVol(Math.max(0, Math.min(100, Math.round(startVol - dy * 0.8)))); }
     };
     const up = () => {
       if (!moved) { setMetro(p => !p); if (!metro) setMetroSub("off"); }
-      window.removeEventListener("mousemove", mv);
-      window.removeEventListener("mouseup", up);
-      window.removeEventListener("touchmove", mv);
-      window.removeEventListener("touchend", up);
+      window.removeEventListener("pointermove", mv);
+      window.removeEventListener("pointerup", up);
     };
-    window.addEventListener("mousemove", mv);
-    window.addEventListener("mouseup", up);
-    window.addEventListener("touchmove", mv, { passive: false });
-    window.addEventListener("touchend", up);
+    window.addEventListener("pointermove", mv);
+    window.addEventListener("pointerup", up);
   };
 
   const onVolDown = e => {
@@ -232,7 +226,7 @@ export default function TransportBar({
   const MetroBtn = (
     <div
       data-hint={metro ? `METRO active · Volume: ${metroVol}% · Click to disable · Drag ↕ to adjust volume` : `METRO · Reference metronome · ${metroVol}% · Click to enable · Drag ↕ to adjust volume`}
-      onMouseDown={onMDown} onTouchStart={onMDown}
+      onPointerDown={onMDown}
       style={{ ...pill(metro, "#FF9500"), position: "relative", overflow: "hidden", touchAction: "none", userSelect: "none", cursor: "pointer" }}>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${metroVol}%`, background: metro ? "rgba(255,149,0,0.12)" : "transparent", borderRadius: 6, transition: "height 0.15s", pointerEvents: "none" }} />
       <span style={{ position: "relative", zIndex: 1 }}>{`METRO ${metroVol}%`}</span>
