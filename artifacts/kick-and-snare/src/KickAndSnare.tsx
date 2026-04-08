@@ -4420,15 +4420,6 @@ export default function KickAndSnare(){
             startTransition(()=>setGfx(ng));
           }
         }
-        // Auto-enable reverb bus similarly when per-track reverb is turned on
-        if(updates.onReverb===true){
-          if(((nf as any).rMix??0)===0)(nf as any).rMix=30;
-          if(!gfx.reverb?.on){
-            const ng={...gfx,reverb:{...gfx.reverb,on:true}};
-            engine.uGfx(ng);
-            startTransition(()=>setGfx(ng));
-          }
-        }
         // Apply audio immediately — never inside a setState updater
         engine.uFx(tr.id,nf);
         // Reverb IR params: rebuild only when user explicitly changes them (not per sequencer step)
