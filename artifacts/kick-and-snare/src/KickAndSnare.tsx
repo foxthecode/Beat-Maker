@@ -840,10 +840,15 @@ export default function KickAndSnare(){
     (navigator.maxTouchPoints>1&&/Mac/i.test(navigator.userAgent))|| // iPadOS 13+ reports as Mac
     (navigator.maxTouchPoints>0&&window.innerWidth<1200) // Android tablets in landscape
   ,[]);
-  // isPhone = touch screen with small physical width (phones only, NOT tablets/desktop).
-  // Uses Math.min(w,h) = the physical narrow dimension, stable across rotations.
-  // Phones ≤ ~430px, tablets ≥ 600px — 540px is the safe cutoff.
-  const isPhone=useMemo(()=>navigator.maxTouchPoints>0&&Math.min(window.innerWidth,window.innerHeight)<540,[]);
+  // isPhone = narrow viewport (phones ≤ ~430px wide, tablets ≥ 600px).
+  // Uses Math.min(innerWidth, innerHeight) = the physical short side, stable across rotations.
+  // Reactive: updates on resize so Replit preview and desktop Chrome DevTools work correctly.
+  const [isPhone,setIsPhone]=useState(()=>Math.min(window.innerWidth,window.innerHeight)<540);
+  useEffect(()=>{
+    const update=()=>setIsPhone(Math.min(window.innerWidth,window.innerHeight)<540);
+    window.addEventListener("resize",update);
+    return()=>window.removeEventListener("resize",update);
+  },[]);
   const isMobileRef=useRef(isMobile);
   // ── H.2a: Portrait detection ──
   const [isPortrait,setIsPortrait]=useState(()=>window.innerHeight>window.innerWidth);
