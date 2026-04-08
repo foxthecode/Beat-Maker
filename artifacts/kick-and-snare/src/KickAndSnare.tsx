@@ -840,6 +840,10 @@ export default function KickAndSnare(){
     (navigator.maxTouchPoints>1&&/Mac/i.test(navigator.userAgent))|| // iPadOS 13+ reports as Mac
     (navigator.maxTouchPoints>0&&window.innerWidth<1200) // Android tablets in landscape
   ,[]);
+  // isPhone = touch screen with small physical width (phones only, NOT tablets/desktop).
+  // Uses Math.min(w,h) = the physical narrow dimension, stable across rotations.
+  // Phones ≤ ~430px, tablets ≥ 600px — 540px is the safe cutoff.
+  const isPhone=useMemo(()=>navigator.maxTouchPoints>0&&Math.min(window.innerWidth,window.innerHeight)<540,[]);
   const isMobileRef=useRef(isMobile);
   // ── H.2a: Portrait detection ──
   const [isPortrait,setIsPortrait]=useState(()=>window.innerHeight>window.innerWidth);
@@ -3057,13 +3061,16 @@ export default function KickAndSnare(){
         {/* ── Header ── */}
         <div style={{display:"flex",alignItems:"center",position:"relative",marginBottom:4,padding:"4px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
-            <div data-hint={`Logo Kick & Snare · Pulses on every downbeat — confirms audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:38,height:38,borderRadius:10,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s",background:"#FF6A00"}}>
+            {/* Logo — smaller in phone landscape to save vertical space */}
+            {(()=>{const pL=isPhone&&!isPortrait;const sz=pL?26:38;const r=pL?7:10;return(
+            <div data-hint={`Logo Kick & Snare · Pulses on every downbeat — confirms audio is active · v${APP_VERSION}`} onClick={()=>setShowInfo(p=>!p)} style={{width:sz,height:sz,borderRadius:r,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",animation:playing&&gInfo(cStep).first?"logoThump 0.18s ease-out 1":"none",boxShadow:playing?"0 0 24px rgba(255,45,85,0.5)":"0 0 12px rgba(255,45,85,0.2)",flexShrink:0,cursor:"pointer",transition:"box-shadow 0.3s",background:"#FF6A00"}}>
               <img src={`${import.meta.env.BASE_URL}fox-logo.jpg`} alt="Kick & Snare" style={{width:"100%",height:"100%",objectFit:"cover",display:"block",mixBlendMode:"multiply"}}/>
-            </div>
-            <div style={{flexShrink:0}}>
+            </div>);})()}
+            {/* Title + subtitle — hidden on phone landscape; not enough vertical room */}
+            {!(isPhone&&!isPortrait)&&<div style={{flexShrink:0}}>
               <div className="gradientShift" style={{fontSize:20,fontWeight:900,letterSpacing:"0.08em",whiteSpace:"nowrap",background:"linear-gradient(90deg,#FF2D55,#FF9500,#FFD60A,#30D158,#5E5CE6)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"gradientShift 4s linear infinite"}}>KICK & SNARE</div>
               <div className="subtitleAnim" style={{fontSize:8,letterSpacing:"0.4em",color:th.dim,whiteSpace:"nowrap"}}>DRUM EXPERIENCE</div>
-            </div>
+            </div>}
           </div>
           {/* ── Col 2 : Kit selector ── */}
           <div style={{display:"flex",flex:1,alignItems:"stretch",justifyContent:"center"}}>
@@ -3114,6 +3121,8 @@ export default function KickAndSnare(){
             const lHit=hS||hH||hC||hPerc||hCrash;const rHit=hRide||hT;
             const lA=hS?-55:hH?-30:hCrash?-18:(hC||hPerc)?-45:5;const rA=hRide?-60:hT?-30:5;
             const anyHit=hK||hS||hH||hRide||hCrash||hT||hC||hPerc;
+            // Hide mascot in phone landscape — saves ~35px of vertical header space.
+            if(isPhone&&!isPortrait)return null;
             const mc=th.mascot||"#bbb";
             const ac=(playing||anyHit)?"#FF9500":mc;const hi="#FF2D55";
             const aHH=act.includes("hihat");const aS=act.includes("snare");const aK=act.includes("kick");
@@ -3412,6 +3421,7 @@ export default function KickAndSnare(){
                   isMuted={isM}
                   isSoloed={isS}
                   isPortrait={isPortrait}
+                  isPhone={isPhone}
                   sendCursor={trackSendCursor[track.id]??0}
                   fxSecs={FX_SECS}
                   gfxSends={FX_SECS.map(f=>(gfx[f.sec]?.sends[track.id]||0))}
@@ -3559,7 +3569,8 @@ export default function KickAndSnare(){
           </div>
           )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
+          {/* Fix 4 phone portrait: shorter rows so Performance FX is reachable via scroll */}
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:isPhone&&isPortrait?`${Math.floor(50/Math.ceil(atO.length/4))}vh`:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
             {atO.map((track)=>{
               const padVol=fx[track.id]?.vol??80;
               const pR=9;const pC=2*Math.PI*pR;
@@ -3591,9 +3602,10 @@ export default function KickAndSnare(){
                     onPointerUp={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(track.id);}}
                     onPointerCancel={e=>{if(e.pointerType!=="touch")padHeldRef.current.delete(track.id);}}
                     style={{width:"100%",height:"100%",borderRadius:16,background:flashing.has(track.id)?track.color+"55":`linear-gradient(145deg,${track.color}28,${track.color}08)`,border:`2px solid ${flashing.has(track.id)?track.color:track.color+"44"}`,color:track.color,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",fontFamily:"inherit",boxShadow:flashing.has(track.id)?`0 0 40px ${track.color}66`:`0 0 16px ${track.color}11`,transition:"all 0.06s",transform:flashing.has(track.id)?"scale(0.95)":"scale(1)",touchAction:"none",userSelect:"none",WebkitTapHighlightColor:"transparent"}}>
-                    <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={44} />
-                    <span style={{fontSize:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
-                    {!isPortrait&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
+                    {/* Fix 5: smaller icon in phone landscape (less vertical space) */}
+                    <DrumSVG id={track.id} color={track.color} hit={flashing.has(track.id)} sz={isPhone&&!isPortrait?28:44} />
+                    <span style={{fontSize:isPhone&&!isPortrait?10:13,fontWeight:700,letterSpacing:"0.1em"}}>{track.label}</span>
+                    {!isPortrait&&!isPhone&&<span style={{fontSize:10,color:th.dim,border:`1px solid ${th.sBorder}`,borderRadius:4,padding:"2px 8px"}}>{kMap[track.id]?.toUpperCase()||""}</span>}
                   </button>
                   {/* ── TOP-LEFT: Delete pad — 44×44 transparent tap zone ── */}
                   {atO.length>1&&(
@@ -3981,7 +3993,8 @@ export default function KickAndSnare(){
 
         {/* ── EUCLID VIEW ── */}
         {view==="euclid"&&(()=>{
-          const svgSz=isPortrait?200:380;
+          // Phone portrait: fill available width (minus padding). Tablet/desktop: fixed.
+          const svgSz=isPhone&&isPortrait?Math.min(window.innerWidth-32,280):isPortrait?200:380;
           const CX=svgSz/2,CY=svgSz/2;
           const scale=svgSz/380;
           const R_OUT=Math.round(162*scale),R_IN=atO.length>1?Math.round(38*scale):Math.round(148*scale);
@@ -4095,9 +4108,10 @@ export default function KickAndSnare(){
             <div style={{padding:"8px 0",overflowX:"auto"}}>
               <TipBadge id="euclid_n" text="N = number of steps · HITS = number of sounds · Spin the wheel to create rhythms" color="#FFD60A"/>
               <TipBadge id="euclid_edit" text="Tap EDIT to easily place your sounds on the Euclidean grid" color="#30D158"/>
-              <div style={{display:"flex",flexDirection:"row",gap:12,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
+              {/* Phone portrait: single column, circle first (order:-1). Other: side-by-side row. */}
+              <div style={{display:"flex",flexDirection:isPhone&&isPortrait?"column":"row",gap:12,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
                 {/* ── LEFT: Track controls — scrolls with page ── */}
-                <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,minWidth:isPortrait?190:320}}>
+                <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,minWidth:isPhone&&isPortrait?0:isPortrait?190:320,order:isPhone&&isPortrait?2:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
                     <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>EUCLIDIAN TRACKS</div>
                     <button data-hint={euclidEditMode?"EDIT mode active · Euclidean dots are enlarged and draggable · Click DONE to finish":"EDIT mode · Enlarges dots for precise placement · Click to activate"} onClick={()=>setEuclidEditMode(p=>!p)} style={{padding:"2px 8px",borderRadius:10,border:`1px solid ${euclidEditMode?"#30D158":"#FFD60A"}`,background:euclidEditMode?"#30D15818":"#FFD60A18",color:euclidEditMode?"#30D158":"#FFD60A",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}>{euclidEditMode?"DONE":"EDIT"}</button>
@@ -4184,9 +4198,10 @@ export default function KickAndSnare(){
                   }
                 </div>
 
-                {/* ── RIGHT: Concentric rings SVG — always sticky on right ── */}
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0,position:"sticky",top:8,alignSelf:"flex-start",zIndex:4}}>
-                  <svg width={isPortrait?200:380} height={isPortrait?200:380} style={{display:"block",overflow:"visible"}}>
+                {/* ── RIGHT (or TOP on phone portrait): Concentric rings SVG ── */}
+                {/* order:1 makes SVG appear first in column mode on phone portrait */}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0,position:isPhone&&isPortrait?"relative":"sticky",top:8,alignSelf:"flex-start",zIndex:4,order:isPhone&&isPortrait?1:0,width:isPhone&&isPortrait?"100%":"auto"}}>
+                  <svg width={svgSz} height={svgSz} style={{display:"block",overflow:"visible",margin:isPhone&&isPortrait?"0 auto":"0"}}>
                     <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;

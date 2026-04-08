@@ -9,7 +9,7 @@ function TrackRow({
   smpN, MidiTag,
   actLength, themeName, gInfo,
   isMuted, isSoloed,
-  isPortrait,
+  isPortrait, isPhone,
   sendCursor, fxSecs, gfxSends,
   onStepDown, onContextMenu,
   onMuteToggle, onSoloToggle, onLoadSample, onRemove, onFxChange,
@@ -109,15 +109,19 @@ function TrackRow({
 
         </div>
 
-        {/* ── Steps grid (grows to fill, never pushes siblings) ── */}
-        <div ref={scrollRef} style={isPortrait ? {
+        {/* ── Steps grid ──
+            Phone portrait: flex:1 steps, no scroll (all steps shrink to fit row)
+            Tablet portrait: fixed 24px steps, scroll-snap
+            Landscape/desktop: flex:1 steps, no scroll
+        */}
+        <div ref={scrollRef} style={isPortrait && !isPhone ? {
           width: "100%", overflowX: "auto", display: "flex",
           scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch",
           gap: 2, touchAction: "manipulation", paddingBottom: 2,
         } : {
           flex: "1 1 0", minWidth: 0, overflow: "hidden",
           alignSelf: "flex-start",
-          display: "flex", gap: 0,
+          display: "flex", gap: isPhone && isPortrait ? 1 : 0,
           touchAction: "manipulation",
         }}>
           {Array(tSteps).fill(0).map((_, step) => {
@@ -135,6 +139,9 @@ function TrackRow({
             const stepHint = ac
               ? `Step ${step + 1} active · Velocity: ${vel}% · Probability: ${prob}%${ratch > 1 ? ` · ×${ratch} repeats` : ""}${sn !== 0 ? ` · Nudge: ${sn > 0 ? "+" : ""}${sn}` : ""} · Drag ↕ = velocity · Drag ↔ = timing · Long-press = settings · Click = disable`
               : `Step ${step + 1} empty · Click to activate · Drag ↕ immediately = set velocity on activation`;
+            // Phone portrait: flex:1 (shrink-to-fit, no scroll). Tablet portrait: fixed 24px. Landscape: flex:1 square.
+            const stepFlex = isPortrait && !isPhone ? "0 0 24px" : 1;
+            const stepMinW = isPortrait && !isPhone ? 24 : 0;
             return (
               <div key={step}
                 data-hint={stepHint}
@@ -143,8 +150,8 @@ function TrackRow({
                 data-step={step}
                 className={isCur && ac && !isDrag ? "stepPulse" : ""}
                 style={{
-                  flex: isPortrait ? "0 0 24px" : 1, minWidth: isPortrait ? 24 : 0,
-                  height: isPortrait ? 32 : undefined, aspectRatio: isPortrait ? undefined : "1",
+                  flex: stepFlex, minWidth: stepMinW,
+                  height: isPortrait && !isPhone ? 32 : undefined, aspectRatio: isPortrait && !isPhone ? undefined : "1",
                   borderRadius: 3, cursor: ac ? "grab" : "pointer",
                   position: "relative", overflow: "hidden",
                   scrollSnapAlign: "start",
