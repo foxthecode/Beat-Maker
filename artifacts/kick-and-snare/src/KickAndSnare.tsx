@@ -3131,8 +3131,9 @@ export default function KickAndSnare(){
             const lHit=hS||hH||hC||hPerc||hCrash;const rHit=hRide||hT;
             const lA=hS?-55:hH?-30:hCrash?-18:(hC||hPerc)?-45:5;const rA=hRide?-60:hT?-30:5;
             const anyHit=hK||hS||hH||hRide||hCrash||hT||hC||hPerc;
-            // Hide mascot in phone landscape — saves ~35px of vertical header space.
-            if(isPhone&&!isPortrait)return null;
+            // Phone landscape: smaller mascot (75×30) instead of hidden.
+            const mascotW=isPhone&&!isPortrait?75:130;
+            const mascotH=isPhone&&!isPortrait?30:52;
             const mc=th.mascot||"#bbb";
             const ac=(playing||anyHit)?"#FF9500":mc;const hi="#FF2D55";
             const aHH=act.includes("hihat");const aS=act.includes("snare");const aK=act.includes("kick");
@@ -3141,7 +3142,7 @@ export default function KickAndSnare(){
             const bpmMs=60000/Math.max(30,bpm||120);
             const bobDur=`${(bpmMs/1000).toFixed(3)}s`;
             return(<div data-hint="Mascot · Hits the drums on active tracks · Speed and halo synced to BPM" style={{flexShrink:0}}>
-              <svg viewBox="0 0 130 52" width="130" height="52" style={{overflow:"visible",willChange:"contents",display:"block",filter:(playing||loopPlaying)?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
+              <svg viewBox="0 0 130 52" width={mascotW} height={mascotH} style={{overflow:"visible",willChange:"contents",display:"block",filter:(playing||loopPlaying)?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
                 {/* Halo ring behind mascot — synced with BPM */}
                 {(playing||loopPlaying)&&<ellipse cx="44" cy="24" rx="28" ry="26" fill="none" stroke={anyHit?"#FF2D55":"#FF9500"} strokeWidth={0.8} opacity={0} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite`,transformOrigin:"44px 24px"}}/>}
                 {(playing||loopPlaying)&&<ellipse cx="44" cy="24" rx="22" ry="20" fill="none" stroke={anyHit?"rgba(255,45,85,0.3)":"rgba(255,149,0,0.2)"} strokeWidth={anyHit?2:1} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite alternate`}}/>}
