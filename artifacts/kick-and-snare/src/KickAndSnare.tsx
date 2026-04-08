@@ -899,8 +899,13 @@ export default function KickAndSnare(){
     if(engine.ctx&&engine.rebuildChain)engine.rebuildChain(fxChainOrder,fxSendPos);
   },[fxChainOrder,fxSendPos]);
   // ── H.2a: Portrait orientation listener ──
+  // startTransition keeps orientation re-renders low-priority so the audio scheduler
+  // never gets starved — fixes crackling on tablet orientation change.
   useEffect(()=>{
-    const h=()=>setIsPortrait(window.innerHeight>window.innerWidth);
+    const h=()=>startTransition(()=>{
+      setIsPortrait(window.innerHeight>window.innerWidth);
+      setIsPhone(Math.min(window.innerWidth,window.innerHeight)<540);
+    });
     window.addEventListener('resize',h);
     screen.orientation?.addEventListener('change',h);
     return()=>{window.removeEventListener('resize',h);screen.orientation?.removeEventListener('change',h);};
@@ -3574,8 +3579,9 @@ export default function KickAndSnare(){
           </div>
           )} {/* end LOOPER DISABLED */}
           {/* ─ Pads grid ─ */}
-          {/* Fix 4 phone portrait: shorter rows so Performance FX is reachable via scroll */}
-          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:isPhone&&isPortrait?`${Math.floor(50/Math.ceil(atO.length/4))}vh`:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
+          {/* Portrait (phone + tablet): limit pad height so Perform FX is reachable below.
+              Phone: 50vh total ÷ rows. Tablet: 42vh total ÷ rows. Landscape: fill remaining. */}
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(4,atO.length)},1fr)`,gridAutoRows:isPortrait?`${Math.floor((isPhone?50:42)/Math.ceil(atO.length/4))}vh`:`calc((100dvh - 250px) / ${Math.ceil(atO.length/4)})`,gap:12,touchAction:"none",marginBottom:10}}>
             {atO.map((track)=>{
               const padVol=fx[track.id]?.vol??80;
               const pR=9;const pC=2*Math.PI*pR;
@@ -3998,8 +4004,8 @@ export default function KickAndSnare(){
 
         {/* ── EUCLID VIEW ── */}
         {view==="euclid"&&(()=>{
-          // Phone portrait: fill available width (minus padding). Tablet/desktop: fixed.
-          const svgSz=isPhone&&isPortrait?Math.min(window.innerWidth-32,280):isPortrait?200:380;
+          // Portrait: fill available width. Phone max 280px, tablet max 340px. Landscape: 380px.
+          const svgSz=isPortrait?Math.min(window.innerWidth-32,isPhone?280:340):380;
           const CX=svgSz/2,CY=svgSz/2;
           const scale=svgSz/380;
           const R_OUT=Math.round(162*scale),R_IN=atO.length>1?Math.round(38*scale):Math.round(148*scale);
@@ -4113,10 +4119,11 @@ export default function KickAndSnare(){
             <div style={{padding:"8px 0",overflowX:"auto"}}>
               <TipBadge id="euclid_n" text="N = number of steps · HITS = number of sounds · Spin the wheel to create rhythms" color="#FFD60A"/>
               <TipBadge id="euclid_edit" text="Tap EDIT to easily place your sounds on the Euclidean grid" color="#30D158"/>
-              {/* Phone portrait: single column, circle first (order:-1). Other: side-by-side row. */}
-              <div style={{display:"flex",flexDirection:isPhone&&isPortrait?"column":"row",gap:12,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
-                {/* ── LEFT: Track controls — scrolls with page ── */}
-                <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,minWidth:isPhone&&isPortrait?0:isPortrait?190:320,order:isPhone&&isPortrait?2:0}}>
+              {/* Portrait (phone + tablet): column — circle on top, tracks below.
+                  Landscape/desktop: side-by-side row. */}
+              <div style={{display:"flex",flexDirection:isPortrait?"column":"row",gap:12,alignItems:"flex-start",minWidth:isPortrait?undefined:820}}>
+                {/* ── LEFT (or BOTTOM in portrait): Track controls ── */}
+                <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,minWidth:isPortrait?0:320,order:isPortrait?2:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
                     <div style={{fontSize:8,fontWeight:800,color:th.dim,letterSpacing:"0.12em"}}>EUCLIDIAN TRACKS</div>
                     <button data-hint={euclidEditMode?"EDIT mode active · Euclidean dots are enlarged and draggable · Click DONE to finish":"EDIT mode · Enlarges dots for precise placement · Click to activate"} onClick={()=>setEuclidEditMode(p=>!p)} style={{padding:"2px 8px",borderRadius:10,border:`1px solid ${euclidEditMode?"#30D158":"#FFD60A"}`,background:euclidEditMode?"#30D15818":"#FFD60A18",color:euclidEditMode?"#30D158":"#FFD60A",fontSize:7,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:"0.08em",flexShrink:0}}>{euclidEditMode?"DONE":"EDIT"}</button>
@@ -4203,10 +4210,9 @@ export default function KickAndSnare(){
                   }
                 </div>
 
-                {/* ── RIGHT (or TOP on phone portrait): Concentric rings SVG ── */}
-                {/* order:1 makes SVG appear first in column mode on phone portrait */}
-                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0,position:isPhone&&isPortrait?"relative":"sticky",top:8,alignSelf:"flex-start",zIndex:4,order:isPhone&&isPortrait?1:0,width:isPhone&&isPortrait?"100%":"auto"}}>
-                  <svg width={svgSz} height={svgSz} style={{display:"block",overflow:"visible",margin:isPhone&&isPortrait?"0 auto":"0"}}>
+                {/* ── SVG: TOP in portrait column, RIGHT in landscape row ── */}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,flexShrink:0,position:isPortrait?"relative":"sticky",top:8,alignSelf:"flex-start",zIndex:4,order:isPortrait?1:0,width:isPortrait?"100%":"auto"}}>
+                  <svg width={svgSz} height={svgSz} style={{display:"block",overflow:"visible",margin:isPortrait?"0 auto":"0"}}>
                     <circle cx={CX} cy={CY} r={R_OUT+20} fill={th.surface} stroke={th.sBorder} strokeWidth={1} opacity={0.6}/>
                     {atO.map((tr,ti)=>{
                       const R=R_OUT-ti*ringGap;
