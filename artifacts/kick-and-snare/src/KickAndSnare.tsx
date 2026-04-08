@@ -4409,6 +4409,26 @@ export default function KickAndSnare(){
       const updFx=(updates:Record<string,unknown>)=>{
         // Compute from R.fx (always-current ref) to avoid stale closure
         const nf={...DEFAULT_FX,...(R.fx as any)[tr.id]||{}, ...updates};
+        // Auto-enable delay: when onDelay toggled ON, ensure dMix > 0 so something is heard
+        // AND auto-enable the global delay bus (per-track sends route through gDlWet which
+        // is 0 when gfx.delay.on is false — without this the per-track delay is always silent).
+        if(updates.onDelay===true){
+          if(((nf as any).dMix??0)===0)(nf as any).dMix=30;
+          if(!gfx.delay?.on){
+            const ng={...gfx,delay:{...gfx.delay,on:true}};
+            engine.uGfx(ng);
+            startTransition(()=>setGfx(ng));
+          }
+        }
+        // Auto-enable reverb bus similarly when per-track reverb is turned on
+        if(updates.onReverb===true){
+          if(((nf as any).rMix??0)===0)(nf as any).rMix=30;
+          if(!gfx.reverb?.on){
+            const ng={...gfx,reverb:{...gfx.reverb,on:true}};
+            engine.uGfx(ng);
+            startTransition(()=>setGfx(ng));
+          }
+        }
         // Apply audio immediately — never inside a setState updater
         engine.uFx(tr.id,nf);
         // Reverb IR params: rebuild only when user explicitly changes them (not per sequencer step)
