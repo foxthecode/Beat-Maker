@@ -110,21 +110,27 @@ function TrackRow({
         </div>
 
         {/* ── Steps grid ──
-            Portrait (phone + tablet): horizontal scroll, fixed step px
-              - Phone portrait: 16px/step (fits ~16 steps on 393px, scrolls for 32+)
-              - Tablet portrait: 24px/step (more screen real estate)
-            Landscape/desktop: flex:1, no scroll (steps auto-size as squares)
+            Phone portrait: CSS Grid (repeat(N, 1fr)) — all steps fill 100% width, no scroll.
+            Tablet portrait: flex row + horizontal scroll, 24px/step.
+            Landscape/desktop: flex row, flex:1 per step (auto-square via aspectRatio).
         */}
-        <div ref={scrollRef} style={isPortrait ? {
-          width: "100%", overflowX: "auto", display: "flex",
-          scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch",
-          gap: 2, touchAction: "manipulation", paddingBottom: 2,
-        } : {
-          flex: "1 1 0", minWidth: 0, overflow: "hidden",
-          alignSelf: "flex-start",
-          display: "flex", gap: 0,
-          touchAction: "manipulation",
-        }}>
+        <div ref={scrollRef} style={
+          isPhone && isPortrait ? {
+            display: "grid",
+            gridTemplateColumns: `repeat(${tSteps}, 1fr)`,
+            gap: "2px",
+            width: "100%",
+            touchAction: "manipulation",
+          } : isPortrait ? {
+            width: "100%", overflowX: "auto", display: "flex",
+            scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch",
+            gap: 2, touchAction: "manipulation", paddingBottom: 2,
+          } : {
+            flex: "1 1 0", minWidth: 0, overflow: "hidden",
+            alignSelf: "flex-start",
+            display: "flex", gap: 0,
+            touchAction: "manipulation",
+          }}>
           {Array(tSteps).fill(0).map((_, step) => {
             const ac = !!(pat?.[step]);
             const ratio = Math.max(1, Math.round(tSteps / STEPS));
@@ -140,12 +146,14 @@ function TrackRow({
             const stepHint = ac
               ? `Step ${step + 1} active · Velocity: ${vel}% · Probability: ${prob}%${ratch > 1 ? ` · ×${ratch} repeats` : ""}${sn !== 0 ? ` · Nudge: ${sn > 0 ? "+" : ""}${sn}` : ""} · Drag ↕ = velocity · Drag ↔ = timing · Long-press = settings · Click = disable`
               : `Step ${step + 1} empty · Click to activate · Drag ↕ immediately = set velocity on activation`;
-            // Portrait: fixed px + horizontal scroll. Phone=16px (compact), tablet=24px.
-            // Landscape/desktop: flex:1 (auto-size as squares).
-            const stepPx = isPhone ? 16 : 24;
-            const stepFlex = isPortrait ? `0 0 ${stepPx}px` : 1;
-            const stepMinW = isPortrait ? stepPx : 0;
-            const stepH   = isPortrait ? (isPhone ? 28 : 32) : undefined;
+
+            // Phone portrait → grid child: height explicit, no flex props, no marginLeft.
+            // Tablet portrait → flex child 24px fixed + scroll.
+            // Landscape/desktop → flex:1 square.
+            const isPhonePortrait = isPhone && isPortrait;
+            const stepFlex = isPortrait && !isPhone ? "0 0 24px" : isPortrait ? undefined : 1;
+            const stepMinW = isPortrait && !isPhone ? 24 : 0;
+            const stepH   = isPhonePortrait ? 28 : isPortrait ? 32 : undefined;
             return (
               <div key={step}
                 data-hint={stepHint}
@@ -159,7 +167,9 @@ function TrackRow({
                   borderRadius: 3, cursor: ac ? "grab" : "pointer",
                   position: "relative", overflow: "hidden",
                   scrollSnapAlign: "start",
-                  marginLeft: gi.first && step > 0 ? 6 : 2, touchAction: "none", userSelect: "none", WebkitTouchCallout: "none",
+                  // Grid (phone portrait): gap handles spacing, so no marginLeft needed.
+                  marginLeft: isPhonePortrait ? 0 : (gi.first && step > 0 ? 6 : 2),
+                  touchAction: "none", userSelect: "none", WebkitTouchCallout: "none",
                   background: isCur && gi.first ? "rgba(200,169,110,0.42)" : isCur ? th.cursor : gi.gi % 2 === 1 ? th.stepAlt : th.stepOff,
                   boxShadow: ac && isCur ? `0 0 18px ${track.color},0 0 40px ${track.color}66,inset 0 0 8px ${track.color}44` : "none",
                   transform: isDrag ? "scale(1.15)" : "scale(1)",
