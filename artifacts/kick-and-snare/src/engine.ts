@@ -2,7 +2,7 @@ import { TRACKS } from './constants';
 
 // ═══ Audio Engine ════════════════════════════════════════════════════════════
 class Eng{
-  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};this._rvKey='';
+  constructor(){this.ctx=null;this.mg=null;this.buf={};this.rv=null;this.ch={};this._chIds=[];this._c={};this._resumeP=null;this._chainOrder=['drive','comp','filter'];this._sendPositions={};this._rvKey='';
     const _ua=typeof navigator!=='undefined'?navigator.userAgent:'';
     // iPadOS 13+ reports as "Macintosh" — detect via maxTouchPoints
     const _isIpadOS=/Macintosh/.test(_ua)&&typeof navigator!=='undefined'&&navigator.maxTouchPoints>1;
@@ -271,6 +271,7 @@ class Eng{
     c.pan.connect(c.flaSend);c.flaSend.connect(this.gFlaBus);
     c.pan.connect(c.ppSend);c.ppSend.connect(this.gPpBus);
     this.ch[id]=c;
+    this._chIds=Object.keys(this.ch); // cache invalidated only when a new channel is built
   }
   uGfx(gfx){
     if(!this.ctx||!this.gDrv)return;
@@ -370,7 +371,8 @@ class Eng{
       cancel(this.gPpFbRL.gain);this.gPpFbRL.gain.setTargetAtTime(fb,t,0.01);
     }
     if(this.gPpLpf){cancel(this.gPpLpf.frequency);this.gPpLpf.frequency.setTargetAtTime(ppOn?5000:20000,t,0.01);}
-    Object.keys(this.ch).forEach(id=>{
+    // _chIds is cached; Object.keys(this.ch) was allocating a new array on every uGfx() call.
+    this._chIds.forEach(id=>{
       const c=this.ch[id];if(!c)return;
       const ppS=ppOn&&!!gfx.pingpong?.sends?.[id];
       const choS=choOn&&!!gfx.chorus?.sends?.[id];
@@ -379,7 +381,8 @@ class Eng{
       if(c.flaSend)c.flaSend.gain.setTargetAtTime(flaS?0.85:0,t,0.01);
       if(c.ppSend)c.ppSend.gain.setTargetAtTime(ppS?0.70:0,t,0.01);
       const anySend=choS||flaS||ppS;
-      const manySend=[choS,flaS,ppS].filter(Boolean).length>1;
+      // Arithmetic replaces [choS,flaS,ppS].filter(Boolean).length>1 — zero allocation.
+      const manySend=(choS?1:0)+(flaS?1:0)+(ppS?1:0)>1;
       if(c.dry)c.dry.gain.setTargetAtTime(manySend?0.3:anySend?0.6:1,t,0.3);
     });
   }

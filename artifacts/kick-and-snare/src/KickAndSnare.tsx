@@ -1233,8 +1233,11 @@ export default function KickAndSnare(){
 
   const allT=useMemo(()=>[...ALL_TRACKS,...customTracks],[customTracks]);
   const _kitLbl=kitIdx>=0?((DRUM_KITS[kitIdx] as any)?.labels??{}):userKitLabelOverride;
-  const atO=useMemo(()=>act.map(id=>{const t=allT.find(t=>t.id===id);if(!t)return null;const ov=_kitLbl[id];return ov?{...t,label:ov}:t;}).filter(Boolean),[act,allT,_kitLbl]);
-  const inact=ALL_TRACKS.filter(t=>!act.includes(t.id));
+  // O(n) — pre-build Map once so each id lookup is O(1) instead of O(n) find().
+  // Previously: act.map(id=>allT.find(...)) = O(n²). Now: O(n) total.
+  const atO=useMemo(()=>{const byId=new Map<string,any>(allT.map(t=>[t.id,t]));return act.map(id=>{const t=byId.get(id);if(!t)return null;const ov=_kitLbl[id];return ov?{...t,label:ov}:t;}).filter(Boolean);},[act,allT,_kitLbl]);
+  // O(n) — Set.has() replaces act.includes() O(n) inside filter → O(n) total vs O(n²).
+  const inact=useMemo(()=>{const actSet=new Set(act);return ALL_TRACKS.filter(t=>!actSet.has(t.id));},[act]);
 
   /**
    * R — mutable ref bus shared between the scheduler, MIDI handler, and looper.
@@ -1259,6 +1262,8 @@ export default function KickAndSnare(){
   R.sn=stNudge;       // nudge offsets — scheduler shifts step timing by ±ms
   R.vel=stVel;        // velocity per step — scheduler scales engine gain (0–100)
   R.at=act;           // active track IDs — scheduler and MIDI iterate this list
+  R.atSet=new Set(act);  // O(1) has(); avoids at.includes() O(n) in hot scheduler path
+  R.trackMap=new Map((allT as any[]).map(t=>[t.id,t])); // O(1) id→track; avoids allT.find()
   R.pb=pBank;         // full pattern bank — song arranger reads all patterns
   R.playing=playing;  // playback state — avoids stale closure on play/stop toggle
   // In song mode with cPatLocked (user editing a different pattern), keep R.cp at the
@@ -1364,7 +1369,7 @@ export default function KickAndSnare(){
       if(mapped==='__play__'){R.ss?.current?.();return;}
       if(mapped==='__rec__'){R.setRec?.(p=>!p);return;}
       if(mapped==='__tap__'){R.htap?.();return;}
-      if(mapped&&R.at.includes(mapped)){R.trigPad?.(mapped,byte2/127);}
+      if(mapped&&R.atSet?.has(mapped)){R.trigPad?.(mapped,byte2/127);}
     }
   },[]);
   const initMidi=async()=>{
@@ -1413,7 +1418,8 @@ export default function KickAndSnare(){
       // DOM-direct flash — zero React re-render, instant visual on mobile
       const btn=padBtnRefs.current[tid];
       if(btn){
-        const track=(R.allT||[]).find((t:any)=>t.id===tid);
+        // O(1) Map lookup — was O(n) allT.find() per pad hit.
+        const track=R.trackMap?.get(tid) as any;
         const c=track?.color||'#fff';
         btn.style.background=`${c}55`;btn.style.borderColor=c;
         btn.style.boxShadow=`0 0 40px ${c}66`;btn.style.transform='scale(0.95)';
@@ -1530,7 +1536,7 @@ export default function KickAndSnare(){
       if(e.key==="ArrowUp"){e.preventDefault();setBpm(p=>Math.min(300,p+5));return;}
       if(e.key==="ArrowDown"){e.preventDefault();setBpm(p=>Math.max(30,p-5));return;}
       if(e.key==="t"||e.key==="T"){handleTap();return;}
-      const k=e.key.toLowerCase();const tid=Object.keys(R.km).find(id=>R.km[id]===k);if(tid&&R.at.includes(tid)){e.preventDefault();trigPad(tid);}
+      const k=e.key.toLowerCase();const tid=Object.keys(R.km).find(id=>R.km[id]===k);if(tid&&R.atSet?.has(tid)){e.preventDefault();trigPad(tid);}
     };window.addEventListener("keydown",down);return()=>window.removeEventListener("keydown",down);
   },[trigPad]);
 
@@ -1600,7 +1606,8 @@ export default function KickAndSnare(){
       }
     };
     (R.allT||ALL_TRACKS).forEach(tr=>{
-      if(!at.includes(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
+      // R.atSet.has() is O(1); at.includes() was O(n) → O(n²) total per tick.
+      if(!R.atSet?.has(tr.id))return;if(s&&s!==tr.id)return;if(m[tr.id])return;
       const gSt=R.sig?.steps||16;
       if(R.view==="euclid"){
         // Distribute N Euclid steps evenly across gSt global ticks.
@@ -1662,27 +1669,37 @@ export default function KickAndSnare(){
 
       // ── Boucle de scheduling ─────────────────────────────────────────────────
       const eLA=Math.max(LA,0.20); // 200ms minimum — absorbe les délais React
-      const curSnapshot:Record<string,number>={...euclidCurRef.current};
+      // Mutate in-place — the spread {...euclidCurRef.current} was allocating a new
+      // 16-property object on every 25ms tick (640 property copies/sec). The ref
+      // object is exclusively owned by this closure; the RAF callback copies it for setState.
+      const curSnapshot=euclidCurRef.current;
 
       while(eg.nextTime<ct+eLA){
         const tickTime=eg.nextTime;
         const globalTick=eg.globalTick;
 
         (R.allT||ALL_TRACKS).forEach(tr=>{
-          if(!at.includes(tr.id))return;
+          // R.atSet.has() O(1); at.includes() was O(n) → O(n²) per tick.
+          if(!R.atSet?.has(tr.id))return;
           if(s&&s!==tr.id)return;
           if(m[tr.id])return;
-          const N=R.pb[R.cp]?._steps?.[tr.id]||(R.pat?.[tr.id]?.length)||16;
+          // Hoist 2-level property accesses — fetched once per track, not per step.
+          const trPat=R.pat?.[tr.id];
+          const trProb=R.prob?.[tr.id];
+          const trVel=R.vel?.[tr.id];
+          const trRatch=R.ratch?.[tr.id];
+          const trNd=R.sn?.[tr.id];
+          const N=R.pb[R.cp]?._steps?.[tr.id]||(trPat?.length)||16;
           if(N<=0)return;
           // Polyrhythme : chaque piste lit son propre index dans le cycle global
           const stepIndex=globalTick%N;
           curSnapshot[tr.id]=stepIndex;
-          if(R.pat?.[tr.id]?.[stepIndex]){
-            const sp=R.prob[tr.id]?.[stepIndex]??100;
+          if(trPat?.[stepIndex]){
+            const sp=trProb?.[stepIndex]??100;
             if(Math.random()*100<sp){
-              const v=(R.vel[tr.id]?.[stepIndex]??100)/100;
-              const r=R.ratch[tr.id]?.[stepIndex]||1;
-              const nd=R.sn[tr.id]?.[stepIndex]||0;
+              const v=(trVel?.[stepIndex]??100)/100;
+              const r=trRatch?.[stepIndex]||1;
+              const nd=trNd?.[stepIndex]||0;
               // Same GC-reduction pattern: pass constant ref, never spread in hot path.
               for(let ri=0;ri<r;ri++)engine.play(tr.id,v*(ri===0?1:0.65),ri===0?nd:0,R.fx[tr.id]||DEFAULT_FX,tickTime+ri*(sixteenth/r));
               R.flashPad?.(tr.id,Math.max(0,Math.round((tickTime-ct)*1000)-4));
