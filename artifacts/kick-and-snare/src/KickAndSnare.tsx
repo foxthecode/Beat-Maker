@@ -1494,7 +1494,12 @@ export default function KickAndSnare(){
         const ratio=Math.max(1,Math.round(tSt/gSt));
         const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
         const sw=bd*(R.sw||0)/100*0.5;
-        const ct=engine.ctx.currentTime;
+        // Compensate touch input latency (~40ms on Android tablets).
+        // Without this, ctx.currentTime has already advanced past the beat
+        // by the time the touch event reaches trigPad, causing intermittent
+        // +1 step offset on the first few taps.
+        const touchLatencyCompensation=engine._isMobile?0.040:0.010;
+        const ct=engine.ctx.currentTime-touchLatencyCompensation;
 
         // Walk backwards from scheduler head to find the currently-audible step.
         let walkTime=nxtRef.current;
