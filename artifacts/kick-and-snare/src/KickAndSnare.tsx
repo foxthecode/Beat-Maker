@@ -1498,7 +1498,7 @@ export default function KickAndSnare(){
         // Without this, ctx.currentTime has already advanced past the beat
         // by the time the touch event reaches trigPad, causing intermittent
         // +1 step offset on the first few taps.
-        const touchLatencyCompensation=engine._isMobile?0.040:0.010;
+        const touchLatencyCompensation=engine._isMobile?0.018:0.006;
         const ct=engine.ctx.currentTime-touchLatencyCompensation;
 
         // Walk backwards from scheduler head to find the currently-audible step.
@@ -1687,8 +1687,18 @@ export default function KickAndSnare(){
     const ct=engine.ctx.currentTime;
     const LA=engine._lookAhead;
     const audioIsLow=nxtRef.current<ct+(LA*0.5); // buffer < half lookahead → urgent
-    if(!audioIsLow&&nowMs-lastSchRunRef.current<minGapMs)return;
-    lastSchRunRef.current=nowMs;
+    const gapSinceLastRun=nowMs-lastSchRunRef.current;
+    // If we just had a long main-thread stall (>150ms), only allow ONE schLoop
+    // run to resync, then enforce a cooldown. This prevents piled-up Worker
+    // messages from each triggering a full scheduling pass.
+    if(!audioIsLow&&gapSinceLastRun<minGapMs)return;
+    if(gapSinceLastRun>150&&lastSchRunRef.current>0){
+      // Recovered from stall: let this run through (to resync), but stamp now
+      // so the NEXT queued message is dropped by the guard above.
+      lastSchRunRef.current=nowMs;
+    }else{
+      lastSchRunRef.current=nowMs;
+    }
     let dirty=false;
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
@@ -1699,12 +1709,21 @@ export default function KickAndSnare(){
       // Une seule origine temporelle. Tous les sons = startTime + tick * sixteenth.
       // Garantit que les intervalles sont toujours des multiples entiers de sixteenth.
       const eg=euclidGlobalRef.current;
-      if(eg.nextTime==null||eg.nextTime<ct-sixteenth){
+      if(eg.nextTime==null){
+        // Initial start — hard reset
         eg.nextTime=ct;
         eg.globalTick=0;
         const resetCur:Record<string,number>={};
         (R.allT||ALL_TRACKS).forEach(tr=>{resetCur[tr.id]=-1;});
         setEuclidCurDisplay(resetCur);
+      }else if(eg.nextTime<ct-sixteenth){
+        // Graceful resync after main-thread stall: skip missed ticks silently
+        // instead of resetting to tick 0 (which would restart the pattern).
+        const missedTicks=Math.floor((ct-eg.nextTime)/sixteenth);
+        eg.globalTick=(eg.globalTick+missedTicks)%1000000;
+        eg.nextTime=eg.nextTime+missedTicks*sixteenth;
+        // If still behind (very long stall), clamp to ct
+        if(eg.nextTime<ct-sixteenth){eg.nextTime=ct;}
       }
 
       // ── Boucle de scheduling ─────────────────────────────────────────────────
@@ -1797,7 +1816,18 @@ export default function KickAndSnare(){
     }
     // ── Linear / Pads: global step scheduler ──
     const cs=R.sig;const gr=cs.groups||[cs.steps];
-    if(nxtRef.current<ct-0.005)nxtRef.current=ct+0.01; // resync if >5ms late — avoids burst catchup (GC/Android OS pause → crackling)
+    // ── Graceful resync after main-thread stall (React re-render, GC, etc.) ──
+    // When the main thread was blocked (e.g. 200-300ms during a view change),
+    // nxtRef falls behind ct.  Instead of catching up (burst of notes →
+    // accelerated BPM + sample degradation), we SKIP the missed steps and
+    // resume from the current beat position.
+    if(nxtRef.current<ct-0.040){
+      const bd=(60/R.bpm)*cs.beats/cs.steps;
+      const missedTime=ct-nxtRef.current;
+      const missedSteps=Math.floor(missedTime/bd);
+      R.step=((R.step+missedSteps)%cs.steps+cs.steps)%cs.steps;
+      nxtRef.current=ct+(bd-(missedTime%bd));
+    }
     while(nxtRef.current<ct+LA){
       const prevStep=R.step;
       R.step=(R.step+1)%cs.steps;
