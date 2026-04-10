@@ -1483,19 +1483,38 @@ export default function KickAndSnare(){
           snapRatio=0.5-nearestDist; // maps 0=worst→0, 0.5=perfect→0.5 (green zone ≥0.35)
         }
       }else if(R.step>=0){
-        // Linear: lookahead-aware quantization (unchanged)
+        // Linear: playback-time quantization — walk backwards from the scheduler
+        // head (nxtRef) to find the step the user is *hearing* right now.
+        // Fix for tablet high-lookahead (+1 step offset bug): the old approach
+        // used nxtRef+R.step (future-facing), causing Math.round() to land on
+        // the wrong side when lookahead ~300ms. New approach walks backwards
+        // until walkTime <= ctx.currentTime, then snaps to nearest step.
         const gSt=R.sig?.steps||16;
         const tSt=[gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt;
         const ratio=Math.max(1,Math.round(tSt/gSt));
         const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
         const sw=bd*(R.sw||0)/100*0.5;
-        const curStepDur=R.step%2===0?(bd+sw):(bd-sw);
-        const stepStart=nxtRef.current-curStepDur;
-        const offsetFromStart=engine.ctx.currentTime-stepStart;
-        const stepsFromNow=Math.round(offsetFromStart/bd);
-        const qStep=((R.step+stepsFromNow)%gSt+gSt)%gSt;
-        const relOffset=(offsetFromStart%bd+bd)%bd;
-        snapRatio=relOffset/bd;
+        const ct=engine.ctx.currentTime;
+
+        // Walk backwards from scheduler head to find the currently-audible step.
+        let walkTime=nxtRef.current;
+        let walkStep=R.step;
+        let safety=gSt+4;
+        while(walkTime>ct+0.001&&safety-->0){
+          const prevStep=((walkStep-1)%gSt+gSt)%gSt;
+          const stepDur=prevStep%2===0?(bd+sw):(bd-sw);
+          walkTime-=stepDur;
+          walkStep=prevStep;
+        }
+
+        // Sub-step position: how far into the current step did the user tap?
+        const offsetInStep=Math.max(0,ct-walkTime);
+        const curStepDur=walkStep%2===0?(bd+sw):(bd-sw);
+        const subRatio=Math.min(1,offsetInStep/curStepDur);
+
+        // Nearest-neighbour snap: if >50% into step, round up to next step
+        const qStep=subRatio>=0.5?((walkStep+1)%gSt):walkStep;
+        snapRatio=subRatio;
         targetStep=ratio>1?qStep*ratio:qStep%tSt;
       }
       if(targetStep>=0){
