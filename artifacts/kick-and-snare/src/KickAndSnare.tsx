@@ -1512,8 +1512,8 @@ export default function KickAndSnare(){
         const curStepDur=walkStep%2===0?(bd+sw):(bd-sw);
         const subRatio=Math.min(1,offsetInStep/curStepDur);
 
-        // Nearest-neighbour snap: if >50% into step, round up to next step
-        const qStep=subRatio>=0.5?((walkStep+1)%gSt):walkStep;
+        // Nearest-neighbour snap: if strictly >50% into step, round up to next step
+        const qStep=subRatio>0.5?((walkStep+1)%gSt):walkStep;
         snapRatio=subRatio;
         targetStep=ratio>1?qStep*ratio:qStep%tSt;
       }
