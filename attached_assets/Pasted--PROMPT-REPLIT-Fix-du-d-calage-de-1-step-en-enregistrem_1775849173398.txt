@@ -1,0 +1,141 @@
+# PROMPT REPLIT — Fix du décalage de +1 step en enregistrement live (tablette)
+
+## LE BUG
+
+Quand l'utilisateur enregistre en live (mode REC) sur le séquenceur linéaire, les steps sont **décalés de +1 systématiquement** sur la tablette Xiaomi Pad 6 (Android 15, lookahead 300ms). Le bug n'apparaît pas sur le Fairphone 4 (lookahead plus petit).
+
+### Cause racine
+
+Dans la fonction `trigPad`, la quantization linéaire (lignes ~1485-1499) calcule le step courant en se basant sur `nxtRef.current` et `R.step`, qui sont **en avance** sur ce que l'utilisateur entend réellement (à cause du lookahead du scheduler).
+
+Le scheduler fonctionne en lookahead : il schedule les notes **300ms en avance** sur mobile. Donc :
+- `R.step` = le dernier step **schedulé** (pas celui qu'on entend)
+- `nxtRef.current` = le temps audio du **prochain** step à scheduler
+
+Quand l'utilisateur tape un pad, `engine.ctx.currentTime` est ~300ms **en retard** par rapport à `nxtRef.current`. Le calcul `offsetFromStart = ctx.currentTime - stepStart` donne un nombre négatif ou trop petit, et `Math.round(offsetFromStart/bd)` renvoie une valeur qui décale le step de +1.
+
+Sur le Fairphone (lookahead ~100ms), le décalage est assez petit pour que `Math.round` tombe du bon côté. Sur la tablette (lookahead 300ms), il tombe systématiquement du mauvais côté → +1 step.
+
+## LA CORRECTION
+
+### Localiser le code
+
+Dans `KickAndSnare.tsx`, chercher la section dans `trigPad` :
+
+```javascript
+}else if(R.step>=0){
+  // Linear: lookahead-aware quantization (unchanged)
+```
+
+C'est aux alentours de la ligne 1485.
+
+### Remplacer TOUTE la section Linear (de `}else if(R.step>=0){` jusqu'au `}` fermant avant `if(targetStep>=0)`)
+
+Remplacer par :
+
+```javascript
+      }else if(R.step>=0){
+        // Linear: playback-time quantization — uses ctx.currentTime vs the
+        // audio time of the step being *heard* right now, NOT the step being
+        // *scheduled* (which is lookahead ms in the future).
+        //
+        // Fix: the old code used nxtRef (scheduler head) and R.step (last
+        // scheduled step index).  With a 300ms lookahead on tablet, those are
+        // ~6-8 steps ahead of what the user actually hears, so Math.round()
+        // systematically rounded to +1 step.
+        //
+        // New approach: walk backwards from nxtRef to find the step whose
+        // scheduled audio time brackets ctx.currentTime.  This is the step
+        // the user is *hearing* when they tap the pad.
+        const gSt=R.sig?.steps||16;
+        const tSt=[gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt;
+        const ratio=Math.max(1,Math.round(tSt/gSt));
+        const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
+        const sw=bd*(R.sw||0)/100*0.5;
+        const ct=engine.ctx.currentTime;
+
+        // Walk backwards from the scheduler head to find the step that is
+        // currently audible.  nxtRef is the time of the NEXT step to be
+        // scheduled; we subtract step durations until we cross ct.
+        let walkTime=nxtRef.current;
+        let walkStep=R.step;  // R.step = last step index that was scheduled
+        let safety=gSt+4;     // prevent infinite loop (max 1 bar + margin)
+        while(walkTime>ct+0.001 && safety-->0){
+          const prevStep=((walkStep-1)%gSt+gSt)%gSt;
+          const stepDur=prevStep%2===0?(bd+sw):(bd-sw);
+          walkTime-=stepDur;
+          walkStep=prevStep;
+        }
+        // walkStep is now the step whose audio time <= ct (the step being heard)
+        // walkTime is approximately the start time of that step
+
+        // Sub-step offset: how far into this step did the user tap?
+        const offsetInStep=Math.max(0,ct-walkTime);
+        const curStepDur=walkStep%2===0?(bd+sw):(bd-sw);
+        const subRatio=Math.min(1,offsetInStep/curStepDur);
+
+        // If the user tapped in the second half of the step, snap to the NEXT step
+        // (standard nearest-neighbor quantization)
+        const qStep=subRatio>=0.5?((walkStep+1)%gSt):walkStep;
+
+        const relOffset=subRatio;
+        snapRatio=relOffset;
+        targetStep=ratio>1?qStep*ratio:qStep%tSt;
+      }
+```
+
+### NE PAS MODIFIER la section Euclidienne (lignes ~1468-1484) qui a sa propre logique de quantization. NE PAS MODIFIER le reste de `trigPad`.
+
+## POURQUOI CE FIX MARCHE
+
+L'ancienne approche partait de `nxtRef` (le futur) et essayait de deviner où on en est maintenant → **fragile** quand le lookahead est grand.
+
+La nouvelle approche part aussi de `nxtRef` mais **marche à reculons** step par step jusqu'à trouver le step dont le temps audio est <= `ctx.currentTime`. C'est le step que l'utilisateur **entend réellement** quand il tape.
+
+La boucle `while(walkTime > ct + 0.001)` fait au maximum `gSt + 4` itérations (16-20 pour un pattern standard), ce qui est **O(1)** en pratique — aucun impact sur la performance.
+
+Le `+0.001` (1ms) évite les edge cases où `walkTime` et `ct` sont quasi-égaux.
+
+## VÉRIFICATION APRÈS APPLICATION
+
+### Test 1 — Tablette Xiaomi Pad 6
+
+1. Ouvrir l'app
+2. Charger un pattern vide (tous les steps à 0)
+3. Lancer Play
+4. Activer REC
+5. Taper le kick **sur le beat 1** (quand le curseur passe sur le step 0)
+6. Arrêter
+7. Vérifier : le step 0 doit être allumé (pas le step 1)
+
+### Test 2 — Vérification multi-step
+
+1. Pattern vide, Play + REC
+2. Taper 4 kicks réguliers sur les beats (1, 5, 9, 13 pour un 4/4 à 16 steps)
+3. Arrêter
+4. Vérifier : les steps 0, 4, 8, 12 doivent être allumés
+5. Le résultat doit être un **four-on-the-floor** régulier, pas un pattern décalé
+
+### Test 3 — Téléphone Fairphone 4 (regression check)
+
+Faire les mêmes tests sur le Fairphone pour vérifier que le fix ne casse pas ce qui marchait déjà.
+
+### Test 4 — Swing
+
+1. Mettre le swing à 50% ou plus
+2. Refaire les tests 1 et 2
+3. Le swing ne doit pas casser la quantization
+
+### Test 5 — BPM extrêmes
+
+1. Tester à 60 BPM (steps longs — facile à quantizer)
+2. Tester à 200 BPM (steps courts — plus difficile)
+3. La quantization doit rester correcte aux deux extrêmes
+
+## IMPACT SUR LE RESTE DU CODE
+
+- **Aucun** : la modification est 100% contenue dans la branche `else if(R.step>=0)` du `trigPad`.
+- Les variables modifiées (`targetStep`, `snapRatio`) sont les mêmes que celles que le code d'après attend.
+- La section Euclidienne n'est PAS touchée.
+- Le scheduler n'est PAS touché.
+- Le moteur audio (`engine.ts`) n'est PAS touché.
