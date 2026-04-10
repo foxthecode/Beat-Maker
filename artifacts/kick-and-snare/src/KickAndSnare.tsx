@@ -1507,14 +1507,16 @@ export default function KickAndSnare(){
           walkStep=prevStep;
         }
 
-        // Sub-step position: how far into the current step did the user tap?
-        const offsetInStep=Math.max(0,ct-walkTime);
-        const curStepDur=walkStep%2===0?(bd+sw):(bd-sw);
-        const subRatio=Math.min(1,offsetInStep/curStepDur);
-
-        // Nearest-neighbour snap: if strictly >50% into step, round up to next step
-        const qStep=subRatio>0.5?((walkStep+1)%gSt):walkStep;
-        snapRatio=subRatio;
+        // walkStep is one BEFORE the step being heard (the loop overshoots by 1).
+        // heardStep is the step whose audio is actually playing right now.
+        const heardStep=(walkStep+1)%gSt;
+        const heardStart=walkTime+(walkStep%2===0?(bd+sw):(bd-sw));
+        const nextStart=heardStart+(heardStep%2===0?(bd+sw):(bd-sw));
+        // Nearest-neighbor quantization: snap to whichever step boundary is closer
+        const distCur=Math.abs(ct-heardStart);
+        const distNext=Math.abs(ct-nextStart);
+        const qStep=distNext<distCur?((heardStep+1)%gSt):heardStep;
+        snapRatio=distCur/(distCur+distNext); // 0=perfect on beat, 0.5=halfway
         targetStep=ratio>1?qStep*ratio:qStep%tSt;
       }
       if(targetStep>=0){
