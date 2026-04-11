@@ -1,0 +1,97 @@
+# PROMPT REPLIT — Feature 4 : Thème Daylight (toggle via clic sur le renard)
+
+## OBJECTIF
+
+Permettre à l'utilisateur de basculer entre le thème dark (actuel) et un thème daylight (clair) en cliquant sur le renard mascotte. Le choix doit être persisté.
+
+## 3 MODIFICATIONS
+
+### 1. Affiner le thème `daylight` dans `src/theme.js`
+
+Le thème daylight existant est moche (surfaces sombres sur fond clair). Remplacer entièrement la définition `daylight` par :
+
+```javascript
+daylight:{
+  bg:"linear-gradient(170deg,#F5F0E8 0%,#EDE6D8 50%,#F0EAE0 100%)",
+  surface:"rgba(255,255,255,0.85)",
+  sBorder:"rgba(0,0,0,0.10)",
+  text:"#1A1A1A",
+  dim:"#666666",
+  faint:"#999999",
+  stepOff:"rgba(0,0,0,0.04)",
+  stepAlt:"rgba(0,0,0,0.08)",
+  cursor:"rgba(255,100,0,0.25)",
+  btn:"rgba(0,0,0,0.05)",
+  btnH:"rgba(0,0,0,0.10)",
+  mascot:"#555555"
+},
+```
+
+Garder le thème `dark` intact.
+
+### 2. Rendre le renard mascotte cliquable + persistance
+
+Dans `src/KickAndSnare.tsx`, vers la ligne 3144, chercher :
+
+```javascript
+return(<div data-hint="Mascot · Hits the drums on active tracks · Speed and halo synced to BPM" style={{flexShrink:0}}>
+  <svg viewBox="0 0 130 52" width={mascotW} height={mascotH} style={{overflow:"visible",willChange:"contents",display:"block",filter:(playing||loopPlaying)?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
+```
+
+Remplacer par :
+
+```javascript
+return(<div 
+  data-hint={`Mascot · Click to switch theme (currently ${themeName === "dark" ? "dark" : "daylight"}) · Hits the drums on active tracks`}
+  onClick={async()=>{
+    const newTheme = themeName === "dark" ? "daylight" : "dark";
+    setThemeName(newTheme);
+    try { await idbPut("theme", newTheme); } catch(e) {}
+  }}
+  style={{flexShrink:0, cursor:"pointer", transition:"transform 0.15s"}}
+  onMouseDown={e => { e.currentTarget.style.transform = "scale(0.92)"; }}
+  onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+  onTouchStart={e => { e.currentTarget.style.transform = "scale(0.92)"; }}
+  onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; }}
+>
+  <svg viewBox="0 0 130 52" width={mascotW} height={mascotH} style={{overflow:"visible",willChange:"contents",display:"block",filter:(playing||loopPlaying)?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
+```
+
+### 3. Charger le thème persisté au démarrage
+
+Dans `KickAndSnare.tsx`, chercher la ligne :
+```javascript
+const [themeName,setThemeName]=useState("dark");
+```
+
+Juste APRÈS, ajouter ce useEffect pour charger le thème sauvegardé :
+
+```javascript
+useEffect(() => {
+  (async () => {
+    try {
+      const saved = await idbGet("theme");
+      if (saved === "daylight" || saved === "dark") {
+        setThemeName(saved);
+      }
+    } catch(e) {}
+  })();
+}, []);
+```
+
+⚠ Vérifier que `idbGet` et `idbPut` sont bien importés en haut du fichier. S'ils ne le sont pas, ajouter l'import (ils sont probablement dans `./db.ts` ou similaire — chercher où `idbPut` est utilisé ailleurs dans le fichier pour voir l'import existant).
+
+## VÉRIFICATION
+
+1. Lance l'app → thème dark par défaut (ou le dernier sauvegardé)
+2. Clique sur le renard → animation scale 92% → relâche → le thème passe en daylight (fond crème, texte sombre)
+3. Reclique → retour en dark
+4. Ferme et relance l'app → le dernier thème choisi est restauré
+5. Vérifier que le séquenceur, les pads, le FX rack sont tous lisibles dans les 2 thèmes
+
+## NE PAS MODIFIER
+
+- Les couleurs d'accent (vert, rouge, bleu, jaune) qui sont en dur dans le code — elles passent OK sur fond clair pour la v1.0
+- L'animation du renard (drum hits) — elle continue de marcher
+- Les autres composants qui utilisent `themeName`

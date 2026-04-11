@@ -805,6 +805,11 @@ export default function KickAndSnare(){
   },[]);
   const [themeName,setThemeName]=useState("dark");
   const th=THEMES[themeName];
+  useEffect(()=>{
+    (async()=>{
+      try{const saved=await idbGet("theme");if(saved==="daylight"||saved==="dark")setThemeName(saved);}catch(e){}
+    })();
+  },[]);
   const [tSig,setTSig]=useState(TIME_SIGS[0]);
   const [grpIdx,setGrpIdx]=useState(0);
   const aGrp=tSig.groupOptions?tSig.groupOptions[grpIdx]?.slice(0,-1)||tSig.groups:tSig.groups;
@@ -3249,7 +3254,16 @@ export default function KickAndSnare(){
             const aClap=act.includes("clap");const aPerc=act.includes("perc");
             const bpmMs=60000/Math.max(30,bpm||120);
             const bobDur=`${(bpmMs/1000).toFixed(3)}s`;
-            return(<div data-hint="Mascot · Hits the drums on active tracks · Speed and halo synced to BPM" style={{flexShrink:0}}>
+            return(<div
+              data-hint={`Mascot · Click to switch theme (currently ${themeName==="dark"?"dark":"daylight"}) · Hits the drums on active tracks`}
+              onClick={async()=>{const newTheme=themeName==="dark"?"daylight":"dark";setThemeName(newTheme);try{await idbPut("theme",newTheme);}catch(e){}}}
+              style={{flexShrink:0,cursor:"pointer",transition:"transform 0.15s"}}
+              onMouseDown={e=>{e.currentTarget.style.transform="scale(0.92)";}}
+              onMouseUp={e=>{e.currentTarget.style.transform="scale(1)";}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}
+              onTouchStart={e=>{e.currentTarget.style.transform="scale(0.92)";}}
+              onTouchEnd={e=>{e.currentTarget.style.transform="scale(1)";}}
+            >
               <svg viewBox="0 0 130 52" width={mascotW} height={mascotH} style={{overflow:"visible",willChange:"contents",display:"block",filter:(playing||loopPlaying)?(anyHit?"drop-shadow(0 0 10px rgba(255,45,85,0.8))":"drop-shadow(0 0 5px rgba(255,149,0,0.5))"):"none",transition:"filter 0.08s"}}>
                 {/* Halo ring behind mascot — synced with BPM */}
                 {(playing||loopPlaying)&&<ellipse cx="44" cy="24" rx="28" ry="26" fill="none" stroke={anyHit?"#FF2D55":"#FF9500"} strokeWidth={0.8} opacity={0} style={{animation:`mascotHalo ${bobDur} ease-in-out infinite`,transformOrigin:"44px 24px"}}/>}
