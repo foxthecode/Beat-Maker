@@ -240,42 +240,44 @@ export default function TransportBar({
       style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
-  const ExportModeToggle = onExport && setExportMode && (
-    <button
-      onClick={() => setExportMode(exportMode === "pattern" ? "song" : "pattern")}
-      style={{
-        padding: "4px 8px",
-        borderRadius: 4,
-        border: `1px solid ${exportMode === "song" ? "rgba(255,159,10,0.5)" : "rgba(255,255,255,0.15)"}`,
-        background: exportMode === "song" ? "rgba(255,159,10,0.15)" : "transparent",
-        color: exportMode === "song" ? "#FF9F0A" : "#888",
-        fontSize: 9,
-        fontWeight: 800,
-        cursor: "pointer",
-        fontFamily: "inherit",
-        letterSpacing: "0.05em",
-      }}
-      title={exportMode === "song" ? "Export Song Arrangement" : "Export Pattern"}
-    >
-      {exportMode === "song" ? "SONG" : "PAT"}
-    </button>
-  );
-
-  const ExportBtn = onExport && (
-    <div data-hint={`Export WAV · Renders ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars > 1 ? "s" : "")} to a 16-bit PCM audio file`} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-      {exportMode !== "song" && [1,2,4].map(n => (
-        <button key={n} onClick={() => setExportBars(n)}
-          data-hint={`Export ${n} bar${n > 1 ? "s" : ""} · Click to select this WAV export duration`}
-          style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
+  const ExportGroup = onExport && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: "4px 6px 5px", borderRadius: 7, border: "1px solid rgba(100,210,255,0.2)", background: "rgba(100,210,255,0.04)" }}>
+      <div style={{ fontSize: 6, fontWeight: 800, letterSpacing: "0.12em", color: "#64D2FF", textTransform: "uppercase", lineHeight: 1 }}>Export WAV</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        {setExportMode && (
+          <button
+            onClick={() => setExportMode(exportMode === "pattern" ? "song" : "pattern")}
+            style={{
+              padding: "4px 7px",
+              borderRadius: 4,
+              border: `1px solid ${exportMode === "song" ? "rgba(255,159,10,0.5)" : "rgba(255,255,255,0.15)"}`,
+              background: exportMode === "song" ? "rgba(255,159,10,0.15)" : "transparent",
+              color: exportMode === "song" ? "#FF9F0A" : "#888",
+              fontSize: 9,
+              fontWeight: 800,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              letterSpacing: "0.05em",
+            }}
+            title={exportMode === "song" ? "Export Song Arrangement" : "Export Pattern"}
+          >
+            {exportMode === "song" ? "SONG" : "PAT"}
+          </button>
+        )}
+        {exportMode !== "song" && [1,2,4].map(n => (
+          <button key={n} onClick={() => setExportBars(n)}
+            data-hint={`Export ${n} bar${n > 1 ? "s" : ""} · Click to select this WAV export duration`}
+            style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
+            disabled={playing || exportState==="rendering"}
+          >{n}b</button>
+        ))}
+        <button onClick={onExport}
+          data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} to WAV file · Disabled during playback`}
           disabled={playing || exportState==="rendering"}
-        >{n}b</button>
-      ))}
-      <button onClick={onExport}
-        data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} to WAV file · Disabled during playback`}
-        disabled={playing || exportState==="rendering"}
-        style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
-        title="Export WAV"
-      >{exportState==="rendering" ? "⏳" : "⬇ WAV"}</button>
+          style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
+          title="Export WAV"
+        >{exportState==="rendering" ? "⏳" : "⬇ WAV"}</button>
+      </div>
     </div>
   );
 
@@ -322,8 +324,7 @@ export default function TransportBar({
           {TSBtn}
           {SubBtn}
           {MidiBtn}
-          {ExportModeToggle}
-          {ExportBtn}
+          {ExportGroup}
         </div>
       </div>
     );
@@ -343,8 +344,7 @@ export default function TransportBar({
       {SubBtn}
       {!isPortrait && !isMobile && KeybBtn}
       {MidiBtn}
-      {ExportModeToggle}
-      {ExportBtn}
+      {ExportGroup}
     </div>
   );
 }

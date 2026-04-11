@@ -1913,7 +1913,7 @@ export default function KickAndSnare(){
     try{
       const sr=engine.ctx.sampleRate;
       const isSongMode=exportMode==="song"&&songChain.length>0;
-
+      
       // Calculate total duration based on mode
       const barDur=(60/bpm)*sig.beats;
       const dur=isSongMode?songChain.length*barDur:barDur*exportBars;
@@ -1991,32 +1991,48 @@ export default function KickAndSnare(){
       const blob=new Blob([wav],{type:"audio/wav"});
       const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
       const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
+      const safeLabel=sig.label.replace(/[\/\\:*?"<>|]/g,'-');
+      const safePName=pName.replace(/[\/\\:*?"<>|]/g,'-');
       const fileName=isSongMode
-        ?`ks-SONG-${bpm}bpm-${sig.label}-${songChain.length}bars-${viewTag}.wav`
-        :`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
-      // Download strategy:
-      // 1. Try Web Share API (iOS 15+, Android Chrome) — requires files support
-      // 2. Fall back to anchor download (desktop, Android WebView, etc.)
-      // IMPORTANT: navigator.share often throws NotAllowedError after a long async
-      // render (user gesture context is lost). We catch all errors and always
-      // fall back to anchor download — never lose the file silently.
-      const wavFile=new File([blob],fileName,{type:"audio/wav"});
-      let shared=false;
-      if(navigator.share&&navigator.canShare?.({files:[wavFile]})){
-        try{
-          await navigator.share({files:[wavFile],title:"Kick & Snare — WAV export"});
-          shared=true;
-        }catch(e:any){
-          if(e?.name==="AbortError"){setExportState("idle");return;} // user cancelled share
-          // Any other error (NotAllowedError, DataError…) → fall through to anchor download
-        }
-      }
-      if(!shared){
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement("a");
-        a.href=url;a.download=fileName;a.style.display="none";
-        document.body.appendChild(a);a.click();
-        setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+        ?`ks-SONG-${bpm}bpm-${safeLabel}-${songChain.length}bars-${viewTag}.wav`
+        :`ks-${safePName}-${bpm}bpm-${safeLabel}-${exportBars}bar-${viewTag}.wav`;
+      try {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+
+        // Convert blob to base64
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Strip "data:audio/wav;base64," prefix
+            resolve(result.split(',')[1]);
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+
+        // Write to device cache directory
+        const writeResult = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache,
+        });
+
+        // Open native share sheet
+        await Share.share({
+          title: "Kick & Snare — WAV export",
+          url: writeResult.uri,
+          dialogTitle: "Save or share your WAV",
+        });
+      } catch (err: any) {
+        // Fallback: try the simple <a> download (works on desktop)
+        console.error("Capacitor share failed, fallback to download", err);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
       }
     }catch(e){console.error("Export WAV error",e);} // skipcq: JS-0002
     setExportState("idle");
