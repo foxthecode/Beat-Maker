@@ -83,6 +83,30 @@ function loadUserKitsMeta():UserKit[]{
 }
 // Converts an AudioBuffer to a WAV ArrayBuffer (re-uses encodeWAV above)
 function bufferToWAVArrayBuffer(buf:AudioBuffer):ArrayBuffer{return encodeWAV(buf);}
+// ── MIDI Export Helpers ──
+function encodeVLQ(value:number):number[]{
+  if(value<0)value=0;
+  const bytes:number[]=[value&0x7F];
+  value>>=7;
+  while(value>0){bytes.unshift((value&0x7F)|0x80);value>>=7;}
+  return bytes;
+}
+function encodeMIDI(events:Array<{tick:number;bytes:number[]}>,bpm:number,tpqn:number=480):Uint8Array{
+  events.sort((a,b)=>a.tick-b.tick);
+  const trackBytes:number[]=[];
+  const usPerBeat=Math.round(60000000/bpm);
+  trackBytes.push(0x00,0xFF,0x51,0x03,(usPerBeat>>16)&0xFF,(usPerBeat>>8)&0xFF,usPerBeat&0xFF);
+  let lastTick=0;
+  events.forEach(ev=>{
+    const delta=Math.max(0,ev.tick-lastTick);lastTick=ev.tick;
+    trackBytes.push(...encodeVLQ(delta),...ev.bytes);
+  });
+  trackBytes.push(0x00,0xFF,0x2F,0x00);
+  const header=[0x4D,0x54,0x68,0x64,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x01,(tpqn>>8)&0xFF,tpqn&0xFF];
+  const trackLen=trackBytes.length;
+  const trackHeader=[0x4D,0x54,0x72,0x6B,(trackLen>>24)&0xFF,(trackLen>>16)&0xFF,(trackLen>>8)&0xFF,trackLen&0xFF];
+  return new Uint8Array([...header,...trackHeader,...trackBytes]);
+}
 // Pure utility — SVG waveform path from AudioBuffer (module-level so loadUserKit can use it)
 function miniWaveformPathUtil(buffer:AudioBuffer,w:number,h:number):string{
   const data=buffer.getChannelData(0);const step=Math.max(1,Math.ceil(data.length/w));let d='';
@@ -2083,6 +2107,72 @@ export default function KickAndSnare(){
     setLoopExportState("idle");
   };
 
+  // ── Export MIDI ──
+  const exportMIDI=async()=>{
+    setExportState("rendering");
+    try{
+      const TPQN=480;
+      const ticksPerBar=TPQN*sig.beats;
+      const ticksPerStep=ticksPerBar/sig.steps;
+      const isSongMode=exportMode==="song"&&songChain.length>0;
+      const patternsToRender:Array<{patIdx:number;tickOffset:number}>=[];
+      if(isSongMode){
+        songChain.forEach((patIdx:number,chainPos:number)=>{patternsToRender.push({patIdx,tickOffset:chainPos*ticksPerBar});});
+      } else {
+        for(let b=0;b<exportBars;b++)patternsToRender.push({patIdx:cPat,tickOffset:b*ticksPerBar});
+      }
+      const events:Array<{tick:number;bytes:number[]}>=[];
+      patternsToRender.forEach(({patIdx,tickOffset})=>{
+        const patData=pBank[patIdx]||{};
+        const patVel=(patData as any)._vel||stVel;
+        const patSteps=(patData as any)._steps||{};
+        atO.forEach((tr:any)=>{
+          if(muted[tr.id])return;
+          if(soloed&&soloed!==tr.id)return;
+          const midiNote=midiNoteMap[tr.id]??DEFAULT_MIDI_NOTES[tr.id];
+          if(midiNote==null||midiNote<1||midiNote>127)return;
+          const tSteps=[sig.steps,sig.steps*2].includes(patSteps[tr.id])?patSteps[tr.id]:sig.steps;
+          const stepRatio=ticksPerStep*sig.steps/tSteps;
+          for(let s=0;s<tSteps;s++){
+            if(!(patData as any)[tr.id]?.[s])continue;
+            const vel100=(patVel[tr.id]?.[s])??100;
+            const velMidi=Math.max(1,Math.min(127,Math.round(vel100*1.27)));
+            const noteTick=Math.round(tickOffset+s*stepRatio);
+            const noteOffTick=noteTick+Math.round(stepRatio*0.5);
+            events.push({tick:noteTick,bytes:[0x99,midiNote,velMidi]});
+            events.push({tick:noteOffTick,bytes:[0x89,midiNote,0]});
+          }
+        });
+      });
+      if(events.length===0){setExportState("idle");alert("No notes to export");return;}
+      const midiBytes=encodeMIDI(events,bpm,TPQN);
+      const blob=new Blob([midiBytes],{type:"audio/midi"});
+      const safeLabel=sig.label.replace(/[\/\\:*?"<>|]/g,'-');
+      const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
+      const safePName=pName.replace(/[\/\\:*?"<>|]/g,'-');
+      const fileName=isSongMode
+        ?`ks-SONG-${bpm}bpm-${safeLabel}-${songChain.length}bars.mid`
+        :`ks-${safePName}-${bpm}bpm-${safeLabel}-${exportBars}bar.mid`;
+      try{
+        const {Filesystem,Directory}=await import('@capacitor/filesystem');
+        const {Share}=await import('@capacitor/share');
+        let binary='';const bytes=new Uint8Array(midiBytes);
+        for(let i=0;i<bytes.byteLength;i++)binary+=String.fromCharCode(bytes[i]);
+        const base64=btoa(binary);
+        const writeResult=await Filesystem.writeFile({path:fileName,data:base64,directory:Directory.Cache});
+        await Share.share({title:"Kick & Snare — MIDI export",url:writeResult.uri,dialogTitle:"Save or share your MIDI file"});
+      }catch(err:any){
+        console.error("Capacitor MIDI share failed, fallback to download",err);
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;a.download=fileName;
+        document.body.appendChild(a);a.click();
+        setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+      }
+    }catch(e){console.error("Export MIDI error",e);}
+    setExportState("idle");
+  };
+
   const onRecClick=()=>{
     if(playing){setRec(p=>!p);return;}
     // Click REC while stopped → immediate play + rec (no countdown)
@@ -3401,6 +3491,7 @@ export default function KickAndSnare(){
           exportState={exportState} exportBars={exportBars} setExportBars={setExportBars}
           exportMode={exportMode} setExportMode={setExportMode}
           onExport={exportWAV}
+          onExportMidi={exportMIDI}
           loopRec={loopRec} loopPlaying={loopPlaying} loopEventsCount={loopDisp.length}
           toggleLoopRec={toggleLoopRec} toggleLoopPlay={loopPlaying?stopLooper:()=>startLooper(false)}
           loopMetro={loopMetro} setLoopMetro={setLoopMetro}

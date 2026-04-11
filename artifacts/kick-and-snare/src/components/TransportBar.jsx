@@ -15,7 +15,7 @@ export default function TransportBar({
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
-  exportState, exportBars, setExportBars, exportMode, setExportMode, onExport,
+  exportState, exportBars, setExportBars, exportMode, setExportMode, onExport, onExportMidi,
   loopRec, loopPlaying, loopEventsCount, toggleLoopRec, toggleLoopPlay,
   loopMetro, setLoopMetro, recCountdown, showLooper,
   onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
@@ -240,9 +240,9 @@ export default function TransportBar({
       style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
-  const ExportGroup = onExport && (
+  const ExportGroup = (onExport || onExportMidi) && (
     <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: "4px 6px 5px", borderRadius: 7, border: "1px solid rgba(100,210,255,0.2)", background: "rgba(100,210,255,0.04)" }}>
-      <div style={{ fontSize: 6, fontWeight: 800, letterSpacing: "0.12em", color: "#64D2FF", textTransform: "uppercase", lineHeight: 1 }}>Export WAV</div>
+      <div style={{ fontSize: 6, fontWeight: 800, letterSpacing: "0.12em", color: "#64D2FF", textTransform: "uppercase", lineHeight: 1 }}>Export</div>
       <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
         {setExportMode && (
           <button
@@ -266,17 +266,38 @@ export default function TransportBar({
         )}
         {exportMode !== "song" && [1,2,4].map(n => (
           <button key={n} onClick={() => setExportBars(n)}
-            data-hint={`Export ${n} bar${n > 1 ? "s" : ""} · Click to select this WAV export duration`}
+            data-hint={`Export ${n} bar${n > 1 ? "s" : ""} · Click to select export duration`}
             style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
             disabled={playing || exportState==="rendering"}
           >{n}b</button>
         ))}
-        <button onClick={onExport}
-          data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} to WAV file · Disabled during playback`}
-          disabled={playing || exportState==="rendering"}
-          style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
-          title="Export WAV"
-        >{exportState==="rendering" ? "⏳" : "⬇ WAV"}</button>
+        {onExport && (
+          <button onClick={onExport}
+            data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} to WAV file · Disabled during playback`}
+            disabled={playing || exportState==="rendering"}
+            style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
+            title="Export WAV"
+          >{exportState==="rendering" ? "⏳" : "⬇ WAV"}</button>
+        )}
+        {onExportMidi && (
+          <button onClick={onExportMidi}
+            data-hint={exportState === "rendering" ? "Rendering…" : `⬇ MIDI · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"} as MIDI file`}
+            disabled={playing || exportState==="rendering"}
+            style={{
+              padding: "5px 7px",
+              borderRadius: 4,
+              border: "1px solid #BF5AF255",
+              background: "transparent",
+              color: "#BF5AF2",
+              fontSize: 9,
+              fontWeight: 800,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              opacity: playing || exportState==="rendering" ? 0.45 : 1,
+            }}
+            title="Export MIDI"
+          >⬇ MIDI</button>
+        )}
       </div>
     </div>
   );
