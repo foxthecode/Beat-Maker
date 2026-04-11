@@ -830,6 +830,7 @@ export default function KickAndSnare(){
   // ── CP-B: Export WAV ──
   const [exportState,setExportState]=useState<"idle"|"rendering">("idle");
   const [exportBars,setExportBars]=useState<1|2|4>(1);
+  const [exportMode,setExportMode]=useState<"pattern"|"song">("pattern");
   // ── CP-B: Looper export ──
   const [loopExportState,setLoopExportState]=useState<"idle"|"rendering">("idle");
   const [loopExportReps,setLoopExportReps]=useState<1|2|4>(1);
@@ -1821,7 +1822,7 @@ export default function KickAndSnare(){
     // nxtRef falls behind ct.  Instead of catching up (burst of notes →
     // accelerated BPM + sample degradation), we SKIP the missed steps and
     // resume from the current beat position.
-    if(nxtRef.current<ct-0.040){
+    if(nxtRef.current<ct-0.080){
       const bd=(60/R.bpm)*cs.beats/cs.steps;
       const missedTime=ct-nxtRef.current;
       const missedSteps=Math.floor(missedTime/bd);
@@ -1910,14 +1911,18 @@ export default function KickAndSnare(){
     await engine.ensureRunning();
     setExportState("rendering");
     try{
-      const dur=(60/bpm)*sig.beats*exportBars;
       const sr=engine.ctx.sampleRate;
+      const isSongMode=exportMode==="song"&&songChain.length>0;
+
+      // Calculate total duration based on mode
+      const barDur=(60/bpm)*sig.beats;
+      const dur=isSongMode?songChain.length*barDur:barDur*exportBars;
       const offCtx=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);
 
       // ── Helper: schedule one hit at time t ──────────────────────────────────
-      const schedHit=(tid:string,stepIdx:number,t:number,fo:any)=>{
-        const vel=(stVel[tid]?.[stepIdx]??100)/100;
-        if(!(pat[tid]?.[stepIdx]))return;
+      const schedHit=(tid:string,stepIdx:number,t:number,fo:any,patData:any,velData:any)=>{
+        const vel=(velData?.[tid]?.[stepIdx]??100)/100;
+        if(!(patData[tid]?.[stepIdx]))return;
         const dst=offCtx.createGain();dst.gain.value=vel;dst.connect(offCtx.destination);
         if(engine.buf[tid]){
           const src=offCtx.createBufferSource();src.buffer=engine.buf[tid];
@@ -1931,34 +1936,53 @@ export default function KickAndSnare(){
         }
       };
 
-      if(view==="euclid"){
-        // ── Euclid: each track steps at 1/16th, loops its own N ──────────────
-        const sixteenth=(60/bpm)/4;
-        const totalSteps=Math.floor(dur/sixteenth);
-        atO.forEach(tr=>{
-          if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
-          const N=trackSteps[tr.id]||sig.steps;
-          const fo=fx[tr.id]||{...DEFAULT_FX};
-          for(let s=0;s<totalSteps;s++){
-            const stepIdx=s%N;
-            if(!pat[tr.id]?.[stepIdx])continue;
-            const nm=stNudge[tr.id]?.[stepIdx]||0;
-            const t=Math.max(0.001,s*sixteenth+nm/1000);
-            schedHit(tr.id,stepIdx,t,fo);
-          }
+      // ── Build the list of patterns to render with their time offsets ────────
+      const patternsToRender:Array<{patIdx:number,timeOffset:number}>=[];
+      if(isSongMode){
+        songChain.forEach((patIdx,chainPos)=>{
+          patternsToRender.push({patIdx,timeOffset:chainPos*barDur});
         });
       }else{
-        // ── Sequencer / Pads: one pass through sig.steps ─────────────────────
-        const sd=dur/sig.steps;
-        atO.forEach(tr=>{
-          if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
-          const fo=fx[tr.id]||{...DEFAULT_FX};
-          for(let s=0;s<sig.steps;s++){
-            if(!pat[tr.id]?.[s])continue;
-            const nm=stNudge[tr.id]?.[s]||0;
-            const t=Math.max(0.001,s*sd+nm/1000);
-            schedHit(tr.id,s,t,fo);
-          }
+        for(let b=0;b<exportBars;b++){
+          patternsToRender.push({patIdx:cPat,timeOffset:b*barDur});
+        }
+      }
+
+      // ── Schedule notes for each pattern in the render list ─────────────────
+      if(view==="euclid"){
+        const sixteenth=(60/bpm)/4;
+        patternsToRender.forEach(({patIdx,timeOffset})=>{
+          const patData=pBank[patIdx]||{};
+          const patVel=(patData as any)._vel||stVel;
+          const totalSteps=Math.floor(barDur/sixteenth);
+          atO.forEach(tr=>{
+            if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
+            const N=(patData as any)._steps?.[tr.id]||trackSteps[tr.id]||sig.steps;
+            const fo=fx[tr.id]||{...DEFAULT_FX};
+            for(let s=0;s<totalSteps;s++){
+              const stepIdx=s%N;
+              if(!patData[tr.id]?.[stepIdx])continue;
+              const nm=stNudge[tr.id]?.[stepIdx]||0;
+              const t=Math.max(0.001,timeOffset+s*sixteenth+nm/1000);
+              schedHit(tr.id,stepIdx,t,fo,patData,patVel);
+            }
+          });
+        });
+      }else{
+        const sd=barDur/sig.steps;
+        patternsToRender.forEach(({patIdx,timeOffset})=>{
+          const patData=pBank[patIdx]||{};
+          const patVel=(patData as any)._vel||stVel;
+          atO.forEach(tr=>{
+            if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
+            const fo=fx[tr.id]||{...DEFAULT_FX};
+            for(let s=0;s<sig.steps;s++){
+              if(!patData[tr.id]?.[s])continue;
+              const nm=stNudge[tr.id]?.[s]||0;
+              const t=Math.max(0.001,timeOffset+s*sd+nm/1000);
+              schedHit(tr.id,s,t,fo,patData,patVel);
+            }
+          });
         });
       }
 
@@ -1967,7 +1991,9 @@ export default function KickAndSnare(){
       const blob=new Blob([wav],{type:"audio/wav"});
       const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
       const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
-      const fileName=`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
+      const fileName=isSongMode
+        ?`ks-SONG-${bpm}bpm-${sig.label}-${songChain.length}bars-${viewTag}.wav`
+        :`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
       // iOS Safari ignores <a download> on blob: URLs — use Web Share API with a File
       // object instead, which opens the native share/save sheet on iOS 15+.
       const wavFile=new File([blob],fileName,{type:"audio/wav"});
@@ -3332,6 +3358,9 @@ export default function KickAndSnare(){
           masterVol={masterVol} setMasterVol={setMasterVol}
           cPat={cPat} pBank={pBank} SEC_COL={SEC_COL} setShowSong={setShowSong}
           onClear={()=>{setPat(p=>{const n={};Object.keys(p).forEach(k=>{n[k]=Array.isArray(p[k])?p[k].map(()=>0):p[k];});return n;});setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};ALL_TRACKS.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});customTracks.forEach(t=>{if(Array.isArray(cp[t.id]))cp[t.id]=Array(cp[t.id].length||STEPS).fill(0);});n[cPat]=cp;return n;});}}
+          exportState={exportState} exportBars={exportBars} setExportBars={setExportBars}
+          exportMode={exportMode} setExportMode={setExportMode}
+          onExport={exportWAV}
           loopRec={loopRec} loopPlaying={loopPlaying} loopEventsCount={loopDisp.length}
           toggleLoopRec={toggleLoopRec} toggleLoopPlay={loopPlaying?stopLooper:()=>startLooper(false)}
           loopMetro={loopMetro} setLoopMetro={setLoopMetro}

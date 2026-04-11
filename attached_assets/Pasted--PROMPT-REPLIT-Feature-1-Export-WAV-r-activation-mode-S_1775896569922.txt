@@ -1,0 +1,234 @@
+# PROMPT REPLIT — Feature 1 : Export WAV (réactivation + mode Song Arranger)
+
+## CONTEXTE
+
+L'app Kick & Snare a une fonction `exportWAV()` complète (ligne ~1853 dans `KickAndSnare.tsx`) qui utilise `OfflineAudioContext` pour rendre le pattern courant en WAV. Mais le bouton n'apparaît pas dans l'UI car les props ne sont pas passées au composant `<TransportBar>`.
+
+De plus, la fonction n'exporte que le pattern courant. Il faut ajouter un mode "Song Arranger" qui exporte toute la chaîne `songChain` (un `number[]` calculé via `songRows.flat().filter(v=>v!=null)`).
+
+## OBJECTIF
+
+1. Réactiver le bouton Export WAV (passer 4 props au TransportBar)
+2. Ajouter un toggle PAT/SONG dans le TransportBar
+3. Étendre `exportWAV()` pour supporter le mode "song" qui rend toute la chaîne du Song Arranger
+4. Masquer le sélecteur 1/2/4 bars quand on est en mode SONG (la durée vient du songChain)
+
+## MODIFICATIONS
+
+### 1. Ajouter le state `exportMode` dans `KickAndSnare.tsx`
+
+Chercher la ligne :
+```typescript
+const [exportBars,setExportBars]=useState<1|2|4>(1);
+```
+
+Ajouter juste après :
+```typescript
+const [exportMode,setExportMode]=useState<"pattern"|"song">("pattern");
+```
+
+### 2. Étendre `exportWAV()` pour gérer le mode song
+
+Chercher la fonction `const exportWAV=async()=>{` (ligne ~1853).
+
+Remplacer son contenu par cette version étendue qui gère les 2 modes :
+
+```typescript
+const exportWAV=async()=>{
+  await engine.ensureRunning();
+  setExportState("rendering");
+  try{
+    const sr=engine.ctx.sampleRate;
+    const isSongMode=exportMode==="song"&&songChain.length>0;
+    
+    // Calculate total duration based on mode
+    const barDur=(60/bpm)*sig.beats;
+    const dur=isSongMode?songChain.length*barDur:barDur*exportBars;
+    const offCtx=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);
+
+    // ── Helper: schedule one hit at time t ──────────────────────────────────
+    const schedHit=(tid:string,stepIdx:number,t:number,fo:any,patData:any,velData:any)=>{
+      const vel=(velData?.[tid]?.[stepIdx]??100)/100;
+      if(!(patData[tid]?.[stepIdx]))return;
+      const dst=offCtx.createGain();dst.gain.value=vel;dst.connect(offCtx.destination);
+      if(engine.buf[tid]){
+        const src=offCtx.createBufferSource();src.buffer=engine.buf[tid];
+        const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+        src.playbackRate.value=r;src.connect(dst);src.start(t);
+      }else{
+        engine._syn(tid,t,vel,dst,offCtx,
+          {sDec:fo.sDec??1,sTune:fo.sTune??1,
+           sPunch:fo.sPunch??1,sSnap:fo.sSnap??1,
+           sBody:fo.sBody??1,sTone:fo.sTone??1});
+      }
+    };
+
+    // ── Render: determine which patterns to play and at what offsets ──
+    const patternsToRender:Array<{patIdx:number,timeOffset:number}>=[];
+    if(isSongMode){
+      // Song mode: each entry in songChain plays one bar at its offset
+      songChain.forEach((patIdx,chainPos)=>{
+        patternsToRender.push({patIdx,timeOffset:chainPos*barDur});
+      });
+    }else{
+      // Pattern mode: current pattern repeated exportBars times
+      for(let b=0;b<exportBars;b++){
+        patternsToRender.push({patIdx:cPat,timeOffset:b*barDur});
+      }
+    }
+
+    // ── Schedule notes for each pattern in the render list ──
+    if(view==="euclid"){
+      // Euclidean mode: each track has its own N steps
+      const sixteenth=(60/bpm)/4;
+      patternsToRender.forEach(({patIdx,timeOffset})=>{
+        const patData=pBank[patIdx]||{};
+        const patVel=(patData as any)._vel||stVel;
+        const totalSteps=Math.floor(barDur/sixteenth);
+        atO.forEach(tr=>{
+          if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
+          const N=(patData as any)._steps?.[tr.id]||trackSteps[tr.id]||sig.steps;
+          const fo=fx[tr.id]||{...DEFAULT_FX};
+          for(let s=0;s<totalSteps;s++){
+            const stepIdx=s%N;
+            if(!patData[tr.id]?.[stepIdx])continue;
+            const nm=stNudge[tr.id]?.[stepIdx]||0;
+            const t=Math.max(0.001,timeOffset+s*sixteenth+nm/1000);
+            schedHit(tr.id,stepIdx,t,fo,patData,patVel);
+          }
+        });
+      });
+    }else{
+      // Sequencer / Pads mode: one bar per pattern
+      const sd=barDur/sig.steps;
+      patternsToRender.forEach(({patIdx,timeOffset})=>{
+        const patData=pBank[patIdx]||{};
+        const patVel=(patData as any)._vel||stVel;
+        atO.forEach(tr=>{
+          if(muted[tr.id])return;if(soloed&&soloed!==tr.id)return;
+          const fo=fx[tr.id]||{...DEFAULT_FX};
+          for(let s=0;s<sig.steps;s++){
+            if(!patData[tr.id]?.[s])continue;
+            const nm=stNudge[tr.id]?.[s]||0;
+            const t=Math.max(0.001,timeOffset+s*sd+nm/1000);
+            schedHit(tr.id,s,t,fo,patData,patVel);
+          }
+        });
+      });
+    }
+
+    const rd=await offCtx.startRendering();
+    const wav=encodeWAV(rd);
+    const blob=new Blob([wav],{type:"audio/wav"});
+    const pName=(pBank[cPat] as any)?._name||`PAT${cPat+1}`;
+    const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
+    const fileName=isSongMode
+      ?`ks-SONG-${bpm}bpm-${sig.label}-${songChain.length}bars-${viewTag}.wav`
+      :`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
+    
+    // iOS Safari ignores <a download> on blob: URLs — use Web Share API
+    const wavFile=new File([blob],fileName,{type:"audio/wav"});
+    if(navigator.share&&navigator.canShare?.({files:[wavFile]})){
+      try{await navigator.share({files:[wavFile],title:"Kick & Snare — WAV export"});}
+      catch(e:any){if(e?.name==="AbortError"){setExportState("idle");return;}}
+    }else{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download=fileName;a.style.display="none";
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    }
+  }catch(e){console.error("Export WAV error",e);}
+  setExportState("idle");
+};
+```
+
+### 3. Passer les props au composant `<TransportBar>`
+
+Chercher dans le rendu de `<TransportBar`. Ajouter ces 5 props parmi les autres :
+
+```jsx
+exportState={exportState}
+exportBars={exportBars}
+setExportBars={setExportBars}
+exportMode={exportMode}
+setExportMode={setExportMode}
+onExport={exportWAV}
+```
+
+### 4. Ajouter le toggle PAT/SONG dans `TransportBar.jsx`
+
+Dans `src/components/TransportBar.jsx`, chercher où sont définis les props (ligne 18 environ). Ajouter `exportMode` et `setExportMode` à la liste des props.
+
+Puis chercher le bouton Export (`ExportBtn`, ligne ~243). Juste AVANT le bouton Export, ajouter un toggle :
+
+```jsx
+{onExport && setExportMode && (
+  <button
+    onClick={()=>setExportMode(exportMode==="pattern"?"song":"pattern")}
+    style={{
+      padding:"4px 8px",
+      borderRadius:4,
+      border:`1px solid ${exportMode==="song"?"rgba(255,159,10,0.5)":"rgba(255,255,255,0.15)"}`,
+      background:exportMode==="song"?"rgba(255,159,10,0.15)":"transparent",
+      color:exportMode==="song"?"#FF9F0A":"#888",
+      fontSize:9,
+      fontWeight:800,
+      cursor:"pointer",
+      fontFamily:"inherit",
+      letterSpacing:"0.05em",
+    }}
+    title={exportMode==="song"?"Export Song Arrangement":"Export Pattern"}
+  >
+    {exportMode==="song"?"SONG":"PAT"}
+  </button>
+)}
+```
+
+### 5. Masquer le sélecteur 1/2/4 bars en mode SONG
+
+Toujours dans `TransportBar.jsx`, chercher où le sélecteur `exportBars` est rendu (probablement un `<select>` ou des `<button>` avec les valeurs 1, 2, 4). Encapsuler dans une condition :
+
+```jsx
+{exportMode!=="song" && (
+  // ... le sélecteur 1/2/4 bars existant
+)}
+```
+
+## VÉRIFICATIONS APRÈS BUILD
+
+### Test 1 — Bouton apparaît
+- Lance l'app
+- Le bouton EXPORT doit être visible dans le TransportBar
+- À côté, il y a le toggle PAT/SONG et le sélecteur 1/2/4 bars
+
+### Test 2 — Export Pattern (mode PAT)
+- Toggle sur PAT
+- Choisis 1 bar
+- Crée un pattern simple (kick sur les beats)
+- Clique EXPORT
+- Sur Android : la feuille de partage s'ouvre → sauvegarde le fichier
+- Le WAV doit contenir 1 bar de ton pattern
+
+### Test 3 — Export Pattern multi-bars
+- Mode PAT, 4 bars
+- EXPORT
+- Le WAV doit contenir 4 répétitions du même pattern
+
+### Test 4 — Export Song
+- Crée une chaîne dans le Song Arranger : par exemple PAT1 → PAT1 → PAT2 → PAT3
+- Toggle sur SONG
+- Le sélecteur 1/2/4 bars doit DISPARAÎTRE (puisque la durée vient du songChain)
+- EXPORT
+- Le WAV doit contenir l'enchaînement complet : 4 bars (1 par entrée du songChain), avec les bons patterns
+
+### Test 5 — Non-régression
+- Vérifier que le mode PAT marche toujours après les modifs
+- Vérifier que l'app ne plante pas si le songChain est vide en mode SONG (afficher un message ou désactiver le bouton)
+
+## NE PAS MODIFIER
+
+- La fonction `encodeWAV` (ligne ~53) — elle marche déjà
+- Le mécanisme de download / Web Share API — déjà OK
+- Les autres modes du sélecteur d'export
+- La logique du Song Arranger (lecture des `songRows`, `songChain` calculé)
