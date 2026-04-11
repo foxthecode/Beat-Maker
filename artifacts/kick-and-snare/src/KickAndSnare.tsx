@@ -1994,14 +1994,24 @@ export default function KickAndSnare(){
       const fileName=isSongMode
         ?`ks-SONG-${bpm}bpm-${sig.label}-${songChain.length}bars-${viewTag}.wav`
         :`ks-${pName}-${bpm}bpm-${sig.label}-${exportBars}bar-${viewTag}.wav`;
-      // iOS Safari ignores <a download> on blob: URLs — use Web Share API with a File
-      // object instead, which opens the native share/save sheet on iOS 15+.
+      // Download strategy:
+      // 1. Try Web Share API (iOS 15+, Android Chrome) — requires files support
+      // 2. Fall back to anchor download (desktop, Android WebView, etc.)
+      // IMPORTANT: navigator.share often throws NotAllowedError after a long async
+      // render (user gesture context is lost). We catch all errors and always
+      // fall back to anchor download — never lose the file silently.
       const wavFile=new File([blob],fileName,{type:"audio/wav"});
+      let shared=false;
       if(navigator.share&&navigator.canShare?.({files:[wavFile]})){
-        try{await navigator.share({files:[wavFile],title:"Kick & Snare — WAV export"});}
-        catch(e:any){if(e?.name==="AbortError"){setExportState("idle");return;}}
-      }else{
-        // Desktop / Android: standard anchor download
+        try{
+          await navigator.share({files:[wavFile],title:"Kick & Snare — WAV export"});
+          shared=true;
+        }catch(e:any){
+          if(e?.name==="AbortError"){setExportState("idle");return;} // user cancelled share
+          // Any other error (NotAllowedError, DataError…) → fall through to anchor download
+        }
+      }
+      if(!shared){
         const url=URL.createObjectURL(blob);
         const a=document.createElement("a");
         a.href=url;a.download=fileName;a.style.display="none";
