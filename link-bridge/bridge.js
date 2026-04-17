@@ -15,7 +15,7 @@ const CARABINER_PORT = 17000;
 /* ═══ WebSocket helpers ══════════════════════════════════ */
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 function wsHandshake(req, socket) {
-  const accept = crypto.createHash('sha1').update(req.headers['sec-websocket-key'] + WS_MAGIC).digest('base64');
+  const accept = crypto.createHash('sha256').update(req.headers['sec-websocket-key'] + WS_MAGIC).digest('base64');
   socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' + accept + '\r\n\r\n');
 }
 function wsFrame(text) {
