@@ -351,7 +351,8 @@ export default function SampleLoaderModal({
   const fmt = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-  // Direct app URL for opening outside iframe
+  // Direct app URL for opening outside iframe (hidden on native Android via Capacitor)
+  const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
   const appUrl = window.location.origin + window.location.pathname;
 
   return (
@@ -375,6 +376,7 @@ export default function SampleLoaderModal({
           <div style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,45,85,0.08)', border: '1px solid rgba(255,45,85,0.3)', color: '#FF2D55', fontSize: 10, fontWeight: 600, whiteSpace: 'pre-line', lineHeight: 1.6 }}>
             {recError}
             <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {!isNative && (
               <a
                 href={appUrl}
                 target="_blank"
@@ -383,6 +385,7 @@ export default function SampleLoaderModal({
               >
                 ↗ OUVRIR DANS UN NOUVEL ONGLET
               </a>
+              )}
               <button
                 onClick={() => setRecError(null)}
                 style={{ padding: '7px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em' }}
@@ -430,8 +433,8 @@ export default function SampleLoaderModal({
         {step === 'recording' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', padding: '8px 0' }}>
 
-            {/* FIX: always show direct URL link — useful for iframe/Replit context */}
-            {!isRecording && (
+            {/* Only show the direct-URL hint in browser/Replit context, not on native Android */}
+            {!isRecording && !isNative && (
               <div style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: 'rgba(30,30,40,0.6)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ fontSize: 8, color: dim, letterSpacing: '0.08em' }}>MIC ISSUE? OPEN THE APP DIRECTLY</div>
                 <a
