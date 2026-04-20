@@ -3510,14 +3510,14 @@ export default function KickAndSnare(){
             </div>);
           })()}
           </div>{/* end col 3 mascot */}
-          {/* ── Col 4 : Undo/Redo + Intro + Tutorial + Guide ── */}
-          <div style={{display:"flex",gap:4,alignItems:"center",flex:1,justifyContent:"flex-end"}}>
+          {/* ── Col 4 : Undo/Redo + Intro + Guide — landscape only (portrait → TransportBar Row 3) ── */}
+          {!isPortrait&&<div style={{display:"flex",gap:4,alignItems:"center",flex:1,justifyContent:"flex-end"}}>
             <button data-hint="Undo (Ctrl+Z) · Step back to the previous state · Up to 50 history levels available" onClick={undo} disabled={histLen.past===0} title={`Undo (Ctrl+Z)${histLen.past?" — "+histLen.past+" step"+(histLen.past>1?"s":"")+" back":""}`} style={{width:28,height:28,border:`1px solid ${histLen.past?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.past?"rgba(100,210,255,0.06)":"transparent",color:histLen.past?"#64D2FF":th.faint,fontSize:16,cursor:histLen.past?"pointer":"default",fontFamily:"inherit",opacity:histLen.past?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↺</button>
             <button data-hint="Redo (Ctrl+Y) · Restore the undone action · Clears future history if a new action follows" onClick={redo} disabled={histLen.future===0} title={`Redo (Ctrl+Y)${histLen.future?" — "+histLen.future+" step"+(histLen.future>1?"s":"")+" forward":""}`} style={{width:28,height:28,border:`1px solid ${histLen.future?"rgba(100,210,255,0.35)":th.sBorder+"22"}`,borderRadius:6,background:histLen.future?"rgba(100,210,255,0.06)":"transparent",color:histLen.future?"#64D2FF":th.faint,fontSize:16,cursor:histLen.future?"pointer":"default",fontFamily:"inherit",opacity:histLen.future?1:0.3,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>↻</button>
             <button data-hint="Welcome screen · Re-display the intro overlay · Useful for sharing the app with someone new" onClick={()=>{setShowInfo(false);setOverlayVisible(true);}} title="Intro" style={{width:28,height:28,border:"1px solid rgba(255,45,85,0.2)",borderRadius:6,background:"transparent",color:"rgba(255,45,85,0.45)",fontSize:12,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>⊙</button>
             <button data-hint="User manual · Describes every control and interaction in the app · Full reference" onClick={()=>setShowInfo(p=>!p)} title="Manual" style={{width:28,height:28,border:`1px solid ${showInfo?"#BF5AF255":"rgba(191,90,242,0.2)"}`,borderRadius:6,background:showInfo?"rgba(191,90,242,0.15)":"transparent",color:showInfo?"#BF5AF2":"rgba(191,90,242,0.55)",fontSize:15,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0}}>📖</button>
             <button data-hint={hintMode?"Tooltips ON · Hover any control to see its description · Click to disable":"Tooltips OFF · Click to enable hover hints for all controls"} title={hintMode?"Disable tooltips":"Enable hover tooltips"} onClick={()=>setHintMode(p=>!p)} style={{width:28,height:28,border:`1px solid ${hintMode?"#FFD60A88":"rgba(255,214,10,0.2)"}`,borderRadius:6,background:hintMode?"rgba(255,214,10,0.18)":"transparent",color:hintMode?"#FFD60A":"rgba(255,214,10,0.45)",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transition:"all 0.15s",padding:0,fontStyle:"italic"}}>?</button>
-          </div>
+          </div>}
           <div style={{display:"none"}} aria-hidden="true">
             {/* Nav buttons moved to fixed bottom bar — code preserved for reference */}
             <button onClick={()=>{switchView("pads");setShowLooper(false);clearFreeCapture();}}>LIVE PADS</button>
@@ -3554,6 +3554,10 @@ export default function KickAndSnare(){
           loopCanUndo={loopCanUndo} loopCanRedo={loopCanRedo}
           freeCaptureCount={freeCaptureCount} freeBpm={freeBpm}
           onLoopCapture={captureFromFreePlay} onClearCapture={clearFreeCapture}
+          undo={undo} redo={redo} histLen={histLen}
+          showInfo={showInfo} setShowInfo={setShowInfo}
+          hintMode={hintMode} setHintMode={setHintMode}
+          setOverlayVisible={setOverlayVisible}
         />
         </div>{/* end fixed-header maxWidth */}
       </div>{/* end fixed-header */}

@@ -1,7 +1,15 @@
 import { useRef, useState, useEffect } from "react";
 import { THEMES } from "../theme.js";
 
-const pill=(on,c)=>({padding:"5px 11px",borderRadius:6,border:`1px solid ${on?c+"55":on===false?"rgba(255,45,85,0.25)":"rgba(255,255,255,0.12)"}`,background:on?c+"18":"transparent",color:on?c:"inherit",fontSize:9,fontWeight:700,cursor:"pointer",letterSpacing:"0.07em",textTransform:"uppercase",fontFamily:"inherit"});
+const pill = (on, c) => ({
+  padding: "5px 11px", borderRadius: 6,
+  border: `1px solid ${on ? c + "55" : "rgba(255,255,255,0.12)"}`,
+  background: on ? c + "18" : "transparent",
+  color: on ? c : "inherit",
+  fontSize: 9, fontWeight: 700, cursor: "pointer",
+  letterSpacing: "0.07em", textTransform: "uppercase",
+  fontFamily: "inherit",
+});
 
 export default function TransportBar({
   themeName, bpm, setBpm, playing, startStop,
@@ -15,29 +23,45 @@ export default function TransportBar({
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
-  exportState, exportBars, setExportBars, exportMode, setExportMode, onExport, onExportMidi, exportFx, setExportFx,
+  exportState, exportBars, setExportBars, exportMode, setExportMode,
+  onExport, onExportMidi, exportFx, setExportFx,
   loopRec, loopPlaying, loopEventsCount, toggleLoopRec, toggleLoopPlay,
   loopMetro, setLoopMetro, recCountdown, showLooper,
   onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
   freeCaptureCount, freeBpm, onLoopCapture, onClearCapture,
   onShowFxRack,
+  undo, redo, histLen,
+  showInfo, setShowInfo,
+  hintMode, setHintMode,
+  setOverlayVisible,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
   const [bpmFlash, setBpmFlash] = useState(false);
   const bpmFlashTRef = useRef(null);
-  // Draft BPM — shows live slider position on mobile without changing audio until release
   const [draftBpm, setDraftBpm] = useState(bpm);
   const isDraggingBpm = useRef(false);
+  const [showExport, setShowExport] = useState(false);
+  const exportRef = useRef(null);
+
   useEffect(() => {
-    // Sync draft when BPM changes externally (tap tempo, arrow keys, load, etc.)
     if (!isDraggingBpm.current) setDraftBpm(bpm);
   }, [bpm]);
+
   useEffect(() => {
     clearTimeout(bpmFlashTRef.current);
     setBpmFlash(true);
     bpmFlashTRef.current = setTimeout(() => setBpmFlash(false), 150);
   }, [bpm]);
+
+  useEffect(() => {
+    if (!showExport) return;
+    const handler = e => {
+      if (exportRef.current && !exportRef.current.contains(e.target)) setShowExport(false);
+    };
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
+  }, [showExport]);
 
   const onMDown = e => {
     e.preventDefault();
@@ -66,86 +90,45 @@ export default function TransportBar({
     el.setPointerCapture(e.pointerId);
     const startY = e.clientY;
     const startVol = masterVol;
-    const mv = pe => {
-      const dy = startY - pe.clientY;
-      setMasterVol(Math.max(0, Math.min(100, Math.round(startVol + dy * 0.8))));
-    };
-    const up = () => {
-      el.removeEventListener("pointermove", mv);
-      el.removeEventListener("pointerup", up);
-    };
+    const mv = pe => setMasterVol(Math.max(0, Math.min(100, Math.round(startVol + (startY - pe.clientY) * 0.8))));
+    const up = () => { el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); };
     el.addEventListener("pointermove", mv);
     el.addEventListener("pointerup", up, { once: true });
   };
 
-  const VolKnob = (
-    <div
-      data-hint={`VOL MASTER · Master volume: ${masterVol}% · Drag ↕ to adjust · Double-tap = 80%`}
-      onPointerDown={onVolDown}
-      title="VOL MASTER (drag ↕, double-tap = 80)"
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, cursor: "ns-resize", userSelect: "none", touchAction: "none", position: "relative", overflow: "hidden", padding: "4px 8px", borderRadius: 6, border: `1px solid rgba(255,255,255,0.12)`, minWidth: 50 }}>
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${masterVol}%`, background: "rgba(255,214,10,0.1)", pointerEvents: "none" }} />
-      <span style={{ position: "relative", fontSize: 7, color: th.dim, letterSpacing: "0.1em", fontWeight: 700 }}>VOL</span>
-      <span style={{ position: "relative", fontSize: 10, fontWeight: 800, color: "#FFD60A" }}>{masterVol}</span>
-    </div>
-  );
-
-  const PatIndicator = pBank && SEC_COL && (
-    <div
-      data-hint={`Active pattern: ${pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`} · Click to show the Pattern Bank`}
-      onClick={() => setShowSong && setShowSong(false)}
-      title="Tap to show pattern bank"
-      style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <span style={{ fontSize: 8, fontWeight: 800, color: SEC_COL[cPat % 8], letterSpacing: "0.08em" }}>
-        {pBank[cPat]?._name || `PAT ${(cPat ?? 0) + 1}`}
-      </span>
-    </div>
-  );
-
   const isPads = view === "pads";
-  const isEuclid = view === "euclid";
-  // Looper is "active" when it is playing or recording (includes countdown)
   const looperActive = isPads && (loopPlaying || loopRec);
-  // In pads: if looper active → control looper; otherwise → control main sequencer
   const padsPlayAction = looperActive ? toggleLoopPlay : startStop;
-  // Visual state: show active (red/stop) when relevant engine is running
   const playIsActive = isPads ? (looperActive ? loopPlaying : playing) : playing;
+
   const PlayBtn = (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
       <button
         data-hint={isPads
-          ? (looperActive
-              ? (loopPlaying ? "STOP LOOPER · Stop the looper" : "LOOPER PENDING · Recording queued")
-              : (playing ? "STOP · Stop the sequencer · Shortcut: Space" : "PLAY · Start the sequencer · Shortcut: Space"))
+          ? (looperActive ? (loopPlaying ? "STOP LOOPER · Stop the looper" : "LOOPER PENDING") : (playing ? "STOP · Shortcut: Space" : "PLAY · Shortcut: Space"))
           : (playing ? "STOP · Stop the sequencer · Shortcut: Space" : "PLAY · Start the sequencer · Shortcut: Space")}
         onClick={isPads ? padsPlayAction : startStop}
         style={{
           width: 44, height: 44, borderRadius: "50%", border: "none",
-          background: playIsActive
-            ? "linear-gradient(135deg,#FF2D55,#FF375F)"
-            : "linear-gradient(135deg,#30D158,#34C759)",
+          background: playIsActive ? "linear-gradient(135deg,#FF2D55,#FF375F)" : "linear-gradient(135deg,#30D158,#34C759)",
           color: "#fff", fontSize: 16, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: playIsActive
-            ? "0 0 20px rgba(255,45,85,0.4)"
-            : "0 0 20px rgba(48,209,88,0.4)",
-          transition: "all 0.15s",
+          boxShadow: playIsActive ? "0 0 20px rgba(255,45,85,0.4)" : "0 0 20px rgba(48,209,88,0.4)",
+          transition: "all 0.15s", flexShrink: 0,
         }}
-      >
-        {playIsActive ? "■" : "▶"}
-      </button>
-      <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__play__" /></div>
+      >{playIsActive ? "■" : "▶"}</button>
+      <div style={{ position: "absolute", top: -4, right: -4, pointerEvents: "none" }}><MidiTag id="__play__" /></div>
     </div>
   );
 
   const RecBtn = (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
       <button
-        data-hint={rec ? "REC active · Hit pads or keyboard to record live · Shortcut: Alt" : playing ? "REC · Enable live recording · Shortcut: Alt" : "REC · Start playback + recording simultaneously · Shortcut: Alt"}
+        data-hint={rec ? "REC active · Hit pads or keyboard to record live · Shortcut: Alt" : playing ? "REC · Enable live recording · Shortcut: Alt" : "REC · Start playback + recording · Shortcut: Alt"}
         onClick={() => { onRecClick ? onRecClick() : setRec(p => !p); }}
         style={{
           width: 44, height: 44, borderRadius: "50%",
-          border: rec ? "2px solid #FF2D55" : `2px solid rgba(255,45,85,0.3)`,
+          border: rec ? "2px solid #FF2D55" : "2px solid rgba(255,45,85,0.3)",
           background: rec ? "rgba(255,45,85,0.25)" : "rgba(255,45,85,0.06)",
           color: rec ? "#FF2D55" : "rgba(255,45,85,0.45)",
           fontSize: 16, cursor: "pointer",
@@ -153,17 +136,15 @@ export default function TransportBar({
           animation: rec ? "rb 0.8s infinite" : "none",
           transition: "all 0.15s",
         }}>●</button>
-      <div style={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)" }}><MidiTag id="__rec__" /></div>
+      <div style={{ position: "absolute", top: -4, right: -4, pointerEvents: "none" }}><MidiTag id="__rec__" /></div>
     </div>
   );
-
-  const LooperControls = null;
 
   const BpmCtrl = (
     <div data-hint={`BPM · Current tempo: ${bpm} BPM · ‹ › or slider to adjust · Shortcut: ← →`}
       style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 80px", minWidth: 80 }}>
       <span style={{ fontSize: 7, color: th.dim, letterSpacing: "0.12em", flexShrink: 0 }}>BPM</span>
-      <MidiTag id="__bpm__" />
+      <div style={{ flexShrink: 0 }}><MidiTag id="__bpm__" /></div>
       <button onClick={() => setBpm(Math.max(30, bpm - 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>‹</button>
       <span className={bpmFlash ? "bpmFlash" : ""} style={{ fontSize: 22, fontWeight: 900, color: "#FF9500", display: "inline-block", minWidth: 30, textAlign: "center", flexShrink: 0 }}>{isMobile ? draftBpm : bpm}</span>
       <button onClick={() => setBpm(Math.min(300, bpm + 1))} style={{ border: "none", background: "transparent", color: th.dim, cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>›</button>
@@ -172,60 +153,68 @@ export default function TransportBar({
         value={isMobile ? draftBpm : bpm}
         onChange={e => {
           const v = Number(e.target.value);
-          if (isMobile) {
-            // On mobile: only update visual draft, audio BPM commits on release
-            isDraggingBpm.current = true;
-            setDraftBpm(v);
-          } else {
-            setBpm(v);
-          }
+          if (isMobile) { isDraggingBpm.current = true; setDraftBpm(v); }
+          else { setBpm(v); }
         }}
-        onPointerUp={isMobile ? e => {
-          const v = Number(e.target.value);
-          isDraggingBpm.current = false;
-          setBpm(v);
-        } : undefined}
-        onTouchEnd={isMobile ? e => {
-          // Fallback for browsers that don't fire pointerUp on touch
-          isDraggingBpm.current = false;
-          setBpm(draftBpm);
-        } : undefined}
+        onPointerUp={isMobile ? e => { isDraggingBpm.current = false; setBpm(Number(e.target.value)); } : undefined}
+        onTouchEnd={isMobile ? () => { isDraggingBpm.current = false; setBpm(draftBpm); } : undefined}
         style={{ flex: 1, minWidth: 50, height: 4, accentColor: "#FF9500" }}
       />
     </div>
   );
 
   const TapBtn = (
-    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
       <button
         data-hint="TAP · Tap 4× in rhythm to auto-detect BPM · Also assignable via MIDI"
         onClick={handleTap}
-        style={{ padding: "6px 12px", borderRadius: 6, background: "rgba(255,149,0,0.15)", color: "#FF9500", border: "1px solid rgba(255,149,0,0.3)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>TAP</button>
-      <MidiTag id="__tap__" />
+        style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(255,149,0,0.15)", color: "#FF9500", border: "1px solid rgba(255,149,0,0.3)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>TAP</button>
+      <div style={{ flexShrink: 0 }}><MidiTag id="__tap__" /></div>
+    </div>
+  );
+
+  const VolKnob = (
+    <div
+      data-hint={`VOL MASTER · Master volume: ${masterVol}% · Drag ↕ to adjust · Double-tap = 80%`}
+      onPointerDown={onVolDown}
+      title="VOL MASTER (drag ↕, double-tap = 80)"
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+        cursor: "ns-resize", userSelect: "none", touchAction: "none",
+        position: "relative", padding: "4px 8px", borderRadius: 6,
+        border: "1px solid rgba(255,255,255,0.12)", minWidth: 48,
+      }}>
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        height: `${masterVol}%`, background: "rgba(255,214,10,0.1)",
+        borderRadius: "0 0 6px 6px", pointerEvents: "none",
+      }} />
+      <span style={{ position: "relative", fontSize: 7, color: th.dim, letterSpacing: "0.1em", fontWeight: 700 }}>VOL</span>
+      <span style={{ position: "relative", fontSize: 10, fontWeight: 800, color: "#FFD60A" }}>{masterVol}</span>
     </div>
   );
 
   const SwingCtrl = view !== "euclid" && (
-    <div data-hint={`SWING · Delays the off-beats for a shuffle groove · 0 = straight · ~67% = triplet swing (jazz/hip-hop) · 100% = max dotted shuffle · Currently ${swing}%`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+    <div data-hint={`SWING · Delays the off-beats for shuffle groove · 0 = straight · ~67% = triplet swing · Currently ${swing}%`}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-        <span style={{ fontSize: 7, color: th.dim }}>SWING</span>
-        <MidiTag id="__swing__" />
+        <span style={{ fontSize: 7, color: th.dim, fontWeight: 700 }}>SWING {swing}%</span>
+        <div style={{ flexShrink: 0 }}><MidiTag id="__swing__" /></div>
       </div>
-      <span style={{ fontSize: 9, fontWeight: 700, color: "#5E5CE6" }}>{swing}%</span>
-      <input type="range" min={0} max={100} value={swing} onChange={e => setSwing(Number(e.target.value))} style={{ width: 42, height: 3, accentColor: "#5E5CE6" }} />
+      <input type="range" min={0} max={100} value={swing} onChange={e => setSwing(Number(e.target.value))} style={{ width: 44, height: 3, accentColor: "#5E5CE6" }} />
     </div>
   );
 
   const TSBtn = view !== "euclid" && view !== "pads" && (
     <button
-      data-hint={`Time Signature · Current: ${sig?.label || "4/4"} · Click to change (3/4, 5/4, 6/8…) · Sets the metronome accents`}
+      data-hint={`Time Signature · Current: ${sig?.label || "4/4"} · Click to change · Sets metronome accents`}
       onClick={() => setShowTS(!showTS)}
       style={pill(showTS, "#30D158")}>{sig.label}</button>
   );
 
   const MetroBtn = (
     <div
-      data-hint={metro ? `METRO active · Volume: ${metroVol}% · Click to disable · Drag ↕ to adjust volume` : `METRO · Reference metronome · ${metroVol}% · Click to enable · Drag ↕ to adjust volume`}
+      data-hint={metro ? `METRO active · ${metroVol}% · Click to disable · Drag ↕ to adjust volume` : `METRO · ${metroVol}% · Click to enable · Drag ↕ to adjust volume`}
       onPointerDown={onMDown}
       style={{ ...pill(metro, "#FF9500"), position: "relative", overflow: "hidden", touchAction: "none", userSelect: "none", cursor: "pointer" }}>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${metroVol}%`, background: metro ? "rgba(255,149,0,0.12)" : "transparent", borderRadius: 6, transition: "height 0.15s", pointerEvents: "none" }} />
@@ -235,94 +224,14 @@ export default function TransportBar({
 
   const SubBtn = metro && (
     <button
-      data-hint={`SUB · Metronome subdivisions · ${metroSub === "off" ? "Disabled" : metroSub === "light" ? "Light (eighth notes)" : "Full (sixteenth notes)"} · Click to change`}
+      data-hint={`SUB · Subdivisions · ${metroSub === "off" ? "Disabled" : metroSub === "light" ? "Light (8th)" : "Full (16th)"} · Click to change`}
       onClick={() => setMetroSub(p => p === "off" ? "light" : p === "light" ? "full" : "off")}
       style={pill(metroSub !== "off", "#FF9500")}>SUB {metroSub === "off" ? "OFF" : metroSub === "light" ? "◦" : "●"}</button>
   );
 
-  const ExportGroup = (onExport || onExportMidi) && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: "4px 6px 5px", borderRadius: 7, border: "1px solid rgba(100,210,255,0.2)", background: "rgba(100,210,255,0.04)" }}>
-      <div style={{ fontSize: 6, fontWeight: 800, letterSpacing: "0.12em", color: "#64D2FF", textTransform: "uppercase", lineHeight: 1 }}>Export</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-        {setExportMode && (
-          <button
-            onClick={() => setExportMode(exportMode === "pattern" ? "song" : "pattern")}
-            style={{
-              padding: "4px 7px",
-              borderRadius: 4,
-              border: `1px solid ${exportMode === "song" ? "rgba(255,159,10,0.5)" : "rgba(255,255,255,0.15)"}`,
-              background: exportMode === "song" ? "rgba(255,159,10,0.15)" : "transparent",
-              color: exportMode === "song" ? "#FF9F0A" : "#888",
-              fontSize: 9,
-              fontWeight: 800,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              letterSpacing: "0.05em",
-            }}
-            title={exportMode === "song" ? "Export Song Arrangement" : "Export Pattern"}
-          >
-            {exportMode === "song" ? "SONG" : "PAT"}
-          </button>
-        )}
-        {exportMode !== "song" && [1,2,4].map(n => (
-          <button key={n} onClick={() => setExportBars(n)}
-            data-hint={`Export ${n} bar${n > 1 ? "s" : ""} · Click to select export duration`}
-            style={{ ...pill(exportBars===n, "#64D2FF"), padding: "5px 7px", minWidth: 0 }}
-            disabled={playing || exportState==="rendering"}
-          >{n}b</button>
-        ))}
-        {setExportFx && (
-          <button
-            onClick={() => setExportFx(!exportFx)}
-            data-hint={exportFx ? "FX ON · WAV export includes reverb, delay and compressor · Click to export DRY" : "FX OFF · WAV export is dry (no effects) · Click to include FX in render"}
-            style={{
-              padding: "5px 7px",
-              borderRadius: 4,
-              border: `1px solid ${exportFx ? "rgba(255,159,10,0.55)" : "rgba(255,255,255,0.15)"}`,
-              background: exportFx ? "rgba(255,159,10,0.15)" : "transparent",
-              color: exportFx ? "#FF9F0A" : "#888",
-              fontSize: 9,
-              fontWeight: 800,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-            title={exportFx ? "Export with FX (click to disable)" : "Export dry (click to include FX)"}
-          >FX {exportFx ? "ON" : "OFF"}</button>
-        )}
-        {onExport && (
-          <button onClick={onExport}
-            data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} ${exportFx?"with FX":"dry"} · Disabled during playback`}
-            disabled={playing || exportState==="rendering"}
-            style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
-            title="Export WAV"
-          >{exportState==="rendering" ? "⏳" : "⬇ WAV"}</button>
-        )}
-        {onExportMidi && (
-          <button onClick={onExportMidi}
-            data-hint={exportState === "rendering" ? "Rendering…" : `⬇ MIDI · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"} as MIDI file`}
-            disabled={playing || exportState==="rendering"}
-            style={{
-              padding: "5px 7px",
-              borderRadius: 4,
-              border: "1px solid #BF5AF255",
-              background: "transparent",
-              color: "#BF5AF2",
-              fontSize: 9,
-              fontWeight: 800,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              opacity: playing || exportState==="rendering" ? 0.45 : 1,
-            }}
-            title="Export MIDI"
-          >⬇ MIDI</button>
-        )}
-      </div>
-    </div>
-  );
-
   const KeybBtn = (
     <button
-      data-hint={showK ? "Close keyboard mapping · Assign keys to tracks" : "KEYB · Open keyboard mapping · Assign a key to each track · Space=Play · Alt=Rec · ←→=BPM"}
+      data-hint={showK ? "Close keyboard mapping" : "KEYB · Open keyboard mapping · Space=Play · Alt=Rec · ←→=BPM"}
       onClick={() => setShowK(!showK)}
       style={{ ...pill(showK, "#FFD60A"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11, lineHeight: 1 }}>⌨</span>
@@ -332,58 +241,202 @@ export default function TransportBar({
 
   const MidiBtn = hasMidiApi && (
     <button
-      data-hint={midiLM ? "MIDI LEARN active · Touch a pad or button then hit a MIDI note to assign · Click to exit" : "MIDI · Enable MIDI connection · LEARN mode = assign a MIDI note to each track or button"}
+      data-hint={midiLM ? "MIDI LEARN active · Touch a pad then hit a MIDI note to assign · Click to exit" : "MIDI · Enable MIDI · LEARN = assign a note to each track or button"}
       onClick={async () => {
         if (!midiNotes) { const ok = await initMidi(); if (!ok) return; setMidiNotes(true); }
         const entering = !midiLM; setMidiLM(entering); if (!entering) setMidiLearnTrack(null);
-      }} style={{ ...pill(midiLM, "#FF9500"), display: "flex", alignItems: "center", gap: 4 }}>
+      }}
+      style={{ ...pill(midiLM, "#FF9500"), display: "flex", alignItems: "center", gap: 4 }}>
       <span style={{ fontSize: 11 }}>🎹</span>
       <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.04em" }}>MIDI</span>
     </button>
   );
 
+  const ExportBtn = (onExport || onExportMidi) && (
+    <div ref={exportRef} style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => setShowExport(p => !p)}
+        data-hint="Export · Open export options (WAV / MIDI)"
+        style={{ ...pill(showExport, "#64D2FF"), display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ fontSize: 10, lineHeight: 1 }}>⬇</span>
+        <span>EXPORT</span>
+      </button>
+      {showExport && (
+        <div style={{
+          position: "absolute",
+          top: "calc(100% + 6px)",
+          right: 0,
+          zIndex: 500,
+          minWidth: 210,
+          padding: "10px 12px",
+          borderRadius: 10,
+          background: themeName === "dark" ? "rgba(18,18,32,0.98)" : "rgba(255,255,255,0.98)",
+          border: "1px solid rgba(100,210,255,0.3)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+          backdropFilter: "blur(16px)",
+          display: "flex", flexDirection: "column", gap: 8,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.15em", color: "#64D2FF", textTransform: "uppercase" }}>Export</span>
+            <button onClick={() => setShowExport(false)} style={{ background: "none", border: "none", color: th.dim, fontSize: 16, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>×</button>
+          </div>
 
-  const rowStyle = { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" };
+          {setExportMode && (
+            <div style={{ display: "flex", gap: 4 }}>
+              {["pattern", "song"].map(m => (
+                <button key={m} onClick={() => setExportMode(m)} style={{
+                  flex: 1, padding: "5px 0", borderRadius: 5,
+                  border: `1px solid ${exportMode === m ? "rgba(100,210,255,0.5)" : th.sBorder}`,
+                  background: exportMode === m ? "rgba(100,210,255,0.15)" : "transparent",
+                  color: exportMode === m ? "#64D2FF" : th.dim,
+                  fontSize: 9, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                }}>{m === "pattern" ? "PAT" : "SONG"}</button>
+              ))}
+            </div>
+          )}
+
+          {exportMode !== "song" && (
+            <div style={{ display: "flex", gap: 4 }}>
+              {[1, 2, 4].map(n => (
+                <button key={n} onClick={() => setExportBars(n)}
+                  disabled={playing || exportState === "rendering"}
+                  style={{
+                    flex: 1, padding: "5px 0", borderRadius: 5,
+                    border: `1px solid ${exportBars === n ? "rgba(100,210,255,0.5)" : th.sBorder}`,
+                    background: exportBars === n ? "rgba(100,210,255,0.15)" : "transparent",
+                    color: exportBars === n ? "#64D2FF" : th.dim,
+                    fontSize: 9, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                    opacity: playing || exportState === "rendering" ? 0.45 : 1,
+                  }}>{n} {n === 1 ? "BAR" : "BARS"}</button>
+              ))}
+            </div>
+          )}
+
+          {setExportFx && (
+            <button onClick={() => setExportFx(!exportFx)}
+              data-hint={exportFx ? "FX ON · WAV includes reverb, delay, compressor · Click for dry" : "FX OFF · Dry export · Click to include effects"}
+              style={{
+                padding: "6px 10px", borderRadius: 5, width: "100%",
+                border: `1px solid ${exportFx ? "rgba(255,159,10,0.5)" : th.sBorder}`,
+                background: exportFx ? "rgba(255,159,10,0.12)" : "transparent",
+                color: exportFx ? "#FF9F0A" : th.dim,
+                fontSize: 9, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                textAlign: "left",
+              }}>
+              {exportFx ? "✓ FX ON — Reverb · Delay · Comp" : "○ FX OFF — Dry signal"}
+            </button>
+          )}
+
+          <div style={{ display: "flex", gap: 6 }}>
+            {onExport && (
+              <button
+                onClick={() => { onExport(); setShowExport(false); }}
+                disabled={playing || exportState === "rendering"}
+                data-hint={exportState === "rendering" ? "Rendering…" : `Export ${exportMode === "song" ? "song" : exportBars + " bar"} as WAV`}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: 6,
+                  border: "1px solid rgba(100,210,255,0.4)",
+                  background: "rgba(100,210,255,0.1)", color: "#64D2FF",
+                  fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                  opacity: playing || exportState === "rendering" ? 0.45 : 1,
+                  letterSpacing: "0.05em",
+                }}>{exportState === "rendering" ? "⏳ …" : "⬇ WAV"}</button>
+            )}
+            {onExportMidi && (
+              <button
+                onClick={() => { onExportMidi(); setShowExport(false); }}
+                disabled={playing || exportState === "rendering"}
+                data-hint={exportState === "rendering" ? "Rendering…" : `Export ${exportMode === "song" ? "song" : exportBars + " bar"} as MIDI`}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: 6,
+                  border: "1px solid rgba(191,90,242,0.4)",
+                  background: "rgba(191,90,242,0.1)", color: "#BF5AF2",
+                  fontSize: 10, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                  opacity: playing || exportState === "rendering" ? 0.45 : 1,
+                  letterSpacing: "0.05em",
+                }}>{exportState === "rendering" ? "⏳ …" : "⬇ MIDI"}</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const undoBtnStyle = has => ({
+    width: 28, height: 28, borderRadius: 6, padding: 0,
+    border: `1px solid ${has ? "rgba(100,210,255,0.35)" : "rgba(255,255,255,0.08)"}`,
+    background: has ? "rgba(100,210,255,0.06)" : "transparent",
+    color: has ? "#64D2FF" : th.faint,
+    fontSize: 16, cursor: has ? "pointer" : "default",
+    fontFamily: "inherit", opacity: has ? 1 : 0.3,
+    display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1,
+    transition: "all 0.15s", flexShrink: 0,
+  });
+
+  const UndoBtn = undo && (
+    <button data-hint="Undo (Ctrl+Z) · Step back" onClick={undo} disabled={!histLen?.past}
+      title={`Undo${histLen?.past ? ` (${histLen.past})` : ""}`}
+      style={undoBtnStyle(histLen?.past)}>↺</button>
+  );
+
+  const RedoBtn = redo && (
+    <button data-hint="Redo (Ctrl+Y) · Restore undone action" onClick={redo} disabled={!histLen?.future}
+      title={`Redo${histLen?.future ? ` (${histLen.future})` : ""}`}
+      style={undoBtnStyle(histLen?.future)}>↻</button>
+  );
+
+  const IntroBtn = setOverlayVisible && (
+    <button data-hint="Welcome screen · Re-display the intro overlay"
+      onClick={() => { setShowInfo?.(false); setOverlayVisible(true); }} title="Intro"
+      style={{ width: 28, height: 28, border: "1px solid rgba(255,45,85,0.2)", borderRadius: 6, background: "transparent", color: "rgba(255,45,85,0.45)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, transition: "all 0.15s", flexShrink: 0 }}>⊙</button>
+  );
+
+  const ManualBtn = setShowInfo && (
+    <button data-hint="User manual · Full reference for all controls" onClick={() => setShowInfo(p => !p)} title="Manual"
+      style={{ width: 28, height: 28, border: `1px solid ${showInfo ? "#BF5AF255" : "rgba(191,90,242,0.2)"}`, borderRadius: 6, background: showInfo ? "rgba(191,90,242,0.15)" : "transparent", color: showInfo ? "#BF5AF2" : "rgba(191,90,242,0.55)", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, transition: "all 0.15s", flexShrink: 0 }}>📖</button>
+  );
+
+  const HintBtn = setHintMode && (
+    <button data-hint={hintMode ? "Tooltips ON · Click to disable" : "Tooltips OFF · Click to enable hints"}
+      onClick={() => setHintMode(p => !p)} title={hintMode ? "Disable tooltips" : "Enable tooltips"}
+      style={{ width: 28, height: 28, border: `1px solid ${hintMode ? "#FFD60A88" : "rgba(255,214,10,0.2)"}`, borderRadius: 6, background: hintMode ? "rgba(255,214,10,0.18)" : "transparent", color: hintMode ? "#FFD60A" : "rgba(255,214,10,0.45)", fontSize: 14, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, fontStyle: "italic", transition: "all 0.15s", flexShrink: 0 }}>?</button>
+  );
+
+  const containerStyle = {
+    display: "flex", flexDirection: "column", gap: 6,
+    padding: "7px 12px 8px", borderRadius: 12,
+    background: th.surface, border: `1px solid ${th.sBorder}`,
+  };
+  const rowStyle = { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" };
 
   if (isPortrait) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8, padding: "7px 12px 8px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}` }}>
-        {/* Row 1 : Play | [< BPM >] [slider] | TAP | METRO */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {PlayBtn}
-          {RecBtn}
-          {BpmCtrl}
-          {TapBtn}
-          {MetroBtn}
+      <div style={{ ...containerStyle, marginBottom: 8 }}>
+        <div style={rowStyle}>
+          {PlayBtn}{RecBtn}{BpmCtrl}{TapBtn}{MetroBtn}
         </div>
-        {/* Row 2 : VOL · SWING · TS · SUB · MIDI · EXPORT */}
-        <div style={{ ...rowStyle, flexWrap: "wrap" }}>
-          {VolKnob}
-          {SwingCtrl}
-          {TSBtn}
-          {SubBtn}
-          {MidiBtn}
-          {ExportGroup}
+        <div style={rowStyle}>
+          {VolKnob}{SwingCtrl}{TSBtn}{SubBtn}{MidiBtn}{ExportBtn}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: 4, borderTop: `1px solid ${th.sBorder}` }}>
+          {UndoBtn}{RedoBtn}
+          <div style={{ flex: 1 }} />
+          {IntroBtn}{ManualBtn}{HintBtn}
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "10px 12px", borderRadius: 12, background: th.surface, border: `1px solid ${th.sBorder}`, flexWrap: "wrap" }}>
-      {PlayBtn}
-      {RecBtn}
-      {isPads && LooperControls}
-      {BpmCtrl}
-      {TapBtn}
-      {VolKnob}
-      {SwingCtrl}
-      {TSBtn}
-      {MetroBtn}
-      {SubBtn}
-      {!isPortrait && !isMobile && KeybBtn}
-      {MidiBtn}
-      {ExportGroup}
+    <div style={{ ...containerStyle, marginBottom: 12 }}>
+      <div style={rowStyle}>
+        {PlayBtn}{RecBtn}{BpmCtrl}{TapBtn}{VolKnob}
+      </div>
+      <div style={rowStyle}>
+        {SwingCtrl}{TSBtn}{MetroBtn}{SubBtn}
+        {!isMobile && KeybBtn}{MidiBtn}{ExportBtn}
+      </div>
     </div>
   );
 }
