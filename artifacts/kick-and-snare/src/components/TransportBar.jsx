@@ -15,7 +15,7 @@ export default function TransportBar({
   masterVol, setMasterVol,
   cPat, pBank, SEC_COL, setShowSong,
   onClear,
-  exportState, exportBars, setExportBars, exportMode, setExportMode, onExport, onExportMidi,
+  exportState, exportBars, setExportBars, exportMode, setExportMode, onExport, onExportMidi, exportFx, setExportFx,
   loopRec, loopPlaying, loopEventsCount, toggleLoopRec, toggleLoopPlay,
   loopMetro, setLoopMetro, recCountdown, showLooper,
   onLoopUndo, onLoopRedo, onLoopClear, loopCanUndo, loopCanRedo,
@@ -271,9 +271,27 @@ export default function TransportBar({
             disabled={playing || exportState==="rendering"}
           >{n}b</button>
         ))}
+        {setExportFx && (
+          <button
+            onClick={() => setExportFx(!exportFx)}
+            data-hint={exportFx ? "FX ON · WAV export includes reverb, delay and compressor · Click to export DRY" : "FX OFF · WAV export is dry (no effects) · Click to include FX in render"}
+            style={{
+              padding: "5px 7px",
+              borderRadius: 4,
+              border: `1px solid ${exportFx ? "rgba(255,159,10,0.55)" : "rgba(255,255,255,0.15)"}`,
+              background: exportFx ? "rgba(255,159,10,0.15)" : "transparent",
+              color: exportFx ? "#FF9F0A" : "#888",
+              fontSize: 9,
+              fontWeight: 800,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+            title={exportFx ? "Export with FX (click to disable)" : "Export dry (click to include FX)"}
+          >FX {exportFx ? "ON" : "OFF"}</button>
+        )}
         {onExport && (
           <button onClick={onExport}
-            data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} to WAV file · Disabled during playback`}
+            data-hint={exportState === "rendering" ? "Rendering… · Please wait" : `⬇ WAV · Export ${exportMode==="song"?"song arrangement":exportBars+" bar"+(exportBars>1?"s":"")} ${exportFx?"with FX":"dry"} · Disabled during playback`}
             disabled={playing || exportState==="rendering"}
             style={{ ...pill(false, "#64D2FF"), color: "#64D2FF", border: "1px solid #64D2FF55", opacity: (playing||exportState==="rendering") ? 0.45 : 1 }}
             title="Export WAV"

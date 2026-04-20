@@ -860,6 +860,7 @@ export default function KickAndSnare(){
   const [exportState,setExportState]=useState<"idle"|"rendering">("idle");
   const [exportBars,setExportBars]=useState<1|2|4>(1);
   const [exportMode,setExportMode]=useState<"pattern"|"song">("pattern");
+  const [exportFx,setExportFx]=useState(false);
   // ── CP-B: Looper export ──
   const [loopExportState,setLoopExportState]=useState<"idle"|"rendering">("idle");
   const [loopExportReps,setLoopExportReps]=useState<1|2|4>(1);
@@ -1948,11 +1949,62 @@ export default function KickAndSnare(){
       const dur=isSongMode?songChain.length*barDur:barDur*exportBars;
       const offCtx=new OfflineAudioContext(2,Math.ceil(sr*dur),sr);
 
+      // ── Build offline FX chain (only when exportFx=true) ─────────────────────
+      let offDryOut:AudioNode=offCtx.destination;
+      const offRvSends:Record<string,GainNode>={};
+      const offDlSends:Record<string,GainNode>={};
+      if(exportFx){
+        const masterGain=offCtx.createGain();masterGain.gain.value=masterVol/100;masterGain.connect(offCtx.destination);
+        let chainIn:AudioNode=masterGain;
+        if(gfx.comp?.on){
+          const comp=offCtx.createDynamicsCompressor();
+          comp.threshold.value=gfx.comp.thr??-12;comp.ratio.value=gfx.comp.ratio??4;
+          comp.attack.value=Math.max(0,(gfx.comp.attack??5))/1000;
+          comp.release.value=Math.max(0,(gfx.comp.release??80))/1000;
+          comp.connect(masterGain);chainIn=comp;
+        }
+        offDryOut=chainIn;
+        if(gfx.reverb?.on){
+          const rvConv=offCtx.createConvolver();
+          const sr2=offCtx.sampleRate;
+          const decay=gfx.reverb.decay??1.5;const size=gfx.reverb.size??0.5;const rType=gfx.reverb.type??'room';
+          const preDelayMs=rType==='plate'?2:rType==='hall'?(20+size*35):(8+size*15);
+          const preDelaySamples=Math.floor(preDelayMs/1000*sr2);
+          const tailSec=Math.min(4,decay*(rType==='hall'?1.15:1.0));
+          const totalSamples=preDelaySamples+Math.ceil(sr2*tailSec);
+          const irBuf=offCtx.createBuffer(2,totalSamples,sr2);
+          const decayRate=Math.log(0.001)/tailSec;
+          for(let ch=0;ch<2;ch++){
+            const d=irBuf.getChannelData(ch);
+            for(let i=0;i<totalSamples;i++){if(i<preDelaySamples){d[i]=0;continue;}const tI=(i-preDelaySamples)/sr2;d[i]=(Math.random()*2-1)*Math.exp(decayRate*tI);}
+            if(ch===1){const shift=Math.floor(sr2*0.0005);for(let i=totalSamples-1;i>=shift;i--)d[i]=d[i-shift];for(let i=0;i<shift;i++)d[i]=0;}
+          }
+          rvConv.buffer=irBuf;rvConv.connect(masterGain);
+          atO.forEach((tr:any)=>{const fo=fx[tr.id]||DEFAULT_FX;if(fo.onReverb&&(fo.rMix??0)>0){const s=offCtx.createGain();s.gain.value=Math.min(1,(fo.rMix??0)/100);s.connect(rvConv);offRvSends[tr.id]=s;}});
+        }
+        if(gfx.delay?.on){
+          const dlTime=Math.min(1.9,gfx.delay.time??0.25);
+          const dlBus=offCtx.createGain();dlBus.gain.value=(gfx.delay.mix??35)/100;
+          const dlL=offCtx.createDelay(2);dlL.delayTime.value=dlTime;
+          const dlR=offCtx.createDelay(2);dlR.delayTime.value=dlTime*1.006;
+          const dlFb=offCtx.createGain();dlFb.gain.value=Math.min(0.75,(gfx.delay.fdbk??35)/100);
+          const dlLpf=offCtx.createBiquadFilter();dlLpf.type='lowpass';dlLpf.frequency.value=6500;
+          const dlHpf=offCtx.createBiquadFilter();dlHpf.type='highpass';dlHpf.frequency.value=180;
+          dlBus.connect(dlL);dlBus.connect(dlR);
+          dlL.connect(dlLpf);dlLpf.connect(dlHpf);dlHpf.connect(dlFb);dlFb.connect(dlL);
+          dlL.connect(masterGain);dlR.connect(masterGain);
+          atO.forEach((tr:any)=>{const fo=fx[tr.id]||DEFAULT_FX;if(fo.onDelay&&(fo.dMix??0)>0){const s=offCtx.createGain();s.gain.value=Math.min(1,(fo.dMix??0)/100);s.connect(dlBus);offDlSends[tr.id]=s;}});
+        }
+      }
+
       // ── Helper: schedule one hit at time t ──────────────────────────────────
       const schedHit=(tid:string,stepIdx:number,t:number,fo:any,patData:any,velData:any)=>{
         const vel=(velData?.[tid]?.[stepIdx]??100)/100;
         if(!(patData[tid]?.[stepIdx]))return;
-        const dst=offCtx.createGain();dst.gain.value=vel;dst.connect(offCtx.destination);
+        const dst=offCtx.createGain();dst.gain.value=vel;
+        dst.connect(offDryOut);
+        if(offRvSends[tid])dst.connect(offRvSends[tid]);
+        if(offDlSends[tid])dst.connect(offDlSends[tid]);
         if(engine.buf[tid]){
           const src=offCtx.createBufferSource();src.buffer=engine.buf[tid];
           const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
@@ -2022,9 +2074,10 @@ export default function KickAndSnare(){
       const viewTag=view==="euclid"?"euclid":view==="pads"?"pads":"seq";
       const safeLabel=sig.label.replace(/[\/\\:*?"<>|]/g,'-');
       const safePName=pName.replace(/[\/\\:*?"<>|]/g,'-');
+      const fxTag=exportFx?'-FX':'';
       const fileName=isSongMode
-        ?`ks-SONG-${bpm}bpm-${safeLabel}-${songChain.length}bars-${viewTag}.wav`
-        :`ks-${safePName}-${bpm}bpm-${safeLabel}-${exportBars}bar-${viewTag}.wav`;
+        ?`ks-SONG-${bpm}bpm-${safeLabel}-${songChain.length}bars-${viewTag}${fxTag}.wav`
+        :`ks-${safePName}-${bpm}bpm-${safeLabel}-${exportBars}bar-${viewTag}${fxTag}.wav`;
       try {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
         const { Share } = await import('@capacitor/share');
@@ -3491,6 +3544,7 @@ export default function KickAndSnare(){
           exportState={exportState} exportBars={exportBars} setExportBars={setExportBars}
           exportMode={exportMode} setExportMode={setExportMode}
           onExport={exportWAV}
+          exportFx={exportFx} setExportFx={setExportFx}
           onExportMidi={exportMIDI}
           loopRec={loopRec} loopPlaying={loopPlaying} loopEventsCount={loopDisp.length}
           toggleLoopRec={toggleLoopRec} toggleLoopPlay={loopPlaying?stopLooper:()=>startLooper(false)}
