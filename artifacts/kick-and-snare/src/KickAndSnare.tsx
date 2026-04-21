@@ -1104,25 +1104,12 @@ export default function KickAndSnare(){
     } else {
       // ── Direct seq↔euclid: save current song, restore target song ──
       if(nextView==="euclid"){
-        // Save SEQ state (song arrangement preserved)
+        // Save SEQ state
         seqSnap.current={pBank,cPat,songRows,songMode};
-        // Fresh euclid pBank with euclidParams applied — pBank is always derived from params
-        const fresh=[mkE(16)];
-        const ep=euclidParams;
-        Object.entries(ep).forEach(([tid,p])=>{
-          const N=(p as any).N||16;const h=(p as any).hits||0;const rot=(p as any).rot||0;
-          if(h>0){
-            const raw=euclidRhythm(h,N);
-            const r2=((rot%Math.max(N,1))+Math.max(N,1))%Math.max(N,1);
-            const rotated=[...raw.slice(r2),...raw.slice(0,r2)].map(v=>v?100:0);
-            fresh[0][tid]=rotated;
-            if(!fresh[0]._steps)fresh[0]._steps={};
-            (fresh[0]._steps as Record<string,number>)[tid]=N;
-          }
-        });
-        setPBank(fresh);setCPat(0);R.pat=fresh[0];
-        // Restore euclid's own song arrangement
+        // Restore the euclid snapshot — preserves manual step edits across view switches.
+        // On first visit euclidSnap.pBank=[mkE(16)] which equals a fresh empty euclid pBank.
         const esnap=euclidSnap.current;
+        setPBank(esnap.pBank);setCPat(esnap.cPat||0);R.pat=esnap.pBank[esnap.cPat||0]??mkE(16);
         setSongMode(esnap.songMode||false);
         setSongRows(esnap.songRows?.length?esnap.songRows:[[...Array(16).fill(null)]]);
         songPosRef.current=0;
