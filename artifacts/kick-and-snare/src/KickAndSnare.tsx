@@ -4346,11 +4346,12 @@ export default function KickAndSnare(){
           // FIX: preventDefault (prevents pointercancel on touch) but NO stopPropagation
           // (stopPropagation breaks window.pointerup on iOS Safari inside SVG)
           const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
-            e.preventDefault(); // prevent scroll/cancel — but NOT stopPropagation
+            e.preventDefault();
             const pid=e.pointerId;
             const sx=e.clientX,sy=e.clientY;
             let timerFired=false;
             let moved=false;
+            console.log(`[E] DOWN tid=${tid} step=${step} pid=${pid} type=${e.pointerType}`);
             setEuclidTouchFeedback({tid,step});
             const longPressMs=R.euclidEdit?600:400;
             const cleanup=()=>{
@@ -4360,6 +4361,7 @@ export default function KickAndSnare(){
             };
             const timer=setTimeout(()=>{
               timerFired=true;
+              console.log(`[E] LONG PRESS fired → vel picker`);
               setEuclidTouchFeedback(null);
               cleanup();
               const px=Math.min(Math.max(sx-70,8),window.innerWidth-160);
@@ -4369,23 +4371,27 @@ export default function KickAndSnare(){
             const onMove=me=>{
               if(me.pointerId!==pid)return;
               const dx=me.clientX-sx,dy=me.clientY-sy;
-              if(Math.abs(dx)>18||Math.abs(dy)>18){moved=true;clearTimeout(timer);}
+              if(Math.abs(dx)>18||Math.abs(dy)>18){moved=true;clearTimeout(timer);console.log(`[E] MOVED → cancel`);}
             };
             const onCancel=me=>{
               if(me.pointerId!==pid)return;
+              console.log(`[E] CANCEL pid=${me.pointerId}`);
               clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();
             };
             const onUp=me=>{
               if(me.pointerId!==pid)return;
               clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();
+              console.log(`[E] UP timerFired=${timerFired} moved=${moved} → toggle=${!timerFired&&!moved}`);
               if(!timerFired&&!moved){
+                const cur=(pBank[cPat]?.[tid]||[])[step]||0;
+                console.log(`[E] TOGGLE cPat=${cPat} tid=${tid} step=${step} cur=${cur} → ${cur>0?0:100}`);
                 if(R.pat?.[tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;}
                 setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...(cp[tid]||[])];cp[tid][step]=(cp[tid][step]||0)>0?0:100;n[cPat]=cp;return n;});
               }
             };
             window.addEventListener('pointermove',onMove);
-            window.addEventListener('pointerup',onUp);
-            window.addEventListener('pointercancel',onCancel);
+            window.addEventListener('pointerup',onUp,{capture:true});
+            window.addEventListener('pointercancel',onCancel,{capture:true});
           };
           const btnSm={height:32,minWidth:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 4px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
           const arw={width:26,height:26,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
