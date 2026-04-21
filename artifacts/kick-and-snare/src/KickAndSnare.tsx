@@ -4397,8 +4397,16 @@ export default function KickAndSnare(){
             if(!g||g.pid!==e.pointerId)return;
             clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
             if(!g.timerFired&&!g.moved){
-              if(R.pat?.[g.tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[g.tid]=[...R.pat[g.tid]];R.pat[g.tid][g.step]=R.pat[g.tid][g.step]>0?0:100;}
-              setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[g.tid]=[...(cp[g.tid]||[])];cp[g.tid][g.step]=(cp[g.tid][g.step]||0)>0?0:100;n[cPat]=cp;return n;});
+              // NOTE: no R.pat mutation here — R.pat===pBank[cPat] (same ref),
+              // mutating it before setPBank causes double-toggle (cancels itself).
+              // Engine syncs via R.pat=pat on next render (line 1305).
+              setPBank(pb=>{
+                const n=[...pb];const cp={...n[cPat]};
+                const cur=(cp[g.tid]||[])[g.step]||0;
+                cp[g.tid]=[...(cp[g.tid]||[])];
+                cp[g.tid][g.step]=cur>0?0:100;
+                n[cPat]=cp;return n;
+              });
             }
           };
           const onEuclidCancel=e=>{
