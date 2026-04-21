@@ -127,3 +127,31 @@
   0%, 100% { filter: drop-shadow(0 0 0px transparent); }
   50%       { filter: drop-shadow(0 0 6px #FF2D55cc); }
 }
+
+/* ── Mascot idle breathe (no playing) ── */
+@keyframes mascotBreathe {
+  0%, 100% { transform: scaleY(1) translateY(0); }
+  50%       { transform: scaleY(1.015) translateY(-0.5px); }
+}
+
+/* ── Mascot kick foot stomp ── */
+@keyframes kickFoot {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(22deg); }
+  60%  { transform: rotate(22deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* ── Mascot hit flash (body) ── */
+@keyframes mascotHitFlash {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* ── Mascot excited bounce (any hit) ── */
+@keyframes mascotExcite {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%       { transform: translateY(-3px) rotate(-1deg); }
+  75%       { transform: translateY(-1px) rotate(1deg); }
+}

@@ -3478,34 +3478,60 @@ export default function KickAndSnare(){
                   <line x1="8" y1="33" x2="8" y2="45" stroke={hC?"#5E5CE6":mc} strokeWidth={hC?1.2:0.7}/>
                   {hC&&<><line x1="4" y1="25" x2="2" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/><line x1="12" y1="25" x2="14" y2="21" stroke="#5E5CE6" strokeWidth="0.8" opacity="0.6"/></>}
                 </g>}
-                <g style={{animation:playing?`mbob ${bobDur} ease-in-out infinite`:anyHit?"none":"none",transformBox:"fill-box"}}>
+                {/* Kick foot pedal — stomps on kick hit */}
+                {aK&&<g style={{transformOrigin:"55px 50px",animation:hK?`kickFoot ${bobDur} ease-out 1`:"none"}}>
+                  <line x1="55" y1="50" x2="55" y2="55" stroke={mc} strokeWidth="0.8"/>
+                  <ellipse cx="52" cy="55" rx="4" ry="1.2" fill="none" stroke={hK?hi:mc} strokeWidth={hK?1.2:0.6}/>
+                </g>}
+                {/* Musician body */}
+                <g style={{animation:playing?`mbob ${bobDur} ease-in-out infinite`:anyHit?`mascotExcite 0.15s ease-out 1`:`mascotBreathe 2.8s ease-in-out infinite`,transformBox:"fill-box",transformOrigin:"44px 30px"}}>
+                  {/* Torso */}
                   <ellipse cx="44" cy="38" rx="6" ry="2" fill="none" stroke={mc} strokeWidth="0.8"/>
-                  <line x1="38" y1="38" x2="36" y2="50" stroke={mc} strokeWidth="0.7"/><line x1="50" y1="38" x2="52" y2="50" stroke={mc} strokeWidth="0.7"/>
+                  <line x1="38" y1="38" x2="36" y2="50" stroke={mc} strokeWidth="0.7"/>
+                  <line x1="50" y1="38" x2="52" y2="50" stroke={mc} strokeWidth="0.7"/>
+                  {/* Left leg (kick side) */}
                   <path d="M41,37 Q37,43 33,49" fill="none" stroke={ac} strokeWidth="2" strokeLinecap="round"/>
+                  {/* Right leg */}
                   <g style={{transform:`rotate(${hK?-10:0}deg)`,transformOrigin:"47px 37px",transition:"transform 0.04s"}}>
                     <path d="M47,37 Q51,43 55,49" fill="none" stroke={hK?hi:ac} strokeWidth={hK?2.5:2} strokeLinecap="round"/>
                     <line x1="55" y1="49" x2="60" y2="48" stroke={hK?hi:ac} strokeWidth={hK?2.5:2} strokeLinecap="round"/>
                   </g>
+                  {/* Spine */}
                   <path d="M44,18 Q43,28 44,36" fill="none" stroke={ac} strokeWidth="2.2" strokeLinecap="round"/>
+                  {/* Left arm */}
                   <g style={{transformOrigin:"44px 20px",animation:lHit?"none":"marm-l 0.8s ease-in-out infinite alternate",transform:lHit?`rotate(${lA}deg)`:"",transition:lHit?"transform 0.04s ease-out":"none"}}>
                     <path d="M44,20 Q38,24 30,28" fill="none" stroke={lHit?hi:ac} strokeWidth={lHit?2.5:2} strokeLinecap="round"/>
                     <line x1="30" y1="28" x2="19" y2="22" stroke={lHit?hi:ac} strokeWidth={lHit?2.2:1.5} strokeLinecap="round"/>
-                    {lHit&&<circle cx="19" cy="22" r="2" fill={hi} opacity="0.6"/>}
+                    {/* Stick tip */}
+                    <circle cx="19" cy="22" r={lHit?2.8:1.8} fill={lHit?hi:ac} opacity={lHit?0.9:0.5}/>
+                    {lHit&&<circle cx="19" cy="22" r="5" fill={hi} opacity="0.2"/>}
                   </g>
+                  {/* Right arm */}
                   <g style={{transformOrigin:"44px 20px",animation:rHit?"none":"marm-r 0.8s ease-in-out infinite alternate",transform:rHit?`rotate(${-rA}deg)`:"",transition:rHit?"transform 0.04s ease-out":"none"}}>
                     <path d="M44,20 Q50,24 58,28" fill="none" stroke={rHit?hi:ac} strokeWidth={rHit?2.5:2} strokeLinecap="round"/>
                     <line x1="58" y1="28" x2="69" y2="22" stroke={rHit?hi:ac} strokeWidth={rHit?2.2:1.5} strokeLinecap="round"/>
-                    {rHit&&<circle cx="69" cy="22" r="2" fill={hi} opacity="0.6"/>}
+                    {/* Stick tip */}
+                    <circle cx="69" cy="22" r={rHit?2.8:1.8} fill={rHit?hi:ac} opacity={rHit?0.9:0.5}/>
+                    {rHit&&<circle cx="69" cy="22" r="5" fill={hi} opacity="0.2"/>}
                   </g>
+                  {/* Head */}
                   <g style={{animation:playing?"mhead 0.9s ease-in-out infinite":"none",transformOrigin:"44px 10px",transformBox:"fill-box"}}>
                     <circle cx="44" cy="10" r="6" fill="none" stroke={ac} strokeWidth="2"/>
+                    {/* Visor / headband */}
                     <line x1="39" y1="9" x2="49" y2="9" stroke={ac} strokeWidth="1.2"/>
-                    <rect x="39" y="8" width="4" height="3" rx="1" fill={playing?"#333":mc}/>
-                    <rect x="45" y="8" width="4" height="3" rx="1" fill={playing?"#333":mc}/>
-                    {playing&&<path d="M41,13 Q44,15 47,13" fill="none" stroke={ac} strokeWidth="0.8"/>}
+                    {/* Headphone left */}
+                    <rect x="39" y="8" width="4" height="3" rx="1" fill={anyHit?"#FF2D55":playing?"#333":mc}/>
+                    {/* Headphone right */}
+                    <rect x="45" y="8" width="4" height="3" rx="1" fill={anyHit?"#FF2D55":playing?"#333":mc}/>
+                    {/* Smile — gets wider on hits */}
+                    <path d={anyHit?"M40,13 Q44,17 48,13":"M41,13 Q44,15 47,13"} fill="none" stroke={anyHit?hi:ac} strokeWidth={anyHit?1.2:0.8} strokeLinecap="round"/>
+                    {/* Headphones arc */}
                     <path d="M38,6 Q44,0 50,6" fill="none" stroke={ac} strokeWidth="1.5" strokeLinecap="round"/>
                     <rect x="36" y="5" width="3" height="5" rx="1.5" fill={ac} opacity="0.5"/>
                     <rect x="49" y="5" width="3" height="5" rx="1.5" fill={ac} opacity="0.5"/>
+                    {/* Eyes — blink/wide on hit */}
+                    {!anyHit&&<><line x1="42" y1="11" x2="42" y2="12" stroke={ac} strokeWidth="0.8"/><line x1="46" y1="11" x2="46" y2="12" stroke={ac} strokeWidth="0.8"/></>}
+                    {anyHit&&<><circle cx="42" cy="11.5" r="1" fill={hi} opacity="0.8"/><circle cx="46" cy="11.5" r="1" fill={hi} opacity="0.8"/></>}
                   </g>
                 </g>
               </svg>
@@ -4349,7 +4375,6 @@ export default function KickAndSnare(){
             e.currentTarget.setPointerCapture(e.pointerId);
             const longPressMs=R.euclidEdit?600:400;
             const sx=e.clientX,sy=e.clientY;
-            console.log(`[ED] DOWN ${tid}#${step} pid=${e.pointerId}`);
             const timer=setTimeout(()=>{
               if(!euclidGestureRef.current||euclidGestureRef.current.pid!==e.pointerId)return;
               euclidGestureRef.current.timerFired=true;
@@ -4369,18 +4394,15 @@ export default function KickAndSnare(){
           };
           const onEuclidUp=e=>{
             const g=euclidGestureRef.current;
-            console.log(`[ED] UP pid=${e.pointerId} g=`,g?`${g.tid}#${g.step} timerFired=${g.timerFired} moved=${g.moved}`:'null');
             if(!g||g.pid!==e.pointerId)return;
             clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
             if(!g.timerFired&&!g.moved){
-              console.log(`[ED] TOGGLE ${g.tid}#${g.step}`);
               if(R.pat?.[g.tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[g.tid]=[...R.pat[g.tid]];R.pat[g.tid][g.step]=R.pat[g.tid][g.step]>0?0:100;}
               setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[g.tid]=[...(cp[g.tid]||[])];cp[g.tid][g.step]=(cp[g.tid][g.step]||0)>0?0:100;n[cPat]=cp;return n;});
             }
           };
           const onEuclidCancel=e=>{
             const g=euclidGestureRef.current;
-            console.log(`[ED] CANCEL pid=${e.pointerId}`);
             if(!g||g.pid!==e.pointerId)return;
             clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
           };
