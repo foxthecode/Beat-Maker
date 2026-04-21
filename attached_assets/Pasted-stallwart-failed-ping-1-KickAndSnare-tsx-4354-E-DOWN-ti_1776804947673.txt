@@ -1,0 +1,122 @@
+stallwart: failed ping 1
+KickAndSnare.tsx:4354 [E] DOWN tid=clap step=6 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=tom step=6 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=crash step=6 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=ride step=3 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=ride step=2 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=2 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=tom step=9 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=2 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=9 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=crash step=9 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=2 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=9 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=clap step=9 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=2 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=9 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=ride step=8 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=2 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=8 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=ride step=8 pid=1 type=mouse
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=6 cur=100 → 0
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=6 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=3 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=2 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=tom step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=crash step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=clap step=9 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=8 cur=0 → 100
+KickAndSnare.tsx:4384 [E] UP timerFired=false moved=false → toggle=true
+KickAndSnare.tsx:4387 [E] TOGGLE cPat=0 tid=ride step=8 cur=0 → 100
+KickAndSnare.tsx:4354 [E] DOWN tid=crash 

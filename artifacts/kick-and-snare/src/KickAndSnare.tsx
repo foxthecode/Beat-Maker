@@ -1186,6 +1186,7 @@ export default function KickAndSnare(){
   // ── CP-I states ──
   const [euclidEditMode,setEuclidEditMode]=useState(false);
   const [euclidTouchFeedback,setEuclidTouchFeedback]=useState<{tid:string,step:number}|null>(null);
+  const euclidGestureRef=useRef<{pid:number,tid:string,step:number,isOn:boolean,initVelPct:number,sx:number,sy:number,timer:ReturnType<typeof setTimeout>,timerFired:boolean,moved:boolean}|null>(null);
 
   const [swipeToast,setSwipeToast]=useState<string|null>(null);
   const [masterVol,setMasterVol]=useState(()=>appState.state.masterVol??80);
@@ -4342,56 +4343,42 @@ export default function KickAndSnare(){
             const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);};
             window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
           };
-          // ── mkVelDrag : tap = toggle, long-press = velocity picker ──
-          // FIX: preventDefault (prevents pointercancel on touch) but NO stopPropagation
-          // (stopPropagation breaks window.pointerup on iOS Safari inside SVG)
-          const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
+          // ── Euclid dot handlers — setPointerCapture on element, NO window listeners ──
+          const onEuclidDown=(tid,step,isOn,initVelPct)=>e=>{
             e.preventDefault();
-            const pid=e.pointerId;
-            const sx=e.clientX,sy=e.clientY;
-            let timerFired=false;
-            let moved=false;
-            console.log(`[E] DOWN tid=${tid} step=${step} pid=${pid} type=${e.pointerType}`);
-            setEuclidTouchFeedback({tid,step});
+            e.currentTarget.setPointerCapture(e.pointerId);
             const longPressMs=R.euclidEdit?600:400;
-            const cleanup=()=>{
-              window.removeEventListener('pointermove',onMove);
-              window.removeEventListener('pointerup',onUp,{capture:true});
-              window.removeEventListener('pointercancel',onCancel,{capture:true});
-            };
+            const sx=e.clientX,sy=e.clientY;
             const timer=setTimeout(()=>{
-              timerFired=true;
-              console.log(`[E] LONG PRESS fired → vel picker`);
+              if(!euclidGestureRef.current||euclidGestureRef.current.pid!==e.pointerId)return;
+              euclidGestureRef.current.timerFired=true;
               setEuclidTouchFeedback(null);
-              cleanup();
               const px=Math.min(Math.max(sx-70,8),window.innerWidth-160);
               const py=Math.min(Math.max(sy-160,8),window.innerHeight-240);
               setVelPicker({tid,step,x:px,y:py,velPct:isOn?initVelPct:100,probPct:R.prob[tid]?.[step]??100});
             },longPressMs);
-            const onMove=me=>{
-              if(me.pointerId!==pid)return;
-              const dx=me.clientX-sx,dy=me.clientY-sy;
-              if(Math.abs(dx)>18||Math.abs(dy)>18){moved=true;clearTimeout(timer);console.log(`[E] MOVED → cancel`);}
-            };
-            const onCancel=me=>{
-              if(me.pointerId!==pid)return;
-              console.log(`[E] CANCEL pid=${me.pointerId}`);
-              clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();
-            };
-            const onUp=me=>{
-              if(me.pointerId!==pid)return;
-              clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();
-              console.log(`[E] UP timerFired=${timerFired} moved=${moved} → toggle=${!timerFired&&!moved}`);
-              if(!timerFired&&!moved){
-                const cur=(pBank[cPat]?.[tid]||[])[step]||0;
-                console.log(`[E] TOGGLE cPat=${cPat} tid=${tid} step=${step} cur=${cur} → ${cur>0?0:100}`);
-                if(R.pat?.[tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;}
-                setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...(cp[tid]||[])];cp[tid][step]=(cp[tid][step]||0)>0?0:100;n[cPat]=cp;return n;});
-              }
-            };
-            window.addEventListener('pointermove',onMove);
-            window.addEventListener('pointerup',onUp,{capture:true});
-            window.addEventListener('pointercancel',onCancel,{capture:true});
+            euclidGestureRef.current={pid:e.pointerId,tid,step,isOn,initVelPct,sx,sy,timer,timerFired:false,moved:false};
+            setEuclidTouchFeedback({tid,step});
+          };
+          const onEuclidMove=e=>{
+            const g=euclidGestureRef.current;
+            if(!g||g.pid!==e.pointerId)return;
+            const dx=e.clientX-g.sx,dy=e.clientY-g.sy;
+            if(!g.moved&&(Math.abs(dx)>18||Math.abs(dy)>18)){g.moved=true;clearTimeout(g.timer);}
+          };
+          const onEuclidUp=e=>{
+            const g=euclidGestureRef.current;
+            if(!g||g.pid!==e.pointerId)return;
+            clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
+            if(!g.timerFired&&!g.moved){
+              if(R.pat?.[g.tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[g.tid]=[...R.pat[g.tid]];R.pat[g.tid][g.step]=R.pat[g.tid][g.step]>0?0:100;}
+              setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[g.tid]=[...(cp[g.tid]||[])];cp[g.tid][g.step]=(cp[g.tid][g.step]||0)>0?0:100;n[cPat]=cp;return n;});
+            }
+          };
+          const onEuclidCancel=e=>{
+            const g=euclidGestureRef.current;
+            if(!g||g.pid!==e.pointerId)return;
+            clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
           };
           const btnSm={height:32,minWidth:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 4px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
           const arw={width:26,height:26,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
@@ -4526,7 +4513,10 @@ export default function KickAndSnare(){
                                 {/* I.1a: transparent tap zone for easier touch */}
                                 <circle cx={vx} cy={vy} r={Math.max(28,rv+20)} fill="transparent"
                                   style={{cursor:"pointer",touchAction:"none"}}
-                                  onPointerDown={mkVelDrag(tr.id,i,on,velPct)}/>
+                                  onPointerDown={onEuclidDown(tr.id,i,on,velPct)}
+                                  onPointerMove={onEuclidMove}
+                                  onPointerUp={onEuclidUp}
+                                  onPointerCancel={onEuclidCancel}/>
                                 {on&&<circle cx={vx} cy={vy} r={rv+12} fill={tr.color} opacity={0.15} style={{animation:"haloRing 0.6s ease-in-out infinite",pointerEvents:"none"}}/>}
                                 {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"28":"11")} style={{pointerEvents:"none"}}/>}
                                 {/* I.1b: feedback flash circle */}
