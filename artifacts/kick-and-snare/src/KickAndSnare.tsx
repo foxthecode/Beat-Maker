@@ -1079,6 +1079,16 @@ export default function KickAndSnare(){
     if(!fromPads&&!toPads&&!R.playing)setMetro(false);
 
     if(toPads){
+      // ── Pre-warm AudioContext + buffers on entry to Pads (Capacitor Android fix) ──
+      // On Android WebView, AudioContext.resume() + OfflineAudioContext rendering take
+      // 80-200ms. Doing this on switchView (before the first tap) hides that cost.
+      engine.init();
+      engine.ensureRunning().catch(()=>{});
+      // Pre-render any missing 808 buffers for active tracks immediately
+      const activeIds=R.at||[];
+      activeIds.forEach((id:string)=>{
+        if(!engine.buf?.[id])engine.renderShape(id,R.fx?.[id]||null,true).catch(()=>{});
+      });
       // ── Record which view we're coming from (scheduler needs it) ──
       padSrcViewRef.current=view;
       // ── Save current view's state before entering pads ──
@@ -2270,10 +2280,11 @@ export default function KickAndSnare(){
       }
     };
     engine.ctx?.addEventListener('statechange',onCtxState);
-    // FIX PAD LATENCY — pre-resume AudioContext on FIRST touch so it's running
-    // before the user's finger reaches a pad (avoids ctx.resume() delay in trigPad)
+    // FIX PAD LATENCY — pre-resume AudioContext on any interaction (safety net for
+    // cases where switchView didn't already call ensureRunning, e.g. direct URL load).
     const onFirstTouch=()=>{
-      if(engine.ctx&&engine.ctx.state==='suspended')engine.ctx.resume().catch(()=>{});
+      engine.init();
+      if(engine.ctx?.state==='suspended')engine.ctx.resume().catch(()=>{});
       // Pre-warm all active track buffers on mobile so first tap is never silent
       if(engine._isMobile){
         const ids=R.at||[];

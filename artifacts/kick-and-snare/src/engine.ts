@@ -27,8 +27,9 @@ class Eng{
     // delayed Worker tick left <0ms of pre-scheduled audio → gap → crackling.
     // 250ms gives 10 tick-intervals of margin; still well below any perceptible latency.
     this._lookAhead=this._isMobile?0.30:0.25;
-    // 60ms tick interval: less main-thread pressure than 50ms, still plenty of margin
-    this._schedInterval=this._isMobile?60:25;
+    // 40ms tick interval on mobile: tighter than 60ms, reduces scheduler jitter on
+    // Android WebView/Capacitor without causing meaningful CPU overhead.
+    this._schedInterval=this._isMobile?40:25;
     // KeepAlive AudioWorklet state — prevents audio thread from sleeping between hits
     this._kaReady=false;this._kaNode=null;
   }
@@ -515,7 +516,11 @@ class Eng{
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
     if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));} // skipcq: JS-0002
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
-    const t=Math.max(this.ctx.currentTime+0.001,raw);
+    // Android WebView/Capacitor: baseLatency can be 10-30ms; scheduling at currentTime+1ms
+    // risks landing in the past → audio engine queues it for "now" but with processing lag.
+    // Use max(baseLatency/2, 5ms) as minimum offset for live pad hits (at===null).
+    const minOffset=at===null?Math.max(0.005,((this.ctx.baseLatency||0)*0.5)):0.001;
+    const t=Math.max(this.ctx.currentTime+minOffset,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
     if(this.buf[id]){
       if(this._isMobile&&this._nodeCount>=32){return;} // FIX D: raised from 24→32 (accurate releaseMs tracking makes the cap meaningful now)
