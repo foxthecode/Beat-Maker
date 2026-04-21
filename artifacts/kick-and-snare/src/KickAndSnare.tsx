@@ -4524,6 +4524,9 @@ export default function KickAndSnare(){
                       const curS=playing&&euclidCurDisplay[tr.id]!=null?euclidCurDisplay[tr.id]:-1;
                       const headA=curS>=0?(2*Math.PI*curS/N)-Math.PI/2:-Math.PI/2;
                       const dotR=Math.max(3,Math.min(8,R*0.22));
+                      // Tap zone constraints: (1) stay inside SVG CSS box, (2) no cross-ring capture
+                      const _edgeDist=Math.max(4,Math.floor(svgSz/2-R-2));
+                      const _gapDist=atO.length>1?Math.max(6,Math.floor(ringGap*0.43)):_edgeDist;
                       const isM=!!muted[tr.id];const isS=soloed===tr.id;const aud=soloed?isS:!isM;
                       return(
                         <g key={tr.id} opacity={aud?1:0.3}>
@@ -4537,6 +4540,8 @@ export default function KickAndSnare(){
                             // I.1d: EDIT mode increases dot size 40%
                             const baseR=(cur?dotR+2:dotR)+(on?Math.round((velPct/100)*3):0);
                             const rv=euclidEditMode?Math.round(baseR*1.4):baseR;
+                            // tapR: bounded so it (1) stays within SVG CSS box and (2) never crosses into adjacent ring
+                            const tapR=Math.max(rv+4,Math.min(rv+18,_edgeDist,_gapDist));
                             const vOp=on?0.3+(velPct/100)*0.7:0.45;
                             const hasFeedback=euclidTouchFeedback?.tid===tr.id&&euclidTouchFeedback?.step===i;
                             const eucDotHint=on
@@ -4544,8 +4549,8 @@ export default function KickAndSnare(){
                               :`Step ${i+1}/${N} · ${tr.label} · Inactive · Click to activate · Long-press = advanced options`;
                             return(
                               <g key={i} data-hint={eucDotHint} style={{cursor:on?"ns-resize":"pointer",userSelect:"none",touchAction:"none",WebkitTouchCallout:"none"}}>
-                                {/* I.1a: transparent tap zone for easier touch */}
-                                <circle cx={vx} cy={vy} r={Math.max(28,rv+20)} fill="transparent"
+                                {/* I.1a: transparent tap zone — bounded to SVG edge + ring gap */}
+                                <circle cx={vx} cy={vy} r={tapR} fill="transparent"
                                   style={{cursor:"pointer",touchAction:"none"}}
                                   onPointerDown={onEuclidDown(tr.id,i,on,velPct)}
                                   onPointerMove={onEuclidMove}
