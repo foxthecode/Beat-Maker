@@ -4349,6 +4349,7 @@ export default function KickAndSnare(){
             e.currentTarget.setPointerCapture(e.pointerId);
             const longPressMs=R.euclidEdit?600:400;
             const sx=e.clientX,sy=e.clientY;
+            console.log(`[ED] DOWN ${tid}#${step} pid=${e.pointerId}`);
             const timer=setTimeout(()=>{
               if(!euclidGestureRef.current||euclidGestureRef.current.pid!==e.pointerId)return;
               euclidGestureRef.current.timerFired=true;
@@ -4368,15 +4369,18 @@ export default function KickAndSnare(){
           };
           const onEuclidUp=e=>{
             const g=euclidGestureRef.current;
+            console.log(`[ED] UP pid=${e.pointerId} g=`,g?`${g.tid}#${g.step} timerFired=${g.timerFired} moved=${g.moved}`:'null');
             if(!g||g.pid!==e.pointerId)return;
             clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
             if(!g.timerFired&&!g.moved){
+              console.log(`[ED] TOGGLE ${g.tid}#${g.step}`);
               if(R.pat?.[g.tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[g.tid]=[...R.pat[g.tid]];R.pat[g.tid][g.step]=R.pat[g.tid][g.step]>0?0:100;}
               setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[g.tid]=[...(cp[g.tid]||[])];cp[g.tid][g.step]=(cp[g.tid][g.step]||0)>0?0:100;n[cPat]=cp;return n;});
             }
           };
           const onEuclidCancel=e=>{
             const g=euclidGestureRef.current;
+            console.log(`[ED] CANCEL pid=${e.pointerId}`);
             if(!g||g.pid!==e.pointerId)return;
             clearTimeout(g.timer);setEuclidTouchFeedback(null);euclidGestureRef.current=null;
           };
