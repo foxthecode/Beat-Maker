@@ -4344,7 +4344,6 @@ export default function KickAndSnare(){
           };
           // ── mkVelDrag : long-press only → opens velocity picker ──
           const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
-            e.preventDefault();
             const el=e.currentTarget;
             el.setPointerCapture(e.pointerId);
             const sx=e.clientX,sy=e.clientY;
