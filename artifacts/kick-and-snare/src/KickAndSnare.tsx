@@ -4356,8 +4356,8 @@ export default function KickAndSnare(){
             const longPressMs=R.euclidEdit?600:400;
             const cleanup=()=>{
               window.removeEventListener('pointermove',onMove);
-              window.removeEventListener('pointerup',onUp);
-              window.removeEventListener('pointercancel',onCancel);
+              window.removeEventListener('pointerup',onUp,{capture:true});
+              window.removeEventListener('pointercancel',onCancel,{capture:true});
             };
             const timer=setTimeout(()=>{
               timerFired=true;
