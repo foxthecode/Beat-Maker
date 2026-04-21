@@ -1186,6 +1186,7 @@ export default function KickAndSnare(){
   // ── CP-I states ──
   const [euclidEditMode,setEuclidEditMode]=useState(false);
   const [euclidTouchFeedback,setEuclidTouchFeedback]=useState<{tid:string,step:number}|null>(null);
+  const euclidLongRef=useRef<{tid:string,step:number}|null>(null);
   const [swipeToast,setSwipeToast]=useState<string|null>(null);
   const [masterVol,setMasterVol]=useState(()=>appState.state.masterVol??80);
   const [patNameEdit,setPatNameEdit]=useState<number|null>(null);
@@ -4341,12 +4342,12 @@ export default function KickAndSnare(){
             const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);};
             window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
           };
+          // ── mkVelDrag : long-press only → opens velocity picker ──
           const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
             e.preventDefault();
             const el=e.currentTarget;
             el.setPointerCapture(e.pointerId);
             const sx=e.clientX,sy=e.clientY;
-            let timerFired=false;
             let moved=false;
             setEuclidTouchFeedback({tid,step});
             const longPressMs=R.euclidEdit?600:400;
@@ -4357,9 +4358,9 @@ export default function KickAndSnare(){
               el.removeEventListener('lostpointercapture',onCancel);
             };
             const timer=setTimeout(()=>{
-              timerFired=true;
               setEuclidTouchFeedback(null);
               cleanup();
+              euclidLongRef.current={tid,step}; // tell onClick to skip toggle
               const px=Math.min(Math.max(sx-70,8),window.innerWidth-160);
               const py=Math.min(Math.max(sy-160,8),window.innerHeight-240);
               setVelPicker({tid,step,x:px,y:py,velPct:isOn?initVelPct:100,probPct:R.prob[tid]?.[step]??100});
@@ -4368,22 +4369,24 @@ export default function KickAndSnare(){
               const dx=me.clientX-sx,dy=me.clientY-sy;
               if(Math.abs(dx)>18||Math.abs(dy)>18){moved=true;clearTimeout(timer);}
             };
-            const onCancel=()=>{
-              clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();
-            };
-            const onUp=()=>{
-              clearTimeout(timer);
-              setEuclidTouchFeedback(null);
-              cleanup();
-              if(!timerFired&&!moved){
-                if(R.pat?.[tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;}
-                setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});
-              }
-            };
+            const onCancel=()=>{clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();};
+            const onUp=()=>{clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();};
             el.addEventListener('pointermove',onMove);
             el.addEventListener('pointerup',onUp);
             el.addEventListener('pointercancel',onCancel);
             el.addEventListener('lostpointercapture',onCancel);
+          };
+          // ── mkToggleClick : single tap → toggle step on/off ──
+          const mkToggleClick=(tid,step)=>()=>{
+            // If long-press just fired for this exact dot, skip (velocity picker already opened)
+            if(euclidLongRef.current?.tid===tid&&euclidLongRef.current?.step===step){
+              euclidLongRef.current=null;return;
+            }
+            euclidLongRef.current=null;
+            if(R.pat?.[tid]&&!(R.playing&&R.songMode&&R.cp!==cPat)){
+              R.pat[tid]=[...R.pat[tid]];R.pat[tid][step]=R.pat[tid][step]>0?0:100;
+            }
+            setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...(cp[tid]||[])];cp[tid][step]=(cp[tid][step]||0)>0?0:100;n[cPat]=cp;return n;});
           };
           const btnSm={height:32,minWidth:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 4px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
           const arw={width:26,height:26,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
@@ -4518,7 +4521,8 @@ export default function KickAndSnare(){
                                 {/* I.1a: transparent tap zone for easier touch */}
                                 <circle cx={vx} cy={vy} r={Math.max(28,rv+20)} fill="transparent"
                                   style={{cursor:"pointer",touchAction:"none"}}
-                                  onPointerDown={mkVelDrag(tr.id,i,on,velPct)}/>
+                                  onPointerDown={mkVelDrag(tr.id,i,on,velPct)}
+                                  onClick={mkToggleClick(tr.id,i)}/>
                                 {on&&<circle cx={vx} cy={vy} r={rv+12} fill={tr.color} opacity={0.15} style={{animation:"haloRing 0.6s ease-in-out infinite",pointerEvents:"none"}}/>}
                                 {cur&&<circle cx={vx} cy={vy} r={rv+7} fill={tr.color+(on?"28":"11")} style={{pointerEvents:"none"}}/>}
                                 {/* I.1b: feedback flash circle */}
