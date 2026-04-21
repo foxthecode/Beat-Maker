@@ -4342,17 +4342,19 @@ export default function KickAndSnare(){
             window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
           };
           const mkVelDrag=(tid,step,isOn,initVelPct)=>e=>{
-            e.preventDefault();e.stopPropagation();
-            const pid=e.pointerId;
+            e.preventDefault();
+            const el=e.currentTarget;
+            el.setPointerCapture(e.pointerId);
             const sx=e.clientX,sy=e.clientY;
             let timerFired=false;
             let moved=false;
             setEuclidTouchFeedback({tid,step});
             const longPressMs=R.euclidEdit?600:400;
             const cleanup=()=>{
-              window.removeEventListener('pointermove',onMove);
-              window.removeEventListener('pointerup',onUp);
-              window.removeEventListener('pointercancel',onCancel);
+              el.removeEventListener('pointermove',onMove);
+              el.removeEventListener('pointerup',onUp);
+              el.removeEventListener('pointercancel',onCancel);
+              el.removeEventListener('lostpointercapture',onCancel);
             };
             const timer=setTimeout(()=>{
               timerFired=true;
@@ -4363,16 +4365,13 @@ export default function KickAndSnare(){
               setVelPicker({tid,step,x:px,y:py,velPct:isOn?initVelPct:100,probPct:R.prob[tid]?.[step]??100});
             },longPressMs);
             const onMove=me=>{
-              if(me.pointerId!==pid)return;
               const dx=me.clientX-sx,dy=me.clientY-sy;
               if(Math.abs(dx)>18||Math.abs(dy)>18){moved=true;clearTimeout(timer);}
             };
-            const onCancel=me=>{
-              if(me.pointerId!==pid)return;
+            const onCancel=()=>{
               clearTimeout(timer);setEuclidTouchFeedback(null);cleanup();
             };
-            const onUp=me=>{
-              if(me.pointerId!==pid)return;
+            const onUp=()=>{
               clearTimeout(timer);
               setEuclidTouchFeedback(null);
               cleanup();
@@ -4381,9 +4380,10 @@ export default function KickAndSnare(){
                 setPBank(pb=>{const n=[...pb];const cp={...n[cPat]};cp[tid]=[...cp[tid]];cp[tid][step]=cp[tid][step]>0?0:100;n[cPat]=cp;return n;});
               }
             };
-            window.addEventListener('pointermove',onMove);
-            window.addEventListener('pointerup',onUp);
-            window.addEventListener('pointercancel',onCancel);
+            el.addEventListener('pointermove',onMove);
+            el.addEventListener('pointerup',onUp);
+            el.addEventListener('pointercancel',onCancel);
+            el.addEventListener('lostpointercapture',onCancel);
           };
           const btnSm={height:32,minWidth:32,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:"0 4px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"};
           const arw={width:26,height:26,border:`1px solid ${th.sBorder}`,borderRadius:4,background:"transparent",color:th.dim,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
