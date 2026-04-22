@@ -1,0 +1,290 @@
+# 🎛️ PROMPT REPLIT — Live Effect : SPEED (playbackRate shifter)
+
+> **CONTEXTE** : Tu travailles sur `artifacts/kick-and-snare/src/KickAndSnare.tsx` et `src/engine.ts`.
+> L'app est un drum machine avec un audio engine Web Audio API (classe `Eng` dans `engine.ts`).
+> Il existe déjà un pitch per-track (`f.onPitch`, `f.pitch`) qui affecte `playbackRate` dans `play()` ligne ~524-555.
+> Il existe déjà un panneau PERFORM FX (lignes ~4004-4295) avec Filter XY, Stutter, Rev/Dly Hold.
+> **OBJECTIF** : Ajouter un effet SPEED qui modifie le `playbackRate` des samples (pitch + vitesse changent ensemble, comme sur un SP-404 / MPC).
+
+---
+
+## ⚠️ RÈGLES CRITIQUES — À RESPECTER ABSOLUMENT
+
+1. **NE SUPPRIME** aucune ligne existante dans `engine.ts` ou `KickAndSnare.tsx`.
+2. **NE MODIFIE PAS** le routing audio (mg → drive → comp → filter → gOut → destination).
+3. **NE MODIFIE PAS** le scheduling (schLoop, Worker, _lookAhead, _schedInterval).
+4. Le Speed est un **multiplicateur** qui se COMBINE avec le pitch per-track existant. Il ne le remplace pas.
+5. Quand Speed = 1.0 (Normal), le comportement est **100% identique** à avant. Zéro impact sur le son.
+6. Utilise `setValueAtTime()` pour le mode snap et `setTargetAtTime()` pour le mode glide — PAS `value =`.
+7. Tous les changements doivent être commentés avec `// ═══ SPEED ═══` pour traçabilité.
+
+---
+
+## 🎯 CONCEPT
+
+L'effet **SPEED** modifie le `playbackRate` de chaque `AudioBufferSourceNode` au moment du `play()`.
+
+- **Speed = 1.0** → Normal (son identique)
+- **Speed = 0.5** → Half-time (1 octave en dessous, durée doublée)
+- **Speed = 2.0** → Double-time (1 octave au dessus, durée moitié)
+- **Speed = 0.25** → Ultra-slow (2 octaves en dessous, son étiré)
+
+C'est le comportement classique des samplers hardware : pitch et durée sont liés.
+
+### Scope
+- **MASTER** : un seul multiplicateur global qui affecte toutes les pistes
+- **PER-TRACK** : chaque piste peut avoir son propre multiplicateur
+- **UI** : choix du mode (Master / per-track) dans l'interface
+- **Glide** : option toggle — quand activée, la transition entre deux valeurs est progressive (~150ms) au lieu d'instantanée
+
+---
+
+## 🔧 MODIFICATIONS dans `engine.ts`
+
+### 1. Ajouter les propriétés dans le constructeur (après `this._bpm=120;` vers ligne 19)
+
+```javascript
+// ═══ SPEED ═══
+this._speedMaster = 1.0;          // global playbackRate multiplier
+this._speedTrack = {};             // per-track: { kick: 1.0, snare: 0.5, ... }
+this._speedGlide = false;          // smooth transition between speed values
+this._speedGlideTau = 0.04;       // ~150ms glide (4× time constant)
+```
+
+### 2. Ajouter les méthodes publiques (après `setBpm()` vers ligne 507)
+
+```javascript
+// ═══ SPEED methods ═══
+/** Set master speed multiplier (0.25 → 4.0). 1.0 = normal. */
+setSpeedMaster(rate) {
+  this._speedMaster = Math.max(0.25, Math.min(4, rate));
+}
+/** Set per-track speed multiplier. null = use master. */
+setSpeedTrack(id, rate) {
+  if (rate === null || rate === undefined) {
+    delete this._speedTrack[id];
+  } else {
+    this._speedTrack[id] = Math.max(0.25, Math.min(4, rate));
+  }
+}
+/** Enable/disable glide between speed changes. */
+setSpeedGlide(on) { this._speedGlide = !!on; }
+/** Get effective speed for a track (per-track overrides master). */
+_getSpeed(id) {
+  return this._speedTrack[id] ?? this._speedMaster;
+}
+```
+
+### 3. Modifier `play()` — UNE SEULE LIGNE à changer (ligne ~524)
+
+L'existant :
+```javascript
+if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
+```
+
+Le remplacer par :
+```javascript
+if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12) * this._getSpeed(id); // ═══ SPEED ═══
+```
+
+### 4. Modifier le `playbackRate.setValueAtTime` (ligne ~555) pour supporter le glide
+
+L'existant :
+```javascript
+const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);
+```
+
+Le remplacer par :
+```javascript
+const s=this.ctx.createBufferSource();s.buffer=this.buf[id];
+// ═══ SPEED: snap vs glide ═══
+if (this._speedGlide && this._getSpeed(id) !== 1.0) {
+  s.playbackRate.setValueAtTime(s.playbackRate.defaultValue, t);
+  s.playbackRate.setTargetAtTime(r, t, this._speedGlideTau);
+} else {
+  s.playbackRate.setValueAtTime(r, t);
+}
+```
+
+### 5. Aussi modifier les export WAV/MIDI source nodes (lignes ~2009 et ~2140 dans KickAndSnare.tsx)
+
+Chercher les lignes dans le code d'export qui font :
+```javascript
+const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+```
+
+Ajouter le multiplicateur speed :
+```javascript
+const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12) * (engine._getSpeed?.(tid) ?? 1); // ═══ SPEED ═══
+```
+
+⚠️ **Note** : pour l'export, on utilise toujours snap (pas de glide) car c'est du rendu offline.
+
+### 6. Voice stealing: mettre à jour la durée estimée (ligne ~563)
+
+L'existant :
+```javascript
+const bufEnd=t+s.buffer.duration/r;
+```
+
+Ceci est déjà correct puisque `r` inclut maintenant le speed multiplier.
+
+---
+
+## 🖼️ UI dans `KickAndSnare.tsx`
+
+### 1. État React à ajouter (vers ligne ~888 avec les autres useState)
+
+```javascript
+// ═══ SPEED state ═══
+const [speedMaster, setSpeedMaster] = useState(1.0);
+const [speedPerTrack, setSpeedPerTrack] = useState<Record<string,number>>({});
+const [speedMode, setSpeedMode] = useState<'master'|'track'>('master');
+const [speedGlide, setSpeedGlide] = useState(false);
+```
+
+### 2. Bloc UI — Insérer dans le panneau PERFORM FX
+
+Insérer APRÈS la section "REVERB & DELAY HOLD" (après la ligne ~4290), AVANT la fermeture du `{showPerform&&(` :
+
+```jsx
+{/* ═══ SPEED ═══ */}
+<div>
+  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+    <span style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em"}}>
+      SPEED · {speedMode==='master' ? 'MASTER' : `${tIcon} ${tLabel}`} · ×{(speedMode==='master' ? speedMaster : (speedPerTrack[target] ?? speedMaster)).toFixed(2)}
+    </span>
+    <span style={{flex:1}}/>
+    {/* Mode toggle */}
+    <button onClick={()=>setSpeedMode(m=>m==='master'?'track':'master')}
+      style={{padding:"2px 6px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",
+        background:speedMode==='track'?"rgba(255,149,0,0.15)":"transparent",
+        color:"#FF9500",fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+      {speedMode==='master'?'MASTER':'TRACK'}
+    </button>
+    {/* Glide toggle */}
+    <button onClick={()=>{const next=!speedGlide;setSpeedGlide(next);engine.setSpeedGlide(next);}}
+      style={{padding:"2px 6px",borderRadius:4,border:`1px solid ${speedGlide?"#30D158":"rgba(48,209,88,0.25)"}`,
+        background:speedGlide?"rgba(48,209,88,0.15)":"transparent",
+        color:speedGlide?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+      GLIDE
+    </button>
+  </div>
+  {/* Slider */}
+  <div style={{position:"relative"}}>
+    <input type="range" min={25} max={300} step={1}
+      value={Math.round((speedMode==='master' ? speedMaster : (speedPerTrack[target] ?? speedMaster)) * 100)}
+      onChange={e=>{
+        const raw=parseInt(e.target.value)/100;
+        if(speedMode==='master'){
+          setSpeedMaster(raw);
+          engine.setSpeedMaster(raw);
+        } else {
+          setSpeedPerTrack(p=>({...p,[target]:raw}));
+          engine.setSpeedTrack(target,raw);
+        }
+      }}
+      style={{width:"100%",accentColor:"#FF9500",height:4}}
+    />
+    {/* Snap markers */}
+    <div style={{display:"flex",justifyContent:"space-between",marginTop:2,padding:"0 2px"}}>
+      {[0.25,0.5,1,1.5,2,2.5,3].map(v=>{
+        const current=speedMode==='master'?speedMaster:(speedPerTrack[target]??speedMaster);
+        const isActive=Math.abs(current-v)<0.03;
+        return(
+          <button key={v} onClick={()=>{
+            if(speedMode==='master'){setSpeedMaster(v);engine.setSpeedMaster(v);}
+            else{setSpeedPerTrack(p=>({...p,[target]:v}));engine.setSpeedTrack(target,v);}
+          }}
+            style={{padding:"2px 4px",borderRadius:3,border:`1px solid ${isActive?"#FF9500":"rgba(255,149,0,0.15)"}`,
+              background:isActive?"rgba(255,149,0,0.2)":"transparent",
+              color:isActive?"#FF9500":th.faint,fontSize:6,fontWeight:isActive?800:600,
+              cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:22,textAlign:"center"}}>
+            {v===1?"1×":v<1?`${v}×`:`${v}×`}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+  {/* Reset */}
+  <div style={{display:"flex",gap:4,marginTop:4}}>
+    <button onClick={()=>{
+      if(speedMode==='master'){setSpeedMaster(1);engine.setSpeedMaster(1);}
+      else{setSpeedPerTrack(p=>{const n={...p};delete n[target];return n;});engine.setSpeedTrack(target,null);}
+    }}
+      style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",
+        background:"transparent",color:"#FF9500",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+      RESET {speedMode==='master'?'MASTER':'TRACK'}
+    </button>
+    {speedMode==='track' && Object.keys(speedPerTrack).length>0 && (
+      <button onClick={()=>{setSpeedPerTrack({});Object.keys(speedPerTrack).forEach(id=>engine.setSpeedTrack(id,null));}}
+        style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.15)",
+          background:"transparent",color:th.faint,fontSize:7,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+        RESET ALL TRACKS
+      </button>
+    )}
+  </div>
+</div>
+```
+
+### 3. Slider snapping — comportement du `<input range>`
+
+Le slider HTML standard n'a pas de "snap to value". Pour obtenir le snap sur les valeurs repères quand le doigt/souris est proche, ajouter cette logique dans le `onChange` :
+
+Remplacer le `onChange` du slider par :
+
+```javascript
+onChange={e=>{
+  let raw=parseInt(e.target.value)/100;
+  // Snap to nearest marker if within ±0.04
+  const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.25,2.5,2.75,3];
+  const closest=snaps.reduce((a,b)=>Math.abs(b-raw)<Math.abs(a-raw)?b:a);
+  if(Math.abs(raw-closest)<0.04) raw=closest;
+  if(speedMode==='master'){
+    setSpeedMaster(raw);
+    engine.setSpeedMaster(raw);
+  } else {
+    setSpeedPerTrack(p=>({...p,[target]:raw}));
+    engine.setSpeedTrack(target,raw);
+  }
+}}
+```
+
+---
+
+## 📋 RÉSUMÉ DES MODIFICATIONS
+
+### `engine.ts` — 4 ajouts, 2 modifications
+
+| Quoi | Où | Lignes |
+|---|---|---|
+| Propriétés `_speedMaster`, `_speedTrack`, `_speedGlide`, `_speedGlideTau` | constructeur (~ligne 19) | +4 lignes |
+| Méthodes `setSpeedMaster()`, `setSpeedTrack()`, `setSpeedGlide()`, `_getSpeed()` | après `setBpm()` (~ligne 507) | +15 lignes |
+| Multiplier `r` par `this._getSpeed(id)` | `play()` ligne ~524 | 1 ligne modifiée |
+| Glide support sur `playbackRate` | `play()` ligne ~555 | 3 lignes modifiées |
+
+### `KickAndSnare.tsx` — 2 ajouts, 2 modifications
+
+| Quoi | Où | Lignes |
+|---|---|---|
+| 4 useState (`speedMaster`, `speedPerTrack`, `speedMode`, `speedGlide`) | ~ligne 888 | +4 lignes |
+| Bloc UI SPEED dans PERFORM FX | après ~ligne 4290 | +55 lignes JSX |
+| Speed multiplier dans export WAV | ~ligne 2009 | 1 ligne modifiée |
+| Speed multiplier dans export MIDI render | ~ligne 2140 | 1 ligne modifiée |
+
+**Total : ~80 lignes ajoutées, 4 lignes modifiées.**
+
+---
+
+## 🧪 TESTS
+
+1. **Speed à 1.0** → son 100% identique à avant (aucun changement audible)
+2. **Speed à 0.5 (Master)** → tous les sons descendent d'1 octave, samples 2× plus longs
+3. **Speed à 2.0 (Master)** → tous les sons montent d'1 octave, samples 2× plus courts
+4. **Mode Track** → changer le speed du kick sans affecter le snare
+5. **Glide ON** → changer le speed → transition progressive audible
+6. **Glide OFF** → changement instantané
+7. **Snap markers** → cliquer sur "1×" → revient à exactement 1.0
+8. **Combinaison avec pitch per-track** → Speed 0.5 + Pitch +7st → les deux s'appliquent
+9. **Export WAV** → le speed est appliqué dans le rendu
+10. **Pas de régression** → séquenceur, pads, euclid, FX rack, perform FX existant = inchangés

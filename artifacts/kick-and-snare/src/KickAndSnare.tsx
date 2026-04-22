@@ -1196,6 +1196,11 @@ export default function KickAndSnare(){
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
   const [showPerform,setShowPerform]=useState(false);
+  // ═══ SPEED state ═══
+  const [speedMaster,setSpeedMaster]=useState(1.0);
+  const [speedPerTrack,setSpeedPerTrack]=useState<Record<string,number>>({});
+  const [speedMode,setSpeedMode]=useState<'master'|'track'>('master');
+  const [speedGlide,setSpeedGlide]=useState(false);
   const [showFxRack,setShowFxRack]=useState(false);
   const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/4t'|'1/8'|'1/8t'|'1/16'|'1/32'>('1/8');
   const [perfTrack,setPerfTrack]=useState<string>('');
@@ -2006,7 +2011,7 @@ export default function KickAndSnare(){
         if(offDlSends[tid])dst.connect(offDlSends[tid]);
         if(engine.buf[tid]){
           const src=offCtx.createBufferSource();src.buffer=engine.buf[tid];
-          const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+          const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12)*(engine._getSpeed?.(tid)??1); // ═══ SPEED ═══
           src.playbackRate.value=r;src.connect(dst);src.start(t);
         }else{
           engine._syn(tid,t,vel,dst,offCtx,
@@ -2137,7 +2142,7 @@ export default function KickAndSnare(){
           const dst=offCtx.createGain();dst.gain.value=ev.vel;dst.connect(offCtx.destination);
           if(engine.buf[ev.tid]){
             const src=offCtx.createBufferSource();src.buffer=engine.buf[ev.tid];
-            const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12);
+            const r=Math.pow(2,((fo.onPitch?fo.pitch:0)||0)/12)*(engine._getSpeed?.(ev.tid)??1); // ═══ SPEED ═══
             src.playbackRate.value=r;src.connect(dst);src.start(t);
           }else{
             engine._syn(ev.tid,t,ev.vel,dst,offCtx,
@@ -4286,6 +4291,77 @@ export default function KickAndSnare(){
                             {d}
                           </button>
                         ))}
+                      </div>
+                    </div>
+                    {/* ═══ SPEED ═══ */}
+                    <div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                        <span style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em"}}>
+                          SPEED · {speedMode==='master'?'MASTER':`${tIcon} ${tLabel}`} · ×{(speedMode==='master'?speedMaster:(speedPerTrack[target]??speedMaster)).toFixed(2)}
+                        </span>
+                        <span style={{flex:1}}/>
+                        <button data-hint="Speed mode · Toggle between Master (affects all tracks) and Track (affects current track only)" onClick={()=>setSpeedMode(m=>m==='master'?'track':'master')}
+                          style={{padding:"2px 6px",borderRadius:4,border:`1px solid rgba(255,149,0,${speedMode==='track'?0.5:0.2})`,
+                            background:speedMode==='track'?"rgba(255,149,0,0.15)":"transparent",
+                            color:"#FF9500",fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          {speedMode==='master'?'MASTER':'TRACK'}
+                        </button>
+                        <button data-hint="Speed Glide · When ON, speed changes smoothly (~150ms) instead of snapping instantly" onClick={()=>{const next=!speedGlide;setSpeedGlide(next);engine.setSpeedGlide(next);}}
+                          style={{padding:"2px 6px",borderRadius:4,border:`1px solid ${speedGlide?"#30D158":"rgba(48,209,88,0.25)"}`,
+                            background:speedGlide?"rgba(48,209,88,0.15)":"transparent",
+                            color:speedGlide?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          GLIDE
+                        </button>
+                      </div>
+                      <div style={{position:"relative"}}>
+                        <input type="range" min={25} max={300} step={1}
+                          value={Math.round((speedMode==='master'?speedMaster:(speedPerTrack[target]??speedMaster))*100)}
+                          onChange={e=>{
+                            let raw=parseInt(e.target.value)/100;
+                            const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.25,2.5,2.75,3];
+                            const closest=snaps.reduce((a,b)=>Math.abs(b-raw)<Math.abs(a-raw)?b:a);
+                            if(Math.abs(raw-closest)<0.04)raw=closest;
+                            if(speedMode==='master'){setSpeedMaster(raw);engine.setSpeedMaster(raw);}
+                            else{setSpeedPerTrack(p=>({...p,[target]:raw}));engine.setSpeedTrack(target,raw);}
+                          }}
+                          style={{width:"100%",accentColor:"#FF9500",height:4}}
+                        />
+                        <div style={{display:"flex",justifyContent:"space-between",marginTop:2,padding:"0 2px"}}>
+                          {[0.25,0.5,1,1.5,2,2.5,3].map(v=>{
+                            const cur=speedMode==='master'?speedMaster:(speedPerTrack[target]??speedMaster);
+                            const isActive=Math.abs(cur-v)<0.03;
+                            return(
+                              <button key={v} data-hint={`Speed ${v}× · ${v<1?'Slow down':'Speed up'} all samples to ${v}× rate`} onClick={()=>{
+                                if(speedMode==='master'){setSpeedMaster(v);engine.setSpeedMaster(v);}
+                                else{setSpeedPerTrack(p=>({...p,[target]:v}));engine.setSpeedTrack(target,v);}
+                              }}
+                                style={{padding:"2px 4px",borderRadius:3,
+                                  border:`1px solid ${isActive?"#FF9500":"rgba(255,149,0,0.15)"}`,
+                                  background:isActive?"rgba(255,149,0,0.2)":"transparent",
+                                  color:isActive?"#FF9500":th.faint,fontSize:6,fontWeight:isActive?800:600,
+                                  cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:22,textAlign:"center"}}>
+                                {v===1?"1×":`${v}×`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:4,marginTop:4}}>
+                        <button data-hint="Reset speed · Return to 1× (normal)" onClick={()=>{
+                          if(speedMode==='master'){setSpeedMaster(1);engine.setSpeedMaster(1);}
+                          else{setSpeedPerTrack(p=>{const n={...p};delete n[target];return n;});engine.setSpeedTrack(target,null);}
+                        }}
+                          style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",
+                            background:"transparent",color:"#FF9500",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          RESET {speedMode==='master'?'MASTER':'TRACK'}
+                        </button>
+                        {speedMode==='track'&&Object.keys(speedPerTrack).length>0&&(
+                          <button data-hint="Reset all per-track speeds · All tracks return to master speed" onClick={()=>{setSpeedPerTrack({});Object.keys(speedPerTrack).forEach(id=>engine.setSpeedTrack(id,null));}}
+                            style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.15)",
+                              background:"transparent",color:th.faint,fontSize:7,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                            RESET ALL TRACKS
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

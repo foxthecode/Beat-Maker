@@ -17,6 +17,11 @@ class Eng{
     this._lastVoice=new Map();     // id → {src, gain, stopAt}  — buffer voice stealing
     this._lastSynthVg=new Map();  // id → {vg, stopAt}          — synthesis voice stealing
     this._bpm=120;                // updated by setBpm(); used in _syn() for duration cap
+    // ═══ SPEED ═══
+    this._speedMaster=1.0;        // global playbackRate multiplier (1.0 = normal)
+    this._speedTrack={};          // per-track overrides: { kick: 0.5, snare: 2.0, ... }
+    this._speedGlide=false;       // when true, transitions between speed values are smoothed
+    this._speedGlideTau=0.04;     // ~150ms glide (4× time constant)
     // PERFORM FX HOLD guards — set by React when a HOLD button is held.
     // While true, uFx() skips the matching send so the hold automation is not overwritten.
     this._rvHoldActive=false;
@@ -505,6 +510,15 @@ class Eng{
   }
   loadBuffer(id,buffer){this.init();if(!this.ch[id])this._build(id);this.buf[id]=buffer;}
   setBpm(bpm){this._bpm=Math.max(30,bpm||120);}
+  // ═══ SPEED methods ═══
+  /** Set master speed multiplier (0.25 → 4.0). 1.0 = normal. */
+  setSpeedMaster(rate){this._speedMaster=Math.max(0.25,Math.min(4,rate));}
+  /** Set per-track speed multiplier. null = revert to master. */
+  setSpeedTrack(id,rate){if(rate===null||rate===undefined){delete this._speedTrack[id];}else{this._speedTrack[id]=Math.max(0.25,Math.min(4,rate));}}
+  /** Enable/disable glide between speed changes. */
+  setSpeedGlide(on){this._speedGlide=!!on;}
+  /** Effective speed for a track (per-track overrides master). */
+  _getSpeed(id){return this._speedTrack[id]??this._speedMaster;}
   setDelayParams(time:number,fdbk:number){
     if(!this.ctx)return;const t=this.ctx.currentTime;
     const cancel=(p:AudioParam)=>{try{p.cancelScheduledValues(t);}catch(_){}};
@@ -521,7 +535,7 @@ class Eng{
     // Use max(baseLatency/2, 5ms) as minimum offset for live pad hits (at===null).
     const minOffset=at===null?Math.max(0.005,((this.ctx.baseLatency||0)*0.5)):0.001;
     const t=Math.max(this.ctx.currentTime+minOffset,raw);
-    if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12);
+    if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12)*this._getSpeed(id); // ═══ SPEED ═══
     if(this.buf[id]){
       if(this._isMobile&&this._nodeCount>=32){return;} // FIX D: raised from 24→32 (accurate releaseMs tracking makes the cap meaningful now)
       this._nodeCount++;
@@ -552,7 +566,11 @@ class Eng{
           }
         }catch(_){}
       }
-      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];s.playbackRate.setValueAtTime(r,t);const g=this.ctx.createGain();
+      const s=this.ctx.createBufferSource();s.buffer=this.buf[id];
+      // ═══ SPEED: snap vs glide ═══
+      if(this._speedGlide&&this._getSpeed(id)!==1.0){s.playbackRate.setValueAtTime(s.playbackRate.defaultValue,t);s.playbackRate.setTargetAtTime(r,t,this._speedGlideTau);}
+      else{s.playbackRate.setValueAtTime(r,t);}
+      const g=this.ctx.createGain();
       // Micro-fade 2 ms: prevents click when sample starts on a non-zero waveform frame.
       // setValueAtTime(0) anchors the ramp; linearRamp reaches full vel by t+2ms.
       g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel,t+0.002);
