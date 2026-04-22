@@ -20,7 +20,7 @@ class Eng{
     // ═══ SPEED ═══
     this._speedMaster=1.0;        // global playbackRate multiplier (1.0 = normal)
     this._speedTrack={};          // per-track overrides: { kick: 0.5, snare: 2.0, ... }
-    this._speedGlide=false;       // when true, transitions between speed values are smoothed
+    this._speedGlide=true;        // when true, transitions between speed values are smoothed (default ON)
     this._speedGlideTau=0.04;     // ~150ms glide (4× time constant)
     // PERFORM FX HOLD guards — set by React when a HOLD button is held.
     // While true, uFx() skips the matching send so the hold automation is not overwritten.
