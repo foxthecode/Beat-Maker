@@ -1196,9 +1196,8 @@ export default function KickAndSnare(){
   // ── CP-F states ──
   const [showLooper,setShowLooper]=useState(false);
   const [showPerform,setShowPerform]=useState(false);
-  // ═══ SPEED state ═══
+  // ═══ SPEED state (master only — pitch + duration change together) ═══
   const [speedMaster,setSpeedMaster]=useState(1.0);
-  const [speedPerTrack,setSpeedPerTrack]=useState<Record<string,number>>({});
   const [speedGlide,setSpeedGlide]=useState(true);
   const [showFxRack,setShowFxRack]=useState(false);
   const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/4t'|'1/8'|'1/8t'|'1/16'|'1/32'>('1/8');
@@ -4292,85 +4291,59 @@ export default function KickAndSnare(){
                         ))}
                       </div>
                     </div>
-                    {/* ═══ SPEED ═══ */}
-                    {(()=>{
-                      const spCur=isMaster?speedMaster:(speedPerTrack[target]??speedMaster);
-                      const spSet=(v:number)=>{
-                        engine.init();
-                        if(isMaster){setSpeedMaster(v);engine.setSpeedMaster(v);}
-                        else{setSpeedPerTrack(p=>({...p,[target]:v}));engine.setSpeedTrack(target,v);}
-                      };
-                      const spReset=()=>{
-                        engine.init();
-                        if(isMaster){setSpeedMaster(1);engine.setSpeedMaster(1);}
-                        else{setSpeedPerTrack(p=>{const n={...p};delete n[target];return n;});engine.setSpeedTrack(target,null);}
-                      };
-                      return(
-                        <div>
-                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
-                            <span style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em"}}>
-                              SPEED · {tIcon} {tLabel} · ×{spCur.toFixed(2)}
-                            </span>
-                            <span style={{flex:1}}/>
-                            <button data-hint="Speed Glide · When ON, speed changes smoothly (~150ms) instead of snapping instantly" onClick={()=>{const next=!speedGlide;setSpeedGlide(next);engine.setSpeedGlide(next);}}
-                              style={{padding:"2px 6px",borderRadius:4,border:`1px solid ${speedGlide?"#30D158":"rgba(48,209,88,0.25)"}`,
-                                background:speedGlide?"rgba(48,209,88,0.15)":"transparent",
-                                color:speedGlide?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                              GLIDE
+                    {/* ═══ SPEED (master · pitch + duration) ═══ */}
+                    <div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                        <span style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em"}}>
+                          SPEED · MASTER · ×{speedMaster.toFixed(2)}
+                        </span>
+                        <span style={{flex:1}}/>
+                        <button data-hint="Speed Glide · When ON, speed transitions smoothly between values · When OFF, instant snap" onClick={()=>{const g=!speedGlide;setSpeedGlide(g);engine.setSpeedGlide(g);}}
+                          style={{padding:"2px 6px",borderRadius:4,border:`1px solid ${speedGlide?"#30D158":"rgba(48,209,88,0.25)"}`,
+                            background:speedGlide?"rgba(48,209,88,0.15)":"transparent",
+                            color:speedGlide?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          GLIDE
+                        </button>
+                      </div>
+                      <input type="range" min={25} max={300} step={1} list="speed-ticks"
+                        value={Math.round(speedMaster*100)}
+                        onChange={e=>{
+                          let v=parseInt(e.target.value)/100;
+                          const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];
+                          const near=snaps.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+                          if(Math.abs(v-near)<0.02)v=near;
+                          setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);
+                        }}
+                        style={{width:"100%",accentColor:"#FF9500",height:4,display:"block"}}
+                      />
+                      <datalist id="speed-ticks">
+                        {[25,50,75,100,125,150,175,200,250,300].map(v=><option key={v} value={v}/>)}
+                      </datalist>
+                      <div style={{display:"flex",justifyContent:"space-between",marginTop:4,padding:"0 1px"}}>
+                        {[0.25,0.5,1,1.5,2,2.5,3].map(v=>{
+                          const active=Math.abs(speedMaster-v)<0.02;
+                          return(
+                            <button key={v} data-hint={`Speed ${v}× · ${v<1?'Slower + lower pitch':'Faster + higher pitch'} · master`}
+                              onClick={()=>{setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);}}
+                              style={{padding:"3px 5px",borderRadius:4,
+                                border:`1px solid ${active?"#FF9500":"rgba(255,149,0,0.18)"}`,
+                                background:active?"rgba(255,149,0,0.22)":"transparent",
+                                color:active?"#FF9500":th.faint,fontSize:6,fontWeight:active?800:600,
+                                cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:24,textAlign:"center"}}>
+                              {v===1?"1×":`${v}×`}
                             </button>
-                          </div>
-                          {/* Slider with native datalist ticks */}
-                          <input type="range" min={25} max={300} step={1} list="speed-ticks"
-                            value={Math.round(spCur*100)}
-                            onChange={e=>{
-                              let raw=parseInt(e.target.value)/100;
-                              // Snap to nearest preset if within ±2% (tighter to avoid false snap at 1.0)
-                              const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];
-                              const closest=snaps.reduce((a,b)=>Math.abs(b-raw)<Math.abs(a-raw)?b:a);
-                              if(Math.abs(raw-closest)<0.02)raw=closest;
-                              spSet(raw);
-                            }}
-                            style={{width:"100%",accentColor:"#FF9500",height:4,display:"block"}}
-                          />
-                          <datalist id="speed-ticks">
-                            {[25,50,75,100,125,150,175,200,250,300].map(v=><option key={v} value={v}/>)}
-                          </datalist>
-                          {/* Preset snap buttons */}
-                          <div style={{display:"flex",justifyContent:"space-between",marginTop:4,padding:"0 1px"}}>
-                            {[0.25,0.5,1,1.5,2,2.5,3].map(v=>{
-                              const isActive=Math.abs(spCur-v)<0.02;
-                              return(
-                                <button key={v} data-hint={`Speed ${v}× · ${v<1?'Slow down, lower pitch':'Speed up, higher pitch'} · ${tLabel}`}
-                                  onClick={()=>spSet(v)}
-                                  style={{padding:"3px 5px",borderRadius:4,
-                                    border:`1px solid ${isActive?"#FF9500":"rgba(255,149,0,0.18)"}`,
-                                    background:isActive?"rgba(255,149,0,0.22)":"transparent",
-                                    color:isActive?"#FF9500":th.faint,fontSize:6,fontWeight:isActive?800:600,
-                                    cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:24,textAlign:"center"}}>
-                                  {v===1?"1×":`${v}×`}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {/* Reset */}
-                          <div style={{display:"flex",gap:4,marginTop:5}}>
-                            <button data-hint={`Reset speed · ${tLabel} → 1× normal`} onClick={spReset}
-                              style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",
-                                background:Math.abs(spCur-1)>0.02?"rgba(255,149,0,0.12)":"transparent",
-                                color:"#FF9500",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                              RESET
-                            </button>
-                            {!isMaster&&speedPerTrack[target]!==undefined&&(
-                              <button data-hint="Reset all per-track speeds · All tracks return to master speed" onClick={()=>{setSpeedPerTrack({});Object.keys(speedPerTrack).forEach(id=>engine.setSpeedTrack(id,null));}}
-                                style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,149,0,0.15)",
-                                  background:"transparent",color:th.faint,fontSize:7,cursor:"pointer",fontFamily:"inherit"}}>
-                                RESET ALL
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                          );
+                        })}
+                      </div>
+                      <div style={{marginTop:5}}>
+                        <button data-hint="Reset speed · Master → ×1.0 (normal pitch and speed)" onClick={()=>{setSpeedMaster(1);engine.init();engine.setSpeedMaster(1);}}
+                          style={{padding:"3px 10px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",
+                            background:Math.abs(speedMaster-1)>0.02?"rgba(255,149,0,0.12)":"transparent",
+                            color:"#FF9500",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          RESET ×1
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

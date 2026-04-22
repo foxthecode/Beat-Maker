@@ -18,9 +18,8 @@ class Eng{
     this._lastSynthVg=new Map();  // id → {vg, stopAt}          — synthesis voice stealing
     this._bpm=120;                // updated by setBpm(); used in _syn() for duration cap
     // ═══ SPEED ═══
-    this._speedMaster=1.0;        // target master playbackRate multiplier
+    this._speedMaster=1.0;        // target master playbackRate multiplier (pitch + duration change together)
     this._speedCurrent=1.0;       // smoothed value actually used in play() — tracks _speedMaster with rAF glide
-    this._speedTrack={};          // per-track overrides (always immediate): { kick: 0.5, snare: 2.0, ... }
     this._speedGlide=true;        // when true, _speedCurrent glides toward _speedMaster via rAF (default ON)
     this._speedAnimFrame=null;    // rAF handle for glide animation
     // PERFORM FX HOLD guards — set by React when a HOLD button is held.
@@ -529,8 +528,6 @@ class Eng{
     this._speedCurrent+=diff*(1-Math.exp(-1/9));
     this._speedAnimFrame=requestAnimationFrame(()=>this._animateSpeed());
   }
-  /** Set per-track speed multiplier (always immediate, no glide). null = revert to master. */
-  setSpeedTrack(id,rate){if(rate===null||rate===undefined){delete this._speedTrack[id];}else{this._speedTrack[id]=Math.max(0.25,Math.min(4,rate));}}
   /** Enable/disable glide. When turned OFF, snap _speedCurrent to target immediately. */
   setSpeedGlide(on){
     this._speedGlide=!!on;
@@ -539,8 +536,8 @@ class Eng{
       this._speedCurrent=this._speedMaster;
     }
   }
-  /** Effective speed for a track: per-track override if set, else smoothed master. */
-  _getSpeed(id){return this._speedTrack[id]??this._speedCurrent;}
+  /** Current effective speed (smoothed master). id param kept for API compat with export code. */
+  _getSpeed(_id?:string){return this._speedCurrent;}
   setDelayParams(time:number,fdbk:number){
     if(!this.ctx)return;const t=this.ctx.currentTime;
     const cancel=(p:AudioParam)=>{try{p.cancelScheduledValues(t);}catch(_){}};
