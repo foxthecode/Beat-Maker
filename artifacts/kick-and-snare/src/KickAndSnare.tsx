@@ -1198,7 +1198,6 @@ export default function KickAndSnare(){
   const [showPerform,setShowPerform]=useState(false);
   // ═══ SPEED state (master only — pitch + duration change together) ═══
   const [speedMaster,setSpeedMaster]=useState(1.0);
-  const [speedGlide,setSpeedGlide]=useState(true);
   const [showFxRack,setShowFxRack]=useState(false);
   const [stutterDiv,setStutterDiv]=useState<'1/4'|'1/4t'|'1/8'|'1/8t'|'1/16'|'1/32'>('1/8');
   const [perfTrack,setPerfTrack]=useState<string>('');
@@ -4291,57 +4290,50 @@ export default function KickAndSnare(){
                         ))}
                       </div>
                     </div>
-                    {/* ═══ SPEED (master · pitch + duration) ═══ */}
+                    {/* ═══ SPEED (master · tempo + pitch change together) ═══ */}
                     <div>
-                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
                         <span style={{fontSize:7,fontWeight:800,color:th.dim,letterSpacing:"0.07em"}}>
-                          SPEED · MASTER · ×{speedMaster.toFixed(2)}
+                          SPEED · ×{speedMaster.toFixed(2)}
                         </span>
                         <span style={{flex:1}}/>
-                        <button data-hint="Speed Glide · When ON, speed transitions smoothly between values · When OFF, instant snap" onClick={()=>{const g=!speedGlide;setSpeedGlide(g);engine.setSpeedGlide(g);}}
-                          style={{padding:"2px 6px",borderRadius:4,border:`1px solid ${speedGlide?"#30D158":"rgba(48,209,88,0.25)"}`,
-                            background:speedGlide?"rgba(48,209,88,0.15)":"transparent",
-                            color:speedGlide?"#30D158":th.faint,fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                          GLIDE
+                        <button data-hint="Reset speed to ×1.0" onClick={()=>{setSpeedMaster(1);engine.init();engine.setSpeedMaster(1);}}
+                          style={{padding:"2px 7px",borderRadius:2,border:"1px solid rgba(255,149,0,0.35)",
+                            background:Math.abs(speedMaster-1)>0.02?"rgba(255,149,0,0.12)":"transparent",
+                            color:"#FF9500",fontSize:6,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          RESET
                         </button>
                       </div>
-                      <input type="range" min={25} max={300} step={1} list="speed-ticks"
+                      <input type="range" min={25} max={200} step={1} list="speed-ticks"
+                        className="speed-slider-rect"
                         value={Math.round(speedMaster*100)}
+                        style={{"--spd-pct":`${((speedMaster-0.25)/1.75)*100}%`} as React.CSSProperties}
                         onChange={e=>{
                           let v=parseInt(e.target.value)/100;
-                          const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];
+                          const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2];
                           const near=snaps.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
                           if(Math.abs(v-near)<0.02)v=near;
                           setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);
                         }}
-                        style={{width:"100%",accentColor:"#FF9500",height:4,display:"block"}}
                       />
                       <datalist id="speed-ticks">
-                        {[25,50,75,100,125,150,175,200,250,300].map(v=><option key={v} value={v}/>)}
+                        {[25,50,75,100,125,150,175,200].map(v=><option key={v} value={v}/>)}
                       </datalist>
-                      <div style={{display:"flex",justifyContent:"space-between",marginTop:4,padding:"0 1px"}}>
-                        {[0.25,0.5,1,1.5,2,2.5,3].map(v=>{
+                      <div style={{display:"flex",justifyContent:"space-between",marginTop:5,padding:"0 1px"}}>
+                        {[0.5,0.75,1,1.25,1.5,2].map(v=>{
                           const active=Math.abs(speedMaster-v)<0.02;
                           return(
-                            <button key={v} data-hint={`Speed ${v}× · ${v<1?'Slower + lower pitch':'Faster + higher pitch'} · master`}
+                            <button key={v} data-hint={`Speed ${v}× · ${v<1?'Slower + lower pitch':v>1?'Faster + higher pitch':'Normal'}`}
                               onClick={()=>{setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);}}
-                              style={{padding:"3px 5px",borderRadius:4,
+                              style={{padding:"3px 5px",borderRadius:2,
                                 border:`1px solid ${active?"#FF9500":"rgba(255,149,0,0.18)"}`,
                                 background:active?"rgba(255,149,0,0.22)":"transparent",
                                 color:active?"#FF9500":th.faint,fontSize:6,fontWeight:active?800:600,
-                                cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:24,textAlign:"center"}}>
-                              {v===1?"1×":`${v}×`}
+                                cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:22,textAlign:"center"}}>
+                              {v===1?"×1":`×${v}`}
                             </button>
                           );
                         })}
-                      </div>
-                      <div style={{marginTop:5}}>
-                        <button data-hint="Reset speed · Master → ×1.0 (normal pitch and speed)" onClick={()=>{setSpeedMaster(1);engine.init();engine.setSpeedMaster(1);}}
-                          style={{padding:"3px 10px",borderRadius:4,border:"1px solid rgba(255,149,0,0.3)",
-                            background:Math.abs(speedMaster-1)>0.02?"rgba(255,149,0,0.12)":"transparent",
-                            color:"#FF9500",fontSize:7,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                          RESET ×1
-                        </button>
                       </div>
                     </div>
                   </div>
