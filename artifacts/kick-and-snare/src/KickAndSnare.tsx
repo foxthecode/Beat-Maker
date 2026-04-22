@@ -4304,40 +4304,55 @@ export default function KickAndSnare(){
                           RESET
                         </button>
                       </div>
-                      <div style={{position:"relative"}}>
-                        <input type="range" min={25} max={200} step={1} list="speed-ticks"
-                          className="speed-slider-rect"
-                          value={Math.round(speedMaster*100)}
-                          style={{"--spd-pct":`${((speedMaster-0.25)/1.75)*100}%`} as React.CSSProperties}
-                          onChange={e=>{
-                            let v=parseInt(e.target.value)/100;
-                            const snaps=[0.25,0.5,1,1.5,2];
-                            const near=snaps.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
-                            if(Math.abs(v-near)<0.02)v=near;
-                            setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);
-                          }}
-                        />
-                        <datalist id="speed-ticks">
-                          {[25,50,100,150,200].map(v=><option key={v} value={v}/>)}
-                        </datalist>
-                        <div style={{position:"relative",height:18,marginTop:3}}>
-                          {([{v:0.25,pct:0},{v:0.5,pct:14.3},{v:1,pct:42.9},{v:1.5,pct:71.4},{v:2,pct:100}] as {v:number,pct:number}[]).map(({v,pct})=>{
-                            const active=Math.abs(speedMaster-v)<0.02;
-                            const posStyle=pct===0?{left:0}:pct===100?{right:0}:{left:`${pct}%`,transform:"translateX(-50%)"};
-                            return(
-                              <button key={v} data-hint={`Speed ×${v} · ${v<1?'Slower + lower pitch':v>1?'Faster + higher pitch':'Normal speed'}`}
-                                onClick={()=>{setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);}}
-                                style={{position:"absolute",...posStyle,padding:"2px 4px",borderRadius:2,
-                                  border:`1px solid ${active?"#FF9500":"rgba(255,149,0,0.18)"}`,
-                                  background:active?"rgba(255,149,0,0.22)":"transparent",
-                                  color:active?"#FF9500":th.faint,fontSize:6,fontWeight:active?800:600,
-                                  cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",whiteSpace:"nowrap",lineHeight:1.3}}>
-                                ×{v===1?"1":v}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      {(()=>{
+                        const sSnaps=[0.25,0.5,1,1.5,2];
+                        const dragSpeed=(clientX:number,rect:DOMRect)=>{
+                          const x=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+                          let v=0.25+x*1.75;
+                          const near=sSnaps.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+                          if(Math.abs(v-near)<0.06)v=near;
+                          setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);
+                        };
+                        const pct=((speedMaster-0.25)/1.75)*100;
+                        return(
+                          <div style={{position:"relative"}}>
+                            {/* ── XY-style drag zone ── */}
+                            <div data-hint="SPEED · Drag left = slower + lower pitch · Drag right = faster + higher pitch · Tap a marker below to snap"
+                              style={{height:36,borderRadius:8,background:"rgba(255,149,0,0.05)",border:"1px solid rgba(255,149,0,0.28)",position:"relative",cursor:"ew-resize",touchAction:"none",userSelect:"none",overflow:"hidden"}}
+                              onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);dragSpeed(e.clientX,e.currentTarget.getBoundingClientRect());}}
+                              onPointerMove={e=>{if(e.buttons===0)return;dragSpeed(e.clientX,e.currentTarget.getBoundingClientRect());}}
+                              onTouchStart={e=>{e.preventDefault();dragSpeed(e.touches[0].clientX,e.currentTarget.getBoundingClientRect());}}
+                              onTouchMove={e=>{e.preventDefault();dragSpeed(e.touches[0].clientX,e.currentTarget.getBoundingClientRect());}}>
+                              {/* fill */}
+                              <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${pct}%`,background:"linear-gradient(90deg,rgba(255,149,0,0.18),rgba(255,149,0,0.32))",transition:"width 0.04s"}}/>
+                              {/* cursor */}
+                              <div style={{position:"absolute",top:0,bottom:0,left:`${pct}%`,width:2,background:"#FF9500",transform:"translateX(-50%)",boxShadow:"0 0 6px rgba(255,149,0,0.7)",transition:"left 0.04s"}}/>
+                              {/* value label */}
+                              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+                                <span style={{fontSize:11,fontWeight:900,color:"#FF9500",letterSpacing:"0.04em"}}>×{speedMaster.toFixed(2)}</span>
+                              </div>
+                            </div>
+                            {/* ── Markers ── */}
+                            <div style={{position:"relative",height:18,marginTop:3}}>
+                              {([{v:0.25,pct:0},{v:0.5,pct:14.3},{v:1,pct:42.9},{v:1.5,pct:71.4},{v:2,pct:100}] as {v:number,pct:number}[]).map(({v,pct:mp})=>{
+                                const active=Math.abs(speedMaster-v)<0.04;
+                                const posS=mp===0?{left:0}:mp===100?{right:0}:{left:`${mp}%`,transform:"translateX(-50%)"};
+                                return(
+                                  <button key={v} data-hint={`Speed ×${v}`}
+                                    onClick={()=>{setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);}}
+                                    style={{position:"absolute",...posS,padding:"2px 4px",borderRadius:2,
+                                      border:`1px solid ${active?"#FF9500":"rgba(255,149,0,0.2)"}`,
+                                      background:active?"rgba(255,149,0,0.22)":"transparent",
+                                      color:active?"#FF9500":th.faint,fontSize:6,fontWeight:active?800:500,
+                                      cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap",lineHeight:1.3}}>
+                                    ×{v===1?"1":v}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
