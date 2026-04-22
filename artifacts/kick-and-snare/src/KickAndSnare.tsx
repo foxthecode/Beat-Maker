@@ -1503,7 +1503,7 @@ export default function KickAndSnare(){
         // stepIndex = nearestTick % N where N is this track's Euclidean cycle length.
         const eg=euclidGlobalRef.current;
         if(eg.nextTime!=null){
-          const sixteenth=(60/R.bpm)/4;
+          const sixteenth=(60/(R.bpm*(engine._speedCurrent||1)))/4;
           const lastTickIdx=((eg.globalTick-1)%1000000+1000000)%1000000;
           const lastTickTime=eg.nextTime-sixteenth;
           const offsetFromLast=Math.max(0,engine.ctx.currentTime-lastTickTime);
@@ -1735,7 +1735,7 @@ export default function KickAndSnare(){
     let dirty=false;
     const schDelay=engine._schedInterval;
     if(R.view==="euclid"){
-      const sixteenth=(60/R.bpm)/4;
+      const sixteenth=(60/(R.bpm*(engine._speedCurrent||1)))/4;
       const at=R.at;const m=R.mut;const s=R.sol;
 
       // ── Horloge globale ancrée ───────────────────────────────────────────────
@@ -1855,7 +1855,7 @@ export default function KickAndSnare(){
     // accelerated BPM + sample degradation), we SKIP the missed steps and
     // resume from the current beat position.
     if(nxtRef.current<ct-0.080){
-      const bd=(60/R.bpm)*cs.beats/cs.steps;
+      const bd=(60/(R.bpm*(engine._speedCurrent||1)))*cs.beats/cs.steps;
       const missedTime=ct-nxtRef.current;
       const missedSteps=Math.floor(missedTime/bd);
       R.step=((R.step+missedSteps)%cs.steps+cs.steps)%cs.steps;
@@ -1872,7 +1872,7 @@ export default function KickAndSnare(){
       }
       const st=nxtRef.current;schSt(R.step,st);
       if(R.metro){const gs=isGS(R.step,gr,cs.accents||[0]);const sd=cs.subDiv||0;if(gs.y)playClk(st,gs.f?"accent":"beat");else if(sd>0&&R.step%sd===0)playClk(st,"sub");}
-      const bd=cs.stepDiv?(60/R.bpm)/cs.stepDiv:(60/R.bpm)*cs.beats/cs.steps;
+      const bd=cs.stepDiv?(60/(R.bpm*(engine._speedCurrent||1)))/cs.stepDiv:(60/(R.bpm*(engine._speedCurrent||1)))*cs.beats/cs.steps;
       // Swing: AND notes arrive late (shuffle feel). Range ×0.5 so 67%≈triplet, 100%=dotted.
       const sw=bd*(R.sw/100)*0.5;nxtRef.current+=R.step%2===0?(bd+sw):(bd-sw);
       // Sync visual cursor to audio: fire setCStep at the actual scheduled time (not lookahead)
