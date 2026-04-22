@@ -18,10 +18,11 @@ class Eng{
     this._lastSynthVg=new Map();  // id → {vg, stopAt}          — synthesis voice stealing
     this._bpm=120;                // updated by setBpm(); used in _syn() for duration cap
     // ═══ SPEED ═══
-    this._speedMaster=1.0;        // global playbackRate multiplier (1.0 = normal)
-    this._speedTrack={};          // per-track overrides: { kick: 0.5, snare: 2.0, ... }
-    this._speedGlide=true;        // when true, transitions between speed values are smoothed (default ON)
-    this._speedGlideTau=0.04;     // ~150ms glide (4× time constant)
+    this._speedMaster=1.0;        // target master playbackRate multiplier
+    this._speedCurrent=1.0;       // smoothed value actually used in play() — tracks _speedMaster with rAF glide
+    this._speedTrack={};          // per-track overrides (always immediate): { kick: 0.5, snare: 2.0, ... }
+    this._speedGlide=true;        // when true, _speedCurrent glides toward _speedMaster via rAF (default ON)
+    this._speedAnimFrame=null;    // rAF handle for glide animation
     // PERFORM FX HOLD guards — set by React when a HOLD button is held.
     // While true, uFx() skips the matching send so the hold automation is not overwritten.
     this._rvHoldActive=false;
@@ -511,14 +512,35 @@ class Eng{
   loadBuffer(id,buffer){this.init();if(!this.ch[id])this._build(id);this.buf[id]=buffer;}
   setBpm(bpm){this._bpm=Math.max(30,bpm||120);}
   // ═══ SPEED methods ═══
-  /** Set master speed multiplier (0.25 → 4.0). 1.0 = normal. */
-  setSpeedMaster(rate){this._speedMaster=Math.max(0.25,Math.min(4,rate));}
-  /** Set per-track speed multiplier. null = revert to master. */
+  /** Set master speed target. If glide ON, _speedCurrent ramps toward this via rAF. */
+  setSpeedMaster(rate){
+    this._speedMaster=Math.max(0.25,Math.min(4,rate));
+    if(!this._speedGlide){this._speedCurrent=this._speedMaster;return;}
+    // Glide: start rAF loop if not already running
+    if(this._speedAnimFrame)return; // loop already running — it will chase new target
+    this._speedAnimFrame=requestAnimationFrame(()=>this._animateSpeed());
+  }
+  /** Smooth rAF loop — exponential approach of _speedCurrent toward _speedMaster. */
+  _animateSpeed(){
+    const target=this._speedMaster;
+    const diff=target-this._speedCurrent;
+    if(Math.abs(diff)<0.001){this._speedCurrent=target;this._speedAnimFrame=null;return;}
+    // ~150ms convergence at 60fps: α = 1 - exp(-1/9) ≈ 0.105
+    this._speedCurrent+=diff*(1-Math.exp(-1/9));
+    this._speedAnimFrame=requestAnimationFrame(()=>this._animateSpeed());
+  }
+  /** Set per-track speed multiplier (always immediate, no glide). null = revert to master. */
   setSpeedTrack(id,rate){if(rate===null||rate===undefined){delete this._speedTrack[id];}else{this._speedTrack[id]=Math.max(0.25,Math.min(4,rate));}}
-  /** Enable/disable glide between speed changes. */
-  setSpeedGlide(on){this._speedGlide=!!on;}
-  /** Effective speed for a track (per-track overrides master). */
-  _getSpeed(id){return this._speedTrack[id]??this._speedMaster;}
+  /** Enable/disable glide. When turned OFF, snap _speedCurrent to target immediately. */
+  setSpeedGlide(on){
+    this._speedGlide=!!on;
+    if(!on){
+      if(this._speedAnimFrame){cancelAnimationFrame(this._speedAnimFrame);this._speedAnimFrame=null;}
+      this._speedCurrent=this._speedMaster;
+    }
+  }
+  /** Effective speed for a track: per-track override if set, else smoothed master. */
+  _getSpeed(id){return this._speedTrack[id]??this._speedCurrent;}
   setDelayParams(time:number,fdbk:number){
     if(!this.ctx)return;const t=this.ctx.currentTime;
     const cancel=(p:AudioParam)=>{try{p.cancelScheduledValues(t);}catch(_){}};
@@ -567,9 +589,8 @@ class Eng{
         }catch(_){}
       }
       const s=this.ctx.createBufferSource();s.buffer=this.buf[id];
-      // ═══ SPEED: snap vs glide ═══
-      if(this._speedGlide&&this._getSpeed(id)!==1.0){s.playbackRate.setValueAtTime(s.playbackRate.defaultValue,t);s.playbackRate.setTargetAtTime(r,t,this._speedGlideTau);}
-      else{s.playbackRate.setValueAtTime(r,t);}
+      // ═══ SPEED: always snap per sample — glide is handled by rAF on _speedCurrent ═══
+      s.playbackRate.setValueAtTime(r,t);
       const g=this.ctx.createGain();
       // Micro-fade 2 ms: prevents click when sample starts on a non-zero waveform frame.
       // setValueAtTime(0) anchors the ramp; linearRamp reaches full vel by t+2ms.
