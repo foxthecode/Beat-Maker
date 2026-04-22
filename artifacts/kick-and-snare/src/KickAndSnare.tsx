@@ -4304,36 +4304,39 @@ export default function KickAndSnare(){
                           RESET
                         </button>
                       </div>
-                      <input type="range" min={25} max={200} step={1} list="speed-ticks"
-                        className="speed-slider-rect"
-                        value={Math.round(speedMaster*100)}
-                        style={{"--spd-pct":`${((speedMaster-0.25)/1.75)*100}%`} as React.CSSProperties}
-                        onChange={e=>{
-                          let v=parseInt(e.target.value)/100;
-                          const snaps=[0.25,0.5,0.75,1,1.25,1.5,1.75,2];
-                          const near=snaps.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
-                          if(Math.abs(v-near)<0.02)v=near;
-                          setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);
-                        }}
-                      />
-                      <datalist id="speed-ticks">
-                        {[25,50,75,100,125,150,175,200].map(v=><option key={v} value={v}/>)}
-                      </datalist>
-                      <div style={{display:"flex",justifyContent:"space-between",marginTop:5,padding:"0 1px"}}>
-                        {[0.5,0.75,1,1.25,1.5,2].map(v=>{
-                          const active=Math.abs(speedMaster-v)<0.02;
-                          return(
-                            <button key={v} data-hint={`Speed ${v}× · ${v<1?'Slower + lower pitch':v>1?'Faster + higher pitch':'Normal'}`}
-                              onClick={()=>{setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);}}
-                              style={{padding:"3px 5px",borderRadius:2,
-                                border:`1px solid ${active?"#FF9500":"rgba(255,149,0,0.18)"}`,
-                                background:active?"rgba(255,149,0,0.22)":"transparent",
-                                color:active?"#FF9500":th.faint,fontSize:6,fontWeight:active?800:600,
-                                cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",minWidth:22,textAlign:"center"}}>
-                              {v===1?"×1":`×${v}`}
-                            </button>
-                          );
-                        })}
+                      <div style={{position:"relative"}}>
+                        <input type="range" min={25} max={200} step={1} list="speed-ticks"
+                          className="speed-slider-rect"
+                          value={Math.round(speedMaster*100)}
+                          style={{"--spd-pct":`${((speedMaster-0.25)/1.75)*100}%`} as React.CSSProperties}
+                          onChange={e=>{
+                            let v=parseInt(e.target.value)/100;
+                            const snaps=[0.25,0.5,1,1.5,2];
+                            const near=snaps.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+                            if(Math.abs(v-near)<0.02)v=near;
+                            setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);
+                          }}
+                        />
+                        <datalist id="speed-ticks">
+                          {[25,50,100,150,200].map(v=><option key={v} value={v}/>)}
+                        </datalist>
+                        <div style={{position:"relative",height:18,marginTop:3}}>
+                          {([{v:0.25,pct:0},{v:0.5,pct:14.3},{v:1,pct:42.9},{v:1.5,pct:71.4},{v:2,pct:100}] as {v:number,pct:number}[]).map(({v,pct})=>{
+                            const active=Math.abs(speedMaster-v)<0.02;
+                            const posStyle=pct===0?{left:0}:pct===100?{right:0}:{left:`${pct}%`,transform:"translateX(-50%)"};
+                            return(
+                              <button key={v} data-hint={`Speed ×${v} · ${v<1?'Slower + lower pitch':v>1?'Faster + higher pitch':'Normal speed'}`}
+                                onClick={()=>{setSpeedMaster(v);engine.init();engine.setSpeedMaster(v);}}
+                                style={{position:"absolute",...posStyle,padding:"2px 4px",borderRadius:2,
+                                  border:`1px solid ${active?"#FF9500":"rgba(255,149,0,0.18)"}`,
+                                  background:active?"rgba(255,149,0,0.22)":"transparent",
+                                  color:active?"#FF9500":th.faint,fontSize:6,fontWeight:active?800:600,
+                                  cursor:"pointer",fontFamily:"inherit",transition:"all 0.1s",whiteSpace:"nowrap",lineHeight:1.3}}>
+                                ×{v===1?"1":v}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
