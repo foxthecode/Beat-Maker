@@ -1525,7 +1525,7 @@ export default function KickAndSnare(){
         const gSt=R.sig?.steps||16;
         const tSt=[gSt,gSt*2].includes(R.ts?.[tid])?R.ts[tid]:gSt;
         const ratio=Math.max(1,Math.round(tSt/gSt));
-        const bd=(60/R.bpm)*R.sig.beats/R.sig.steps;
+        const bd=(60/(R.bpm*(engine._speedCurrent||1)))*R.sig.beats/R.sig.steps;
         const sw=bd*(R.sw||0)/100*0.5;
         // Compensate touch input latency (~40ms on Android tablets).
         // Without this, ctx.currentTime has already advanced past the beat
@@ -1664,7 +1664,7 @@ export default function KickAndSnare(){
   const schSt=useCallback((sn,time)=>{
     const p=R.pat,m=R.mut,s=R.sol,f=R.fx,nudge=R.sn,vel=R.vel,at=R.at;
     const prob=R.prob,ratch=R.ratch,cs=R.sig;
-    const bd=(60/R.bpm)*(cs.beats||(cs.groups?.length||4))/cs.steps;
+    const bd=(60/(R.bpm*(engine._speedCurrent||1)))*(cs.beats||(cs.groups?.length||4))/cs.steps;
     const playTrStep=(tr,psn,ptime)=>{
       const stepProb=prob[tr.id]?.[psn]??100;
       if(Math.random()*100>=stepProb)return;
