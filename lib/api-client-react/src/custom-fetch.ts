@@ -115,11 +115,12 @@ function isTextMediaType(mediaType: string | null): boolean {
 // `.json()`.  Loose equality (`== null`) matches both `null` and `undefined`,
 // which causes every React Native response to be treated as empty.
 function hasNoBody(response: Response, method: string): boolean {
-  if (method === "HEAD") return true;
-  if (NO_BODY_STATUS.has(response.status)) return true;
-  if (response.headers.get("content-length") === "0") return true;
-  if (response.body === null) return true;
-  return false;
+  return (
+    method === "HEAD" ||
+    NO_BODY_STATUS.has(response.status) ||
+    response.headers.get("content-length") === "0" ||
+    response.body === null
+  );
 }
 
 function stripBom(text: string): string {
