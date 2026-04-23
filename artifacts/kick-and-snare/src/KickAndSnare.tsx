@@ -1458,7 +1458,9 @@ export default function KickAndSnare(){
     lastTrigRef.current=tid;
     // Vibrate BEFORE audio output (no setTimeout): haptic fires at ~0ms, audio at ~outputLatency (20-40ms).
     // This anchors the tap perception so audio feels immediate rather than delayed.
-    if(navigator.vibrate)navigator.vibrate(15);
+    // Shorter vibration on Android 7-12 (older WebView vibration API acquires a slower
+    // system lock; 15ms can stall the main thread 5-10ms). 8ms is still palpable.
+    if(navigator.vibrate)navigator.vibrate(engine._isAndroid?8:15);
     if(flashTimers.current[tid])clearTimeout(flashTimers.current[tid]);
     if(R.uiView==="pads"){
       // DOM-direct flash — zero React re-render, instant visual on mobile

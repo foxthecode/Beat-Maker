@@ -549,10 +549,14 @@ class Eng{
     if(!this.ctx)this.init();if(!this.ch[id])this._build(id);const c=this.ch[id];if(!c)return;
     if(this.ctx.state==='suspended'){this.ctx.resume().catch(e=>console.warn('[Audio] ctx.resume() failed:',e));} // skipcq: JS-0002
     const raw=at!==null?(at+dMs/1000):(this.ctx.currentTime+Math.max(0,dMs)/1000);
-    // Android WebView/Capacitor: baseLatency can be 10-30ms; scheduling at currentTime+1ms
-    // risks landing in the past → audio engine queues it for "now" but with processing lag.
-    // Use max(baseLatency/2, 5ms) as minimum offset for live pad hits (at===null).
-    const minOffset=at===null?Math.max(0.005,((this.ctx.baseLatency||0)*0.5)):0.001;
+    // Android WebView/Capacitor: baseLatency can be 10-30ms on Android 13+, but 100-150ms on
+    // Android 7-12 (older WebView audio buffer sizes). Using baseLatency/2 uncapped causes
+    // 50-75ms perceived lag on Android 7-12 — within the JND for percussion (25ms).
+    // Fix: cap pad-tap scheduling offset at 20ms on Android. 20ms is below the JND so it
+    // feels tight, yet large enough that the audio thread never misses the scheduled start.
+    // Sequencer notes (at !== null) keep 1ms offset — they are pre-scheduled by the Worker.
+    const _rawOff=(this.ctx.baseLatency||0)*0.5;
+    const minOffset=at===null?Math.max(0.005,this._isAndroid?Math.min(0.020,_rawOff):_rawOff):0.001;
     const t=Math.max(this.ctx.currentTime+minOffset,raw);
     if(f)this.uFx(id,f,t);const r=Math.pow(2,((f?.onPitch?f.pitch:0)||0)/12)*this._getSpeed(id); // ═══ SPEED ═══
     if(this.buf[id]){
