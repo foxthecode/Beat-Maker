@@ -1536,26 +1536,32 @@ export default function KickAndSnare(){
         const ct=engine.ctx.currentTime-touchLatencyCompensation;
 
         // Walk backwards from scheduler head to find the currently-audible step.
+        // Invariant: walkTime = scheduled start of walkStep.
+        // Init: nxtRef.current = start(R.step+1), so walkStep = R.step+1.
         let walkTime=nxtRef.current;
-        let walkStep=R.step;
+        let walkStep=(R.step+1)%gSt;
         let safety=gSt+4;
-        while(walkTime>ct+0.001&&safety-->0){
+        // Walk backward until start(walkStep) <= ct (walkStep is currently playing).
+        while(walkTime>ct&&safety-->0){
           const prevStep=((walkStep-1)%gSt+gSt)%gSt;
-          const stepDur=prevStep%2===0?(bd+sw):(bd-sw);
-          walkTime-=stepDur;
+          // Subtract duration of prevStep to get start(prevStep) from start(prevStep+1=walkStep).
+          const prevDur=prevStep%2===0?(bd+sw):(bd-sw);
+          walkTime-=prevDur;
           walkStep=prevStep;
         }
-
-        // walkStep is one BEFORE the step being heard (the loop overshoots by 1).
-        // heardStep is the step whose audio is actually playing right now.
-        const heardStep=(walkStep+1)%gSt;
-        const heardStart=walkTime+(walkStep%2===0?(bd+sw):(bd-sw));
-        const nextStart=heardStart+(heardStep%2===0?(bd+sw):(bd-sw));
-        // Nearest-neighbor quantization: snap to whichever step boundary is closer
-        const distCur=Math.abs(ct-heardStart);
-        const distNext=Math.abs(ct-nextStart);
+        // walkStep = the currently-playing step, walkTime = start(walkStep).
+        const heardStep=walkStep;
+        const heardStart=walkTime;
+        const stepDurH=heardStep%2===0?(bd+sw):(bd-sw);
+        const nextStart=heardStart+stepDurH;
+        // Nearest-neighbor quantization: snap to whichever boundary is closer.
+        const distCur=ct-heardStart;   // ≥0: how far into current step
+        const distNext=nextStart-ct;   // ≥0: how far until next step
         const qStep=distNext<distCur?((heardStep+1)%gSt):heardStep;
-        snapRatio=distCur/(distCur+distNext); // 0=perfect on beat, 0.5=halfway
+        // snapRatio: 0.5=perfect on beat, 0=halfway between steps.
+        // Matches Euclid convention so green feedback (≥0.35) means good timing.
+        const nearestDist=Math.min(Math.max(0,distCur),Math.max(0,distNext));
+        snapRatio=0.5-nearestDist/Math.max(0.001,stepDurH);
         targetStep=ratio>1?qStep*ratio:qStep%tSt;
       }
       if(targetStep>=0){
