@@ -1154,6 +1154,8 @@ export default function KickAndSnare(){
   const _probFromSwitch=useRef(false);
   const _ratFromSwitch=useRef(false);
 
+  const _euclidFromSwitch=useRef(false);
+
   // When cPat changes, restore per-pattern states
   useEffect(()=>{
     const pb=R.pb[cPat] as any;
@@ -1161,6 +1163,7 @@ export default function KickAndSnare(){
     if(pb?._nud&&Object.keys(pb._nud).length>0){_nudFromSwitch.current=true;setStNudge({...pb._nud});}
     if(pb?._prob&&Object.keys(pb._prob).length>0){_probFromSwitch.current=true;setStProb({...pb._prob});}
     if(pb?._rat&&Object.keys(pb._rat).length>0){_ratFromSwitch.current=true;setStRatch({...pb._rat});}
+    if(pb?._euclid&&Object.keys(pb._euclid).length>0){_euclidFromSwitch.current=true;setEuclidParams({...pb._euclid});}
   },[cPat]);
 
   // Debounce-save stVel → pBank[cPat]._vel
@@ -1210,6 +1213,18 @@ export default function KickAndSnare(){
     },200);
     return()=>{if(_ratSaveTimer.current)clearTimeout(_ratSaveTimer.current);};
   },[stRatch]);
+
+  // Debounce-save euclidParams → pBank[cPat]._euclid
+  const _euclidSaveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>{
+    if(_euclidFromSwitch.current){_euclidFromSwitch.current=false;return;}
+    if(_euclidSaveTimer.current)clearTimeout(_euclidSaveTimer.current);
+    const snapPat=cPat;const snapEuclid=euclidParams;
+    _euclidSaveTimer.current=setTimeout(()=>{
+      setPBank(pb=>{const n=[...pb];n[snapPat]={...n[snapPat],_euclid:{...snapEuclid}};return n;});
+    },200);
+    return()=>{if(_euclidSaveTimer.current)clearTimeout(_euclidSaveTimer.current);};
+  },[euclidParams]);
   // ── velRange: min/max for random velocity ──
   const [velRange,setVelRange]=useState<{min:number,max:number}>({min:40,max:100});
   // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
@@ -1939,10 +1954,17 @@ export default function KickAndSnare(){
 
   // ── Project save/load ────────────────────────────────────────────────────────
   const getProjectState=useCallback(():ProjectState=>{
-    // Flush current pattern's per-pattern states into pBank snapshot synchronously
-    // (bypasses debounce timers so no data is lost if saved immediately after an edit)
+    // Flush all per-pattern states synchronously into pBank snapshot
+    // (bypasses all debounce timers — safe to call from any view/screen)
     const pb=[...pBank];
-    pb[cPat]={...pb[cPat],_vel:{...stVel},_nud:{...stNudge},_prob:{...stProb},_rat:{...stRatch}};
+    pb[cPat]={
+      ...pb[cPat],
+      _vel:{...stVel},
+      _nud:{...stNudge},
+      _prob:{...stProb},
+      _rat:{...stRatch},
+      _euclid:{...euclidParams},
+    };
     return{
       pBank:pb,stVel,stNudge,stProb,stRatch,
       bpm,swing,tSig,grpIdx,cPat,
@@ -1952,10 +1974,12 @@ export default function KickAndSnare(){
       euclidParams,
       muted:muted as Record<string,boolean>,
       customTracks,act,
+      masterVol,velRange,speedMaster,
     };
   },[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,grpIdx,cPat,
     songRows,songMode,kitIdx,activeKitId,smpN,fx,gfx,fxChainOrder,
-    fxSendPos,trackFx,euclidParams,muted,customTracks,act]);
+    fxSendPos,trackFx,euclidParams,muted,customTracks,act,
+    masterVol,velRange,speedMaster]);
 
   const loadProjectState=useCallback((st:ProjectState)=>{
     if(Array.isArray(st.pBank))setPBank(st.pBank);
@@ -1982,6 +2006,15 @@ export default function KickAndSnare(){
     if(st.muted)setMuted(st.muted);
     if(Array.isArray(st.customTracks))setCustomTracks(st.customTracks);
     if(st.act)setAct(st.act);
+    // v2 fields (optional — backward-compatible with old saves)
+    if(typeof st.masterVol==='number'){
+      setMasterVol(st.masterVol);
+      if(engine.ctx&&engine.mg)engine.mg.gain.setTargetAtTime(st.masterVol/100,engine.ctx.currentTime,0.02);
+    }
+    if(st.velRange)setVelRange(st.velRange);
+    if(typeof st.speedMaster==='number'&&st.speedMaster!==1){
+      setSpeedMaster(st.speedMaster);engine.setSpeedMaster?.(st.speedMaster);
+    }
   },[]);
 
   const startStop=async()=>{

@@ -11,6 +11,8 @@ export interface ProjectState{
   fxSendPos:Record<string,string>;trackFx:Record<string,any>;
   euclidParams:Record<string,any>;grpIdx:number;muted:Record<string,boolean>;
   customTracks:any[];act:any;
+  // v2 additions
+  masterVol?:number;velRange?:{min:number;max:number};speedMaster?:number;
 }
 export interface ProjectSlot{name:string;date:string;state:ProjectState;}
 
