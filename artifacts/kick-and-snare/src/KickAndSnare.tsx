@@ -3,6 +3,7 @@ import { DEFAULT_SAMPLES, b64toAB } from "./defaultSamples";
 import { THEMES } from "./theme.js";
 import { DrumSVG } from "./drumSVG.tsx";
 import TransportBar from "./components/TransportBar.jsx";
+import SaveModal from "./components/SaveModal.tsx";
 import PatternBank from "./components/PatternBank.jsx";
 import TrackRow from "./components/TrackRow.jsx";
 import LooperPanel from "./components/LooperPanel.jsx";
@@ -14,6 +15,7 @@ import { KitBrowser, type UserKit, type SampleBankEntry } from "./components/Kit
 import { KitComposer } from "./components/KitComposer.tsx";
 import { idbPut, idbGet, idbDeleteKeysWithPrefix } from "./hooks/idbHelper.ts";
 import { SEQUENCER_TEMPLATES } from "./sequencerTemplates.ts";
+import{type ProjectState}from "./projectManager";
 import { EUCLID_TEMPLATES, type EuclidTemplate } from "./euclidTemplates.ts";
 import { isDrumKitIcon } from "./kitIcons";
 import {
@@ -899,6 +901,7 @@ export default function KickAndSnare(){
   const kitIdxRef=useRef(0);kitIdxRef.current=kitIdx;
   // Pre-fetched ArrayBuffers for kit 808 (fetch on mount, decode when AudioContext is ready)
   const preloadedABRef=useRef<Record<string,ArrayBuffer>>({});
+  const [showSaveModal,setShowSaveModal]=useState(false);
   const [showKitBrowser,setShowKitBrowser]=useState(false);
   const [showKitComposer,setShowKitComposer]=useState(false);
   const [userKits,setUserKits]=useState<UserKit[]>(()=>loadUserKitsMeta());
@@ -1889,6 +1892,46 @@ export default function KickAndSnare(){
   // Keep schLoopRef current so the worker's onmessage always calls the latest schLoop
   // (avoids stale closures when schSt or other deps change during playback)
   useEffect(()=>{schLoopRef.current=schLoop;},[schLoop]);
+
+  // ── Project save/load ────────────────────────────────────────────────────────
+  const getProjectState=useCallback(():ProjectState=>({
+    pBank,stVel,stNudge,stProb,stRatch,
+    bpm,swing,tSig,cPat,
+    songRows,songMode,
+    kitIdx,activeKitId,smpN,
+    fx,gfx,fxChainOrder,fxSendPos,trackFx,
+    euclidParams,
+    muted:muted as Record<string,boolean>,
+    customTracks,act,
+  }),[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,cPat,
+    songRows,songMode,kitIdx,activeKitId,smpN,fx,gfx,fxChainOrder,
+    fxSendPos,trackFx,euclidParams,muted,customTracks,act]);
+
+  const loadProjectState=useCallback((st:ProjectState)=>{
+    if(Array.isArray(st.pBank))setPBank(st.pBank);
+    if(st.stVel)setStVel(st.stVel);
+    if(st.stNudge)setStNudge(st.stNudge);
+    if(st.stProb)setStProb(st.stProb);
+    if(st.stRatch)setStRatch(st.stRatch);
+    if(typeof st.bpm==='number')setBpm(st.bpm);
+    if(typeof st.swing==='number')setSwing(st.swing);
+    if(st.tSig)setTSig(st.tSig);
+    if(typeof st.cPat==='number')setCPat(st.cPat);
+    if(Array.isArray(st.songRows))setSongRows(st.songRows);
+    if(typeof st.songMode==='boolean')setSongMode(st.songMode);
+    if(typeof st.kitIdx==='number')setKitIdx(st.kitIdx);
+    if(st.activeKitId!==undefined)setActiveKitId(st.activeKitId);
+    if(st.smpN)setSmpN(st.smpN);
+    if(st.fx){setFx(st.fx);Object.entries(st.fx).forEach(([id,f])=>engine.uFx&&engine.uFx(id,f as any));}
+    if(st.gfx){setGfx(st.gfx);engine.uGfx&&engine.uGfx(st.gfx);}
+    if(Array.isArray(st.fxChainOrder))setFxChainOrder(st.fxChainOrder);
+    if(st.fxSendPos)setFxSendPos(st.fxSendPos);
+    if(st.trackFx)setTrackFx(st.trackFx);
+    if(st.euclidParams)setEuclidParams(st.euclidParams);
+    if(st.muted)setMuted(st.muted);
+    if(Array.isArray(st.customTracks))setCustomTracks(st.customTracks);
+    if(st.act)setAct(st.act);
+  },[]);
 
   const startStop=async()=>{
     await engine.ensureRunning();
@@ -3594,6 +3637,7 @@ export default function KickAndSnare(){
           showInfo={showInfo} setShowInfo={setShowInfo}
           hintMode={hintMode} setHintMode={setHintMode}
           setOverlayVisible={setOverlayVisible}
+          onOpenSave={()=>setShowSaveModal(true)}
         />
         </div>{/* end fixed-header maxWidth */}
       </div>{/* end fixed-header */}
@@ -5115,6 +5159,7 @@ export default function KickAndSnare(){
       </>
     )}
     {/* ── Tutorial overlay ── */}
+    {showSaveModal&&<SaveModal theme={th} getState={getProjectState} onLoad={loadProjectState} onClose={()=>setShowSaveModal(false)}/>}
     <KitBrowser
       open={showKitBrowser}
       onClose={()=>setShowKitBrowser(false)}

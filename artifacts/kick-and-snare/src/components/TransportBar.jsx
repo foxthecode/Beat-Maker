@@ -34,6 +34,7 @@ export default function TransportBar({
   showInfo, setShowInfo,
   hintMode, setHintMode,
   setOverlayVisible,
+  onOpenSave,
 }) {
   const th = THEMES[themeName] || THEMES.dark;
   const lastTapRef = useRef(0);
@@ -386,6 +387,12 @@ export default function TransportBar({
       style={undoBtnStyle(histLen?.future)}>↻</button>
   );
 
+  const SaveBtn = onOpenSave && (
+    <button data-hint="Projects · Save and load projects (patterns, kit, song, FX)"
+      onClick={onOpenSave} title="Save / Load project"
+      style={{ width: 28, height: 28, border: "1px solid rgba(48,209,88,0.25)", borderRadius: 6, background: "transparent", color: "rgba(48,209,88,0.55)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: 0, transition: "all 0.15s", flexShrink: 0 }}>💾</button>
+  );
+
   const IntroBtn = setOverlayVisible && (
     <button data-hint="Welcome screen · Re-display the intro overlay"
       onClick={() => { setShowInfo?.(false); setOverlayVisible(true); }} title="Intro"
@@ -422,7 +429,7 @@ export default function TransportBar({
         <div style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: 4, borderTop: `1px solid ${th.sBorder}` }}>
           {UndoBtn}{RedoBtn}
           <div style={{ flex: 1 }} />
-          {IntroBtn}{ManualBtn}{HintBtn}
+          {SaveBtn}{IntroBtn}{ManualBtn}{HintBtn}
         </div>
       </div>
     );
@@ -436,6 +443,8 @@ export default function TransportBar({
       <div style={rowStyle}>
         {SwingCtrl}{TSBtn}{MetroBtn}{SubBtn}
         {!isMobile && KeybBtn}{MidiBtn}{ExportBtn}
+        <div style={{ flex: 1 }} />
+        {SaveBtn}{UndoBtn}{RedoBtn}
       </div>
     </div>
   );
