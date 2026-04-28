@@ -126,7 +126,7 @@ export default function SaveModal({theme:th,getState,onLoad,onClose}:SaveModalPr
                   onKeyDown={e=>{if(e.key==="Enter")handleSave(idx);if(e.key==="Escape"){setEditIdx(null);}}}
                   placeholder={`Project ${idx+1}`}
                   style={{flex:1,background:"transparent",border:`1px solid ${th.sBorder}`,borderRadius:6,
-                    color:th.fg,fontSize:12,fontWeight:500,fontFamily:"system-ui,-apple-system,sans-serif",
+                    color:th.text,fontSize:12,fontWeight:500,fontFamily:"system-ui,-apple-system,sans-serif",
                     padding:"4px 8px",outline:"none",minWidth:0}}
                 />
                 <button onClick={()=>handleSave(idx)} style={btn("#30D158")}>SAVE</button>
