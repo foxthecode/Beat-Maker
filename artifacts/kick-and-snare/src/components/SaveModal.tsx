@@ -108,9 +108,9 @@ export default function SaveModal({theme:th,getState,onLoad,onClose}:SaveModalPr
       <div style={panelStyle}>
         {/* Header */}
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:13,fontWeight:900,color:th.fg,letterSpacing:"0.08em",flex:1}}>💾 PROJECTS</span>
+          <span style={{fontSize:13,fontWeight:900,color:th.text,letterSpacing:"0.08em",flex:1,fontFamily:"system-ui,-apple-system,sans-serif"}}>💾 PROJECTS</span>
           {feedback&&<span style={{fontSize:9,fontWeight:700,color:"#30D158",letterSpacing:"0.06em"}}>{feedback}</span>}
-          <button onClick={onClose} style={{...btn(th.dim,true),padding:"3px 8px",fontSize:11}}>✕</button>
+          <button onClick={onClose} style={{...btn(th.text,true),padding:"3px 8px",fontSize:11}}>✕</button>
         </div>
 
         {/* Slots */}
@@ -138,11 +138,11 @@ export default function SaveModal({theme:th,getState,onLoad,onClose}:SaveModalPr
                 <div style={{flex:1,minWidth:0}}>
                   {slot?(
                     <>
-                      <div style={{fontSize:12,fontWeight:600,color:th.fg,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontFamily:"system-ui,-apple-system,sans-serif"}}>{slot.name}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:th.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontFamily:"system-ui,-apple-system,sans-serif"}}>{slot.name}</div>
                       <div style={{fontSize:10,color:th.dim,marginTop:1,fontFamily:"system-ui,-apple-system,sans-serif"}}>{fmtDate(slot.date)}</div>
                     </>
                   ):(
-                    <div style={{fontSize:10,color:th.faint,fontStyle:"italic",fontFamily:"system-ui,-apple-system,sans-serif"}}>— empty —</div>
+                    <div style={{fontSize:10,color:th.dim,fontStyle:"italic",fontFamily:"system-ui,-apple-system,sans-serif",opacity:0.6}}>— empty —</div>
                   )}
                 </div>
                 {/* Actions */}

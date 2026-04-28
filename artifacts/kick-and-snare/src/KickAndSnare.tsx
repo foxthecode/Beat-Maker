@@ -1147,15 +1147,23 @@ export default function KickAndSnare(){
   // ── lastSeqView: tracks which sequencer view (sequencer|euclid) was most recently active ──
   const [lastSeqView,setLastSeqView]=useState<'sequencer'|'euclid'>('sequencer');
   useEffect(()=>{if(view==='sequencer'||view==='euclid')setLastSeqView(view as 'sequencer'|'euclid');},[view]);
-  // ── Per-pattern velocity: stVel ↔ pBank[cPat]._vel ──────────────────────────
-  // stVel is global; we sync it per-pattern so randomize/drag only affects cPat.
+  // ── Per-pattern state: stVel/stNudge/stProb/stRatch ↔ pBank[cPat]._vel/_nud/_prob/_rat ──
+  // Each of these states is per-pattern: saved into pBank on change, restored on cPat switch.
   const _velFromSwitch=useRef(false);
-  // When cPat changes, restore that pattern's saved velocity (if any)
+  const _nudFromSwitch=useRef(false);
+  const _probFromSwitch=useRef(false);
+  const _ratFromSwitch=useRef(false);
+
+  // When cPat changes, restore per-pattern states
   useEffect(()=>{
-    const saved=(R.pb[cPat] as any)?._vel;
-    if(saved&&Object.keys(saved).length>0){_velFromSwitch.current=true;setStVel({...saved});}
+    const pb=R.pb[cPat] as any;
+    if(pb?._vel&&Object.keys(pb._vel).length>0){_velFromSwitch.current=true;setStVel({...pb._vel});}
+    if(pb?._nud&&Object.keys(pb._nud).length>0){_nudFromSwitch.current=true;setStNudge({...pb._nud});}
+    if(pb?._prob&&Object.keys(pb._prob).length>0){_probFromSwitch.current=true;setStProb({...pb._prob});}
+    if(pb?._rat&&Object.keys(pb._rat).length>0){_ratFromSwitch.current=true;setStRatch({...pb._rat});}
   },[cPat]);
-  // When stVel changes, debounce-save to pBank[cPat]._vel (skip if from cPat switch)
+
+  // Debounce-save stVel → pBank[cPat]._vel
   const _velSaveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(()=>{
     if(_velFromSwitch.current){_velFromSwitch.current=false;return;}
@@ -1166,6 +1174,42 @@ export default function KickAndSnare(){
     },200);
     return()=>{if(_velSaveTimer.current)clearTimeout(_velSaveTimer.current);};
   },[stVel]);
+
+  // Debounce-save stNudge → pBank[cPat]._nud
+  const _nudSaveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>{
+    if(_nudFromSwitch.current){_nudFromSwitch.current=false;return;}
+    if(_nudSaveTimer.current)clearTimeout(_nudSaveTimer.current);
+    const snapPat=cPat;const snapNud=stNudge;
+    _nudSaveTimer.current=setTimeout(()=>{
+      setPBank(pb=>{const n=[...pb];n[snapPat]={...n[snapPat],_nud:{...snapNud}};return n;});
+    },200);
+    return()=>{if(_nudSaveTimer.current)clearTimeout(_nudSaveTimer.current);};
+  },[stNudge]);
+
+  // Debounce-save stProb → pBank[cPat]._prob
+  const _probSaveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>{
+    if(_probFromSwitch.current){_probFromSwitch.current=false;return;}
+    if(_probSaveTimer.current)clearTimeout(_probSaveTimer.current);
+    const snapPat=cPat;const snapProb=stProb;
+    _probSaveTimer.current=setTimeout(()=>{
+      setPBank(pb=>{const n=[...pb];n[snapPat]={...n[snapPat],_prob:{...snapProb}};return n;});
+    },200);
+    return()=>{if(_probSaveTimer.current)clearTimeout(_probSaveTimer.current);};
+  },[stProb]);
+
+  // Debounce-save stRatch → pBank[cPat]._rat
+  const _ratSaveTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>{
+    if(_ratFromSwitch.current){_ratFromSwitch.current=false;return;}
+    if(_ratSaveTimer.current)clearTimeout(_ratSaveTimer.current);
+    const snapPat=cPat;const snapRat=stRatch;
+    _ratSaveTimer.current=setTimeout(()=>{
+      setPBank(pb=>{const n=[...pb];n[snapPat]={...n[snapPat],_rat:{...snapRat}};return n;});
+    },200);
+    return()=>{if(_ratSaveTimer.current)clearTimeout(_ratSaveTimer.current);};
+  },[stRatch]);
   // ── velRange: min/max for random velocity ──
   const [velRange,setVelRange]=useState<{min:number,max:number}>({min:40,max:100});
   // ── H.3: recPadsVisible — kept for compat, no longer drives visibility ──
@@ -1894,16 +1938,22 @@ export default function KickAndSnare(){
   useEffect(()=>{schLoopRef.current=schLoop;},[schLoop]);
 
   // ── Project save/load ────────────────────────────────────────────────────────
-  const getProjectState=useCallback(():ProjectState=>({
-    pBank,stVel,stNudge,stProb,stRatch,
-    bpm,swing,tSig,grpIdx,cPat,
-    songRows,songMode,
-    kitIdx,activeKitId,smpN,
-    fx,gfx,fxChainOrder,fxSendPos,trackFx,
-    euclidParams,
-    muted:muted as Record<string,boolean>,
-    customTracks,act,
-  }),[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,grpIdx,cPat,
+  const getProjectState=useCallback(():ProjectState=>{
+    // Flush current pattern's per-pattern states into pBank snapshot synchronously
+    // (bypasses debounce timers so no data is lost if saved immediately after an edit)
+    const pb=[...pBank];
+    pb[cPat]={...pb[cPat],_vel:{...stVel},_nud:{...stNudge},_prob:{...stProb},_rat:{...stRatch}};
+    return{
+      pBank:pb,stVel,stNudge,stProb,stRatch,
+      bpm,swing,tSig,grpIdx,cPat,
+      songRows,songMode,
+      kitIdx,activeKitId,smpN,
+      fx,gfx,fxChainOrder,fxSendPos,trackFx,
+      euclidParams,
+      muted:muted as Record<string,boolean>,
+      customTracks,act,
+    };
+  },[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,grpIdx,cPat,
     songRows,songMode,kitIdx,activeKitId,smpN,fx,gfx,fxChainOrder,
     fxSendPos,trackFx,euclidParams,muted,customTracks,act]);
 
