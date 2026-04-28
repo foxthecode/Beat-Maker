@@ -1156,14 +1156,24 @@ export default function KickAndSnare(){
 
   const _euclidFromSwitch=useRef(false);
 
-  // When cPat changes, restore per-pattern states
+  // When cPat changes, restore per-pattern states (or reset to empty if not set for this pattern)
   useEffect(()=>{
     const pb=R.pb[cPat] as any;
-    if(pb?._vel&&Object.keys(pb._vel).length>0){_velFromSwitch.current=true;setStVel({...pb._vel});}
-    if(pb?._nud&&Object.keys(pb._nud).length>0){_nudFromSwitch.current=true;setStNudge({...pb._nud});}
-    if(pb?._prob&&Object.keys(pb._prob).length>0){_probFromSwitch.current=true;setStProb({...pb._prob});}
-    if(pb?._rat&&Object.keys(pb._rat).length>0){_ratFromSwitch.current=true;setStRatch({...pb._rat});}
-    if(pb?._euclid&&Object.keys(pb._euclid).length>0){_euclidFromSwitch.current=true;setEuclidParams({...pb._euclid});}
+    // velocity
+    _velFromSwitch.current=true;
+    setStVel(pb?._vel&&Object.keys(pb._vel).length>0?{...pb._vel}:{});
+    // nudge
+    _nudFromSwitch.current=true;
+    setStNudge(pb?._nud&&Object.keys(pb._nud).length>0?{...pb._nud}:{});
+    // probability
+    _probFromSwitch.current=true;
+    setStProb(pb?._prob&&Object.keys(pb._prob).length>0?{...pb._prob}:{});
+    // ratchet
+    _ratFromSwitch.current=true;
+    setStRatch(pb?._rat&&Object.keys(pb._rat).length>0?{...pb._rat}:{});
+    // euclid params — always reset so previous pattern's params never bleed into this one
+    _euclidFromSwitch.current=true;
+    setEuclidParams(pb?._euclid&&Object.keys(pb._euclid).length>0?{...pb._euclid}:{});
   },[cPat]);
 
   // Debounce-save stVel → pBank[cPat]._vel
