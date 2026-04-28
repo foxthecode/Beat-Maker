@@ -126,7 +126,7 @@ export default function SaveModal({theme:th,getState,onLoad,onClose}:SaveModalPr
                   onKeyDown={e=>{if(e.key==="Enter")handleSave(idx);if(e.key==="Escape"){setEditIdx(null);}}}
                   placeholder={`Project ${idx+1}`}
                   style={{flex:1,background:"transparent",border:`1px solid ${th.sBorder}`,borderRadius:6,
-                    color:th.fg,fontSize:10,fontWeight:700,fontFamily:"inherit",
+                    color:th.fg,fontSize:12,fontWeight:500,fontFamily:"system-ui,-apple-system,sans-serif",
                     padding:"4px 8px",outline:"none",minWidth:0}}
                 />
                 <button onClick={()=>handleSave(idx)} style={btn("#30D158")}>SAVE</button>
@@ -138,11 +138,11 @@ export default function SaveModal({theme:th,getState,onLoad,onClose}:SaveModalPr
                 <div style={{flex:1,minWidth:0}}>
                   {slot?(
                     <>
-                      <div style={{fontSize:10,fontWeight:800,color:th.fg,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{slot.name}</div>
-                      <div style={{fontSize:8,color:th.dim,marginTop:1}}>{fmtDate(slot.date)}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:th.fg,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontFamily:"system-ui,-apple-system,sans-serif"}}>{slot.name}</div>
+                      <div style={{fontSize:10,color:th.dim,marginTop:1,fontFamily:"system-ui,-apple-system,sans-serif"}}>{fmtDate(slot.date)}</div>
                     </>
                   ):(
-                    <div style={{fontSize:9,color:th.faint,fontStyle:"italic"}}>— empty slot —</div>
+                    <div style={{fontSize:10,color:th.faint,fontStyle:"italic",fontFamily:"system-ui,-apple-system,sans-serif"}}>— empty —</div>
                   )}
                 </div>
                 {/* Actions */}
@@ -160,7 +160,7 @@ export default function SaveModal({theme:th,getState,onLoad,onClose}:SaveModalPr
                     </>
                   )}
                   <button onClick={()=>handleSave(idx)} style={btn("#30D158")} title="Save current project here">
-                    {slot?"OW":"SAVE"}
+                    SAVE
                   </button>
                 </div>
               </div>

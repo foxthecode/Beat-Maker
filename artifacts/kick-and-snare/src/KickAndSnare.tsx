@@ -1896,14 +1896,14 @@ export default function KickAndSnare(){
   // ── Project save/load ────────────────────────────────────────────────────────
   const getProjectState=useCallback(():ProjectState=>({
     pBank,stVel,stNudge,stProb,stRatch,
-    bpm,swing,tSig,cPat,
+    bpm,swing,tSig,grpIdx,cPat,
     songRows,songMode,
     kitIdx,activeKitId,smpN,
     fx,gfx,fxChainOrder,fxSendPos,trackFx,
     euclidParams,
     muted:muted as Record<string,boolean>,
     customTracks,act,
-  }),[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,cPat,
+  }),[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,grpIdx,cPat,
     songRows,songMode,kitIdx,activeKitId,smpN,fx,gfx,fxChainOrder,
     fxSendPos,trackFx,euclidParams,muted,customTracks,act]);
 
@@ -1917,6 +1917,7 @@ export default function KickAndSnare(){
     if(typeof st.swing==='number')setSwing(st.swing);
     if(st.tSig)setTSig(st.tSig);
     if(typeof st.cPat==='number')setCPat(st.cPat);
+    if(typeof st.grpIdx==='number')setGrpIdx(st.grpIdx);
     if(Array.isArray(st.songRows))setSongRows(st.songRows);
     if(typeof st.songMode==='boolean')setSongMode(st.songMode);
     if(typeof st.kitIdx==='number')setKitIdx(st.kitIdx);

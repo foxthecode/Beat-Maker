@@ -9,7 +9,7 @@ export interface ProjectState{
   kitIdx:number;activeKitId:string|null;smpN:Record<string,string>;
   fx:Record<string,any>;gfx:any;fxChainOrder:string[];
   fxSendPos:Record<string,string>;trackFx:Record<string,any>;
-  euclidParams:Record<string,any>;muted:Record<string,boolean>;
+  euclidParams:Record<string,any>;grpIdx:number;muted:Record<string,boolean>;
   customTracks:any[];act:any;
 }
 export interface ProjectSlot{name:string;date:string;state:ProjectState;}
