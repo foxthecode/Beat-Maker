@@ -1964,18 +1964,30 @@ export default function KickAndSnare(){
 
   // ── Project save/load ────────────────────────────────────────────────────────
   const getProjectState=useCallback(():ProjectState=>{
-    // Flush all per-pattern states synchronously into pBank snapshot
-    // (bypasses all debounce timers — safe to call from any view/screen)
+    // ── 1. Flush all per-pattern states into active pBank synchronously ──────
     const pb=[...pBank];
-    pb[cPat]={
-      ...pb[cPat],
-      _vel:{...stVel},
-      _nud:{...stNudge},
-      _prob:{...stProb},
-      _rat:{...stRatch},
-      _euclid:{...euclidParams},
-    };
+    pb[cPat]={...pb[cPat],_vel:{...stVel},_nud:{...stNudge},_prob:{...stProb},_rat:{...stRatch},_euclid:{...euclidParams}};
+
+    // ── 2. Determine which snap owns the active pBank ────────────────────────
+    // The app keeps seq and euclid as separate pBanks (seqSnap / euclidSnap).
+    // We must capture BOTH so a save from any screen is complete.
+    const isPadsFromEuclid = view==='pads' && padSrcViewRef.current==='euclid';
+    const isEuclidActive   = view==='euclid' || isPadsFromEuclid;
+
+    // For the active view: use the freshly-flushed pb.
+    // For the inactive view: read its snap ref (already up-to-date — switchView keeps it in sync).
+    const seqPBankToSave    = isEuclidActive ? seqSnap.current.pBank    : pb;
+    const seqCPatToSave     = isEuclidActive ? seqSnap.current.cPat     : cPat;
+    const seqSongRowsToSave = isEuclidActive ? seqSnap.current.songRows : songRows;
+    const seqSongModeToSave = isEuclidActive ? seqSnap.current.songMode : songMode;
+
+    const euclidPBankToSave    = isEuclidActive ? pb                         : euclidSnap.current.pBank;
+    const euclidCPatToSave     = isEuclidActive ? cPat                       : euclidSnap.current.cPat;
+    const euclidSongRowsToSave = isEuclidActive ? songRows                   : euclidSnap.current.songRows;
+    const euclidSongModeToSave = isEuclidActive ? songMode                   : euclidSnap.current.songMode;
+
     return{
+      // Active-view fields (kept for backward compat)
       pBank:pb,stVel,stNudge,stProb,stRatch,
       bpm,swing,tSig,grpIdx,cPat,
       songRows,songMode,
@@ -1985,14 +1997,50 @@ export default function KickAndSnare(){
       muted:muted as Record<string,boolean>,
       customTracks,act,
       masterVol,velRange,speedMaster,
+      // Per-view pBank + arrangement
+      seqPBank:seqPBankToSave,    seqCPat:seqCPatToSave,
+      seqSongRows:seqSongRowsToSave, seqSongMode:seqSongModeToSave,
+      euclidPBank:euclidPBankToSave,    euclidCPat:euclidCPatToSave,
+      euclidSongRows:euclidSongRowsToSave, euclidSongMode:euclidSongModeToSave,
     };
   },[pBank,stVel,stNudge,stProb,stRatch,bpm,swing,tSig,grpIdx,cPat,
     songRows,songMode,kitIdx,activeKitId,smpN,fx,gfx,fxChainOrder,
     fxSendPos,trackFx,euclidParams,muted,customTracks,act,
-    masterVol,velRange,speedMaster]);
+    masterVol,velRange,speedMaster,view]);
 
   const loadProjectState=useCallback((st:ProjectState)=>{
-    if(Array.isArray(st.pBank))setPBank(st.pBank);
+    // ── 1. Reconstruct per-view pBanks (v2) or fall back to legacy pBank ──────
+    const seqPB   = Array.isArray(st.seqPBank)   ? st.seqPBank   : (Array.isArray(st.pBank)?st.pBank:[mkE(16)]);
+    const euclidPB= Array.isArray(st.euclidPBank) ? st.euclidPBank: (Array.isArray(st.pBank)?st.pBank:[mkE(16)]);
+    const seqCP   = typeof st.seqCPat==='number'   ? st.seqCPat   : (typeof st.cPat==='number'?st.cPat:0);
+    const euclidCP= typeof st.euclidCPat==='number' ? st.euclidCPat: (typeof st.cPat==='number'?st.cPat:0);
+    const seqSR   = Array.isArray(st.seqSongRows)   ? st.seqSongRows   : (Array.isArray(st.songRows)?st.songRows:[[...Array(16).fill(null)]]);
+    const euclidSR= Array.isArray(st.euclidSongRows) ? st.euclidSongRows: (Array.isArray(st.songRows)?st.songRows:[[...Array(16).fill(null)]]);
+    const seqSM   = typeof st.seqSongMode==='boolean'   ? st.seqSongMode   : (typeof st.songMode==='boolean'?st.songMode:false);
+    const euclidSM= typeof st.euclidSongMode==='boolean' ? st.euclidSongMode: (typeof st.songMode==='boolean'?st.songMode:false);
+
+    // ── 2. Restore both snap refs so view switches after load work correctly ──
+    seqSnap.current   ={pBank:seqPB,   cPat:seqCP,    songRows:seqSR,    songMode:seqSM};
+    euclidSnap.current={pBank:euclidPB, cPat:euclidCP, songRows:euclidSR, songMode:euclidSM};
+
+    // ── 3. Set the active pBank / cPat / arrangement for the current view ────
+    // R.uiView is set during render so it reflects the view the user is currently on.
+    const curView=R.uiView||'pads';
+    const isPadsFromEuclid=curView==='pads'&&padSrcViewRef.current==='euclid';
+    const isEuclidActive=curView==='euclid'||isPadsFromEuclid;
+
+    const activePB=isEuclidActive?euclidPB:seqPB;
+    const activeCP=isEuclidActive?euclidCP:seqCP;
+    const activeSR=isEuclidActive?euclidSR:seqSR;
+    const activeSM=isEuclidActive?euclidSM:seqSM;
+
+    setPBank(activePB);
+    R.pat=activePB[activeCP]??mkE(16);
+    setCPat(activeCP);
+    setSongRows(activeSR);
+    setSongMode(activeSM);
+
+    // ── 4. Restore global per-pattern display state ───────────────────────────
     if(st.stVel)setStVel(st.stVel);
     if(st.stNudge)setStNudge(st.stNudge);
     if(st.stProb)setStProb(st.stProb);
@@ -2000,10 +2048,7 @@ export default function KickAndSnare(){
     if(typeof st.bpm==='number')setBpm(st.bpm);
     if(typeof st.swing==='number')setSwing(st.swing);
     if(st.tSig)setTSig(st.tSig);
-    if(typeof st.cPat==='number')setCPat(st.cPat);
     if(typeof st.grpIdx==='number')setGrpIdx(st.grpIdx);
-    if(Array.isArray(st.songRows))setSongRows(st.songRows);
-    if(typeof st.songMode==='boolean')setSongMode(st.songMode);
     if(typeof st.kitIdx==='number')setKitIdx(st.kitIdx);
     if(st.activeKitId!==undefined)setActiveKitId(st.activeKitId);
     if(st.smpN)setSmpN(st.smpN);
@@ -2016,7 +2061,7 @@ export default function KickAndSnare(){
     if(st.muted)setMuted(st.muted);
     if(Array.isArray(st.customTracks))setCustomTracks(st.customTracks);
     if(st.act)setAct(st.act);
-    // v2 fields (optional — backward-compatible with old saves)
+    // v2 global fields
     if(typeof st.masterVol==='number'){
       setMasterVol(st.masterVol);
       if(engine.ctx&&engine.mg)engine.mg.gain.setTargetAtTime(st.masterVol/100,engine.ctx.currentTime,0.02);

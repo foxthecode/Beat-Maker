@@ -2,6 +2,7 @@ const STORAGE_KEY='ks_projects_v1';
 export const NUM_SLOTS=5;
 
 export interface ProjectState{
+  // Active-view state (kept for backward compat — equals whichever view was active at save)
   pBank:any[];stVel:Record<string,any>;stNudge:Record<string,any>;
   stProb:Record<string,any>;stRatch:Record<string,any>;
   bpm:number;swing:number;tSig:any;cPat:number;
@@ -11,8 +12,10 @@ export interface ProjectState{
   fxSendPos:Record<string,string>;trackFx:Record<string,any>;
   euclidParams:Record<string,any>;grpIdx:number;muted:Record<string,boolean>;
   customTracks:any[];act:any;
-  // v2 additions
+  // v2: per-view pBank + arrangement (seq and euclid are independent)
   masterVol?:number;velRange?:{min:number;max:number};speedMaster?:number;
+  seqPBank?:any[];seqCPat?:number;seqSongRows?:any[];seqSongMode?:boolean;
+  euclidPBank?:any[];euclidCPat?:number;euclidSongRows?:any[];euclidSongMode?:boolean;
 }
 export interface ProjectSlot{name:string;date:string;state:ProjectState;}
 
